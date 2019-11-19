@@ -1,0 +1,1 @@
+This subtree contains the various proto definitions used by Cloud Chamber.
