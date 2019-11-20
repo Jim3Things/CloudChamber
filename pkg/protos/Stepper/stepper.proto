@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package stepper;
+
+import "google/protobuf/empty.proto";
+
+service Stepper {
+    // Create a new simulated time context, at the latest known time.
+    rpc Create (google.protobuf.Empty) returns (CreateResponse) {}
+
+    // Create a new simulated time context, at the source's known time.
+    rpc Clone (CloneRequest) returns (CloneResponse);
+
+    // Release a simulated time context.  All future uses of it are invalid.
+    rpc Dispose (DisposeRequest) returns (google.protobuf.Empty);
+
+    // Delay the simulated time by a specified amount +/- an allowed variance.
+    // Do not return until that new time is current.
+    rpc Delay (DelayRequest) returns (DelayResponse);
+
+    // Delay until the point in time that is the later of two simulated times.
+    rpc SetToLatest (SetToLatestRequest) returns (SetToLatestResponse);
+
+    // Wait for all contexts to reach the supplied simulated time.  Return
+    // the current time when the wait occurred, which may be later than the
+    // requested sync time.
+    rpc WaitForSync (WaitForSyncRequest) returns (WaitForSyncResponse);
+}
+
+message SimulatedTime {
+    int64 ticks = 1;
+    int64 id = 2;
+}
+
+message CreateResponse {
+    SimulatedTime context = 1;
+}
+
+message CloneRequest {
+    SimulatedTime context = 1;
+}
+
+message CloneResponse {
+    SimulatedTime context = 1;
+}
+
+message DelayRequest {
+    SimulatedTime baseTime = 1;
+    int64 ticks = 2;
+    int64 variance = 3;
+}
+
+message DelayResponse {
+    SimulatedTime context = 1;
+}
+
+message DisposeRequest {
+    SimulatedTime context = 1;
+}
+
+message SetToLatestRequest {
+    SimulatedTime context1 = 1;
+    SimulatedTime context2 = 2;
+}
+
+message SetToLatestResponse {
+    SimulatedTime context = 1;
+}
+
+message WaitForSyncRequest {
+    SimulatedTime context = 1;
+}
+
+message WaitForSyncResponse {
+    SimulatedTime context = 1;
+}
