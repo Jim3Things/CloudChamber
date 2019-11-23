@@ -25,8 +25,13 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+// This represents a simulated time context that is managed by the stepper.
+// Each context is allowed to proceed somewhat independently, but is tracked
+// to allow for the overall system to synchronize when it is necessary.
 type SimulatedTime struct {
-	Ticks                int64    `protobuf:"varint,1,opt,name=ticks,proto3" json:"ticks,omitempty"`
+	// The current simulated time in ticks
+	Ticks int64 `protobuf:"varint,1,opt,name=ticks,proto3" json:"ticks,omitempty"`
+	// Identifies the specific context
 	Id                   int64    `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`

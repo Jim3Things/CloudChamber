@@ -27,10 +27,21 @@ service Stepper {
     rpc WaitForSync (WaitForSyncRequest) returns (WaitForSyncResponse);
 }
 
+// This represents a simulated time context that is managed by the stepper.
+// Each context is allowed to proceed somewhat independently, but is tracked
+// to allow for the overall system to synchronize when it is necessary.
 message SimulatedTime {
+
+    // The current simulated time in ticks
     int64 ticks = 1;
+
+    // Identifies the specific context
     int64 id = 2;
 }
+
+// The following messages are the encapsulations for the rpc calls above.
+// Even when there are currently only one field, they are encapsulated in
+// order to allow easier future expansion.
 
 message CreateResponse {
     SimulatedTime context = 1;
