@@ -7,6 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	proto "github.com/golang/protobuf/proto"
+	duration "github.com/golang/protobuf/ptypes/duration"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
 	codes "google.golang.org/grpc/codes"
@@ -25,189 +26,97 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
-// This represents a simulated time context that is managed by the stepper.
-// Each context is allowed to proceed somewhat independently, but is tracked
-// to allow for the overall system to synchronize when it is necessary.
-type SimulatedTime struct {
-	// The current simulated time in ticks
-	Ticks int64 `protobuf:"varint,1,opt,name=ticks,proto3" json:"ticks,omitempty"`
-	// Identifies the specific context
-	Id                   int64    `protobuf:"varint,2,opt,name=id,proto3" json:"id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+type StepperPolicy int32
+
+const (
+	StepperPolicy_Invalid  StepperPolicy = 0
+	StepperPolicy_NoWait   StepperPolicy = 1
+	StepperPolicy_Measured StepperPolicy = 2
+	StepperPolicy_Manual   StepperPolicy = 3
+)
+
+var StepperPolicy_name = map[int32]string{
+	0: "Invalid",
+	1: "NoWait",
+	2: "Measured",
+	3: "Manual",
 }
 
-func (m *SimulatedTime) Reset()         { *m = SimulatedTime{} }
-func (m *SimulatedTime) String() string { return proto.CompactTextString(m) }
-func (*SimulatedTime) ProtoMessage()    {}
-func (*SimulatedTime) Descriptor() ([]byte, []int) {
+var StepperPolicy_value = map[string]int32{
+	"Invalid":  0,
+	"NoWait":   1,
+	"Measured": 2,
+	"Manual":   3,
+}
+
+func (x StepperPolicy) String() string {
+	return proto.EnumName(StepperPolicy_name, int32(x))
+}
+
+func (StepperPolicy) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_a47a4dd6ded36602, []int{0}
 }
 
-func (m *SimulatedTime) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SimulatedTime.Unmarshal(m, b)
-}
-func (m *SimulatedTime) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SimulatedTime.Marshal(b, m, deterministic)
-}
-func (m *SimulatedTime) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SimulatedTime.Merge(m, src)
-}
-func (m *SimulatedTime) XXX_Size() int {
-	return xxx_messageInfo_SimulatedTime.Size(m)
-}
-func (m *SimulatedTime) XXX_DiscardUnknown() {
-	xxx_messageInfo_SimulatedTime.DiscardUnknown(m)
+type PolicyRequest struct {
+	Policy               StepperPolicy      `protobuf:"varint,1,opt,name=policy,proto3,enum=stepper.StepperPolicy" json:"policy,omitempty"`
+	MeasuredDelay        *duration.Duration `protobuf:"bytes,2,opt,name=measuredDelay,proto3" json:"measuredDelay,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
 }
 
-var xxx_messageInfo_SimulatedTime proto.InternalMessageInfo
+func (m *PolicyRequest) Reset()         { *m = PolicyRequest{} }
+func (m *PolicyRequest) String() string { return proto.CompactTextString(m) }
+func (*PolicyRequest) ProtoMessage()    {}
+func (*PolicyRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a47a4dd6ded36602, []int{0}
+}
 
-func (m *SimulatedTime) GetTicks() int64 {
+func (m *PolicyRequest) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_PolicyRequest.Unmarshal(m, b)
+}
+func (m *PolicyRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_PolicyRequest.Marshal(b, m, deterministic)
+}
+func (m *PolicyRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_PolicyRequest.Merge(m, src)
+}
+func (m *PolicyRequest) XXX_Size() int {
+	return xxx_messageInfo_PolicyRequest.Size(m)
+}
+func (m *PolicyRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_PolicyRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_PolicyRequest proto.InternalMessageInfo
+
+func (m *PolicyRequest) GetPolicy() StepperPolicy {
 	if m != nil {
-		return m.Ticks
+		return m.Policy
 	}
-	return 0
+	return StepperPolicy_Invalid
 }
 
-func (m *SimulatedTime) GetId() int64 {
+func (m *PolicyRequest) GetMeasuredDelay() *duration.Duration {
 	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-type CreateResponse struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *CreateResponse) Reset()         { *m = CreateResponse{} }
-func (m *CreateResponse) String() string { return proto.CompactTextString(m) }
-func (*CreateResponse) ProtoMessage()    {}
-func (*CreateResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{1}
-}
-
-func (m *CreateResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CreateResponse.Unmarshal(m, b)
-}
-func (m *CreateResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CreateResponse.Marshal(b, m, deterministic)
-}
-func (m *CreateResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CreateResponse.Merge(m, src)
-}
-func (m *CreateResponse) XXX_Size() int {
-	return xxx_messageInfo_CreateResponse.Size(m)
-}
-func (m *CreateResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CreateResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CreateResponse proto.InternalMessageInfo
-
-func (m *CreateResponse) GetContext() *SimulatedTime {
-	if m != nil {
-		return m.Context
-	}
-	return nil
-}
-
-type CloneRequest struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *CloneRequest) Reset()         { *m = CloneRequest{} }
-func (m *CloneRequest) String() string { return proto.CompactTextString(m) }
-func (*CloneRequest) ProtoMessage()    {}
-func (*CloneRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{2}
-}
-
-func (m *CloneRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CloneRequest.Unmarshal(m, b)
-}
-func (m *CloneRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CloneRequest.Marshal(b, m, deterministic)
-}
-func (m *CloneRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CloneRequest.Merge(m, src)
-}
-func (m *CloneRequest) XXX_Size() int {
-	return xxx_messageInfo_CloneRequest.Size(m)
-}
-func (m *CloneRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_CloneRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CloneRequest proto.InternalMessageInfo
-
-func (m *CloneRequest) GetContext() *SimulatedTime {
-	if m != nil {
-		return m.Context
-	}
-	return nil
-}
-
-type CloneResponse struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *CloneResponse) Reset()         { *m = CloneResponse{} }
-func (m *CloneResponse) String() string { return proto.CompactTextString(m) }
-func (*CloneResponse) ProtoMessage()    {}
-func (*CloneResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{3}
-}
-
-func (m *CloneResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_CloneResponse.Unmarshal(m, b)
-}
-func (m *CloneResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_CloneResponse.Marshal(b, m, deterministic)
-}
-func (m *CloneResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_CloneResponse.Merge(m, src)
-}
-func (m *CloneResponse) XXX_Size() int {
-	return xxx_messageInfo_CloneResponse.Size(m)
-}
-func (m *CloneResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_CloneResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_CloneResponse proto.InternalMessageInfo
-
-func (m *CloneResponse) GetContext() *SimulatedTime {
-	if m != nil {
-		return m.Context
+		return m.MeasuredDelay
 	}
 	return nil
 }
 
 type DelayRequest struct {
-	BaseTime             *SimulatedTime `protobuf:"bytes,1,opt,name=baseTime,proto3" json:"baseTime,omitempty"`
-	Ticks                int64          `protobuf:"varint,2,opt,name=ticks,proto3" json:"ticks,omitempty"`
-	Variance             int64          `protobuf:"varint,3,opt,name=variance,proto3" json:"variance,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	AtLeast              int64    `protobuf:"varint,1,opt,name=atLeast,proto3" json:"atLeast,omitempty"`
+	Jitter               int64    `protobuf:"varint,2,opt,name=jitter,proto3" json:"jitter,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *DelayRequest) Reset()         { *m = DelayRequest{} }
 func (m *DelayRequest) String() string { return proto.CompactTextString(m) }
 func (*DelayRequest) ProtoMessage()    {}
 func (*DelayRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{4}
+	return fileDescriptor_a47a4dd6ded36602, []int{1}
 }
 
 func (m *DelayRequest) XXX_Unmarshal(b []byte) error {
@@ -228,118 +137,33 @@ func (m *DelayRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_DelayRequest proto.InternalMessageInfo
 
-func (m *DelayRequest) GetBaseTime() *SimulatedTime {
+func (m *DelayRequest) GetAtLeast() int64 {
 	if m != nil {
-		return m.BaseTime
-	}
-	return nil
-}
-
-func (m *DelayRequest) GetTicks() int64 {
-	if m != nil {
-		return m.Ticks
+		return m.AtLeast
 	}
 	return 0
 }
 
-func (m *DelayRequest) GetVariance() int64 {
+func (m *DelayRequest) GetJitter() int64 {
 	if m != nil {
-		return m.Variance
+		return m.Jitter
 	}
 	return 0
-}
-
-type DelayResponse struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *DelayResponse) Reset()         { *m = DelayResponse{} }
-func (m *DelayResponse) String() string { return proto.CompactTextString(m) }
-func (*DelayResponse) ProtoMessage()    {}
-func (*DelayResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{5}
-}
-
-func (m *DelayResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DelayResponse.Unmarshal(m, b)
-}
-func (m *DelayResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DelayResponse.Marshal(b, m, deterministic)
-}
-func (m *DelayResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DelayResponse.Merge(m, src)
-}
-func (m *DelayResponse) XXX_Size() int {
-	return xxx_messageInfo_DelayResponse.Size(m)
-}
-func (m *DelayResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_DelayResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DelayResponse proto.InternalMessageInfo
-
-func (m *DelayResponse) GetContext() *SimulatedTime {
-	if m != nil {
-		return m.Context
-	}
-	return nil
-}
-
-type DisposeRequest struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *DisposeRequest) Reset()         { *m = DisposeRequest{} }
-func (m *DisposeRequest) String() string { return proto.CompactTextString(m) }
-func (*DisposeRequest) ProtoMessage()    {}
-func (*DisposeRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{6}
-}
-
-func (m *DisposeRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DisposeRequest.Unmarshal(m, b)
-}
-func (m *DisposeRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DisposeRequest.Marshal(b, m, deterministic)
-}
-func (m *DisposeRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DisposeRequest.Merge(m, src)
-}
-func (m *DisposeRequest) XXX_Size() int {
-	return xxx_messageInfo_DisposeRequest.Size(m)
-}
-func (m *DisposeRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_DisposeRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DisposeRequest proto.InternalMessageInfo
-
-func (m *DisposeRequest) GetContext() *SimulatedTime {
-	if m != nil {
-		return m.Context
-	}
-	return nil
 }
 
 type SetToLatestRequest struct {
-	Context1             *SimulatedTime `protobuf:"bytes,1,opt,name=context1,proto3" json:"context1,omitempty"`
-	Context2             *SimulatedTime `protobuf:"bytes,2,opt,name=context2,proto3" json:"context2,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	FirstTicks           int64    `protobuf:"varint,1,opt,name=firstTicks,proto3" json:"firstTicks,omitempty"`
+	SecondTicks          int64    `protobuf:"varint,2,opt,name=secondTicks,proto3" json:"secondTicks,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *SetToLatestRequest) Reset()         { *m = SetToLatestRequest{} }
 func (m *SetToLatestRequest) String() string { return proto.CompactTextString(m) }
 func (*SetToLatestRequest) ProtoMessage()    {}
 func (*SetToLatestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{7}
+	return fileDescriptor_a47a4dd6ded36602, []int{2}
 }
 
 func (m *SetToLatestRequest) XXX_Unmarshal(b []byte) error {
@@ -360,71 +184,32 @@ func (m *SetToLatestRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_SetToLatestRequest proto.InternalMessageInfo
 
-func (m *SetToLatestRequest) GetContext1() *SimulatedTime {
+func (m *SetToLatestRequest) GetFirstTicks() int64 {
 	if m != nil {
-		return m.Context1
+		return m.FirstTicks
 	}
-	return nil
+	return 0
 }
 
-func (m *SetToLatestRequest) GetContext2() *SimulatedTime {
+func (m *SetToLatestRequest) GetSecondTicks() int64 {
 	if m != nil {
-		return m.Context2
+		return m.SecondTicks
 	}
-	return nil
-}
-
-type SetToLatestResponse struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *SetToLatestResponse) Reset()         { *m = SetToLatestResponse{} }
-func (m *SetToLatestResponse) String() string { return proto.CompactTextString(m) }
-func (*SetToLatestResponse) ProtoMessage()    {}
-func (*SetToLatestResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{8}
-}
-
-func (m *SetToLatestResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SetToLatestResponse.Unmarshal(m, b)
-}
-func (m *SetToLatestResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SetToLatestResponse.Marshal(b, m, deterministic)
-}
-func (m *SetToLatestResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SetToLatestResponse.Merge(m, src)
-}
-func (m *SetToLatestResponse) XXX_Size() int {
-	return xxx_messageInfo_SetToLatestResponse.Size(m)
-}
-func (m *SetToLatestResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_SetToLatestResponse.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SetToLatestResponse proto.InternalMessageInfo
-
-func (m *SetToLatestResponse) GetContext() *SimulatedTime {
-	if m != nil {
-		return m.Context
-	}
-	return nil
+	return 0
 }
 
 type WaitForSyncRequest struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+	AtLeast              int64    `protobuf:"varint,1,opt,name=atLeast,proto3" json:"atLeast,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
 func (m *WaitForSyncRequest) Reset()         { *m = WaitForSyncRequest{} }
 func (m *WaitForSyncRequest) String() string { return proto.CompactTextString(m) }
 func (*WaitForSyncRequest) ProtoMessage()    {}
 func (*WaitForSyncRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{9}
+	return fileDescriptor_a47a4dd6ded36602, []int{3}
 }
 
 func (m *WaitForSyncRequest) XXX_Unmarshal(b []byte) error {
@@ -445,96 +230,92 @@ func (m *WaitForSyncRequest) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_WaitForSyncRequest proto.InternalMessageInfo
 
-func (m *WaitForSyncRequest) GetContext() *SimulatedTime {
+func (m *WaitForSyncRequest) GetAtLeast() int64 {
 	if m != nil {
-		return m.Context
+		return m.AtLeast
 	}
-	return nil
+	return 0
 }
 
-type WaitForSyncResponse struct {
-	Context              *SimulatedTime `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+type TimeResponse struct {
+	Current              int64    `protobuf:"varint,1,opt,name=current,proto3" json:"current,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
 }
 
-func (m *WaitForSyncResponse) Reset()         { *m = WaitForSyncResponse{} }
-func (m *WaitForSyncResponse) String() string { return proto.CompactTextString(m) }
-func (*WaitForSyncResponse) ProtoMessage()    {}
-func (*WaitForSyncResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{10}
+func (m *TimeResponse) Reset()         { *m = TimeResponse{} }
+func (m *TimeResponse) String() string { return proto.CompactTextString(m) }
+func (*TimeResponse) ProtoMessage()    {}
+func (*TimeResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_a47a4dd6ded36602, []int{4}
 }
 
-func (m *WaitForSyncResponse) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_WaitForSyncResponse.Unmarshal(m, b)
+func (m *TimeResponse) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_TimeResponse.Unmarshal(m, b)
 }
-func (m *WaitForSyncResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_WaitForSyncResponse.Marshal(b, m, deterministic)
+func (m *TimeResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_TimeResponse.Marshal(b, m, deterministic)
 }
-func (m *WaitForSyncResponse) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_WaitForSyncResponse.Merge(m, src)
+func (m *TimeResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_TimeResponse.Merge(m, src)
 }
-func (m *WaitForSyncResponse) XXX_Size() int {
-	return xxx_messageInfo_WaitForSyncResponse.Size(m)
+func (m *TimeResponse) XXX_Size() int {
+	return xxx_messageInfo_TimeResponse.Size(m)
 }
-func (m *WaitForSyncResponse) XXX_DiscardUnknown() {
-	xxx_messageInfo_WaitForSyncResponse.DiscardUnknown(m)
+func (m *TimeResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_TimeResponse.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_WaitForSyncResponse proto.InternalMessageInfo
+var xxx_messageInfo_TimeResponse proto.InternalMessageInfo
 
-func (m *WaitForSyncResponse) GetContext() *SimulatedTime {
+func (m *TimeResponse) GetCurrent() int64 {
 	if m != nil {
-		return m.Context
+		return m.Current
 	}
-	return nil
+	return 0
 }
 
 func init() {
-	proto.RegisterType((*SimulatedTime)(nil), "stepper.SimulatedTime")
-	proto.RegisterType((*CreateResponse)(nil), "stepper.CreateResponse")
-	proto.RegisterType((*CloneRequest)(nil), "stepper.CloneRequest")
-	proto.RegisterType((*CloneResponse)(nil), "stepper.CloneResponse")
+	proto.RegisterEnum("stepper.StepperPolicy", StepperPolicy_name, StepperPolicy_value)
+	proto.RegisterType((*PolicyRequest)(nil), "stepper.PolicyRequest")
 	proto.RegisterType((*DelayRequest)(nil), "stepper.DelayRequest")
-	proto.RegisterType((*DelayResponse)(nil), "stepper.DelayResponse")
-	proto.RegisterType((*DisposeRequest)(nil), "stepper.DisposeRequest")
 	proto.RegisterType((*SetToLatestRequest)(nil), "stepper.SetToLatestRequest")
-	proto.RegisterType((*SetToLatestResponse)(nil), "stepper.SetToLatestResponse")
 	proto.RegisterType((*WaitForSyncRequest)(nil), "stepper.WaitForSyncRequest")
-	proto.RegisterType((*WaitForSyncResponse)(nil), "stepper.WaitForSyncResponse")
+	proto.RegisterType((*TimeResponse)(nil), "stepper.TimeResponse")
 }
 
 func init() { proto.RegisterFile("Stepper/stepper.proto", fileDescriptor_a47a4dd6ded36602) }
 
 var fileDescriptor_a47a4dd6ded36602 = []byte{
-	// 415 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xa4, 0x53, 0x4d, 0xaf, 0xd2, 0x40,
-	0x14, 0x95, 0x12, 0x28, 0xb9, 0x7c, 0x2c, 0x06, 0x41, 0x52, 0x5c, 0x98, 0xae, 0x5c, 0x15, 0xad,
-	0xd1, 0x85, 0x6e, 0x14, 0x10, 0x5c, 0xb8, 0x6a, 0x49, 0x5c, 0x0f, 0xe5, 0x4a, 0x26, 0x96, 0x4e,
-	0xed, 0x0c, 0x46, 0x92, 0xb7, 0x7e, 0xbf, 0xfb, 0xa5, 0xd3, 0x96, 0x4e, 0x1f, 0xbc, 0x90, 0xf4,
-	0xad, 0x9a, 0x99, 0x39, 0xf7, 0xdc, 0xd3, 0x73, 0xef, 0x81, 0x91, 0x2f, 0x31, 0x8e, 0x31, 0x99,
-	0x89, 0xec, 0xeb, 0xc4, 0x09, 0x97, 0x9c, 0x98, 0xf9, 0xd1, 0x9a, 0xee, 0x39, 0xdf, 0x87, 0x38,
-	0x53, 0xd7, 0xdb, 0xe3, 0xef, 0x19, 0x1e, 0x62, 0x79, 0xca, 0x50, 0xf6, 0x47, 0xe8, 0xfb, 0xec,
-	0x70, 0x0c, 0xa9, 0xc4, 0xdd, 0x86, 0x1d, 0x90, 0xbc, 0x84, 0x96, 0x64, 0xc1, 0x1f, 0x31, 0x69,
-	0xbc, 0x69, 0xbc, 0x6d, 0x7a, 0xd9, 0x81, 0x0c, 0xc0, 0x60, 0xbb, 0x89, 0xa1, 0xae, 0x0c, 0xb6,
-	0xb3, 0xe7, 0x30, 0x58, 0x24, 0x48, 0x25, 0x7a, 0x28, 0x62, 0x1e, 0x09, 0x24, 0xef, 0xc0, 0x0c,
-	0x78, 0x24, 0xf1, 0xbf, 0x54, 0x95, 0x5d, 0x77, 0xec, 0x14, 0x7a, 0x2a, 0x0d, 0xbc, 0x02, 0x66,
-	0x7f, 0x85, 0xde, 0x22, 0xe4, 0x11, 0x7a, 0xf8, 0xf7, 0x88, 0x42, 0xd6, 0x60, 0xf8, 0x06, 0xfd,
-	0x9c, 0xa1, 0xb6, 0x08, 0x09, 0xbd, 0x25, 0x86, 0xf4, 0x54, 0x88, 0x70, 0xa1, 0xb3, 0xa5, 0x02,
-	0x53, 0xd0, 0x0d, 0x8a, 0x33, 0xae, 0xb4, 0xcc, 0xd0, 0x2d, 0xb3, 0xa0, 0xf3, 0x8f, 0x26, 0x8c,
-	0x46, 0x01, 0x4e, 0x9a, 0xea, 0xe1, 0x7c, 0x4e, 0x85, 0xe7, 0x5d, 0x6b, 0x0b, 0x9f, 0xc3, 0x60,
-	0xc9, 0x44, 0xcc, 0xc5, 0x33, 0xfc, 0xbb, 0x03, 0xe2, 0xa3, 0xdc, 0xf0, 0x9f, 0x54, 0xa2, 0x90,
-	0x9a, 0x05, 0x39, 0xe0, 0xfd, 0x2d, 0x0b, 0x0a, 0x9c, 0x56, 0xe3, 0x2a, 0x17, 0x6e, 0xd7, 0xb8,
-	0xf6, 0x1a, 0x86, 0x95, 0xee, 0xb5, 0xad, 0x58, 0x01, 0xf9, 0x45, 0x99, 0x5c, 0xf1, 0xc4, 0x3f,
-	0x45, 0x41, 0x7d, 0x3b, 0xd6, 0x30, 0xac, 0xf0, 0xd4, 0x15, 0xe4, 0xde, 0x37, 0xc1, 0xcc, 0x43,
-	0x49, 0xbe, 0x40, 0x3b, 0x4b, 0x0a, 0x19, 0x3b, 0x59, 0x10, 0x9d, 0x22, 0x88, 0xce, 0xf7, 0x34,
-	0x88, 0xd6, 0xab, 0x33, 0x5d, 0x35, 0x52, 0xf6, 0x0b, 0xf2, 0x09, 0x5a, 0x6a, 0xc1, 0xc9, 0xa8,
-	0xc4, 0x68, 0x91, 0xb1, 0xc6, 0x8f, 0xaf, 0x73, 0xc9, 0x9f, 0xc1, 0xcc, 0x97, 0x83, 0x94, 0xec,
-	0xd5, 0x75, 0xb1, 0x9e, 0x90, 0x93, 0xf6, 0x54, 0xbb, 0xa9, 0xf5, 0xd4, 0x13, 0xa2, 0xf5, 0xac,
-	0xae, 0xf0, 0x0f, 0xe8, 0x6a, 0xe3, 0x24, 0xd3, 0xd2, 0xa4, 0x8b, 0x15, 0xb3, 0x5e, 0x5f, 0x7f,
-	0x2c, 0x99, 0xb4, 0x39, 0x68, 0x4c, 0x97, 0x53, 0xd6, 0x98, 0xae, 0x8c, 0x6e, 0xdb, 0x56, 0xff,
-	0xf6, 0xe1, 0x21, 0x00, 0x00, 0xff, 0xff, 0xcb, 0x05, 0xfc, 0x4c, 0x23, 0x05, 0x00, 0x00,
+	// 417 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x52, 0xcf, 0xcf, 0x93, 0x40,
+	0x10, 0x95, 0xa2, 0xa0, 0x43, 0x6b, 0xc8, 0x26, 0x5f, 0x53, 0xfb, 0x25, 0x5f, 0x1a, 0x4e, 0x8d,
+	0x07, 0x9a, 0xd4, 0x1f, 0x17, 0x0f, 0xfe, 0x48, 0x35, 0x31, 0x69, 0x1b, 0x03, 0x8d, 0x9e, 0xb7,
+	0x30, 0x6d, 0x56, 0x29, 0x8b, 0xbb, 0x8b, 0x86, 0x9b, 0xff, 0xb2, 0xff, 0x81, 0x01, 0x96, 0x16,
+	0x6c, 0xd0, 0x53, 0x3b, 0x33, 0x6f, 0xde, 0x7b, 0xcc, 0x5b, 0xb8, 0x09, 0x15, 0x66, 0x19, 0x8a,
+	0x85, 0xac, 0x7f, 0xfd, 0x4c, 0x70, 0xc5, 0x89, 0xad, 0xcb, 0xe9, 0xed, 0x91, 0xf3, 0x63, 0x82,
+	0x8b, 0xaa, 0xbd, 0xcf, 0x0f, 0x0b, 0x3c, 0x65, 0xaa, 0xa8, 0x51, 0xd3, 0xbb, 0xbf, 0x87, 0x71,
+	0x2e, 0xa8, 0x62, 0x3c, 0xad, 0xe7, 0xde, 0x2f, 0x03, 0x46, 0x9f, 0x78, 0xc2, 0xa2, 0x22, 0xc0,
+	0xef, 0x39, 0x4a, 0x45, 0x7c, 0xb0, 0xb2, 0xaa, 0x31, 0x31, 0x66, 0xc6, 0xfc, 0xf1, 0x72, 0xec,
+	0x37, 0xba, 0xda, 0x87, 0x86, 0x6b, 0x14, 0x79, 0x0d, 0xa3, 0x13, 0x52, 0x99, 0x0b, 0x8c, 0x57,
+	0x98, 0xd0, 0x62, 0x32, 0x98, 0x19, 0x73, 0x67, 0xf9, 0xc4, 0xaf, 0x95, 0xfd, 0x46, 0xd9, 0x5f,
+	0x69, 0xe5, 0xa0, 0x8b, 0xf7, 0xde, 0xc0, 0xb0, 0xfa, 0xd3, 0x18, 0x98, 0x80, 0x4d, 0xd5, 0x1a,
+	0xa9, 0x54, 0x95, 0x03, 0x33, 0x68, 0x4a, 0x32, 0x06, 0xeb, 0x2b, 0x53, 0x0a, 0x45, 0xa5, 0x61,
+	0x06, 0xba, 0xf2, 0x3e, 0x03, 0x09, 0x51, 0xed, 0xf8, 0x9a, 0x2a, 0x94, 0xaa, 0xe1, 0xb9, 0x03,
+	0x38, 0x30, 0x21, 0xd5, 0x8e, 0x45, 0xdf, 0xa4, 0xa6, 0x6a, 0x75, 0xc8, 0x0c, 0x1c, 0x89, 0x11,
+	0x4f, 0xe3, 0x1a, 0x50, 0x53, 0xb6, 0x5b, 0x9e, 0x0f, 0xe4, 0x0b, 0x65, 0xea, 0x03, 0x17, 0x61,
+	0x91, 0x46, 0xff, 0xf5, 0xe7, 0xcd, 0x61, 0xb8, 0x63, 0x27, 0x0c, 0x50, 0x66, 0x3c, 0x95, 0x58,
+	0x22, 0xa3, 0x5c, 0x08, 0x4c, 0xcf, 0x48, 0x5d, 0x3e, 0x7d, 0x07, 0xa3, 0xce, 0x35, 0x89, 0x03,
+	0xf6, 0xc7, 0xf4, 0x07, 0x4d, 0x58, 0xec, 0xde, 0x23, 0x00, 0xd6, 0x96, 0x97, 0xca, 0xae, 0x41,
+	0x86, 0xf0, 0x70, 0xa3, 0xcf, 0xe5, 0x0e, 0xca, 0xc9, 0x86, 0xa6, 0x39, 0x4d, 0x5c, 0x73, 0xf9,
+	0x7b, 0x00, 0xb6, 0x26, 0x21, 0xaf, 0xe0, 0x51, 0x88, 0x4a, 0x73, 0x5d, 0x12, 0xeb, 0x24, 0x3b,
+	0x1d, 0x5f, 0x45, 0xf2, 0xbe, 0x7c, 0x29, 0xe4, 0x25, 0xdc, 0x2f, 0x79, 0x48, 0xcf, 0xbc, 0x77,
+	0xef, 0x39, 0x98, 0x5b, 0xfe, 0xb3, 0x77, 0xed, 0xe6, 0x6c, 0xa3, 0x73, 0x94, 0x17, 0xf0, 0xa0,
+	0x8a, 0x9b, 0x5c, 0xe6, 0xed, 0xf8, 0xfb, 0xd6, 0xde, 0x82, 0xd3, 0xca, 0x98, 0xdc, 0x5e, 0x5e,
+	0xe5, 0x55, 0xf2, 0xff, 0xa0, 0x68, 0xc5, 0xd9, 0xa2, 0xb8, 0x0e, 0xb9, 0x87, 0x62, 0x6f, 0x55,
+	0xdf, 0xf8, 0xec, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xb9, 0x8b, 0xd0, 0xc1, 0x94, 0x03, 0x00,
+	0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -549,21 +330,23 @@ const _ = grpc.SupportPackageIsVersion4
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
 type StepperClient interface {
-	// Create a new simulated time context, at the latest known time.
-	Create(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CreateResponse, error)
-	// Create a new simulated time context, at the source's known time.
-	Clone(ctx context.Context, in *CloneRequest, opts ...grpc.CallOption) (*CloneResponse, error)
-	// Release a simulated time context.  All future uses of it are invalid.
-	Dispose(ctx context.Context, in *DisposeRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	// Set the stepper's policy governing the rate and conditions
+	// for the simulated time to move forward.
+	SetPolicy(ctx context.Context, in *PolicyRequest, opts ...grpc.CallOption) (*empty.Empty, error)
+	// When the stepper policy is for manual single-stepping, this
+	// function forces a single step forward in simulated time.
+	Step(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*empty.Empty, error)
+	// Get the current simulated time.
+	Now(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*TimeResponse, error)
 	// Delay the simulated time by a specified amount +/- an allowed variance.
 	// Do not return until that new time is current.
-	Delay(ctx context.Context, in *DelayRequest, opts ...grpc.CallOption) (*DelayResponse, error)
+	Delay(ctx context.Context, in *DelayRequest, opts ...grpc.CallOption) (*TimeResponse, error)
 	// Delay until the point in time that is the later of two simulated times.
-	SetToLatest(ctx context.Context, in *SetToLatestRequest, opts ...grpc.CallOption) (*SetToLatestResponse, error)
+	SetToLatest(ctx context.Context, in *SetToLatestRequest, opts ...grpc.CallOption) (*TimeResponse, error)
 	// Wait for all contexts to reach the supplied simulated time.  Return
 	// the current time when the wait occurred, which may be later than the
 	// requested sync time.
-	WaitForSync(ctx context.Context, in *WaitForSyncRequest, opts ...grpc.CallOption) (*WaitForSyncResponse, error)
+	WaitForSync(ctx context.Context, in *WaitForSyncRequest, opts ...grpc.CallOption) (*TimeResponse, error)
 }
 
 type stepperClient struct {
@@ -574,35 +357,35 @@ func NewStepperClient(cc *grpc.ClientConn) StepperClient {
 	return &stepperClient{cc}
 }
 
-func (c *stepperClient) Create(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*CreateResponse, error) {
-	out := new(CreateResponse)
-	err := c.cc.Invoke(ctx, "/stepper.Stepper/Create", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *stepperClient) Clone(ctx context.Context, in *CloneRequest, opts ...grpc.CallOption) (*CloneResponse, error) {
-	out := new(CloneResponse)
-	err := c.cc.Invoke(ctx, "/stepper.Stepper/Clone", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *stepperClient) Dispose(ctx context.Context, in *DisposeRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
+func (c *stepperClient) SetPolicy(ctx context.Context, in *PolicyRequest, opts ...grpc.CallOption) (*empty.Empty, error) {
 	out := new(empty.Empty)
-	err := c.cc.Invoke(ctx, "/stepper.Stepper/Dispose", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/stepper.Stepper/SetPolicy", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *stepperClient) Delay(ctx context.Context, in *DelayRequest, opts ...grpc.CallOption) (*DelayResponse, error) {
-	out := new(DelayResponse)
+func (c *stepperClient) Step(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*empty.Empty, error) {
+	out := new(empty.Empty)
+	err := c.cc.Invoke(ctx, "/stepper.Stepper/Step", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stepperClient) Now(ctx context.Context, in *empty.Empty, opts ...grpc.CallOption) (*TimeResponse, error) {
+	out := new(TimeResponse)
+	err := c.cc.Invoke(ctx, "/stepper.Stepper/Now", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *stepperClient) Delay(ctx context.Context, in *DelayRequest, opts ...grpc.CallOption) (*TimeResponse, error) {
+	out := new(TimeResponse)
 	err := c.cc.Invoke(ctx, "/stepper.Stepper/Delay", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -610,8 +393,8 @@ func (c *stepperClient) Delay(ctx context.Context, in *DelayRequest, opts ...grp
 	return out, nil
 }
 
-func (c *stepperClient) SetToLatest(ctx context.Context, in *SetToLatestRequest, opts ...grpc.CallOption) (*SetToLatestResponse, error) {
-	out := new(SetToLatestResponse)
+func (c *stepperClient) SetToLatest(ctx context.Context, in *SetToLatestRequest, opts ...grpc.CallOption) (*TimeResponse, error) {
+	out := new(TimeResponse)
 	err := c.cc.Invoke(ctx, "/stepper.Stepper/SetToLatest", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -619,8 +402,8 @@ func (c *stepperClient) SetToLatest(ctx context.Context, in *SetToLatestRequest,
 	return out, nil
 }
 
-func (c *stepperClient) WaitForSync(ctx context.Context, in *WaitForSyncRequest, opts ...grpc.CallOption) (*WaitForSyncResponse, error) {
-	out := new(WaitForSyncResponse)
+func (c *stepperClient) WaitForSync(ctx context.Context, in *WaitForSyncRequest, opts ...grpc.CallOption) (*TimeResponse, error) {
+	out := new(TimeResponse)
 	err := c.cc.Invoke(ctx, "/stepper.Stepper/WaitForSync", in, out, opts...)
 	if err != nil {
 		return nil, err
@@ -630,43 +413,45 @@ func (c *stepperClient) WaitForSync(ctx context.Context, in *WaitForSyncRequest,
 
 // StepperServer is the server API for Stepper service.
 type StepperServer interface {
-	// Create a new simulated time context, at the latest known time.
-	Create(context.Context, *empty.Empty) (*CreateResponse, error)
-	// Create a new simulated time context, at the source's known time.
-	Clone(context.Context, *CloneRequest) (*CloneResponse, error)
-	// Release a simulated time context.  All future uses of it are invalid.
-	Dispose(context.Context, *DisposeRequest) (*empty.Empty, error)
+	// Set the stepper's policy governing the rate and conditions
+	// for the simulated time to move forward.
+	SetPolicy(context.Context, *PolicyRequest) (*empty.Empty, error)
+	// When the stepper policy is for manual single-stepping, this
+	// function forces a single step forward in simulated time.
+	Step(context.Context, *empty.Empty) (*empty.Empty, error)
+	// Get the current simulated time.
+	Now(context.Context, *empty.Empty) (*TimeResponse, error)
 	// Delay the simulated time by a specified amount +/- an allowed variance.
 	// Do not return until that new time is current.
-	Delay(context.Context, *DelayRequest) (*DelayResponse, error)
+	Delay(context.Context, *DelayRequest) (*TimeResponse, error)
 	// Delay until the point in time that is the later of two simulated times.
-	SetToLatest(context.Context, *SetToLatestRequest) (*SetToLatestResponse, error)
+	SetToLatest(context.Context, *SetToLatestRequest) (*TimeResponse, error)
 	// Wait for all contexts to reach the supplied simulated time.  Return
 	// the current time when the wait occurred, which may be later than the
 	// requested sync time.
-	WaitForSync(context.Context, *WaitForSyncRequest) (*WaitForSyncResponse, error)
+	WaitForSync(context.Context, *WaitForSyncRequest) (*TimeResponse, error)
 }
 
 // UnimplementedStepperServer can be embedded to have forward compatible implementations.
 type UnimplementedStepperServer struct {
 }
 
-func (*UnimplementedStepperServer) Create(ctx context.Context, req *empty.Empty) (*CreateResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Create not implemented")
+func (*UnimplementedStepperServer) SetPolicy(ctx context.Context, req *PolicyRequest) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetPolicy not implemented")
 }
-func (*UnimplementedStepperServer) Clone(ctx context.Context, req *CloneRequest) (*CloneResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Clone not implemented")
+func (*UnimplementedStepperServer) Step(ctx context.Context, req *empty.Empty) (*empty.Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Step not implemented")
 }
-func (*UnimplementedStepperServer) Dispose(ctx context.Context, req *DisposeRequest) (*empty.Empty, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Dispose not implemented")
+func (*UnimplementedStepperServer) Now(ctx context.Context, req *empty.Empty) (*TimeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Now not implemented")
 }
-func (*UnimplementedStepperServer) Delay(ctx context.Context, req *DelayRequest) (*DelayResponse, error) {
+func (*UnimplementedStepperServer) Delay(ctx context.Context, req *DelayRequest) (*TimeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delay not implemented")
 }
-func (*UnimplementedStepperServer) SetToLatest(ctx context.Context, req *SetToLatestRequest) (*SetToLatestResponse, error) {
+func (*UnimplementedStepperServer) SetToLatest(ctx context.Context, req *SetToLatestRequest) (*TimeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SetToLatest not implemented")
 }
-func (*UnimplementedStepperServer) WaitForSync(ctx context.Context, req *WaitForSyncRequest) (*WaitForSyncResponse, error) {
+func (*UnimplementedStepperServer) WaitForSync(ctx context.Context, req *WaitForSyncRequest) (*TimeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method WaitForSync not implemented")
 }
 
@@ -674,56 +459,56 @@ func RegisterStepperServer(s *grpc.Server, srv StepperServer) {
 	s.RegisterService(&_Stepper_serviceDesc, srv)
 }
 
-func _Stepper_Create_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _Stepper_SetPolicy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PolicyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StepperServer).SetPolicy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/stepper.Stepper/SetPolicy",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StepperServer).SetPolicy(ctx, req.(*PolicyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Stepper_Step_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StepperServer).Create(ctx, in)
+		return srv.(StepperServer).Step(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/stepper.Stepper/Create",
+		FullMethod: "/stepper.Stepper/Step",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StepperServer).Create(ctx, req.(*empty.Empty))
+		return srv.(StepperServer).Step(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Stepper_Clone_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CloneRequest)
+func _Stepper_Now_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(empty.Empty)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(StepperServer).Clone(ctx, in)
+		return srv.(StepperServer).Now(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/stepper.Stepper/Clone",
+		FullMethod: "/stepper.Stepper/Now",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StepperServer).Clone(ctx, req.(*CloneRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Stepper_Dispose_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DisposeRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(StepperServer).Dispose(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/stepper.Stepper/Dispose",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StepperServer).Dispose(ctx, req.(*DisposeRequest))
+		return srv.(StepperServer).Now(ctx, req.(*empty.Empty))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -787,16 +572,16 @@ var _Stepper_serviceDesc = grpc.ServiceDesc{
 	HandlerType: (*StepperServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Create",
-			Handler:    _Stepper_Create_Handler,
+			MethodName: "SetPolicy",
+			Handler:    _Stepper_SetPolicy_Handler,
 		},
 		{
-			MethodName: "Clone",
-			Handler:    _Stepper_Clone_Handler,
+			MethodName: "Step",
+			Handler:    _Stepper_Step_Handler,
 		},
 		{
-			MethodName: "Dispose",
-			Handler:    _Stepper_Dispose_Handler,
+			MethodName: "Now",
+			Handler:    _Stepper_Now_Handler,
 		},
 		{
 			MethodName: "Delay",
