@@ -34,12 +34,12 @@ func waitUntil(atLeast int64) {
 			syncLock.Lock()
 			defer syncLock.Unlock()
 
-			if policy == pb.StepperPolicy_NoWait {
-				if atLeast > latest {
+			if atLeast > latest {
+				if policy == pb.StepperPolicy_NoWait {
 					latest = atLeast
+				} else {
+					broadcast.Wait()
 				}
-			} else {
-				broadcast.Wait()
 			}
 		}()
 	}
