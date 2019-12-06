@@ -1,3 +1,6 @@
+// This module contains the implementation for the simulated time management
+// features embodied in the stepper service.
+
 package stepper
 
 import (
@@ -10,25 +13,34 @@ import (
 
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
 
 	pb "../../pkg/protos/Stepper"
-
-	"google.golang.org/grpc"
 )
 
-var policy = pb.StepperPolicy_Invalid
-var delay duration.Duration
+var policy		= pb.StepperPolicy_Invalid	// Active stepper policy
+var delay 		duration.Duration			// Time between ticks, iff Measured policy
 
-var syncLock sync.Mutex
-var broadcast *sync.Cond
+var syncLock 	sync.Mutex					// Access lock for current simulated time
+var broadcast 	*sync.Cond					// Broadcast channel for time change notification
 
-var latest int64 = 0
+var latest 		int64 = 0					// Current simulated time
 
+// Define the skeleton grpc server
 type server struct {
 	pb.UnimplementedStepperServer
 }
 
+// Register this with grpc as the stepper service.
+func Register(s *grpc.Server) {
+	pb.RegisterStepperServer(s, &server{})
+}
+
+// Wait until the local simulated time is at least as late as the supplied
+// target time.  This routine handles all the waiting variances from the
+// different policies
 func waitUntil(atLeast int64) {
+
 	for atLeast > latest {
 		func() {
 			syncLock.Lock()
@@ -45,6 +57,12 @@ func waitUntil(atLeast int64) {
 	}
 }
 
+// When in the 'Measured' policy, this routine waits the required
+// amount of time and then automatically executes a 'step'.
+//
+// Note that it checks the current policy in case it changed.  That is not
+// expected to happen in normal use, but does in several unit tests.  This
+// check allows those tests to run in a single combined test suite.
 func autoStep() {
 	time.Sleep(time.Duration(delay.Seconds) * time.Second)
 	for policy == pb.StepperPolicy_Measured {
@@ -68,7 +86,12 @@ func Reset() {
 	latest = 0
 }
 
-func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
+// The remaining methods are the implementations for the stepper protocol grpc
+// class.  See ../../pkg/stepper.proto for the interface details.
+
+// Set the stepper's policy governing the rate and conditions for the simulated
+// time to move forward.
+func (s *server) SetPolicy(_ context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
 	if policy != pb.StepperPolicy_Invalid {
 		// A policy has been set already.  If there is no change, then we can silently
 		// ignore this call.  Otherwise, this is an error
@@ -81,6 +104,7 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 				in.MeasuredDelay.GetSeconds())
 		}
 
+		// The current policy is exactly the same as the new one - so silently ignore.
 		return &empty.Empty{}, nil
 	}
 
@@ -108,6 +132,7 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 		return nil, fmt.Errorf("unknown policy specified: %v", in.Policy)
 	}
 
+	// We have a new, valid policy.  Set it up.
 	syncLock.Lock()
 	defer syncLock.Unlock()
 
@@ -124,7 +149,9 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 	return &empty.Empty{}, nil
 }
 
-func (s *server) Step(ctx context.Context, in *empty.Empty) (*empty.Empty, error) {
+// When the stepper policy is for manual single-stepping, this function forces
+// a single step forward in simulated time.
+func (s *server) Step(_ context.Context, _ *empty.Empty) (*empty.Empty, error) {
 	if policy == pb.StepperPolicy_Invalid {
 		return nil, errors.New("stepper not initialized: no stepper policy has been set")
 	}
@@ -145,7 +172,8 @@ func (s *server) Step(ctx context.Context, in *empty.Empty) (*empty.Empty, error
 	return &empty.Empty{}, nil
 }
 
-func (s *server) Now(ctx context.Context, in *empty.Empty) (*pb.TimeResponse, error) {
+// Get the current simulated time.
+func (s *server) Now(_ context.Context, _ *empty.Empty) (*pb.TimeResponse, error) {
 	if policy == pb.StepperPolicy_Invalid {
 		return nil, errors.New("stepper not initialized: no stepper policy has been set")
 	}
@@ -156,7 +184,9 @@ func (s *server) Now(ctx context.Context, in *empty.Empty) (*pb.TimeResponse, er
 	return &pb.TimeResponse{Current: latest}, nil
 }
 
-func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*pb.TimeResponse, error) {
+// Delay the simulated time by a specified amount +/- an allowed variance.  Do
+// not return until that new time is current.
+func (s *server) Delay(_ context.Context, in *pb.DelayRequest) (*pb.TimeResponse, error) {
 	if policy == pb.StepperPolicy_Invalid {
 		return nil, errors.New("stepper not initialized: no stepper policy has been set")
 	}
@@ -176,35 +206,4 @@ func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*pb.TimeRespon
 
 	waitUntil(in.AtLeast + adjust)
 	return &pb.TimeResponse{Current: latest}, nil
-}
-
-func (s *server) SetToLatest(ctx context.Context, in *pb.SetToLatestRequest) (*pb.TimeResponse, error) {
-	if policy == pb.StepperPolicy_Invalid {
-		return nil, errors.New("stepper not initialized: no stepper policy has been set")
-	}
-
-	if (in.FirstTicks < 0) || (in.SecondTicks < 0) {
-		return nil, fmt.Errorf("delay times must be non-negative, were specified as %d, %d", in.FirstTicks, in.SecondTicks)
-	}
-
-	waitUntil(in.FirstTicks)
-	waitUntil(in.SecondTicks)
-	return &pb.TimeResponse{Current: latest}, nil
-}
-
-func (s *server) WaitForSync(ctx context.Context, in *pb.WaitForSyncRequest) (*pb.TimeResponse, error) {
-	if policy == pb.StepperPolicy_Invalid {
-		return nil, errors.New("stepper not initialized: no stepper policy has been set")
-	}
-
-	if in.AtLeast < 0 {
-		return nil, fmt.Errorf("delay time must be non-negative, was specified as %d", in.AtLeast)
-	}
-
-	waitUntil(in.AtLeast)
-	return &pb.TimeResponse{Current: latest}, nil
-}
-
-func Register(s *grpc.Server) {
-	pb.RegisterStepperServer(s, &server{})
 }

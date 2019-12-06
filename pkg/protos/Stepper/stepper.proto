@@ -6,6 +6,12 @@ import "google/protobuf/empty.proto";
 import "google/protobuf/duration.proto";
 
 // This service manages the overall passage of time.
+//
+// Simulated time is described in terms of arbitrary 'ticks', that
+// are not necessarily congruent with any particular time period, such
+// as 'seconds' or 'milliseconds'.  They are simply points in time when
+// the significant changes happen.
+//
 service Stepper {
     // Set the stepper's policy governing the rate and conditions
     // for the simulated time to move forward.
@@ -21,20 +27,23 @@ service Stepper {
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
     rpc Delay (DelayRequest) returns (TimeResponse);
-
-    // Delay until the point in time that is the later of two simulated times.
-    rpc SetToLatest (SetToLatestRequest) returns (TimeResponse);
-
-    // Wait for all contexts to reach the supplied simulated time.  Return
-    // the current time when the wait occurred, which may be later than the
-    // requested sync time.
-    rpc WaitForSync (WaitForSyncRequest) returns (TimeResponse);
 }
 
+// Define the various simulated time stepping policies
 enum StepperPolicy {
+    // Default value, indicates an uninitialized stepper
     Invalid = 0;
+
+    // Policy that immediately moves the simulated time forward with any
+    // wait operation.  Useful for shortening test runs.
     NoWait = 1;
+
+    // Policy that magnifies time, but still proceeds forward automatically.
+    // This option requires a delay per tick to determine how fast time runs
     Measured = 2;
+
+    // Policy that requires manual stepping of time.  Simulated time only
+    // moves forward as a result of an externally generated step command.
     Manual = 3;
 }
 
@@ -42,25 +51,29 @@ enum StepperPolicy {
 // Even when there are currently only one field, they are encapsulated in
 // order to allow easier future expansion.
 
+// Define the parameters to a stepper policy request parameters
 message PolicyRequest {
+    // Required policy
     StepperPolicy policy = 1;
+
+    // Number of seconds between ticks.  Only valid for the "Measured" policy.
     google.protobuf.Duration measuredDelay = 2;
 }
 
+// Define the parameters when requesting a delay
 message DelayRequest {
+    // The minimum simulated time before the delay is completed.
     int64 atLeast = 1;
+
+    // An additional maximum number of ticks that can be added to the delay.
+    // A random number of ticks [0-jitter) are added to the delay time.  This
+    // is to simulate the random delays seen in, e.g., disk I/O or network
+    // communications.
     int64 jitter = 2;
 }
 
-message SetToLatestRequest {
-    int64 firstTicks = 1;
-    int64 secondTicks = 2;
-}
-
-message WaitForSyncRequest {
-    int64 atLeast = 1;
-}
-
+// Define a message that contains a time value
 message TimeResponse {
+    // Ticks value representing the time in question.
     int64 current = 1;
 }

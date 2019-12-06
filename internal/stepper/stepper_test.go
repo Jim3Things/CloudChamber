@@ -1,3 +1,4 @@
+// Unit tests for the stepper service.
 package stepper
 
 import (
@@ -36,6 +37,22 @@ func init() {
 
 func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 	return lis.Dial()
+}
+
+func checkForEarlyCompletion(t *testing.T, ch <- chan bool, delay int, name string) {
+    select {
+    case <- ch:
+        assert.Failf(t, "%s completed early", name)
+    case <- time.After(time.Duration(delay) * time.Second):
+    }
+}
+
+func checkForLateCompletion(t *testing.T, ch <- chan bool, delay int, name string) {
+    select {
+    case <- ch:
+    case <- time.After(time.Duration(delay) * time.Second):
+        assert.Failf(t, "%s did not complete on time", name)
+    }
 }
 
 func testSetPolicy(t *testing.T, ctx context.Context, policy pb.StepperPolicy, badPolicy pb.StepperPolicy, seconds int64) {
@@ -108,6 +125,7 @@ func testDelay(t *testing.T, ctx context.Context, atLeast int64, jitter int64) {
 
     t.Log("Delay subtest complete")
 }
+
 func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
     Reset()
     ctx := context.Background()
@@ -195,22 +213,6 @@ func TestInvalidDelay(t *testing.T) {
     assert.NotNil(t, err, "Delay unexpectedly succeeded with an invalid jitter")
 }
 
-func TestInvalidSetToLatest(t *testing.T) {
-    ctx, conn := commonSetup(t)
-    defer conn.Close()
-
-    client = pb.NewStepperClient(conn)
-
-    _, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_NoWait, MeasuredDelay: &duration.Duration{ Seconds: 0}} )
-    assert.Nilf(t, err, "SetPolicy unexpectedly failed: %v", err)
-
-    _, err = client.SetToLatest(ctx, &pb.SetToLatestRequest{FirstTicks: -1, SecondTicks: 0})
-    assert.NotNil(t, err, "SetToLatest unexpectedly succeeded with an invalid first ticks parameter")
-
-    _, err = client.SetToLatest(ctx, &pb.SetToLatestRequest{FirstTicks: 0, SecondTicks: -1})
-    assert.NotNil(t, err, "SetToLatest unexpectedly succeeded with an invalid second ticks parameter")
-}
-
 func TestStepper_NoWait(t *testing.T) {
     ctx, conn := commonSetup(t)
 	defer conn.Close()
@@ -257,99 +259,23 @@ func TestStepper_Manual(t *testing.T) {
     testNow(t, ctx, 0)
     testStep(t, ctx, 1)
 
-    var done = false
-    go func(flag *bool) {
+    ch := make(chan bool)
+
+    go func(res chan <- bool) {
         rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: 3, Jitter: 0})
         assert.Nilf(t, err, "Delay called failed, returned %v", err)
         assert.Equal(t, rsp.Current, int64(3), "Delay returned an invalid time.  Should be 3, but was %d", rsp.Current)
 
-        done = true
-    }(&done)
+        res <- true
+    }(ch)
 
-    assert.False(t, done, "Delay completed early")
+    checkForEarlyCompletion(t, ch, 1, "Delay")
 
     callStep(t, ctx, 2)
-    assert.False(t, done, "Delay completed early")
+    checkForEarlyCompletion(t, ch, 1, "Delay")
 
     callStep(t, ctx, 3)
-    assert.True(t, done, "Delay did not complete on time")
+    checkForLateCompletion(t, ch, 1, "Delay")
 
     t.Log("DelayManual subtest complete")
-}
-
-// From here on we use the proof above that all the policies have working
-// delay and sync mechanisms.  From here down we only use the manual policy,
-// which allows the tests to run independently
-
-func callSetToLatest(t *testing.T, ctx context.Context, first int64, second int64, expected int64, done *bool) {
-    resp, err := client.SetToLatest(ctx, &pb.SetToLatestRequest{FirstTicks: first, SecondTicks: second })
-    assert.Nilf(t, err, "SetToLatest failed unexpectedly: %v", err)
-    assert.Equal(t, resp.Current, expected, "Invalid time returned: expected %d, was %d", expected, resp.Current)
-    *done = true
-}
-
-func TestSetToLatest(t *testing.T) {
-    ctx, conn := commonSetup(t)
-    defer conn.Close()
-
-    client = pb.NewStepperClient(conn)
-
-    testSetPolicy(t, ctx, pb.StepperPolicy_Manual, pb.StepperPolicy_Measured, 0)
-
-    callStep(t, ctx, 1)
-    callStep(t, ctx, 2)
-
-    done := false
-    go callSetToLatest(t, ctx, 1, 0, 2, &done)
-
-    time.Sleep(time.Duration(1) * time.Second)
-    assert.True(t, done, "SetToLatest with a past deadline still waiting")
-
-    done = false
-    go callSetToLatest(t, ctx, 3, 0, 3, &done)
-
-    time.Sleep(time.Duration(1) * time.Second)
-    assert.False(t, done, "SetToLatest with a future deadline completed early")
-
-    callStep(t, ctx, 3)
-    time.Sleep(time.Duration(1) * time.Second)
-    assert.True(t, done, "SetToLatest with a past deadline still waiting")
-}
-
-func callWaitForSync(t *testing.T, ctx context.Context, atLeast int64, expected int64, done *bool) {
-    resp, err := client.WaitForSync(ctx, &pb.WaitForSyncRequest{AtLeast: atLeast})
-    assert.Nilf(t, err, "WaitForSync failed unexpectedly: %v", err)
-    assert.Equal(t, resp.Current, expected, "Invalid time returned: expected %d, was %d", expected, resp.Current)
-    *done = true
-}
-
-func TestWaitForSync(t *testing.T) {
-    ctx, conn := commonSetup(t)
-    defer conn.Close()
-
-    client = pb.NewStepperClient(conn)
-
-    testSetPolicy(t, ctx, pb.StepperPolicy_Manual, pb.StepperPolicy_Measured, 0)
-
-    callStep(t, ctx, 1)
-
-    // Wait for a past time
-    var done = false
-    go callWaitForSync(t, ctx, 0, 1, &done)
-    time.Sleep(time.Duration(1) * time.Second)
-    assert.True(t, done, "WaitForStep with a past deadline still waiting")
-
-    // Now wait for a future time
-    done = false
-    go callWaitForSync(t, ctx, 3, 3, &done)
-    time.Sleep(time.Duration(1) * time.Second)
-    assert.False(t, done, "WaitForStep with a future deadline completed early")
-
-    callStep(t, ctx, 2)
-    time.Sleep(time.Duration(1) * time.Second)
-    assert.False(t, done, "WaitForStep with a future deadline completed early")
-
-    callStep(t, ctx, 3)
-    time.Sleep(time.Duration(1) * time.Second)
-    assert.True(t, done, "WaitForStep with a past deadline still waiting")
 }

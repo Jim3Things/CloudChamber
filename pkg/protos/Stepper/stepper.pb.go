@@ -26,13 +26,21 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+// Define the various simulated time stepping policies
 type StepperPolicy int32
 
 const (
-	StepperPolicy_Invalid  StepperPolicy = 0
-	StepperPolicy_NoWait   StepperPolicy = 1
+	// Default value, indicates an uninitialized stepper
+	StepperPolicy_Invalid StepperPolicy = 0
+	// Policy that immediately moves the simulated time forward with any
+	// wait operation.  Useful for shortening test runs.
+	StepperPolicy_NoWait StepperPolicy = 1
+	// Policy that magnifies time, but still proceeds forward automatically.
+	// This option requires a delay per tick to determine how fast time runs
 	StepperPolicy_Measured StepperPolicy = 2
-	StepperPolicy_Manual   StepperPolicy = 3
+	// Policy that requires manual stepping of time.  Simulated time only
+	// moves forward as a result of an externally generated step command.
+	StepperPolicy_Manual StepperPolicy = 3
 )
 
 var StepperPolicy_name = map[int32]string{
@@ -57,8 +65,11 @@ func (StepperPolicy) EnumDescriptor() ([]byte, []int) {
 	return fileDescriptor_a47a4dd6ded36602, []int{0}
 }
 
+// Define the parameters to a stepper policy request parameters
 type PolicyRequest struct {
-	Policy               StepperPolicy      `protobuf:"varint,1,opt,name=policy,proto3,enum=stepper.StepperPolicy" json:"policy,omitempty"`
+	// Required policy
+	Policy StepperPolicy `protobuf:"varint,1,opt,name=policy,proto3,enum=stepper.StepperPolicy" json:"policy,omitempty"`
+	// Number of seconds between ticks.  Only valid for the "Measured" policy.
 	MeasuredDelay        *duration.Duration `protobuf:"bytes,2,opt,name=measuredDelay,proto3" json:"measuredDelay,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
 	XXX_unrecognized     []byte             `json:"-"`
@@ -104,8 +115,14 @@ func (m *PolicyRequest) GetMeasuredDelay() *duration.Duration {
 	return nil
 }
 
+// Define the parameters when requesting a delay
 type DelayRequest struct {
-	AtLeast              int64    `protobuf:"varint,1,opt,name=atLeast,proto3" json:"atLeast,omitempty"`
+	// The minimum simulated time before the delay is completed.
+	AtLeast int64 `protobuf:"varint,1,opt,name=atLeast,proto3" json:"atLeast,omitempty"`
+	// An additional maximum number of ticks that can be added to the delay.
+	// A random number of ticks [0-jitter) are added to the delay time.  This
+	// is to simulate the random delays seen in, e.g., disk I/O or network
+	// communications.
 	Jitter               int64    `protobuf:"varint,2,opt,name=jitter,proto3" json:"jitter,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -151,93 +168,9 @@ func (m *DelayRequest) GetJitter() int64 {
 	return 0
 }
 
-type SetToLatestRequest struct {
-	FirstTicks           int64    `protobuf:"varint,1,opt,name=firstTicks,proto3" json:"firstTicks,omitempty"`
-	SecondTicks          int64    `protobuf:"varint,2,opt,name=secondTicks,proto3" json:"secondTicks,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *SetToLatestRequest) Reset()         { *m = SetToLatestRequest{} }
-func (m *SetToLatestRequest) String() string { return proto.CompactTextString(m) }
-func (*SetToLatestRequest) ProtoMessage()    {}
-func (*SetToLatestRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{2}
-}
-
-func (m *SetToLatestRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_SetToLatestRequest.Unmarshal(m, b)
-}
-func (m *SetToLatestRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_SetToLatestRequest.Marshal(b, m, deterministic)
-}
-func (m *SetToLatestRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_SetToLatestRequest.Merge(m, src)
-}
-func (m *SetToLatestRequest) XXX_Size() int {
-	return xxx_messageInfo_SetToLatestRequest.Size(m)
-}
-func (m *SetToLatestRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_SetToLatestRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_SetToLatestRequest proto.InternalMessageInfo
-
-func (m *SetToLatestRequest) GetFirstTicks() int64 {
-	if m != nil {
-		return m.FirstTicks
-	}
-	return 0
-}
-
-func (m *SetToLatestRequest) GetSecondTicks() int64 {
-	if m != nil {
-		return m.SecondTicks
-	}
-	return 0
-}
-
-type WaitForSyncRequest struct {
-	AtLeast              int64    `protobuf:"varint,1,opt,name=atLeast,proto3" json:"atLeast,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
-}
-
-func (m *WaitForSyncRequest) Reset()         { *m = WaitForSyncRequest{} }
-func (m *WaitForSyncRequest) String() string { return proto.CompactTextString(m) }
-func (*WaitForSyncRequest) ProtoMessage()    {}
-func (*WaitForSyncRequest) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{3}
-}
-
-func (m *WaitForSyncRequest) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_WaitForSyncRequest.Unmarshal(m, b)
-}
-func (m *WaitForSyncRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_WaitForSyncRequest.Marshal(b, m, deterministic)
-}
-func (m *WaitForSyncRequest) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_WaitForSyncRequest.Merge(m, src)
-}
-func (m *WaitForSyncRequest) XXX_Size() int {
-	return xxx_messageInfo_WaitForSyncRequest.Size(m)
-}
-func (m *WaitForSyncRequest) XXX_DiscardUnknown() {
-	xxx_messageInfo_WaitForSyncRequest.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_WaitForSyncRequest proto.InternalMessageInfo
-
-func (m *WaitForSyncRequest) GetAtLeast() int64 {
-	if m != nil {
-		return m.AtLeast
-	}
-	return 0
-}
-
+// Define a message that contains a time value
 type TimeResponse struct {
+	// Ticks value representing the time in question.
 	Current              int64    `protobuf:"varint,1,opt,name=current,proto3" json:"current,omitempty"`
 	XXX_NoUnkeyedLiteral struct{} `json:"-"`
 	XXX_unrecognized     []byte   `json:"-"`
@@ -248,7 +181,7 @@ func (m *TimeResponse) Reset()         { *m = TimeResponse{} }
 func (m *TimeResponse) String() string { return proto.CompactTextString(m) }
 func (*TimeResponse) ProtoMessage()    {}
 func (*TimeResponse) Descriptor() ([]byte, []int) {
-	return fileDescriptor_a47a4dd6ded36602, []int{4}
+	return fileDescriptor_a47a4dd6ded36602, []int{2}
 }
 
 func (m *TimeResponse) XXX_Unmarshal(b []byte) error {
@@ -280,42 +213,35 @@ func init() {
 	proto.RegisterEnum("stepper.StepperPolicy", StepperPolicy_name, StepperPolicy_value)
 	proto.RegisterType((*PolicyRequest)(nil), "stepper.PolicyRequest")
 	proto.RegisterType((*DelayRequest)(nil), "stepper.DelayRequest")
-	proto.RegisterType((*SetToLatestRequest)(nil), "stepper.SetToLatestRequest")
-	proto.RegisterType((*WaitForSyncRequest)(nil), "stepper.WaitForSyncRequest")
 	proto.RegisterType((*TimeResponse)(nil), "stepper.TimeResponse")
 }
 
 func init() { proto.RegisterFile("Stepper/stepper.proto", fileDescriptor_a47a4dd6ded36602) }
 
 var fileDescriptor_a47a4dd6ded36602 = []byte{
-	// 417 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x84, 0x52, 0xcf, 0xcf, 0x93, 0x40,
-	0x10, 0x95, 0xa2, 0xa0, 0x43, 0x6b, 0xc8, 0x26, 0x5f, 0x53, 0xfb, 0x25, 0x5f, 0x1a, 0x4e, 0x8d,
-	0x07, 0x9a, 0xd4, 0x1f, 0x17, 0x0f, 0xfe, 0x48, 0x35, 0x31, 0x69, 0x1b, 0x03, 0x8d, 0x9e, 0xb7,
-	0x30, 0x6d, 0x56, 0x29, 0x8b, 0xbb, 0x8b, 0x86, 0x9b, 0xff, 0xb2, 0xff, 0x81, 0x01, 0x96, 0x16,
-	0x6c, 0xd0, 0x53, 0x3b, 0x33, 0x6f, 0xde, 0x7b, 0xcc, 0x5b, 0xb8, 0x09, 0x15, 0x66, 0x19, 0x8a,
-	0x85, 0xac, 0x7f, 0xfd, 0x4c, 0x70, 0xc5, 0x89, 0xad, 0xcb, 0xe9, 0xed, 0x91, 0xf3, 0x63, 0x82,
-	0x8b, 0xaa, 0xbd, 0xcf, 0x0f, 0x0b, 0x3c, 0x65, 0xaa, 0xa8, 0x51, 0xd3, 0xbb, 0xbf, 0x87, 0x71,
-	0x2e, 0xa8, 0x62, 0x3c, 0xad, 0xe7, 0xde, 0x2f, 0x03, 0x46, 0x9f, 0x78, 0xc2, 0xa2, 0x22, 0xc0,
-	0xef, 0x39, 0x4a, 0x45, 0x7c, 0xb0, 0xb2, 0xaa, 0x31, 0x31, 0x66, 0xc6, 0xfc, 0xf1, 0x72, 0xec,
-	0x37, 0xba, 0xda, 0x87, 0x86, 0x6b, 0x14, 0x79, 0x0d, 0xa3, 0x13, 0x52, 0x99, 0x0b, 0x8c, 0x57,
-	0x98, 0xd0, 0x62, 0x32, 0x98, 0x19, 0x73, 0x67, 0xf9, 0xc4, 0xaf, 0x95, 0xfd, 0x46, 0xd9, 0x5f,
-	0x69, 0xe5, 0xa0, 0x8b, 0xf7, 0xde, 0xc0, 0xb0, 0xfa, 0xd3, 0x18, 0x98, 0x80, 0x4d, 0xd5, 0x1a,
-	0xa9, 0x54, 0x95, 0x03, 0x33, 0x68, 0x4a, 0x32, 0x06, 0xeb, 0x2b, 0x53, 0x0a, 0x45, 0xa5, 0x61,
-	0x06, 0xba, 0xf2, 0x3e, 0x03, 0x09, 0x51, 0xed, 0xf8, 0x9a, 0x2a, 0x94, 0xaa, 0xe1, 0xb9, 0x03,
-	0x38, 0x30, 0x21, 0xd5, 0x8e, 0x45, 0xdf, 0xa4, 0xa6, 0x6a, 0x75, 0xc8, 0x0c, 0x1c, 0x89, 0x11,
-	0x4f, 0xe3, 0x1a, 0x50, 0x53, 0xb6, 0x5b, 0x9e, 0x0f, 0xe4, 0x0b, 0x65, 0xea, 0x03, 0x17, 0x61,
-	0x91, 0x46, 0xff, 0xf5, 0xe7, 0xcd, 0x61, 0xb8, 0x63, 0x27, 0x0c, 0x50, 0x66, 0x3c, 0x95, 0x58,
-	0x22, 0xa3, 0x5c, 0x08, 0x4c, 0xcf, 0x48, 0x5d, 0x3e, 0x7d, 0x07, 0xa3, 0xce, 0x35, 0x89, 0x03,
-	0xf6, 0xc7, 0xf4, 0x07, 0x4d, 0x58, 0xec, 0xde, 0x23, 0x00, 0xd6, 0x96, 0x97, 0xca, 0xae, 0x41,
-	0x86, 0xf0, 0x70, 0xa3, 0xcf, 0xe5, 0x0e, 0xca, 0xc9, 0x86, 0xa6, 0x39, 0x4d, 0x5c, 0x73, 0xf9,
-	0x7b, 0x00, 0xb6, 0x26, 0x21, 0xaf, 0xe0, 0x51, 0x88, 0x4a, 0x73, 0x5d, 0x12, 0xeb, 0x24, 0x3b,
-	0x1d, 0x5f, 0x45, 0xf2, 0xbe, 0x7c, 0x29, 0xe4, 0x25, 0xdc, 0x2f, 0x79, 0x48, 0xcf, 0xbc, 0x77,
-	0xef, 0x39, 0x98, 0x5b, 0xfe, 0xb3, 0x77, 0xed, 0xe6, 0x6c, 0xa3, 0x73, 0x94, 0x17, 0xf0, 0xa0,
-	0x8a, 0x9b, 0x5c, 0xe6, 0xed, 0xf8, 0xfb, 0xd6, 0xde, 0x82, 0xd3, 0xca, 0x98, 0xdc, 0x5e, 0x5e,
-	0xe5, 0x55, 0xf2, 0xff, 0xa0, 0x68, 0xc5, 0xd9, 0xa2, 0xb8, 0x0e, 0xb9, 0x87, 0x62, 0x6f, 0x55,
-	0xdf, 0xf8, 0xec, 0x4f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xb9, 0x8b, 0xd0, 0xc1, 0x94, 0x03, 0x00,
-	0x00,
+	// 340 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x74, 0x51, 0x4f, 0x4f, 0xfa, 0x40,
+	0x14, 0xfc, 0x95, 0xfe, 0x6c, 0xf5, 0x01, 0xa6, 0xd9, 0x04, 0x82, 0x98, 0x18, 0xc2, 0x89, 0x78,
+	0x28, 0x09, 0xfe, 0xb9, 0x78, 0xd0, 0x18, 0x3c, 0x98, 0x08, 0x31, 0xc5, 0xc4, 0xf3, 0x02, 0x4f,
+	0x52, 0x53, 0xba, 0xeb, 0xfe, 0xd1, 0x70, 0xf3, 0xfb, 0xfa, 0x25, 0x4c, 0xb7, 0x5b, 0xb0, 0x9a,
+	0x9e, 0xda, 0xf7, 0x66, 0xde, 0xcc, 0x74, 0x0a, 0xad, 0x99, 0x42, 0xce, 0x51, 0x0c, 0x65, 0xfe,
+	0x0c, 0xb9, 0x60, 0x8a, 0x11, 0xdf, 0x8e, 0xdd, 0xe3, 0x15, 0x63, 0xab, 0x04, 0x87, 0x66, 0x3d,
+	0xd7, 0x2f, 0x43, 0x5c, 0x73, 0xb5, 0xc9, 0x59, 0xdd, 0x93, 0xdf, 0xe0, 0x52, 0x0b, 0xaa, 0x62,
+	0x96, 0xe6, 0x78, 0xff, 0xd3, 0x81, 0xe6, 0x23, 0x4b, 0xe2, 0xc5, 0x26, 0xc2, 0x37, 0x8d, 0x52,
+	0x91, 0x10, 0x3c, 0x6e, 0x16, 0x1d, 0xa7, 0xe7, 0x0c, 0x0e, 0x47, 0xed, 0xb0, 0xf0, 0xb5, 0x39,
+	0x2c, 0xdd, 0xb2, 0xc8, 0x35, 0x34, 0xd7, 0x48, 0xa5, 0x16, 0xb8, 0x1c, 0x63, 0x42, 0x37, 0x9d,
+	0x5a, 0xcf, 0x19, 0xd4, 0x47, 0x47, 0x61, 0xee, 0x1c, 0x16, 0xce, 0xe1, 0xd8, 0x3a, 0x47, 0x65,
+	0x7e, 0xff, 0x06, 0x1a, 0xe6, 0xa5, 0x08, 0xd0, 0x01, 0x9f, 0xaa, 0x07, 0xa4, 0x52, 0x99, 0x04,
+	0x6e, 0x54, 0x8c, 0xa4, 0x0d, 0xde, 0x6b, 0xac, 0x14, 0x0a, 0xe3, 0xe1, 0x46, 0x76, 0xea, 0x0f,
+	0xa0, 0xf1, 0x14, 0xaf, 0x31, 0x42, 0xc9, 0x59, 0x2a, 0x31, 0x53, 0x58, 0x68, 0x21, 0x30, 0xdd,
+	0x2a, 0xd8, 0xf1, 0xf4, 0x16, 0x9a, 0xa5, 0xaf, 0x20, 0x75, 0xf0, 0xef, 0xd3, 0x77, 0x9a, 0xc4,
+	0xcb, 0xe0, 0x1f, 0x01, 0xf0, 0xa6, 0xec, 0x99, 0xc6, 0x2a, 0x70, 0x48, 0x03, 0xf6, 0x27, 0x36,
+	0x66, 0x50, 0xcb, 0x90, 0x09, 0x4d, 0x35, 0x4d, 0x02, 0x77, 0xf4, 0xe5, 0x80, 0x6f, 0x45, 0xc8,
+	0x15, 0x1c, 0xcc, 0x50, 0x59, 0xad, 0x5d, 0x53, 0xa5, 0x46, 0xbb, 0xed, 0x3f, 0x55, 0xdc, 0x65,
+	0x7f, 0x88, 0x5c, 0xc2, 0xff, 0x4c, 0x87, 0x54, 0xe0, 0x95, 0x77, 0xe7, 0xe0, 0x4e, 0xd9, 0x47,
+	0xe5, 0x59, 0x6b, 0x1b, 0xa3, 0x54, 0xca, 0x05, 0xec, 0x99, 0x9a, 0xc9, 0x0e, 0xff, 0x59, 0x7b,
+	0xc5, 0xd9, 0xdc, 0x33, 0xea, 0x67, 0xdf, 0x01, 0x00, 0x00, 0xff, 0xff, 0x35, 0xf8, 0x3f, 0x23,
+	0x86, 0x02, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -341,12 +267,6 @@ type StepperClient interface {
 	// Delay the simulated time by a specified amount +/- an allowed variance.
 	// Do not return until that new time is current.
 	Delay(ctx context.Context, in *DelayRequest, opts ...grpc.CallOption) (*TimeResponse, error)
-	// Delay until the point in time that is the later of two simulated times.
-	SetToLatest(ctx context.Context, in *SetToLatestRequest, opts ...grpc.CallOption) (*TimeResponse, error)
-	// Wait for all contexts to reach the supplied simulated time.  Return
-	// the current time when the wait occurred, which may be later than the
-	// requested sync time.
-	WaitForSync(ctx context.Context, in *WaitForSyncRequest, opts ...grpc.CallOption) (*TimeResponse, error)
 }
 
 type stepperClient struct {
@@ -393,24 +313,6 @@ func (c *stepperClient) Delay(ctx context.Context, in *DelayRequest, opts ...grp
 	return out, nil
 }
 
-func (c *stepperClient) SetToLatest(ctx context.Context, in *SetToLatestRequest, opts ...grpc.CallOption) (*TimeResponse, error) {
-	out := new(TimeResponse)
-	err := c.cc.Invoke(ctx, "/stepper.Stepper/SetToLatest", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *stepperClient) WaitForSync(ctx context.Context, in *WaitForSyncRequest, opts ...grpc.CallOption) (*TimeResponse, error) {
-	out := new(TimeResponse)
-	err := c.cc.Invoke(ctx, "/stepper.Stepper/WaitForSync", in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // StepperServer is the server API for Stepper service.
 type StepperServer interface {
 	// Set the stepper's policy governing the rate and conditions
@@ -424,12 +326,6 @@ type StepperServer interface {
 	// Delay the simulated time by a specified amount +/- an allowed variance.
 	// Do not return until that new time is current.
 	Delay(context.Context, *DelayRequest) (*TimeResponse, error)
-	// Delay until the point in time that is the later of two simulated times.
-	SetToLatest(context.Context, *SetToLatestRequest) (*TimeResponse, error)
-	// Wait for all contexts to reach the supplied simulated time.  Return
-	// the current time when the wait occurred, which may be later than the
-	// requested sync time.
-	WaitForSync(context.Context, *WaitForSyncRequest) (*TimeResponse, error)
 }
 
 // UnimplementedStepperServer can be embedded to have forward compatible implementations.
@@ -447,12 +343,6 @@ func (*UnimplementedStepperServer) Now(ctx context.Context, req *empty.Empty) (*
 }
 func (*UnimplementedStepperServer) Delay(ctx context.Context, req *DelayRequest) (*TimeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Delay not implemented")
-}
-func (*UnimplementedStepperServer) SetToLatest(ctx context.Context, req *SetToLatestRequest) (*TimeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method SetToLatest not implemented")
-}
-func (*UnimplementedStepperServer) WaitForSync(ctx context.Context, req *WaitForSyncRequest) (*TimeResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method WaitForSync not implemented")
 }
 
 func RegisterStepperServer(s *grpc.Server, srv StepperServer) {
@@ -531,42 +421,6 @@ func _Stepper_Delay_Handler(srv interface{}, ctx context.Context, dec func(inter
 	return interceptor(ctx, in, info, handler)
 }
 
-func _Stepper_SetToLatest_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(SetToLatestRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(StepperServer).SetToLatest(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/stepper.Stepper/SetToLatest",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StepperServer).SetToLatest(ctx, req.(*SetToLatestRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _Stepper_WaitForSync_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(WaitForSyncRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(StepperServer).WaitForSync(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: "/stepper.Stepper/WaitForSync",
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(StepperServer).WaitForSync(ctx, req.(*WaitForSyncRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 var _Stepper_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "stepper.Stepper",
 	HandlerType: (*StepperServer)(nil),
@@ -586,14 +440,6 @@ var _Stepper_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Delay",
 			Handler:    _Stepper_Delay_Handler,
-		},
-		{
-			MethodName: "SetToLatest",
-			Handler:    _Stepper_SetToLatest_Handler,
-		},
-		{
-			MethodName: "WaitForSync",
-			Handler:    _Stepper_WaitForSync_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
