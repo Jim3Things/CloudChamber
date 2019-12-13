@@ -15,7 +15,7 @@ import (
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
-	pb "../../pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 )
 
 var policy		= pb.StepperPolicy_Invalid	// Active stepper policy

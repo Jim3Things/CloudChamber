@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	"../../internal/stepper"
+	"github.com/Jim3Things/CloudChamber/internal/stepper"
 )
 
 const (

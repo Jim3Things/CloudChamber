@@ -12,7 +12,7 @@ import (
     "github.com/golang/protobuf/ptypes/empty"
     "github.com/stretchr/testify/assert"
 
-    pb "../../pkg/protos/Stepper"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 
     "google.golang.org/grpc"
     "google.golang.org/grpc/test/bufconn"
