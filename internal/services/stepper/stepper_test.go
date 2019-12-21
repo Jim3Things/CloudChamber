@@ -11,6 +11,13 @@ import (
     "github.com/golang/protobuf/ptypes/duration"
     "github.com/golang/protobuf/ptypes/empty"
     "github.com/stretchr/testify/assert"
+    "google.golang.org/grpc/metadata"
+
+    clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
+    srvtrace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 
@@ -24,8 +31,10 @@ var lis *bufconn.Listener
 var client pb.StepperClient
 
 func init() {
+    setup.Init(exporters.UnitTest)
+
 	lis = bufconn.Listen(bufSize)
-	s := grpc.NewServer()
+    s := grpc.NewServer(grpc.UnaryInterceptor(srvtrace.Interceptor))
 	Register(s)
 
 	go func() {
@@ -71,7 +80,7 @@ func testSetPolicy(t *testing.T, ctx context.Context, policy pb.StepperPolicy, b
     t.Log("SetPolicy subtest complete")
 }
 
-func callNow(t *testing.T, ctx context.Context) int64{
+func callNow(t *testing.T, ctx context.Context) int64 {
     resp, err := client.Now(ctx, &empty.Empty{})
     assert.Nilf(t, err, "Now failed: %v", err)
 
@@ -128,16 +137,24 @@ func testDelay(t *testing.T, ctx context.Context, atLeast int64, jitter int64) {
 
 func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
     Reset()
-    ctx := context.Background()
-    conn, err := grpc.DialContext(ctx, "bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure())
+    unit_test.SetTesting(t)
+
+    conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure(), grpc.WithUnaryInterceptor(clienttrace.Interceptor))
     assert.Nilf(t, err, "Failed to dial bufnet: %v", err)
+
+    md := metadata.Pairs(
+        "timestamp", time.Now().Format(time.StampNano),
+        "client-id", "web-api-client-us-east-1",
+        "user-id", "some-test-user-id",
+    )
+    ctx := metadata.NewOutgoingContext(context.Background(), md)
 
     return ctx, conn
 }
 
 func TestInvalidSetPolicyType(t *testing.T) {
     ctx, conn := commonSetup(t)
-    defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
     client = pb.NewStepperClient(conn)
 
@@ -147,7 +164,7 @@ func TestInvalidSetPolicyType(t *testing.T) {
 
 func TestInvalidSetPolicyManual(t *testing.T) {
     ctx, conn := commonSetup(t)
-    defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
     client = pb.NewStepperClient(conn)
 
@@ -163,7 +180,7 @@ func TestInvalidSetPolicyManual(t *testing.T) {
 
 func TestInvalidSetPolicyMeasured(t *testing.T) {
     ctx, conn := commonSetup(t)
-    defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
     client = pb.NewStepperClient(conn)
 
@@ -183,7 +200,7 @@ func TestInvalidSetPolicyMeasured(t *testing.T) {
 
 func TestInvalidSetPolicyNoWait(t *testing.T) {
     ctx, conn := commonSetup(t)
-    defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
     client = pb.NewStepperClient(conn)
 
@@ -199,7 +216,7 @@ func TestInvalidSetPolicyNoWait(t *testing.T) {
 
 func TestInvalidDelay(t *testing.T) {
     ctx, conn := commonSetup(t)
-    defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
     client = pb.NewStepperClient(conn)
 
@@ -215,7 +232,7 @@ func TestInvalidDelay(t *testing.T) {
 
 func TestStepper_NoWait(t *testing.T) {
     ctx, conn := commonSetup(t)
-	defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
 	client = pb.NewStepperClient(conn)
 
@@ -229,7 +246,7 @@ func TestStepper_NoWait(t *testing.T) {
 
 func TestStepper_Measured(t *testing.T) {
     ctx, conn := commonSetup(t)
-    defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
     client = pb.NewStepperClient(conn)
 
@@ -248,7 +265,7 @@ func TestStepper_Measured(t *testing.T) {
 
 func TestStepper_Manual(t *testing.T) {
     ctx, conn := commonSetup(t)
-    defer conn.Close()
+    defer func() { _ = conn.Close() } ()
 
     client = pb.NewStepperClient(conn)
 

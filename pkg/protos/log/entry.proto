@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package log;
+
+enum impact {
+    Invalid = 0;
+    Read = 1;
+    Create = 2;
+    Modify = 3;
+    Delete = 4;
+}
+
+message module {
+    impact impact = 1;
+    string name = 2;
+}
+
+message event {
+    int64 tick = 1;
+
+    string reason = 2;
+    string text = 3;
+
+    repeated module impacted = 4;
+}
+
+message entry {
+    string name = 1;
+
+    string spanID = 2;
+    string parentID = 3;
+
+    string status = 4;
+
+    repeated event event = 5;
+}

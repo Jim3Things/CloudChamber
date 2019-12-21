@@ -1,14 +1,16 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"log"
-	"net"
+    "flag"
+    "fmt"
+    "log"
+    "net"
 
-	"google.golang.org/grpc"
+    "google.golang.org/grpc"
 
-	"github.com/Jim3Things/CloudChamber/internal/stepper"
+    stepper2 "github.com/Jim3Things/CloudChamber/internal/services/stepper"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 )
 
 const (
@@ -23,14 +25,16 @@ func main() {
 
 	flag.Parse()
 
+	setup.Init()
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
-	s := grpc.NewServer()
+	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-	stepper.Register(s)
+	stepper2.Register(s)
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

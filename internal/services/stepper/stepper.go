@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc"
 
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	trace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 var policy		= pb.StepperPolicy_Invalid	// Active stepper policy
@@ -91,17 +92,18 @@ func Reset() {
 
 // Set the stepper's policy governing the rate and conditions for the simulated
 // time to move forward.
-func (s *server) SetPolicy(_ context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
+func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
+	trace.AddEvent(ctx, in.String(), latest, "Setting the policy")
 	if policy != pb.StepperPolicy_Invalid {
 		// A policy has been set already.  If there is no change, then we can silently
 		// ignore this call.  Otherwise, this is an error
 		if (policy != in.Policy) || (delay.GetSeconds() != in.MeasuredDelay.GetSeconds()) {
-			return nil, fmt.Errorf(
+			return nil, trace.LogError(ctx, latest, fmt.Errorf(
 				"stepper already initialized, cannot change setting from %v: %d to %v: %d",
 				policy,
 				delay.Seconds,
 				in.Policy,
-				in.MeasuredDelay.GetSeconds())
+				in.MeasuredDelay.GetSeconds()))
 		}
 
 		// The current policy is exactly the same as the new one - so silently ignore.
@@ -112,24 +114,24 @@ func (s *server) SetPolicy(_ context.Context, in *pb.PolicyRequest) (*empty.Empt
 	// the input.
 	switch in.Policy {
 	case pb.StepperPolicy_Invalid:
-		return nil, fmt.Errorf("stepper policy may not be set to %v", pb.StepperPolicy_Invalid)
+		return nil, trace.LogError(ctx, latest, fmt.Errorf("stepper policy may not be set to %v", pb.StepperPolicy_Invalid))
 
 	case pb.StepperPolicy_Measured:
 		if in.MeasuredDelay.Seconds <= 0 {
-			return nil, fmt.Errorf("delay must be greater than zero, but was %d", in.MeasuredDelay.Seconds)
+			return nil, trace.LogError(ctx, latest, fmt.Errorf("delay must be greater than zero, but was %d", in.MeasuredDelay.Seconds))
 		}
 
 	case pb.StepperPolicy_NoWait, pb.StepperPolicy_Manual:
 		if in.MeasuredDelay.Seconds != 0 {
-			return nil, fmt.Errorf(
+			return nil, trace.LogError(ctx, latest, fmt.Errorf(
 				"delay must be zero when the policy is not %v, but was specified as %v: %d",
 				pb.StepperPolicy_Measured,
 				in.Policy,
-				in.MeasuredDelay.Seconds)
+				in.MeasuredDelay.Seconds))
 		}
 
 	default:
-		return nil, fmt.Errorf("unknown policy specified: %v", in.Policy)
+		return nil, trace.LogError(ctx, latest, fmt.Errorf("unknown policy specified: %v", in.Policy))
 	}
 
 	// We have a new, valid policy.  Set it up.
@@ -151,16 +153,18 @@ func (s *server) SetPolicy(_ context.Context, in *pb.PolicyRequest) (*empty.Empt
 
 // When the stepper policy is for manual single-stepping, this function forces
 // a single step forward in simulated time.
-func (s *server) Step(_ context.Context, _ *empty.Empty) (*empty.Empty, error) {
+func (s *server) Step(ctx context.Context, _ *empty.Empty) (*empty.Empty, error) {
+	trace.AddEvent(ctx, "", latest, "Single stepping time")
+
 	if policy == pb.StepperPolicy_Invalid {
-		return nil, errors.New("stepper not initialized: no stepper policy has been set")
+		return nil, trace.LogError(ctx, latest, errors.New("stepper not initialized: no stepper policy has been set"))
 	}
 
 	if policy != pb.StepperPolicy_Manual {
-		return nil, fmt.Errorf(
+		return nil, trace.LogError(ctx, latest, fmt.Errorf(
 			"stepper must be using the %v policy.  Currently using %v",
 			pb.StepperPolicy_Manual,
-			policy)
+			policy))
 	}
 
 	syncLock.Lock()
@@ -169,13 +173,16 @@ func (s *server) Step(_ context.Context, _ *empty.Empty) (*empty.Empty, error) {
 
 	broadcast.Broadcast()
 
+	trace.AddEvent(ctx, "Stepped", latest, "Step completed")
 	return &empty.Empty{}, nil
 }
 
 // Get the current simulated time.
-func (s *server) Now(_ context.Context, _ *empty.Empty) (*pb.TimeResponse, error) {
+func (s *server) Now(ctx context.Context, in *empty.Empty) (*pb.TimeResponse, error) {
+	trace.AddEvent(ctx, in.String(), latest, "Get the time")
+
 	if policy == pb.StepperPolicy_Invalid {
-		return nil, errors.New("stepper not initialized: no stepper policy has been set")
+		return nil, trace.LogError(ctx, latest, errors.New("stepper not initialized: no stepper policy has been set"))
 	}
 
 	syncLock.Lock()
@@ -186,17 +193,19 @@ func (s *server) Now(_ context.Context, _ *empty.Empty) (*pb.TimeResponse, error
 
 // Delay the simulated time by a specified amount +/- an allowed variance.  Do
 // not return until that new time is current.
-func (s *server) Delay(_ context.Context, in *pb.DelayRequest) (*pb.TimeResponse, error) {
+func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*pb.TimeResponse, error) {
+	trace.AddEvent(ctx, in.String(), latest, "Wait for the target time")
+
 	if policy == pb.StepperPolicy_Invalid {
-		return nil, errors.New("stepper not initialized: no stepper policy has been set")
+		return nil, trace.LogError(ctx, latest, errors.New("stepper not initialized: no stepper policy has been set"))
 	}
 
 	if in.AtLeast < 0 {
-		return nil, fmt.Errorf("base delay time must be non-negative, was specified as %d", in.AtLeast)
+		return nil, trace.LogError(ctx, latest, fmt.Errorf("base delay time must be non-negative, was specified as %d", in.AtLeast))
 	}
 
 	if in.Jitter < 0 {
-		return nil, fmt.Errorf("delay jitter must be non-negative, was specified as %d", in.Jitter)
+		return nil, trace.LogError(ctx, latest, fmt.Errorf("delay jitter must be non-negative, was specified as %d", in.Jitter))
 	}
 
 	var adjust int64 = 0
@@ -205,5 +214,7 @@ func (s *server) Delay(_ context.Context, in *pb.DelayRequest) (*pb.TimeResponse
 	}
 
 	waitUntil(in.AtLeast + adjust)
-	return &pb.TimeResponse{Current: latest}, nil
+	resp := pb.TimeResponse{Current: latest}
+	trace.AddEvent(ctx, resp.String(), latest, "Delay completed")
+	return &resp, nil
 }
