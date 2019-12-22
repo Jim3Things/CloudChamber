@@ -2,6 +2,8 @@ package server
 
 import (
     "context"
+    "errors"
+    "fmt"
 
     "go.opentelemetry.io/otel/api/distributedcontext"
     "go.opentelemetry.io/otel/api/global"
@@ -45,10 +47,37 @@ func AddEvent(ctx context.Context, msg string, tick int64, reason string) {
     span.AddEvent(ctx, msg, ccTickKey.Int64(tick), reasonKey.String(reason))
 }
 
-func LogError(ctx context.Context, tick int64, err error) error {
+func logError(ctx context.Context, tick int64, err error) error {
     span := trace.SpanFromContext(ctx)
     ccTickKey := key.New(tracing.StepperTicksKey)
     span.AddEvent(ctx, err.Error(), ccTickKey.Int64(tick))
 
     return err
+}
+
+func LogError(ctx context.Context, tick int64, a... interface{}) error {
+    switch len(a) {
+    case 0:
+        panic("Invalid LogErrorN call - no valid arguments found")
+
+    case 1:
+        for _, item := range a {
+            msg, ok := item.(string)
+            if ok {
+                return logError(ctx, tick, errors.New(msg))
+            }
+
+            err, ok := item.(error)
+            if ok {
+                return logError(ctx, tick, err)
+            }
+        }
+    default:
+        f, ok := a[0].(string)
+        if ok {
+            return logError(ctx, tick, fmt.Errorf(f, a[1:]))
+        }
+    }
+
+    return errors.New("invalid call to LogErrorN")
 }

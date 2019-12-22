@@ -9,7 +9,8 @@ import (
     "google.golang.org/grpc"
 
     stepper2 "github.com/Jim3Things/CloudChamber/internal/services/stepper"
-    "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
     "github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 )
 
@@ -25,7 +26,7 @@ func main() {
 
 	flag.Parse()
 
-	setup.Init()
+	setup.Init(exporters.StdOut)
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
 	if err != nil {
