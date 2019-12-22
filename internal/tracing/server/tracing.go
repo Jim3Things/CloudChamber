@@ -56,28 +56,24 @@ func logError(ctx context.Context, tick int64, err error) error {
 }
 
 func LogError(ctx context.Context, tick int64, a... interface{}) error {
-    switch len(a) {
-    case 0:
-        panic("Invalid LogErrorN call - no valid arguments found")
-
-    case 1:
-        for _, item := range a {
-            msg, ok := item.(string)
-            if ok {
-                return logError(ctx, tick, errors.New(msg))
-            }
-
-            err, ok := item.(error)
-            if ok {
-                return logError(ctx, tick, err)
-            }
+    switch {
+    case len(a) == 1:
+        msg, ok := a[0].(string)
+        if ok {
+            return logError(ctx, tick, errors.New(msg))
         }
-    default:
+
+        err, ok := a[0].(error)
+        if ok {
+            return logError(ctx, tick, err)
+        }
+
+    case len(a) >1:
         f, ok := a[0].(string)
         if ok {
-            return logError(ctx, tick, fmt.Errorf(f, a[1:]))
+            return logError(ctx, tick, fmt.Errorf(f, a[1:]...))
         }
     }
 
-    return errors.New("invalid call to LogErrorN")
+    panic("Invalid LogError call - no valid arguments found")
 }
