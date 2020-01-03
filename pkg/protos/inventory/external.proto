@@ -1,0 +1,72 @@
+// This file contains the definitions used by configuration and external
+// commands for describing the simulated inventory
+
+syntax = "proto3";
+
+package inventory;
+
+message external {
+    // Describe the capabilities of a physical blade
+    // TODO: Should architecture be a core attribute of a blade?
+    // TODO: Do we need anything about host system software, or is this purely physical attributes?
+    message blade {
+
+        // Used to define an extended feature of the blade, such as GPU
+        message feature {
+            string name = 1;
+            int64 amount = 2;
+        }
+
+        // specify which blade in the rack.
+        // Note that full internal name for a blade is <rackname>-blade-<bladeId>
+        int64 id = 1;
+
+        int64 cores = 2;
+        int64 memory_in_mb = 3;
+        int64 disk_in_gb = 4;
+        int64 network_bandwidth = 5;
+
+        repeated feature features = 6;
+    }
+
+    // The next three are common overhead items in a rack.  All are pure skeletons at this point.
+    // Note that all have implied connectivity with all other items in a rack.  Currently elided
+    // in the external model, but used in the other models.
+
+    // Power distribution unit.  Network accessible power controller
+    message pdu {
+        // Note that full internal name for a pdu is <rackname>-pdu-0
+
+    }
+
+    // Rack-level network switch.
+    message tor {
+        // Note that full internal name for a tor is <rackname>-tor-0
+
+    }
+
+    // Management controller.  Provides direct ability halt or boot a specific
+    // blade.
+    message mc {
+        // Note that full internal name for a sc is <rackname>-mc-0
+
+    }
+
+    message rack {
+        string name = 1;
+
+        // This assumes a single overhead item per rack.  May want to allow multiple to handle
+        // subdivisions for power or network, say.
+
+        pdu pdu = 2;
+        tor tor = 3;
+        mc mc = 4;
+
+        repeated blade blade = 5;
+    }
+
+    // This is probably not needed at this point.
+    message zone {
+        repeated rack racks = 1;
+    }
+}

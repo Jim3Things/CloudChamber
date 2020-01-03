@@ -1,13 +1,13 @@
 package unit_test
 
 import (
-    "context"
-    "fmt"
-    "testing"
+	"context"
+	"fmt"
+	"testing"
 
-    export "go.opentelemetry.io/otel/sdk/export/trace"
+	export "go.opentelemetry.io/otel/sdk/export/trace"
 
-    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters/common"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/common"
 )
 
 // Options are the options to be used when initializing a unit test export.
@@ -21,18 +21,18 @@ type Exporter struct {
 var testContext *testing.T
 
 func NewExporter(_ Options) (*Exporter, error) {
-    return &Exporter{ }, nil
+	return &Exporter{}, nil
 }
 
 func SetTesting(item *testing.T) {
-    testContext = item
+	testContext = item
 }
 
 func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
-    entry := common.ExtractEntry(ctx, data)
+	entry := common.ExtractEntry(ctx, data)
 
-    testContext.Log(fmt.Sprintf("[%s:%s] %s %s:", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName()))
-    for _, event := range entry.Event {
-        testContext.Log(fmt.Sprintf("  @%d: %s (%s)", event.GetTick(), event.GetText(), event.GetReason()))
-    }
+	testContext.Log(fmt.Sprintf("[%s:%s] %s %s:", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName()))
+	for _, event := range entry.Event {
+		testContext.Log(fmt.Sprintf("  @%d: %s (%s)", event.GetTick(), event.GetText(), event.GetReason()))
+	}
 }

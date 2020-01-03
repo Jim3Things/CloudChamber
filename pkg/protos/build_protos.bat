@@ -1,2 +1,10 @@
 protoc --go_out=plugins=grpc:. Stepper\stepper.proto
 protoc --go_out=plugins=grpc:. log\entry.proto
+protoc --go_out=plugins=grpc:. inventory\actual.proto
+protoc --go_out=plugins=grpc:. inventory\external.proto
+protoc --go_out=plugins=grpc:. inventory\internal.proto
+protoc --go_out=plugins=grpc:. inventory\target.proto
+protoc --go_out=plugins=grpc:. workload\actual.proto
+protoc --go_out=plugins=grpc:. workload\external.proto
+protoc --go_out=plugins=grpc:. workload\internal.proto
+protoc --go_out=plugins=grpc:. workload\target.proto

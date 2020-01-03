@@ -1,7 +1,7 @@
 package exporters
 
 const (
-    StdOut = iota
-    UnitTest
-    Production
+	StdOut = iota
+	UnitTest
+	Production
 )

@@ -1,17 +1,17 @@
 package main
 
 import (
-    "flag"
-    "fmt"
-    "log"
-    "net"
+	"flag"
+	"fmt"
+	"log"
+	"net"
 
-    "google.golang.org/grpc"
+	"google.golang.org/grpc"
 
-    stepper2 "github.com/Jim3Things/CloudChamber/internal/services/stepper"
+	stepper2 "github.com/Jim3Things/CloudChamber/internal/services/stepper"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
-    "github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 )
 
 const (

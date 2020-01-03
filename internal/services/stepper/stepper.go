@@ -17,13 +17,13 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 )
 
-var policy		= pb.StepperPolicy_Invalid	// Active stepper policy
-var delay 		duration.Duration			// Time between ticks, iff Measured policy
+var policy = pb.StepperPolicy_Invalid // Active stepper policy
+var delay duration.Duration           // Time between ticks, iff Measured policy
 
-var syncLock 	sync.Mutex					// Access lock for current simulated time
-var broadcast 	*sync.Cond					// Broadcast channel for time change notification
+var syncLock sync.Mutex  // Access lock for current simulated time
+var broadcast *sync.Cond // Broadcast channel for time change notification
 
-var latest 		int64 = 0					// Current simulated time
+var latest int64 = 0 // Current simulated time
 
 // Define the skeleton grpc server
 type server struct {
