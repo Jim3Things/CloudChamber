@@ -51,16 +51,285 @@ func (m *External) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_External proto.InternalMessageInfo
 
+// TODO: Should we make this a common type?
+type ExternalFeature struct {
+	Name                 string   `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Amount               int64    `protobuf:"varint,2,opt,name=amount,proto3" json:"amount,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ExternalFeature) Reset()         { *m = ExternalFeature{} }
+func (m *ExternalFeature) String() string { return proto.CompactTextString(m) }
+func (*ExternalFeature) ProtoMessage()    {}
+func (*ExternalFeature) Descriptor() ([]byte, []int) {
+	return fileDescriptor_15ea9dbcee65ae11, []int{0, 0}
+}
+
+func (m *ExternalFeature) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExternalFeature.Unmarshal(m, b)
+}
+func (m *ExternalFeature) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExternalFeature.Marshal(b, m, deterministic)
+}
+func (m *ExternalFeature) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExternalFeature.Merge(m, src)
+}
+func (m *ExternalFeature) XXX_Size() int {
+	return xxx_messageInfo_ExternalFeature.Size(m)
+}
+func (m *ExternalFeature) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExternalFeature.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExternalFeature proto.InternalMessageInfo
+
+func (m *ExternalFeature) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ExternalFeature) GetAmount() int64 {
+	if m != nil {
+		return m.Amount
+	}
+	return 0
+}
+
+type ExternalVolume struct {
+	Name                 string             `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	SizeInGb             int64              `protobuf:"varint,2,opt,name=size_in_gb,json=sizeInGb,proto3" json:"size_in_gb,omitempty"`
+	Creatable            bool               `protobuf:"varint,3,opt,name=creatable,proto3" json:"creatable,omitempty"`
+	WriteLocked          bool               `protobuf:"varint,4,opt,name=write_locked,json=writeLocked,proto3" json:"write_locked,omitempty"`
+	Features             []*ExternalFeature `protobuf:"bytes,5,rep,name=features,proto3" json:"features,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}           `json:"-"`
+	XXX_unrecognized     []byte             `json:"-"`
+	XXX_sizecache        int32              `json:"-"`
+}
+
+func (m *ExternalVolume) Reset()         { *m = ExternalVolume{} }
+func (m *ExternalVolume) String() string { return proto.CompactTextString(m) }
+func (*ExternalVolume) ProtoMessage()    {}
+func (*ExternalVolume) Descriptor() ([]byte, []int) {
+	return fileDescriptor_15ea9dbcee65ae11, []int{0, 1}
+}
+
+func (m *ExternalVolume) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExternalVolume.Unmarshal(m, b)
+}
+func (m *ExternalVolume) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExternalVolume.Marshal(b, m, deterministic)
+}
+func (m *ExternalVolume) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExternalVolume.Merge(m, src)
+}
+func (m *ExternalVolume) XXX_Size() int {
+	return xxx_messageInfo_ExternalVolume.Size(m)
+}
+func (m *ExternalVolume) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExternalVolume.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExternalVolume proto.InternalMessageInfo
+
+func (m *ExternalVolume) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ExternalVolume) GetSizeInGb() int64 {
+	if m != nil {
+		return m.SizeInGb
+	}
+	return 0
+}
+
+func (m *ExternalVolume) GetCreatable() bool {
+	if m != nil {
+		return m.Creatable
+	}
+	return false
+}
+
+func (m *ExternalVolume) GetWriteLocked() bool {
+	if m != nil {
+		return m.WriteLocked
+	}
+	return false
+}
+
+func (m *ExternalVolume) GetFeatures() []*ExternalFeature {
+	if m != nil {
+		return m.Features
+	}
+	return nil
+}
+
+type ExternalCapacity struct {
+	Cores                float32  `protobuf:"fixed32,1,opt,name=cores,proto3" json:"cores,omitempty"`
+	MemoryInMb           int64    `protobuf:"varint,2,opt,name=memory_in_mb,json=memoryInMb,proto3" json:"memory_in_mb,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ExternalCapacity) Reset()         { *m = ExternalCapacity{} }
+func (m *ExternalCapacity) String() string { return proto.CompactTextString(m) }
+func (*ExternalCapacity) ProtoMessage()    {}
+func (*ExternalCapacity) Descriptor() ([]byte, []int) {
+	return fileDescriptor_15ea9dbcee65ae11, []int{0, 2}
+}
+
+func (m *ExternalCapacity) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExternalCapacity.Unmarshal(m, b)
+}
+func (m *ExternalCapacity) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExternalCapacity.Marshal(b, m, deterministic)
+}
+func (m *ExternalCapacity) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExternalCapacity.Merge(m, src)
+}
+func (m *ExternalCapacity) XXX_Size() int {
+	return xxx_messageInfo_ExternalCapacity.Size(m)
+}
+func (m *ExternalCapacity) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExternalCapacity.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExternalCapacity proto.InternalMessageInfo
+
+func (m *ExternalCapacity) GetCores() float32 {
+	if m != nil {
+		return m.Cores
+	}
+	return 0
+}
+
+func (m *ExternalCapacity) GetMemoryInMb() int64 {
+	if m != nil {
+		return m.MemoryInMb
+	}
+	return 0
+}
+
+type ExternalInstance struct {
+	Name     string             `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Capacity *ExternalCapacity  `protobuf:"bytes,2,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Features []*ExternalFeature `protobuf:"bytes,3,rep,name=features,proto3" json:"features,omitempty"`
+	// Boot volume
+	System *ExternalVolume `protobuf:"bytes,4,opt,name=system,proto3" json:"system,omitempty"`
+	// Other (data) volumes
+	Volumes []*ExternalVolume `protobuf:"bytes,5,rep,name=volumes,proto3" json:"volumes,omitempty"`
+	// configuration / metadata to pass to the instance
+	Config               string   `protobuf:"bytes,6,opt,name=config,proto3" json:"config,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ExternalInstance) Reset()         { *m = ExternalInstance{} }
+func (m *ExternalInstance) String() string { return proto.CompactTextString(m) }
+func (*ExternalInstance) ProtoMessage()    {}
+func (*ExternalInstance) Descriptor() ([]byte, []int) {
+	return fileDescriptor_15ea9dbcee65ae11, []int{0, 3}
+}
+
+func (m *ExternalInstance) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ExternalInstance.Unmarshal(m, b)
+}
+func (m *ExternalInstance) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ExternalInstance.Marshal(b, m, deterministic)
+}
+func (m *ExternalInstance) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ExternalInstance.Merge(m, src)
+}
+func (m *ExternalInstance) XXX_Size() int {
+	return xxx_messageInfo_ExternalInstance.Size(m)
+}
+func (m *ExternalInstance) XXX_DiscardUnknown() {
+	xxx_messageInfo_ExternalInstance.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ExternalInstance proto.InternalMessageInfo
+
+func (m *ExternalInstance) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ExternalInstance) GetCapacity() *ExternalCapacity {
+	if m != nil {
+		return m.Capacity
+	}
+	return nil
+}
+
+func (m *ExternalInstance) GetFeatures() []*ExternalFeature {
+	if m != nil {
+		return m.Features
+	}
+	return nil
+}
+
+func (m *ExternalInstance) GetSystem() *ExternalVolume {
+	if m != nil {
+		return m.System
+	}
+	return nil
+}
+
+func (m *ExternalInstance) GetVolumes() []*ExternalVolume {
+	if m != nil {
+		return m.Volumes
+	}
+	return nil
+}
+
+func (m *ExternalInstance) GetConfig() string {
+	if m != nil {
+		return m.Config
+	}
+	return ""
+}
+
 func init() {
 	proto.RegisterType((*External)(nil), "workload.external")
+	proto.RegisterType((*ExternalFeature)(nil), "workload.external.feature")
+	proto.RegisterType((*ExternalVolume)(nil), "workload.external.volume")
+	proto.RegisterType((*ExternalCapacity)(nil), "workload.external.capacity")
+	proto.RegisterType((*ExternalInstance)(nil), "workload.external.instance")
 }
 
 func init() { proto.RegisterFile("workload/external.proto", fileDescriptor_15ea9dbcee65ae11) }
 
 var fileDescriptor_15ea9dbcee65ae11 = []byte{
-	// 64 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xe2, 0x12, 0x2f, 0xcf, 0x2f, 0xca,
-	0xce, 0xc9, 0x4f, 0x4c, 0xd1, 0x4f, 0xad, 0x28, 0x49, 0x2d, 0xca, 0x4b, 0xcc, 0xd1, 0x2b, 0x28,
-	0xca, 0x2f, 0xc9, 0x17, 0xe2, 0x80, 0x49, 0x28, 0x71, 0x71, 0x71, 0xc0, 0xe4, 0x92, 0xd8, 0xc0,
-	0x92, 0xc6, 0x80, 0x00, 0x00, 0x00, 0xff, 0xff, 0xac, 0x4c, 0xe5, 0xff, 0x37, 0x00, 0x00, 0x00,
+	// 335 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x8c, 0x52, 0x41, 0x4e, 0xc3, 0x30,
+	0x10, 0x54, 0x9a, 0x36, 0x75, 0x37, 0x3d, 0x59, 0x08, 0x42, 0xe8, 0x21, 0x70, 0xca, 0xa9, 0x88,
+	0x56, 0xc0, 0x9d, 0x0b, 0xaa, 0x04, 0x17, 0x7f, 0xa0, 0x72, 0x5c, 0xb7, 0x8a, 0x1a, 0xdb, 0x95,
+	0xe3, 0x52, 0xca, 0x27, 0x78, 0x0c, 0xef, 0xe0, 0x4f, 0x28, 0x4e, 0xdc, 0x70, 0x88, 0x10, 0x37,
+	0xef, 0xec, 0x8c, 0x3d, 0xb3, 0x5e, 0xb8, 0x38, 0x28, 0xbd, 0x2d, 0x14, 0x5d, 0xdd, 0xf2, 0x77,
+	0xc3, 0xb5, 0xa4, 0xc5, 0x74, 0xa7, 0x95, 0x51, 0x18, 0xb9, 0xc6, 0xcd, 0x77, 0x1f, 0x90, 0x6b,
+	0xc6, 0xf7, 0x30, 0x5c, 0x73, 0x6a, 0xf6, 0x9a, 0x63, 0x0c, 0x7d, 0x49, 0x05, 0x8f, 0xbc, 0xc4,
+	0x4b, 0x47, 0xc4, 0x9e, 0xf1, 0x39, 0x04, 0x54, 0xa8, 0xbd, 0x34, 0x51, 0x2f, 0xf1, 0x52, 0x9f,
+	0x34, 0x55, 0xfc, 0xe5, 0x41, 0xf0, 0xa6, 0x8a, 0xbd, 0xe8, 0x96, 0x4d, 0x00, 0xca, 0xfc, 0x83,
+	0x2f, 0x73, 0xb9, 0xdc, 0x64, 0x8d, 0x14, 0x55, 0xc8, 0x42, 0x3e, 0x67, 0x78, 0x02, 0x23, 0xa6,
+	0x39, 0x35, 0x34, 0x2b, 0x78, 0xe4, 0x27, 0x5e, 0x8a, 0x48, 0x0b, 0xe0, 0x6b, 0x18, 0x1f, 0x74,
+	0x6e, 0xf8, 0xb2, 0x50, 0x6c, 0xcb, 0x57, 0x51, 0xdf, 0x12, 0x42, 0x8b, 0xbd, 0x58, 0x08, 0x3f,
+	0x00, 0x6a, 0x4c, 0x97, 0xd1, 0x20, 0xf1, 0xd3, 0x70, 0x16, 0x4f, 0x5d, 0xbc, 0xe9, 0x29, 0x77,
+	0x43, 0x21, 0x27, 0x6e, 0xfc, 0x04, 0x88, 0xd1, 0x1d, 0x65, 0xb9, 0x39, 0xe2, 0x33, 0x18, 0x30,
+	0x55, 0x5d, 0x50, 0xf9, 0xee, 0x91, 0xba, 0xc0, 0x09, 0x8c, 0x05, 0x17, 0x4a, 0x1f, 0x2b, 0xeb,
+	0xc2, 0x59, 0x87, 0x1a, 0x5b, 0xc8, 0xd7, 0x2c, 0xfe, 0xec, 0x01, 0xca, 0x65, 0x69, 0xa8, 0x64,
+	0xdd, 0xd9, 0x1f, 0xdb, 0x47, 0xac, 0x3c, 0x9c, 0x5d, 0x75, 0x98, 0x73, 0x14, 0xd2, 0x3a, 0xfa,
+	0x9d, 0xca, 0xff, 0x7f, 0x2a, 0x7c, 0x07, 0x41, 0x79, 0x2c, 0x0d, 0x17, 0x76, 0x54, 0xe1, 0xec,
+	0xb2, 0x43, 0x55, 0xff, 0x15, 0x69, 0x88, 0x78, 0x0e, 0xc3, 0x1a, 0x71, 0xf3, 0xfb, 0x43, 0xe3,
+	0x98, 0xd5, 0x2e, 0x30, 0x25, 0xd7, 0xf9, 0x26, 0x0a, 0x6c, 0xdc, 0xa6, 0xca, 0x02, 0xbb, 0x60,
+	0xf3, 0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0x97, 0xa2, 0x21, 0x15, 0x7b, 0x02, 0x00, 0x00,
 }

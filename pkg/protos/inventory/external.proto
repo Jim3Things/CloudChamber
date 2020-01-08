@@ -10,7 +10,6 @@ message external {
     // TODO: Should architecture be a core attribute of a blade?
     // TODO: Do we need anything about host system software, or is this purely physical attributes?
     message blade {
-
         // Used to define an extended feature of the blade, such as GPU
         message feature {
             string name = 1;

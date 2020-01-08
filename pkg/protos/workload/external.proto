@@ -4,4 +4,38 @@ package workload;
 
 message external {
 
+    // TODO: Should we make this a common type?
+    message feature {
+        string name = 1;
+        int64 amount = 2;
+    }
+
+    message volume {
+        string name = 1;
+        int64 size_in_gb = 2;
+        bool creatable = 3;
+        bool write_locked = 4;
+        repeated feature features = 5;
+    }
+
+    message capacity {
+        float cores = 1;
+        int64 memory_in_mb = 2;
+    }
+
+    message instance {
+        string name = 1;
+        capacity capacity = 2;
+
+        repeated feature features = 3;
+
+        // Boot volume
+        volume system = 4;
+
+        // Other (data) volumes
+        repeated volume volumes = 5;
+
+        // configuration / metadata to pass to the instance
+        string config = 6;
+    }
 }
