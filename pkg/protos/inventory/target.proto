@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package inventory;
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message target {
 

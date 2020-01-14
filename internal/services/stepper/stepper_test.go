@@ -84,7 +84,7 @@ func callNow(t *testing.T, ctx context.Context) int64 {
 	resp, err := client.Now(ctx, &empty.Empty{})
 	assert.Nilf(t, err, "Now failed: %v", err)
 
-	return resp.Current
+	return resp.GetTicks()
 }
 
 func callNowVerify(t *testing.T, ctx context.Context, expected int64) {
@@ -126,11 +126,11 @@ func testDelay(t *testing.T, ctx context.Context, atLeast int64, jitter int64) {
 
 	assert.True(
 		t,
-		resp.Current >= minLegal && resp.Current <= maxLegal,
+		resp.Ticks >= minLegal && resp.Ticks <= maxLegal,
 		"Delay out of range, should be %d - %d, is %d",
 		minLegal,
 		maxLegal,
-		resp.Current)
+		resp.Ticks)
 
 	t.Log("Delay subtest complete")
 }
@@ -281,7 +281,7 @@ func TestStepper_Manual(t *testing.T) {
 	go func(res chan<- bool) {
 		rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: 3, Jitter: 0})
 		assert.Nilf(t, err, "Delay called failed, returned %v", err)
-		assert.Equal(t, rsp.Current, int64(3), "Delay returned an invalid time.  Should be 3, but was %d", rsp.Current)
+		assert.Equal(t, rsp.Ticks, int64(3), "Delay returned an invalid time.  Should be 3, but was %d", rsp.Ticks)
 
 		res <- true
 	}(ch)

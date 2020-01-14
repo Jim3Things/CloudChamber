@@ -1,0 +1,89 @@
+// This file contains the definitions of the messages exchanged between the
+// inventory monitor and the inventory.
+
+syntax = "proto3";
+
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/common.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+
+package monitor;
+
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/monitor";
+
+service Monitor {
+    rpc ReportHealth(actual) returns (google.protobuf.Empty);
+}
+
+service Inventory {
+    rpc SetConfig(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc SetTargets(desired) returns (actual);
+}
+
+message actual {
+    // This message describes a health report from the inventory
+    enum health {
+        Invalid = 0;
+        Unavailable = 1;
+        Draining = 2;
+        Healthy = 3;
+        Removing = 4;
+    }
+
+    message blade_details {
+        // specify which blade in the rack.
+        // Note that full internal name for a blade is <rackname>-blade-<bladeId>
+        int64 id = 1;
+        common.blade_capacity present = 2;
+        common.blade_capacity used = 3;
+
+        // TODO: We will probably want a list of the scheduling decision IDs that
+        //       are represented in the used capacity.
+    }
+
+    message pdu_details {
+
+    }
+
+    message tor_details {
+
+    }
+
+    message item {
+        string rack_name = 1;
+        health health = 2;
+        google.protobuf.Timestamp last_start = 3;
+
+        oneof details {
+            blade_details blade = 4;
+            pdu_details pdu = 5;
+            tor_details tor = 6;
+        }
+    }
+
+    repeated item items = 1;
+}
+
+// This message describes a command from the monitor to the
+// inventory.  These take the form of desired states for
+// specific items.  Any item not mentioned has no actions to
+// take.
+message desired {
+    // This message describes the desired health state to the inventory
+    enum health {
+        Invalid = 0;
+        Draining = 1;
+        Stopped = 2;
+        Healthy = 3;
+        Removed = 4;
+    }
+
+    message item {
+        string rack_name = 1;
+
+        health health = 2;
+        google.protobuf.Timestamp last_start = 3;
+    }
+
+    repeated item items = 1;
+}

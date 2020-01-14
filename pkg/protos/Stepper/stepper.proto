@@ -2,8 +2,11 @@ syntax = "proto3";
 
 package stepper;
 
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/common.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/duration.proto";
+
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/Stepper";
 
 // This service manages the overall passage of time.
 //
@@ -22,11 +25,11 @@ service Stepper {
     rpc Step(google.protobuf.Empty) returns (google.protobuf.Empty);
 
     // Get the current simulated time.
-    rpc Now(google.protobuf.Empty) returns (TimeResponse);
+    rpc Now(google.protobuf.Empty) returns (common.timestamp);
 
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
-    rpc Delay (DelayRequest) returns (TimeResponse);
+    rpc Delay (DelayRequest) returns (common.timestamp);
 }
 
 // Define the various simulated time stepping policies
@@ -70,10 +73,4 @@ message DelayRequest {
     // is to simulate the random delays seen in, e.g., disk I/O or network
     // communications.
     int64 jitter = 2;
-}
-
-// Define a message that contains a time value
-message TimeResponse {
-    // Ticks value representing the time in question.
-    int64 current = 1;
 }

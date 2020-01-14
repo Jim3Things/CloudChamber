@@ -1,6 +1,7 @@
 syntax = "proto3";
 
 package log;
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/log";
 
 enum impact {
     Invalid = 0;

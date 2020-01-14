@@ -15,6 +15,7 @@ import (
 
 	trace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
 var policy = pb.StepperPolicy_Invalid // Active stepper policy
@@ -177,7 +178,7 @@ func (s *server) Step(ctx context.Context, _ *empty.Empty) (*empty.Empty, error)
 }
 
 // Get the current simulated time.
-func (s *server) Now(ctx context.Context, in *empty.Empty) (*pb.TimeResponse, error) {
+func (s *server) Now(ctx context.Context, in *empty.Empty) (*common.Timestamp, error) {
 	trace.AddEvent(ctx, in.String(), latest, "Get the time")
 
 	if policy == pb.StepperPolicy_Invalid {
@@ -187,12 +188,12 @@ func (s *server) Now(ctx context.Context, in *empty.Empty) (*pb.TimeResponse, er
 	syncLock.Lock()
 	defer syncLock.Unlock()
 
-	return &pb.TimeResponse{Current: latest}, nil
+	return &common.Timestamp{Ticks: latest}, nil
 }
 
 // Delay the simulated time by a specified amount +/- an allowed variance.  Do
 // not return until that new time is current.
-func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*pb.TimeResponse, error) {
+func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timestamp, error) {
 	trace.AddEvent(ctx, in.String(), latest, "Wait for the target time")
 
 	if policy == pb.StepperPolicy_Invalid {
@@ -213,7 +214,7 @@ func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*pb.TimeRespon
 	}
 
 	waitUntil(in.AtLeast + adjust)
-	resp := pb.TimeResponse{Current: latest}
+	resp := common.Timestamp{Ticks: latest}
 	trace.AddEvent(ctx, resp.String(), latest, "Delay completed")
 	return &resp, nil
 }
