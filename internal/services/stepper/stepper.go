@@ -200,8 +200,8 @@ func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timest
 		return nil, trace.LogError(ctx, latest, "stepper not initialized: no stepper policy has been set")
 	}
 
-	if in.AtLeast < 0 {
-		return nil, trace.LogError(ctx, latest, "base delay time must be non-negative, was specified as %d", in.AtLeast)
+	if in.AtLeast.Ticks < 0 {
+		return nil, trace.LogError(ctx, latest, "base delay time must be non-negative, was specified as %d", in.AtLeast.Ticks)
 	}
 
 	if in.Jitter < 0 {
@@ -213,7 +213,7 @@ func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timest
 		adjust = rand.Int63n(in.Jitter)
 	}
 
-	waitUntil(in.AtLeast + adjust)
+	waitUntil(in.AtLeast.Ticks + adjust)
 	resp := common.Timestamp{Ticks: latest}
 	trace.AddEvent(ctx, resp.String(), latest, "Delay completed")
 	return &resp, nil

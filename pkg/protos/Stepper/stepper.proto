@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package stepper;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/common/common.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/duration.proto";
 
@@ -25,11 +25,11 @@ service Stepper {
     rpc Step(google.protobuf.Empty) returns (google.protobuf.Empty);
 
     // Get the current simulated time.
-    rpc Now(google.protobuf.Empty) returns (common.timestamp);
+    rpc Now(google.protobuf.Empty) returns (common.Timestamp);
 
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
-    rpc Delay (DelayRequest) returns (common.timestamp);
+    rpc Delay (DelayRequest) returns (common.Timestamp);
 }
 
 // Define the various simulated time stepping policies
@@ -66,7 +66,7 @@ message PolicyRequest {
 // Define the parameters when requesting a delay
 message DelayRequest {
     // The minimum simulated time before the delay is completed.
-    int64 atLeast = 1;
+    common.Timestamp atLeast = 1;
 
     // An additional maximum number of ticks that can be added to the delay.
     // A random number of ticks [0-jitter) are added to the delay time.  This

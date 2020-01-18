@@ -1,6 +1,10 @@
+// This file defines the data structures used to specify the target, or
+// desired, state of one or more inventory items.
+
 syntax = "proto3";
 
 package inventory;
+
 option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message target {

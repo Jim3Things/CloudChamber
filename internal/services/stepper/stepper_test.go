@@ -18,6 +18,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	srvtrace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 
@@ -118,7 +119,7 @@ func testStep(t *testing.T, ctx context.Context, expected int64) {
 func testDelay(t *testing.T, ctx context.Context, atLeast int64, jitter int64) {
 	start := callNow(t, ctx)
 
-	resp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: atLeast, Jitter: jitter})
+	resp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: atLeast}, Jitter: jitter})
 	assert.Nilf(t, err, "Delay failed: %v, err")
 
 	minLegal := atLeast
@@ -139,7 +140,11 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 	Reset()
 	unit_test.SetTesting(t)
 
-	conn, err := grpc.Dial("bufnet", grpc.WithContextDialer(bufDialer), grpc.WithInsecure(), grpc.WithUnaryInterceptor(clienttrace.Interceptor))
+	conn, err := grpc.Dial(
+		"bufnet",
+		grpc.WithContextDialer(bufDialer),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(clienttrace.Interceptor))
 	assert.Nilf(t, err, "Failed to dial bufnet: %v", err)
 
 	md := metadata.Pairs(
@@ -223,10 +228,10 @@ func TestInvalidDelay(t *testing.T) {
 	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_NoWait, MeasuredDelay: &duration.Duration{Seconds: 0}})
 	assert.Nilf(t, err, "SetPolicy unexpectedly failed: %v", err)
 
-	_, err = client.Delay(ctx, &pb.DelayRequest{AtLeast: -1, Jitter: 0})
+	_, err = client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: -1}, Jitter: 0})
 	assert.NotNil(t, err, "Delay unexpectedly succeeded with an invalid base delay time")
 
-	_, err = client.Delay(ctx, &pb.DelayRequest{AtLeast: 1, Jitter: -1})
+	_, err = client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 1}, Jitter: -1})
 	assert.NotNil(t, err, "Delay unexpectedly succeeded with an invalid jitter")
 }
 
@@ -279,7 +284,7 @@ func TestStepper_Manual(t *testing.T) {
 	ch := make(chan bool)
 
 	go func(res chan<- bool) {
-		rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: 3, Jitter: 0})
+		rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
 		assert.Nilf(t, err, "Delay called failed, returned %v", err)
 		assert.Equal(t, rsp.Ticks, int64(3), "Delay returned an invalid time.  Should be 3, but was %d", rsp.Ticks)
 

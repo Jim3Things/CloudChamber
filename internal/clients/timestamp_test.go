@@ -1,7 +1,7 @@
 package clients
 
 import (
-    "testing"
+	"testing"
 )
 
 const bufSize = 1024 * 1024

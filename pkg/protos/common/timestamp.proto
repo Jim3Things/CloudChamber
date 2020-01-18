@@ -1,0 +1,12 @@
+// Defines the common data structure that holds a simulated time.
+
+syntax = "proto3";
+
+package common;
+
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/common";
+
+// Define the structure for a simulated time
+message Timestamp {
+    int64 ticks = 1;
+}

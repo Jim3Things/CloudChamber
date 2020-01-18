@@ -1,0 +1,39 @@
+// Defines the data structures used to describe the capacity of an inventory
+// item. Capacity is a multi-dimensional aspect of any inventory item, since
+// each item has multiple internal resources, any one or combination of which
+// can be exhausted.
+//
+// The multi-dimensionality is important for schedulers to understand, as the
+// exhaustion of one dimension can lead to a case where the other unused
+// capacity dimensions are stranded.  For instance, if all cores are consumed
+// then no free memory, disk, or other dimensions of a blade can be used.
+syntax = "proto3";
+
+package common;
+
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/common";
+
+// Describe the capabilities of a physical blade
+// TODO: Do we need anything about host system software, or is this purely physical attributes?
+
+// Defines the capacity dimensions and values for a blade
+message blade_capacity {
+    // The first section contains resources present in all forms of
+    // blades.
+
+    float cores = 1;
+    int64 memory_in_mb = 2;
+    int64 disk_in_gb = 3;
+    int64 network_bandwidth = 4;
+    string arch = 5;
+
+    // GPUs may not be present at all on a blade, so if they are
+    // not then the 'present' flag is false and the other fields are
+    // ignored.
+    message gpu_details {
+        int32 units = 1;
+        string arch = 2;
+        bool present = 3;
+    }
+    gpu_details gpus = 6;
+}
