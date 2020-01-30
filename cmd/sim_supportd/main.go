@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/grpc"
 
-	stepper2 "github.com/Jim3Things/CloudChamber/internal/services/stepper"
+	"github.com/Jim3Things/CloudChamber/internal/services/stepper"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
@@ -35,7 +35,7 @@ func main() {
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-	stepper2.Register(s)
+	stepper.Register(s)
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

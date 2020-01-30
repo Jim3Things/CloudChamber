@@ -1,7 +1,12 @@
+// This file contains the data structures that define the actual state of one
+// or more inventory items, as of the point in time when the structure is
+// constructed.
+
 syntax = "proto3";
 
 package inventory;
 
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message actual {
 

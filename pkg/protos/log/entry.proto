@@ -1,29 +1,57 @@
+// This file contains the trace log entry formats used by CloudChamber when
+// queuing to the production display
+//
+// CloucChamber will display the trace message, may have an annotation as to
+// why the event occurred, when it occurred, and the modules impacted by this
+// event, and in what why.
+//
+// So, for instance, an event may specify that the scheduler has made a choice
+// for placement, the annotation would describe how that choice was made, the
+// time would indicate when, and the impacted modules would include the
+// scheduler (for execute), the target workload inventory store (for modify),
+// and the internal escrow usage state (for modify).
+//
+// These entries need to be sufficient to drive what gets highlighted and shown
+// on the CloudChamber display.
+
 syntax = "proto3";
 
 package log;
 
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/log";
+
+// Describe the type of impact that this event has on a module.
 enum impact {
     Invalid = 0;
     Read = 1;
     Create = 2;
     Modify = 3;
     Delete = 4;
+    Execute = 5;
 }
 
+// Describe an impacted module
 message module {
     impact impact = 1;
     string name = 2;
 }
 
+// Define an individual trace event
 message event {
+    // Simulated time when it was logged.
     int64 tick = 1;
 
+    // Annotation that describes why the event occurred.
     string reason = 2;
+
+    // The event text itself.
     string text = 3;
 
+    // The set of modules impacted, and the type of impact.
     repeated module impacted = 4;
 }
 
+// Describe a full correlated span, consisting of zero or more events.
 message entry {
     string name = 1;
 

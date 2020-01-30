@@ -1,6 +1,11 @@
+// This file contains the definitions used by the inventory monitor state
+// machine to hold intermediate state between events.
+
 syntax = "proto3";
 
 package inventory;
+
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message internal {
 

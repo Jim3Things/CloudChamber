@@ -3,29 +3,19 @@
 
 syntax = "proto3";
 
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
+
 package inventory;
 
-message external {
-    // Describe the capabilities of a physical blade
-    // TODO: Should architecture be a core attribute of a blade?
-    // TODO: Do we need anything about host system software, or is this purely physical attributes?
-    message blade {
-        // Used to define an extended feature of the blade, such as GPU
-        message feature {
-            string name = 1;
-            int64 amount = 2;
-        }
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
+message external {
+
+    message blade {
         // specify which blade in the rack.
         // Note that full internal name for a blade is <rackname>-blade-<bladeId>
         int64 id = 1;
-
-        int64 cores = 2;
-        int64 memory_in_mb = 3;
-        int64 disk_in_gb = 4;
-        int64 network_bandwidth = 5;
-
-        repeated feature features = 6;
+        common.blade_capacity capacity = 2;
     }
 
     // The next three are common overhead items in a rack.  All are pure skeletons at this point.
@@ -35,7 +25,6 @@ message external {
     // Power distribution unit.  Network accessible power controller
     message pdu {
         // Note that full internal name for a pdu is <rackname>-pdu-0
-
     }
 
     // Rack-level network switch.
