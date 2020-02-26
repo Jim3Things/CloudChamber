@@ -15,6 +15,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+//TODO This is just a placeholder until we have proper user records held in a persisted store (Etcd)
+//
 // User is a representation of an individual user
 type User struct {
 	Name         string
@@ -102,19 +104,19 @@ func usersAddRoutes(routeBase *mux.Router) {
 	routeUsers.HandleFunc("", handlerUsersList).Methods("GET")
 	routeUsers.HandleFunc("/", handlerUsersList).Methods("GET")
 
-	routeUsers.HandleFunc("/{username}", handlerUsersFetch).Methods("GET")
-
 	// In the following, the "GET" method is allowed just for the purposes of test and
 	// evaluation. At somepoint, it will need to be removed, but in the meantime, leaving
 	// it there allows simple experimentation with just a browser.
 	//
-	routeUsers.HandleFunc("/{username}/add", handlerUsersAdd).Methods("PUT", "GET")
-	routeUsers.HandleFunc("/{username}/remove", handlerUsersRemove).Methods("DELETE", "GET")
-	routeUsers.HandleFunc("/{username}/enable", handlerUsersEnable).Methods("PUT", "GET")
-	routeUsers.HandleFunc("/{username}/disable", handlerUsersDisable).Methods("PUT", "GET")
-	routeUsers.HandleFunc("/{username}/update", handlerUsersUpdate).Methods("PUT", "GET")
-	routeUsers.HandleFunc("/{username}/login", handlerUsersLogin).Methods("PUT", "GET")
-	routeUsers.HandleFunc("/{username}/logout", handlerUsersLogout).Methods("PUT", "GET")
+	// As a reminder,
+	//	 PUT is idempotent so translates to UPDATE in the CRUD methodolgy
+	//   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
+	//
+	routeUsers.HandleFunc("/{username}", handlerUsersCreate).Methods("POST", "GET")
+	routeUsers.HandleFunc("/{username}", handlerUsersRead).Methods("GET")
+	routeUsers.HandleFunc("/{username}", handlerUsersUpdate).Methods("PUT", "GET")
+	routeUsers.HandleFunc("/{username}", handlerUsersDelete).Methods("DELETE", "GET")
+
 }
 
 func usersDisplayArguments(w http.ResponseWriter, r *http.Request) {
@@ -131,27 +133,12 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Users (List)")
 }
 
-func handlerUsersFetch(w http.ResponseWriter, r *http.Request) {
+func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 
 	usersDisplayArguments(w, r)
 }
 
-func handlerUsersAdd(w http.ResponseWriter, r *http.Request) {
-
-	usersDisplayArguments(w, r)
-}
-
-func handlerUsersRemove(w http.ResponseWriter, r *http.Request) {
-
-	usersDisplayArguments(w, r)
-}
-
-func handlerUsersEnable(w http.ResponseWriter, r *http.Request) {
-
-	usersDisplayArguments(w, r)
-}
-
-func handlerUsersDisable(w http.ResponseWriter, r *http.Request) {
+func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 
 	usersDisplayArguments(w, r)
 }
@@ -161,12 +148,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 	usersDisplayArguments(w, r)
 }
 
-func handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
-
-	usersDisplayArguments(w, r)
-}
-
-func handlerUsersLogout(w http.ResponseWriter, r *http.Request) {
+func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 
 	usersDisplayArguments(w, r)
 }

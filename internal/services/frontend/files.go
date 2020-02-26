@@ -51,14 +51,14 @@ func serveFileErrorPage(code int, dir string) http.Handler {
 }
 
 func serveFileStatic(path string) http.Handler {
-	fp := filepath.Join(rootFilePath, path)
+	fp := filepath.Join(*rootFilePath, path)
 
 	return http.FileServer(http.Dir(fp))
 }
 
 func serveFileTemplate(w http.ResponseWriter, r *http.Request) {
-	lp := filepath.Join(rootFilePath, "templates", "layout.html")
-	fp := filepath.Join(rootFilePath, "templates", filepath.Clean(r.URL.Path))
+	lp := filepath.Join(*rootFilePath, "templates", "layout.html")
+	fp := filepath.Join(*rootFilePath, "templates", filepath.Clean(r.URL.Path))
 
 	// Return a 404 if the template doesn't exist
 	info, err := os.Stat(fp)

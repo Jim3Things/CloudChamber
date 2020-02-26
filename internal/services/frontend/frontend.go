@@ -18,7 +18,9 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"fmt"
+	"log"
 	"net/http"
 	"sync"
 
@@ -27,6 +29,8 @@ import (
 	"github.com/gorilla/sessions"
 )
 
+//TODO This is just a placeholder until we have proper inventory items held in a persisted store (Etcd)
+//
 // Computer is a represention an individual Computer
 type Computer struct {
 	Name       string
@@ -34,10 +38,17 @@ type Computer struct {
 	Memory     uint64
 }
 
+//TODO This is just a placeholder until we have proper inventory items held in the persisted store (Etcd)
+//
 type DbComputers struct {
 	Lock      sync.Mutex
 	Computers map[string]Computer
 }
+
+const (
+	frontEndPortDefault = 8080
+	filePathRootDefault = "C:\\Chamber"
+)
 
 var (
 	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
@@ -61,7 +72,8 @@ var (
 
 	dbComputers DbComputers
 
-	rootFilePath = "ROOT_PATH"
+	frontendPort = flag.Int("port", frontEndPortDefault, "port to listen on for web service")
+	rootFilePath = flag.String("filepath", filePathRootDefault, "root path for web service files")
 )
 
 // StartService is the primary entry point to start the front-end web service.
@@ -71,6 +83,7 @@ func StartService() error {
 	// point in the face of failure represents a compromise in security
 	//
 	if nil == keyAuthentication || nil == keyEncryption {
+		log.Fatalf("Failed to generate required keys %v", ErrNotInitialized)
 		return ErrNotInitialized
 	}
 
@@ -90,11 +103,15 @@ func StartService() error {
 	routeAPI.HandleFunc("/stepper", handlerStepperRoot).Methods("GET")
 	routeAPI.HandleFunc("/injector", handlerInjectorRoot).Methods("GET")
 
-	http.ListenAndServe(":8080", routeBase)
+	http.ListenAndServe(fmt.Sprintf(":%d", *frontendPort), routeBase)
 	return nil
 }
 
 func main() {
+
+	flag.Parse()
+
+	log.Printf("Parameters - Port: %v FilePath: %v", *frontendPort, *rootFilePath)
 
 	StartService()
 }
