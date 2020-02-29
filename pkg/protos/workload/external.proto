@@ -5,19 +5,14 @@ package workload;
 option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/workload";
 
 message external {
-
-    // TODO: Should we make this a common type?
-    message feature {
-        string name = 1;
-        int64 amount = 2;
-    }
+    // TODO: Open question.  Given the features of protobuf, I'm not sure that a generic 'features' collection
+    // makes sense.  I've left it in here for now, but I think we will probably remove it.
 
     message volume {
-        string name = 1;
         int64 size_in_gb = 2;
         bool creatable = 3;
         bool write_locked = 4;
-        repeated feature features = 5;
+        map<string, int64> features = 5;
     }
 
     message capacity {
@@ -29,13 +24,13 @@ message external {
         string name = 1;
         capacity capacity = 2;
 
-        repeated feature features = 3;
+        map<string, int64> features = 3;
 
-        // Boot volume
-        volume system = 4;
+        // Boot volume name
+        string system_name = 4;
 
-        // Other (data) volumes
-        repeated volume volumes = 5;
+        // all volumes, must include the boot volume
+        map<string, volume> volumes = 5;
 
         // configuration / metadata to pass to the instance
         string config = 6;
