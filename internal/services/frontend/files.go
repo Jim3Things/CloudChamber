@@ -2,8 +2,7 @@
 // part of the API
 //
 
-//package frontend
-package main
+package frontend
 
 import (
 	"fmt"
@@ -16,8 +15,13 @@ import (
 	"github.com/gorilla/mux"
 )
 
-func filesAddRoutes(routeBase *mux.Router) {
+var (
+	rootFilePath *string
+)
 
+func filesAddRoutes(rootPath *string, routeBase *mux.Router) {
+
+	rootFilePath = rootPath
 	routeFiles := routeBase.PathPrefix("/static").Subrouter()
 
 	routeBase.HandleFunc("", handlerFilesRoot).Methods("GET")

@@ -99,4 +99,4 @@
 // /api/injector
 // /api/inventory
 
-package main
+package frontend
