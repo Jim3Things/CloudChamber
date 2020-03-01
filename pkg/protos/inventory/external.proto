@@ -11,14 +11,7 @@ option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message external {
 
-    message blade {
-        // specify which blade in the rack.
-        // Note that full internal name for a blade is <rackname>-blade-<bladeId>
-        int64 id = 1;
-        common.blade_capacity capacity = 2;
-    }
-
-    // The next three are common overhead items in a rack.  All are pure skeletons at this point.
+    // The three types here are common overhead items in a rack.  All are pure skeletons at this point.
     // Note that all have implied connectivity with all other items in a rack.  Currently elided
     // in the external model, but used in the other models.
 
@@ -30,14 +23,12 @@ message external {
     // Rack-level network switch.
     message tor {
         // Note that full internal name for a tor is <rackname>-tor-0
-
     }
 
     // Management controller.  Provides direct ability halt or boot a specific
     // blade.
     message mc {
         // Note that full internal name for a sc is <rackname>-mc-0
-
     }
 
     message rack {
@@ -50,7 +41,9 @@ message external {
         tor tor = 3;
         mc mc = 4;
 
-        repeated blade blade = 5;
+        // specify the blades in the rack.  Note that full internal name for a blade is <rackname>-blade-<bladeId>,
+        // where <bladeId> is the key in that blade's map entry below.
+        map<int64, common.blade_capacity> blades = 5;
     }
 
     // This is probably not needed at this point.
