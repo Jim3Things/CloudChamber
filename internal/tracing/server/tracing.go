@@ -22,7 +22,7 @@ func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInf
 	metadataCopy := requestMetadata.Copy()
 
 	entries, spanCtx := grpctrace.Extract(ctx, &metadataCopy)
-	ctx = correlation.WithMap(ctx, correlation.NewMap(correlation.MapUpdate{
+	ctx = correlation.ContextWithMap(ctx, correlation.NewMap(correlation.MapUpdate{
 		MultiKV: entries,
 	}))
 
