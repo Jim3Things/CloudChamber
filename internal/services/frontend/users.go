@@ -15,9 +15,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-//TODO This is just a placeholder until we have proper user records held in a persisted store (Etcd)
-//
 // User is a representation of an individual user
+//
+//TODO This is just a placeholder until we have proper user records held
+//     in a persisted store (Etcd)
+//
 type User struct {
 	Name         string
 	PasswordHash []byte
@@ -25,6 +27,9 @@ type User struct {
 	Enabled bool
 }
 
+// DbUsers is a container used to established synchronized access to
+// the in-memory set of user records.
+//
 type DbUsers struct {
 	Mutex sync.Mutex
 	Users map[string]User
@@ -99,6 +104,8 @@ func userEnable(name string, enable bool) error {
 
 func usersAddRoutes(routeBase *mux.Router) {
 
+	const routeString = "/{username:[a-z,A-Z][a-z,A-Z,0-9]*}"
+
 	routeUsers := routeBase.PathPrefix("/users").Subrouter()
 
 	routeUsers.HandleFunc("", handlerUsersList).Methods("GET")
@@ -112,20 +119,51 @@ func usersAddRoutes(routeBase *mux.Router) {
 	//	 PUT is idempotent so translates to UPDATE in the CRUD methodolgy
 	//   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
 	//
-	routeUsers.HandleFunc("/{username}", handlerUsersCreate).Methods("POST", "GET")
-	routeUsers.HandleFunc("/{username}", handlerUsersRead).Methods("GET")
-	routeUsers.HandleFunc("/{username}", handlerUsersUpdate).Methods("PUT", "GET")
-	routeUsers.HandleFunc("/{username}", handlerUsersDelete).Methods("DELETE", "GET")
+	//	routeUsers.HandleFunc("/{username}", handlerUsersCreate).Methods("POST", "GET")
+	//	routeUsers.HandleFunc("/{username}", handlerUsersRead).Methods("GET")
+	//	routeUsers.HandleFunc("/{username}", handlerUsersUpdate).Methods("PUT", "GET", "PATCH")
+	//	routeUsers.HandleFunc("/{username}", handlerUsersDelete).Methods("DELETE", "GET")
+
+	routeUsers.HandleFunc(routeString, handlerUsersRead).Methods("GET")
 
 }
 
+func usersOpIsValid(w http.ResponseWriter, r *http.Request) bool {
+
+	var isValid bool = false
+
+	op := r.FormValue("op")
+
+	switch op {
+	case "enable":
+		isValid = true
+
+	case "disable":
+		isValid = true
+
+	case "login":
+		isValid = true
+
+	case "logout":
+		isValid = true
+	}
+
+	return isValid
+}
+
 func usersDisplayArguments(w http.ResponseWriter, r *http.Request) {
+
+	op := r.FormValue("op")
 
 	vars := mux.Vars(r)
 
 	username := vars["username"]
 
-	fmt.Fprintf(w, "User: %s", username)
+	if "" == op {
+		fmt.Fprintf(w, "User: %s", username)
+	} else {
+		fmt.Fprintf(w, "User: %v op: %v", username, op)
+	}
 }
 
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
@@ -140,7 +178,11 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 
-	usersDisplayArguments(w, r)
+	if usersOpIsValid(w, r) {
+		usersDisplayArguments(w, r)
+	} else {
+		http.Error(w, "InvalidOp", http.StatusBadRequest)
+	}
 }
 
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
@@ -149,6 +191,61 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersEnable2(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersOperation0(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersOperation1(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersOperation2(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersOperation3(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersOperation4(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersEnable(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersDisable(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersLogin(w http.ResponseWriter, r *http.Request) {
+
+	usersDisplayArguments(w, r)
+}
+
+func handlerUsersLogout(w http.ResponseWriter, r *http.Request) {
 
 	usersDisplayArguments(w, r)
 }

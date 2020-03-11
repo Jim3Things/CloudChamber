@@ -29,16 +29,22 @@ import (
 	"github.com/gorilla/sessions"
 )
 
-//TODO This is just a placeholder until we have proper inventory items held in a persisted store (Etcd)
-//
 // Computer is a represention an individual Computer
+//
+//TODO This is just a placeholder until we have proper inventory items
+//     held in a persisted store (Etcd)
+//
 type Computer struct {
 	Name       string
 	Processors uint32
 	Memory     uint64
 }
 
-//TODO This is just a placeholder until we have proper inventory items held in the persisted store (Etcd)
+// DbComputers is a container used to established synchronized access to
+// the in-memory set of inventory records.
+//
+//TODO This is just a placeholder until we have proper inventory items
+//     held in the persisted store (Etcd)
 //
 type DbComputers struct {
 	Lock      sync.Mutex
@@ -64,11 +70,40 @@ var (
 	// for the purposes of deployment or execution.
 	ErrWorkloadNotEnabled = errors.New("CloudChamber: workload not enabled")
 
-	ErrUserUnableToCreate   = errors.New("CloudChamber: unable to create a user account at this time")
-	ErrUserAlreadyExists    = errors.New("CloudChamber: user already exists")
-	ErrUserNotFound         = errors.New("CloudChamber: user not found")
-	ErrUserAuthFailed       = errors.New("CloudChamber: authentication failed, invalid user name or password")
+	// ErrUserUnableToCreate indicates the specified user account cannot be
+	// created at this time
+	//
+	ErrUserUnableToCreate = errors.New("CloudChamber: unable to create a user account at this time")
+
+	// ErrUserAlreadyCreated indicates the specified user account was previously
+	// created and the request was determined to be a duplicate Create request.
+	//
+	ErrUserAlreadyCreated = errors.New("CloudChamber: user already exists")
+
+	// ErrUserAlreadyExists indicates the specified user account already exists
+	// and is not a detectable duplicate
+	//
+	ErrUserAlreadyExists = errors.New("CloudChamber: user already exists")
+
+	// ErrUserNotFound indicates the specified user account was determined to
+	// not exist (i.e. the search succeeded but no record was found)
+	//
+	ErrUserNotFound = errors.New("CloudChamber: user not found")
+
+	// ErrUserAuthFailed indicates the supplied username and password combination
+	// is not valid.
+	//
+	ErrUserAuthFailed = errors.New("CloudChamber: authentication failed, invalid user name or password")
+
+	// ErrUserPermissionDenied indicates the user does not have the appropriate
+	// permissions for the requested operation.
+	//
 	ErrUserPermissionDenied = errors.New("CloudChamber: permission denied")
+
+	// ErrUserInvalidOperation indicates the operation requested for the supplied
+	// user account is invalid in some way, likely a non-existent operation code.
+	//
+	ErrUserInvalidOperation = errors.New("CloudChamber: invalid operation")
 
 	dbComputers DbComputers
 

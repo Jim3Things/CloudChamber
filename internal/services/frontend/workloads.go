@@ -14,9 +14,10 @@ import (
 	"github.com/gorilla/mux"
 )
 
-//TODO This is just a placeholder until we have proper workload definitions held in a persisted store (Etcd)
-//
 // Workload is a representation of a specific workload
+//
+//TODO This is just a placeholder until we have proper workload definitions
+//     held in a persisted store (Etcd)
 //
 type Workload struct {
 	Name            string
@@ -27,6 +28,9 @@ type Workload struct {
 	Enabled         bool
 }
 
+// DbWorkloads is a container used to established synchronized access to
+// the in-memory set of workload records.
+//
 type DbWorkloads struct {
 	Mutex     sync.Mutex
 	Workloads map[string]Workload
