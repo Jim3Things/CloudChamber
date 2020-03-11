@@ -2,8 +2,7 @@
 // part of the API
 //
 
-//package frontend
-package main
+package frontend
 
 import (
 	"fmt"

@@ -3,7 +3,7 @@
 // the actual implementation of the CloudChamber project.
 
 /*
-Package main implements the primary service front end to receive the
+Package frontend implements the primary service front end to receive the
 user HTTP requests, route the request to the appropriate libraries
 and/or micro-services and then format the response.
 
@@ -109,4 +109,4 @@ TODO
 /api/injector
 /api/inventory
 */
-package main
+package frontend

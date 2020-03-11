@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"go.opentelemetry.io/otel/api/distributedcontext"
+	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/key"
 	"go.opentelemetry.io/otel/api/trace"
@@ -22,16 +22,15 @@ func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInf
 	metadataCopy := requestMetadata.Copy()
 
 	entries, spanCtx := grpctrace.Extract(ctx, &metadataCopy)
-	ctx = distributedcontext.WithMap(ctx, distributedcontext.NewMap(distributedcontext.MapUpdate{
+	ctx = correlation.ContextWithMap(ctx, correlation.NewMap(correlation.MapUpdate{
 		MultiKV: entries,
 	}))
 
 	tr := global.TraceProvider().Tracer("server")
 
 	ctx, span := tr.Start(
-		ctx,
+		trace.ContextWithRemoteSpanContext(ctx, spanCtx),
 		info.FullMethod,
-		trace.ChildOf(spanCtx),
 		trace.WithSpanKind(trace.SpanKindServer),
 	)
 	defer span.End()
