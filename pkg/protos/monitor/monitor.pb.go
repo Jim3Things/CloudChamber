@@ -7,6 +7,7 @@ import (
 	context "context"
 	fmt "fmt"
 	common "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	_ "github.com/envoyproxy/protoc-gen-validate/validate"
 	proto "github.com/golang/protobuf/proto"
 	empty "github.com/golang/protobuf/ptypes/empty"
 	grpc "google.golang.org/grpc"
@@ -105,7 +106,7 @@ func (DesiredHealth) EnumDescriptor() ([]byte, []int) {
 //       I considered extensive use of oneof to limit the options, but that
 //       looked even worse.  Open to suggestions.
 type Actual struct {
-	Items                []*ActualItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Racks                []*ActualRack `protobuf:"bytes,1,rep,name=racks,proto3" json:"racks,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}      `json:"-"`
 	XXX_unrecognized     []byte        `json:"-"`
 	XXX_sizecache        int32         `json:"-"`
@@ -136,17 +137,125 @@ func (m *Actual) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Actual proto.InternalMessageInfo
 
-func (m *Actual) GetItems() []*ActualItem {
+func (m *Actual) GetRacks() []*ActualRack {
 	if m != nil {
-		return m.Items
+		return m.Racks
 	}
 	return nil
 }
 
-type ActualBladeDetails struct {
-	// specify which blade in the rack.
-	// Note that full internal name for a blade is <rackname>-blade-<bladeId>
-	Id                   int64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
+type ActualRack struct {
+	Name                 string                            `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Pdu                  *ActualRackPduDetails             `protobuf:"bytes,2,opt,name=pdu,proto3" json:"pdu,omitempty"`
+	Tor                  *ActualRackTorDetails             `protobuf:"bytes,3,opt,name=tor,proto3" json:"tor,omitempty"`
+	Blades               map[int64]*ActualRackBladeDetails `protobuf:"bytes,4,rep,name=blades,proto3" json:"blades,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}                          `json:"-"`
+	XXX_unrecognized     []byte                            `json:"-"`
+	XXX_sizecache        int32                             `json:"-"`
+}
+
+func (m *ActualRack) Reset()         { *m = ActualRack{} }
+func (m *ActualRack) String() string { return proto.CompactTextString(m) }
+func (*ActualRack) ProtoMessage()    {}
+func (*ActualRack) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{0, 0}
+}
+
+func (m *ActualRack) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ActualRack.Unmarshal(m, b)
+}
+func (m *ActualRack) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ActualRack.Marshal(b, m, deterministic)
+}
+func (m *ActualRack) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ActualRack.Merge(m, src)
+}
+func (m *ActualRack) XXX_Size() int {
+	return xxx_messageInfo_ActualRack.Size(m)
+}
+func (m *ActualRack) XXX_DiscardUnknown() {
+	xxx_messageInfo_ActualRack.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ActualRack proto.InternalMessageInfo
+
+func (m *ActualRack) GetName() string {
+	if m != nil {
+		return m.Name
+	}
+	return ""
+}
+
+func (m *ActualRack) GetPdu() *ActualRackPduDetails {
+	if m != nil {
+		return m.Pdu
+	}
+	return nil
+}
+
+func (m *ActualRack) GetTor() *ActualRackTorDetails {
+	if m != nil {
+		return m.Tor
+	}
+	return nil
+}
+
+func (m *ActualRack) GetBlades() map[int64]*ActualRackBladeDetails {
+	if m != nil {
+		return m.Blades
+	}
+	return nil
+}
+
+type ActualRackBaseStatus struct {
+	Health               ActualHealth      `protobuf:"varint,1,opt,name=health,proto3,enum=monitor.ActualHealth" json:"health,omitempty"`
+	LastStart            *common.Timestamp `protobuf:"bytes,2,opt,name=last_start,json=lastStart,proto3" json:"last_start,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *ActualRackBaseStatus) Reset()         { *m = ActualRackBaseStatus{} }
+func (m *ActualRackBaseStatus) String() string { return proto.CompactTextString(m) }
+func (*ActualRackBaseStatus) ProtoMessage()    {}
+func (*ActualRackBaseStatus) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{0, 0, 0}
+}
+
+func (m *ActualRackBaseStatus) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ActualRackBaseStatus.Unmarshal(m, b)
+}
+func (m *ActualRackBaseStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ActualRackBaseStatus.Marshal(b, m, deterministic)
+}
+func (m *ActualRackBaseStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ActualRackBaseStatus.Merge(m, src)
+}
+func (m *ActualRackBaseStatus) XXX_Size() int {
+	return xxx_messageInfo_ActualRackBaseStatus.Size(m)
+}
+func (m *ActualRackBaseStatus) XXX_DiscardUnknown() {
+	xxx_messageInfo_ActualRackBaseStatus.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ActualRackBaseStatus proto.InternalMessageInfo
+
+func (m *ActualRackBaseStatus) GetHealth() ActualHealth {
+	if m != nil {
+		return m.Health
+	}
+	return Actual_Invalid
+}
+
+func (m *ActualRackBaseStatus) GetLastStart() *common.Timestamp {
+	if m != nil {
+		return m.LastStart
+	}
+	return nil
+}
+
+type ActualRackBladeDetails struct {
+	Status               *ActualRackBaseStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 	Present              *common.BladeCapacity `protobuf:"bytes,2,opt,name=present,proto3" json:"present,omitempty"`
 	Used                 *common.BladeCapacity `protobuf:"bytes,3,opt,name=used,proto3" json:"used,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
@@ -154,247 +263,152 @@ type ActualBladeDetails struct {
 	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *ActualBladeDetails) Reset()         { *m = ActualBladeDetails{} }
-func (m *ActualBladeDetails) String() string { return proto.CompactTextString(m) }
-func (*ActualBladeDetails) ProtoMessage()    {}
-func (*ActualBladeDetails) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318189739c1c4c20, []int{0, 0}
+func (m *ActualRackBladeDetails) Reset()         { *m = ActualRackBladeDetails{} }
+func (m *ActualRackBladeDetails) String() string { return proto.CompactTextString(m) }
+func (*ActualRackBladeDetails) ProtoMessage()    {}
+func (*ActualRackBladeDetails) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{0, 0, 1}
 }
 
-func (m *ActualBladeDetails) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ActualBladeDetails.Unmarshal(m, b)
+func (m *ActualRackBladeDetails) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ActualRackBladeDetails.Unmarshal(m, b)
 }
-func (m *ActualBladeDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ActualBladeDetails.Marshal(b, m, deterministic)
+func (m *ActualRackBladeDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ActualRackBladeDetails.Marshal(b, m, deterministic)
 }
-func (m *ActualBladeDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ActualBladeDetails.Merge(m, src)
+func (m *ActualRackBladeDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ActualRackBladeDetails.Merge(m, src)
 }
-func (m *ActualBladeDetails) XXX_Size() int {
-	return xxx_messageInfo_ActualBladeDetails.Size(m)
+func (m *ActualRackBladeDetails) XXX_Size() int {
+	return xxx_messageInfo_ActualRackBladeDetails.Size(m)
 }
-func (m *ActualBladeDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_ActualBladeDetails.DiscardUnknown(m)
+func (m *ActualRackBladeDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_ActualRackBladeDetails.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ActualBladeDetails proto.InternalMessageInfo
+var xxx_messageInfo_ActualRackBladeDetails proto.InternalMessageInfo
 
-func (m *ActualBladeDetails) GetId() int64 {
+func (m *ActualRackBladeDetails) GetStatus() *ActualRackBaseStatus {
 	if m != nil {
-		return m.Id
+		return m.Status
 	}
-	return 0
+	return nil
 }
 
-func (m *ActualBladeDetails) GetPresent() *common.BladeCapacity {
+func (m *ActualRackBladeDetails) GetPresent() *common.BladeCapacity {
 	if m != nil {
 		return m.Present
 	}
 	return nil
 }
 
-func (m *ActualBladeDetails) GetUsed() *common.BladeCapacity {
+func (m *ActualRackBladeDetails) GetUsed() *common.BladeCapacity {
 	if m != nil {
 		return m.Used
 	}
 	return nil
 }
 
-type ActualPduDetails struct {
-	Cables               map[int64]bool `protobuf:"bytes,1,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+type ActualRackPduDetails struct {
+	Status               *ActualRackBaseStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	TorCable             bool                  `protobuf:"varint,2,opt,name=tor_cable,json=torCable,proto3" json:"tor_cable,omitempty"`
+	Cables               map[int64]bool        `protobuf:"bytes,3,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *ActualPduDetails) Reset()         { *m = ActualPduDetails{} }
-func (m *ActualPduDetails) String() string { return proto.CompactTextString(m) }
-func (*ActualPduDetails) ProtoMessage()    {}
-func (*ActualPduDetails) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318189739c1c4c20, []int{0, 1}
+func (m *ActualRackPduDetails) Reset()         { *m = ActualRackPduDetails{} }
+func (m *ActualRackPduDetails) String() string { return proto.CompactTextString(m) }
+func (*ActualRackPduDetails) ProtoMessage()    {}
+func (*ActualRackPduDetails) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{0, 0, 2}
 }
 
-func (m *ActualPduDetails) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ActualPduDetails.Unmarshal(m, b)
+func (m *ActualRackPduDetails) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ActualRackPduDetails.Unmarshal(m, b)
 }
-func (m *ActualPduDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ActualPduDetails.Marshal(b, m, deterministic)
+func (m *ActualRackPduDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ActualRackPduDetails.Marshal(b, m, deterministic)
 }
-func (m *ActualPduDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ActualPduDetails.Merge(m, src)
+func (m *ActualRackPduDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ActualRackPduDetails.Merge(m, src)
 }
-func (m *ActualPduDetails) XXX_Size() int {
-	return xxx_messageInfo_ActualPduDetails.Size(m)
+func (m *ActualRackPduDetails) XXX_Size() int {
+	return xxx_messageInfo_ActualRackPduDetails.Size(m)
 }
-func (m *ActualPduDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_ActualPduDetails.DiscardUnknown(m)
+func (m *ActualRackPduDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_ActualRackPduDetails.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ActualPduDetails proto.InternalMessageInfo
+var xxx_messageInfo_ActualRackPduDetails proto.InternalMessageInfo
 
-func (m *ActualPduDetails) GetCables() map[int64]bool {
+func (m *ActualRackPduDetails) GetStatus() *ActualRackBaseStatus {
+	if m != nil {
+		return m.Status
+	}
+	return nil
+}
+
+func (m *ActualRackPduDetails) GetTorCable() bool {
+	if m != nil {
+		return m.TorCable
+	}
+	return false
+}
+
+func (m *ActualRackPduDetails) GetCables() map[int64]bool {
 	if m != nil {
 		return m.Cables
 	}
 	return nil
 }
 
-type ActualTorDetails struct {
-	Cables               map[int64]bool `protobuf:"bytes,1,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
+type ActualRackTorDetails struct {
+	Status               *ActualRackBaseStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Cables               map[int64]bool        `protobuf:"bytes,2,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
+	XXX_unrecognized     []byte                `json:"-"`
+	XXX_sizecache        int32                 `json:"-"`
 }
 
-func (m *ActualTorDetails) Reset()         { *m = ActualTorDetails{} }
-func (m *ActualTorDetails) String() string { return proto.CompactTextString(m) }
-func (*ActualTorDetails) ProtoMessage()    {}
-func (*ActualTorDetails) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318189739c1c4c20, []int{0, 2}
+func (m *ActualRackTorDetails) Reset()         { *m = ActualRackTorDetails{} }
+func (m *ActualRackTorDetails) String() string { return proto.CompactTextString(m) }
+func (*ActualRackTorDetails) ProtoMessage()    {}
+func (*ActualRackTorDetails) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{0, 0, 3}
 }
 
-func (m *ActualTorDetails) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ActualTorDetails.Unmarshal(m, b)
+func (m *ActualRackTorDetails) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_ActualRackTorDetails.Unmarshal(m, b)
 }
-func (m *ActualTorDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ActualTorDetails.Marshal(b, m, deterministic)
+func (m *ActualRackTorDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_ActualRackTorDetails.Marshal(b, m, deterministic)
 }
-func (m *ActualTorDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ActualTorDetails.Merge(m, src)
+func (m *ActualRackTorDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ActualRackTorDetails.Merge(m, src)
 }
-func (m *ActualTorDetails) XXX_Size() int {
-	return xxx_messageInfo_ActualTorDetails.Size(m)
+func (m *ActualRackTorDetails) XXX_Size() int {
+	return xxx_messageInfo_ActualRackTorDetails.Size(m)
 }
-func (m *ActualTorDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_ActualTorDetails.DiscardUnknown(m)
+func (m *ActualRackTorDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_ActualRackTorDetails.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_ActualTorDetails proto.InternalMessageInfo
+var xxx_messageInfo_ActualRackTorDetails proto.InternalMessageInfo
 
-func (m *ActualTorDetails) GetCables() map[int64]bool {
+func (m *ActualRackTorDetails) GetStatus() *ActualRackBaseStatus {
+	if m != nil {
+		return m.Status
+	}
+	return nil
+}
+
+func (m *ActualRackTorDetails) GetCables() map[int64]bool {
 	if m != nil {
 		return m.Cables
 	}
 	return nil
-}
-
-type ActualItem struct {
-	RackName  string            `protobuf:"bytes,1,opt,name=rack_name,json=rackName,proto3" json:"rack_name,omitempty"`
-	Health    ActualHealth      `protobuf:"varint,2,opt,name=health,proto3,enum=monitor.ActualHealth" json:"health,omitempty"`
-	LastStart *common.Timestamp `protobuf:"bytes,3,opt,name=last_start,json=lastStart,proto3" json:"last_start,omitempty"`
-	// Types that are valid to be assigned to Details:
-	//	*ActualItem_Blade
-	//	*ActualItem_Pdu
-	//	*ActualItem_Tor
-	Details              isActualItem_Details `protobuf_oneof:"details"`
-	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
-	XXX_unrecognized     []byte               `json:"-"`
-	XXX_sizecache        int32                `json:"-"`
-}
-
-func (m *ActualItem) Reset()         { *m = ActualItem{} }
-func (m *ActualItem) String() string { return proto.CompactTextString(m) }
-func (*ActualItem) ProtoMessage()    {}
-func (*ActualItem) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318189739c1c4c20, []int{0, 3}
-}
-
-func (m *ActualItem) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_ActualItem.Unmarshal(m, b)
-}
-func (m *ActualItem) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_ActualItem.Marshal(b, m, deterministic)
-}
-func (m *ActualItem) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_ActualItem.Merge(m, src)
-}
-func (m *ActualItem) XXX_Size() int {
-	return xxx_messageInfo_ActualItem.Size(m)
-}
-func (m *ActualItem) XXX_DiscardUnknown() {
-	xxx_messageInfo_ActualItem.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_ActualItem proto.InternalMessageInfo
-
-func (m *ActualItem) GetRackName() string {
-	if m != nil {
-		return m.RackName
-	}
-	return ""
-}
-
-func (m *ActualItem) GetHealth() ActualHealth {
-	if m != nil {
-		return m.Health
-	}
-	return Actual_Invalid
-}
-
-func (m *ActualItem) GetLastStart() *common.Timestamp {
-	if m != nil {
-		return m.LastStart
-	}
-	return nil
-}
-
-type isActualItem_Details interface {
-	isActualItem_Details()
-}
-
-type ActualItem_Blade struct {
-	Blade *ActualBladeDetails `protobuf:"bytes,4,opt,name=blade,proto3,oneof"`
-}
-
-type ActualItem_Pdu struct {
-	Pdu *ActualPduDetails `protobuf:"bytes,5,opt,name=pdu,proto3,oneof"`
-}
-
-type ActualItem_Tor struct {
-	Tor *ActualTorDetails `protobuf:"bytes,6,opt,name=tor,proto3,oneof"`
-}
-
-func (*ActualItem_Blade) isActualItem_Details() {}
-
-func (*ActualItem_Pdu) isActualItem_Details() {}
-
-func (*ActualItem_Tor) isActualItem_Details() {}
-
-func (m *ActualItem) GetDetails() isActualItem_Details {
-	if m != nil {
-		return m.Details
-	}
-	return nil
-}
-
-func (m *ActualItem) GetBlade() *ActualBladeDetails {
-	if x, ok := m.GetDetails().(*ActualItem_Blade); ok {
-		return x.Blade
-	}
-	return nil
-}
-
-func (m *ActualItem) GetPdu() *ActualPduDetails {
-	if x, ok := m.GetDetails().(*ActualItem_Pdu); ok {
-		return x.Pdu
-	}
-	return nil
-}
-
-func (m *ActualItem) GetTor() *ActualTorDetails {
-	if x, ok := m.GetDetails().(*ActualItem_Tor); ok {
-		return x.Tor
-	}
-	return nil
-}
-
-// XXX_OneofWrappers is for the internal use of the proto package.
-func (*ActualItem) XXX_OneofWrappers() []interface{} {
-	return []interface{}{
-		(*ActualItem_Blade)(nil),
-		(*ActualItem_Pdu)(nil),
-		(*ActualItem_Tor)(nil),
-	}
 }
 
 // This message describes a command from the monitor to the inventory.  These
@@ -405,7 +419,7 @@ func (*ActualItem) XXX_OneofWrappers() []interface{} {
 //       structures: teh last start time is not valid for several of the
 //       health states.
 type Desired struct {
-	Items                []*DesiredItem `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Racks                []*DesiredRack `protobuf:"bytes,1,rep,name=racks,proto3" json:"racks,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
 	XXX_unrecognized     []byte         `json:"-"`
 	XXX_sizecache        int32          `json:"-"`
@@ -436,268 +450,285 @@ func (m *Desired) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_Desired proto.InternalMessageInfo
 
-func (m *Desired) GetItems() []*DesiredItem {
+func (m *Desired) GetRacks() []*DesiredRack {
 	if m != nil {
-		return m.Items
+		return m.Racks
 	}
 	return nil
 }
 
-type DesiredBladeDetails struct {
-	// specify which blade in the rack.
-	// Note that full internal name for a blade is <rackname>-blade-<bladeId>
-	Id                   int64    `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+type DesiredRack struct {
+	Name                 string                             `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Pdu                  *DesiredRackPduDetails             `protobuf:"bytes,2,opt,name=pdu,proto3" json:"pdu,omitempty"`
+	Tor                  *DesiredRackTorDetails             `protobuf:"bytes,3,opt,name=tor,proto3" json:"tor,omitempty"`
+	Blades               map[int64]*DesiredRackBladeDetails `protobuf:"bytes,4,rep,name=blades,proto3" json:"blades,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}                           `json:"-"`
+	XXX_unrecognized     []byte                             `json:"-"`
+	XXX_sizecache        int32                              `json:"-"`
 }
 
-func (m *DesiredBladeDetails) Reset()         { *m = DesiredBladeDetails{} }
-func (m *DesiredBladeDetails) String() string { return proto.CompactTextString(m) }
-func (*DesiredBladeDetails) ProtoMessage()    {}
-func (*DesiredBladeDetails) Descriptor() ([]byte, []int) {
+func (m *DesiredRack) Reset()         { *m = DesiredRack{} }
+func (m *DesiredRack) String() string { return proto.CompactTextString(m) }
+func (*DesiredRack) ProtoMessage()    {}
+func (*DesiredRack) Descriptor() ([]byte, []int) {
 	return fileDescriptor_318189739c1c4c20, []int{1, 0}
 }
 
-func (m *DesiredBladeDetails) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DesiredBladeDetails.Unmarshal(m, b)
+func (m *DesiredRack) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DesiredRack.Unmarshal(m, b)
 }
-func (m *DesiredBladeDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DesiredBladeDetails.Marshal(b, m, deterministic)
+func (m *DesiredRack) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DesiredRack.Marshal(b, m, deterministic)
 }
-func (m *DesiredBladeDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DesiredBladeDetails.Merge(m, src)
+func (m *DesiredRack) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DesiredRack.Merge(m, src)
 }
-func (m *DesiredBladeDetails) XXX_Size() int {
-	return xxx_messageInfo_DesiredBladeDetails.Size(m)
+func (m *DesiredRack) XXX_Size() int {
+	return xxx_messageInfo_DesiredRack.Size(m)
 }
-func (m *DesiredBladeDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_DesiredBladeDetails.DiscardUnknown(m)
+func (m *DesiredRack) XXX_DiscardUnknown() {
+	xxx_messageInfo_DesiredRack.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_DesiredBladeDetails proto.InternalMessageInfo
+var xxx_messageInfo_DesiredRack proto.InternalMessageInfo
 
-func (m *DesiredBladeDetails) GetId() int64 {
+func (m *DesiredRack) GetName() string {
 	if m != nil {
-		return m.Id
-	}
-	return 0
-}
-
-type DesiredPduDetails struct {
-	Cables               map[int64]bool `protobuf:"bytes,1,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *DesiredPduDetails) Reset()         { *m = DesiredPduDetails{} }
-func (m *DesiredPduDetails) String() string { return proto.CompactTextString(m) }
-func (*DesiredPduDetails) ProtoMessage()    {}
-func (*DesiredPduDetails) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318189739c1c4c20, []int{1, 1}
-}
-
-func (m *DesiredPduDetails) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DesiredPduDetails.Unmarshal(m, b)
-}
-func (m *DesiredPduDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DesiredPduDetails.Marshal(b, m, deterministic)
-}
-func (m *DesiredPduDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DesiredPduDetails.Merge(m, src)
-}
-func (m *DesiredPduDetails) XXX_Size() int {
-	return xxx_messageInfo_DesiredPduDetails.Size(m)
-}
-func (m *DesiredPduDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_DesiredPduDetails.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DesiredPduDetails proto.InternalMessageInfo
-
-func (m *DesiredPduDetails) GetCables() map[int64]bool {
-	if m != nil {
-		return m.Cables
-	}
-	return nil
-}
-
-type DesiredTorDetails struct {
-	Cables               map[int64]bool `protobuf:"bytes,1,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
-	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
-	XXX_unrecognized     []byte         `json:"-"`
-	XXX_sizecache        int32          `json:"-"`
-}
-
-func (m *DesiredTorDetails) Reset()         { *m = DesiredTorDetails{} }
-func (m *DesiredTorDetails) String() string { return proto.CompactTextString(m) }
-func (*DesiredTorDetails) ProtoMessage()    {}
-func (*DesiredTorDetails) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318189739c1c4c20, []int{1, 2}
-}
-
-func (m *DesiredTorDetails) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DesiredTorDetails.Unmarshal(m, b)
-}
-func (m *DesiredTorDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DesiredTorDetails.Marshal(b, m, deterministic)
-}
-func (m *DesiredTorDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DesiredTorDetails.Merge(m, src)
-}
-func (m *DesiredTorDetails) XXX_Size() int {
-	return xxx_messageInfo_DesiredTorDetails.Size(m)
-}
-func (m *DesiredTorDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_DesiredTorDetails.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DesiredTorDetails proto.InternalMessageInfo
-
-func (m *DesiredTorDetails) GetCables() map[int64]bool {
-	if m != nil {
-		return m.Cables
-	}
-	return nil
-}
-
-type DesiredItem struct {
-	RackName  string            `protobuf:"bytes,1,opt,name=rack_name,json=rackName,proto3" json:"rack_name,omitempty"`
-	Health    DesiredHealth     `protobuf:"varint,2,opt,name=health,proto3,enum=monitor.DesiredHealth" json:"health,omitempty"`
-	LastStart *common.Timestamp `protobuf:"bytes,3,opt,name=last_start,json=lastStart,proto3" json:"last_start,omitempty"`
-	// Types that are valid to be assigned to Details:
-	//	*DesiredItem_Blade
-	//	*DesiredItem_Pdu
-	//	*DesiredItem_Tor
-	Details              isDesiredItem_Details `protobuf_oneof:"details"`
-	XXX_NoUnkeyedLiteral struct{}              `json:"-"`
-	XXX_unrecognized     []byte                `json:"-"`
-	XXX_sizecache        int32                 `json:"-"`
-}
-
-func (m *DesiredItem) Reset()         { *m = DesiredItem{} }
-func (m *DesiredItem) String() string { return proto.CompactTextString(m) }
-func (*DesiredItem) ProtoMessage()    {}
-func (*DesiredItem) Descriptor() ([]byte, []int) {
-	return fileDescriptor_318189739c1c4c20, []int{1, 3}
-}
-
-func (m *DesiredItem) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_DesiredItem.Unmarshal(m, b)
-}
-func (m *DesiredItem) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_DesiredItem.Marshal(b, m, deterministic)
-}
-func (m *DesiredItem) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_DesiredItem.Merge(m, src)
-}
-func (m *DesiredItem) XXX_Size() int {
-	return xxx_messageInfo_DesiredItem.Size(m)
-}
-func (m *DesiredItem) XXX_DiscardUnknown() {
-	xxx_messageInfo_DesiredItem.DiscardUnknown(m)
-}
-
-var xxx_messageInfo_DesiredItem proto.InternalMessageInfo
-
-func (m *DesiredItem) GetRackName() string {
-	if m != nil {
-		return m.RackName
+		return m.Name
 	}
 	return ""
 }
 
-func (m *DesiredItem) GetHealth() DesiredHealth {
+func (m *DesiredRack) GetPdu() *DesiredRackPduDetails {
+	if m != nil {
+		return m.Pdu
+	}
+	return nil
+}
+
+func (m *DesiredRack) GetTor() *DesiredRackTorDetails {
+	if m != nil {
+		return m.Tor
+	}
+	return nil
+}
+
+func (m *DesiredRack) GetBlades() map[int64]*DesiredRackBladeDetails {
+	if m != nil {
+		return m.Blades
+	}
+	return nil
+}
+
+type DesiredRackBaseStatus struct {
+	Health               DesiredHealth     `protobuf:"varint,1,opt,name=health,proto3,enum=monitor.DesiredHealth" json:"health,omitempty"`
+	LastStart            *common.Timestamp `protobuf:"bytes,2,opt,name=last_start,json=lastStart,proto3" json:"last_start,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}          `json:"-"`
+	XXX_unrecognized     []byte            `json:"-"`
+	XXX_sizecache        int32             `json:"-"`
+}
+
+func (m *DesiredRackBaseStatus) Reset()         { *m = DesiredRackBaseStatus{} }
+func (m *DesiredRackBaseStatus) String() string { return proto.CompactTextString(m) }
+func (*DesiredRackBaseStatus) ProtoMessage()    {}
+func (*DesiredRackBaseStatus) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{1, 0, 0}
+}
+
+func (m *DesiredRackBaseStatus) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DesiredRackBaseStatus.Unmarshal(m, b)
+}
+func (m *DesiredRackBaseStatus) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DesiredRackBaseStatus.Marshal(b, m, deterministic)
+}
+func (m *DesiredRackBaseStatus) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DesiredRackBaseStatus.Merge(m, src)
+}
+func (m *DesiredRackBaseStatus) XXX_Size() int {
+	return xxx_messageInfo_DesiredRackBaseStatus.Size(m)
+}
+func (m *DesiredRackBaseStatus) XXX_DiscardUnknown() {
+	xxx_messageInfo_DesiredRackBaseStatus.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DesiredRackBaseStatus proto.InternalMessageInfo
+
+func (m *DesiredRackBaseStatus) GetHealth() DesiredHealth {
 	if m != nil {
 		return m.Health
 	}
 	return Desired_Invalid
 }
 
-func (m *DesiredItem) GetLastStart() *common.Timestamp {
+func (m *DesiredRackBaseStatus) GetLastStart() *common.Timestamp {
 	if m != nil {
 		return m.LastStart
 	}
 	return nil
 }
 
-type isDesiredItem_Details interface {
-	isDesiredItem_Details()
+type DesiredRackBladeDetails struct {
+	Status               *DesiredRackBaseStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
 }
 
-type DesiredItem_Blade struct {
-	Blade *DesiredBladeDetails `protobuf:"bytes,4,opt,name=blade,proto3,oneof"`
+func (m *DesiredRackBladeDetails) Reset()         { *m = DesiredRackBladeDetails{} }
+func (m *DesiredRackBladeDetails) String() string { return proto.CompactTextString(m) }
+func (*DesiredRackBladeDetails) ProtoMessage()    {}
+func (*DesiredRackBladeDetails) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{1, 0, 1}
 }
 
-type DesiredItem_Pdu struct {
-	Pdu *DesiredPduDetails `protobuf:"bytes,5,opt,name=pdu,proto3,oneof"`
+func (m *DesiredRackBladeDetails) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DesiredRackBladeDetails.Unmarshal(m, b)
+}
+func (m *DesiredRackBladeDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DesiredRackBladeDetails.Marshal(b, m, deterministic)
+}
+func (m *DesiredRackBladeDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DesiredRackBladeDetails.Merge(m, src)
+}
+func (m *DesiredRackBladeDetails) XXX_Size() int {
+	return xxx_messageInfo_DesiredRackBladeDetails.Size(m)
+}
+func (m *DesiredRackBladeDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_DesiredRackBladeDetails.DiscardUnknown(m)
 }
 
-type DesiredItem_Tor struct {
-	Tor *DesiredTorDetails `protobuf:"bytes,6,opt,name=tor,proto3,oneof"`
-}
+var xxx_messageInfo_DesiredRackBladeDetails proto.InternalMessageInfo
 
-func (*DesiredItem_Blade) isDesiredItem_Details() {}
-
-func (*DesiredItem_Pdu) isDesiredItem_Details() {}
-
-func (*DesiredItem_Tor) isDesiredItem_Details() {}
-
-func (m *DesiredItem) GetDetails() isDesiredItem_Details {
+func (m *DesiredRackBladeDetails) GetStatus() *DesiredRackBaseStatus {
 	if m != nil {
-		return m.Details
+		return m.Status
 	}
 	return nil
 }
 
-func (m *DesiredItem) GetBlade() *DesiredBladeDetails {
-	if x, ok := m.GetDetails().(*DesiredItem_Blade); ok {
-		return x.Blade
+type DesiredRackPduDetails struct {
+	Status               *DesiredRackBaseStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	TorCable             bool                   `protobuf:"varint,2,opt,name=tor_cable,json=torCable,proto3" json:"tor_cable,omitempty"`
+	Cables               map[int64]bool         `protobuf:"bytes,3,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
+}
+
+func (m *DesiredRackPduDetails) Reset()         { *m = DesiredRackPduDetails{} }
+func (m *DesiredRackPduDetails) String() string { return proto.CompactTextString(m) }
+func (*DesiredRackPduDetails) ProtoMessage()    {}
+func (*DesiredRackPduDetails) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{1, 0, 2}
+}
+
+func (m *DesiredRackPduDetails) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DesiredRackPduDetails.Unmarshal(m, b)
+}
+func (m *DesiredRackPduDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DesiredRackPduDetails.Marshal(b, m, deterministic)
+}
+func (m *DesiredRackPduDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DesiredRackPduDetails.Merge(m, src)
+}
+func (m *DesiredRackPduDetails) XXX_Size() int {
+	return xxx_messageInfo_DesiredRackPduDetails.Size(m)
+}
+func (m *DesiredRackPduDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_DesiredRackPduDetails.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DesiredRackPduDetails proto.InternalMessageInfo
+
+func (m *DesiredRackPduDetails) GetStatus() *DesiredRackBaseStatus {
+	if m != nil {
+		return m.Status
 	}
 	return nil
 }
 
-func (m *DesiredItem) GetPdu() *DesiredPduDetails {
-	if x, ok := m.GetDetails().(*DesiredItem_Pdu); ok {
-		return x.Pdu
+func (m *DesiredRackPduDetails) GetTorCable() bool {
+	if m != nil {
+		return m.TorCable
+	}
+	return false
+}
+
+func (m *DesiredRackPduDetails) GetCables() map[int64]bool {
+	if m != nil {
+		return m.Cables
 	}
 	return nil
 }
 
-func (m *DesiredItem) GetTor() *DesiredTorDetails {
-	if x, ok := m.GetDetails().(*DesiredItem_Tor); ok {
-		return x.Tor
+type DesiredRackTorDetails struct {
+	Status               *DesiredRackBaseStatus `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	Cables               map[int64]bool         `protobuf:"bytes,2,rep,name=cables,proto3" json:"cables,omitempty" protobuf_key:"varint,1,opt,name=key,proto3" protobuf_val:"varint,2,opt,name=value,proto3"`
+	XXX_NoUnkeyedLiteral struct{}               `json:"-"`
+	XXX_unrecognized     []byte                 `json:"-"`
+	XXX_sizecache        int32                  `json:"-"`
+}
+
+func (m *DesiredRackTorDetails) Reset()         { *m = DesiredRackTorDetails{} }
+func (m *DesiredRackTorDetails) String() string { return proto.CompactTextString(m) }
+func (*DesiredRackTorDetails) ProtoMessage()    {}
+func (*DesiredRackTorDetails) Descriptor() ([]byte, []int) {
+	return fileDescriptor_318189739c1c4c20, []int{1, 0, 3}
+}
+
+func (m *DesiredRackTorDetails) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_DesiredRackTorDetails.Unmarshal(m, b)
+}
+func (m *DesiredRackTorDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_DesiredRackTorDetails.Marshal(b, m, deterministic)
+}
+func (m *DesiredRackTorDetails) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DesiredRackTorDetails.Merge(m, src)
+}
+func (m *DesiredRackTorDetails) XXX_Size() int {
+	return xxx_messageInfo_DesiredRackTorDetails.Size(m)
+}
+func (m *DesiredRackTorDetails) XXX_DiscardUnknown() {
+	xxx_messageInfo_DesiredRackTorDetails.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DesiredRackTorDetails proto.InternalMessageInfo
+
+func (m *DesiredRackTorDetails) GetStatus() *DesiredRackBaseStatus {
+	if m != nil {
+		return m.Status
 	}
 	return nil
 }
 
-// XXX_OneofWrappers is for the internal use of the proto package.
-func (*DesiredItem) XXX_OneofWrappers() []interface{} {
-	return []interface{}{
-		(*DesiredItem_Blade)(nil),
-		(*DesiredItem_Pdu)(nil),
-		(*DesiredItem_Tor)(nil),
+func (m *DesiredRackTorDetails) GetCables() map[int64]bool {
+	if m != nil {
+		return m.Cables
 	}
+	return nil
 }
 
 func init() {
 	proto.RegisterEnum("monitor.ActualHealth", ActualHealth_name, ActualHealth_value)
 	proto.RegisterEnum("monitor.DesiredHealth", DesiredHealth_name, DesiredHealth_value)
 	proto.RegisterType((*Actual)(nil), "monitor.actual")
-	proto.RegisterType((*ActualBladeDetails)(nil), "monitor.actual.blade_details")
-	proto.RegisterType((*ActualPduDetails)(nil), "monitor.actual.pdu_details")
-	proto.RegisterMapType((map[int64]bool)(nil), "monitor.actual.pdu_details.CablesEntry")
-	proto.RegisterType((*ActualTorDetails)(nil), "monitor.actual.tor_details")
-	proto.RegisterMapType((map[int64]bool)(nil), "monitor.actual.tor_details.CablesEntry")
-	proto.RegisterType((*ActualItem)(nil), "monitor.actual.item")
+	proto.RegisterType((*ActualRack)(nil), "monitor.actual.rack")
+	proto.RegisterMapType((map[int64]*ActualRackBladeDetails)(nil), "monitor.actual.rack.BladesEntry")
+	proto.RegisterType((*ActualRackBaseStatus)(nil), "monitor.actual.rack.base_status")
+	proto.RegisterType((*ActualRackBladeDetails)(nil), "monitor.actual.rack.blade_details")
+	proto.RegisterType((*ActualRackPduDetails)(nil), "monitor.actual.rack.pdu_details")
+	proto.RegisterMapType((map[int64]bool)(nil), "monitor.actual.rack.pdu_details.CablesEntry")
+	proto.RegisterType((*ActualRackTorDetails)(nil), "monitor.actual.rack.tor_details")
+	proto.RegisterMapType((map[int64]bool)(nil), "monitor.actual.rack.tor_details.CablesEntry")
 	proto.RegisterType((*Desired)(nil), "monitor.desired")
-	proto.RegisterType((*DesiredBladeDetails)(nil), "monitor.desired.blade_details")
-	proto.RegisterType((*DesiredPduDetails)(nil), "monitor.desired.pdu_details")
-	proto.RegisterMapType((map[int64]bool)(nil), "monitor.desired.pdu_details.CablesEntry")
-	proto.RegisterType((*DesiredTorDetails)(nil), "monitor.desired.tor_details")
-	proto.RegisterMapType((map[int64]bool)(nil), "monitor.desired.tor_details.CablesEntry")
-	proto.RegisterType((*DesiredItem)(nil), "monitor.desired.item")
+	proto.RegisterType((*DesiredRack)(nil), "monitor.desired.rack")
+	proto.RegisterMapType((map[int64]*DesiredRackBladeDetails)(nil), "monitor.desired.rack.BladesEntry")
+	proto.RegisterType((*DesiredRackBaseStatus)(nil), "monitor.desired.rack.base_status")
+	proto.RegisterType((*DesiredRackBladeDetails)(nil), "monitor.desired.rack.blade_details")
+	proto.RegisterType((*DesiredRackPduDetails)(nil), "monitor.desired.rack.pdu_details")
+	proto.RegisterMapType((map[int64]bool)(nil), "monitor.desired.rack.pdu_details.CablesEntry")
+	proto.RegisterType((*DesiredRackTorDetails)(nil), "monitor.desired.rack.tor_details")
+	proto.RegisterMapType((map[int64]bool)(nil), "monitor.desired.rack.tor_details.CablesEntry")
 }
 
 func init() {
@@ -705,52 +736,61 @@ func init() {
 }
 
 var fileDescriptor_318189739c1c4c20 = []byte{
-	// 719 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x95, 0xcd, 0x4e, 0xdb, 0x4a,
-	0x14, 0xc7, 0x71, 0x3e, 0xc9, 0x31, 0x17, 0x7c, 0x47, 0x5c, 0xae, 0x65, 0xb8, 0xb7, 0x88, 0x4d,
-	0x23, 0x2a, 0xd9, 0x51, 0x10, 0xa5, 0x1f, 0x8b, 0x56, 0x04, 0x24, 0x40, 0x6a, 0x2b, 0x39, 0x74,
-	0xd3, 0x0d, 0x9a, 0xd8, 0x83, 0x33, 0xc2, 0xf6, 0x58, 0xe3, 0x71, 0xa4, 0x2c, 0xfa, 0x00, 0xe5,
-	0x4d, 0xba, 0xe8, 0x7b, 0xf4, 0x65, 0xfa, 0x0e, 0xd5, 0xf8, 0x03, 0x39, 0x06, 0x02, 0xa5, 0x65,
-	0x95, 0x78, 0xce, 0xff, 0x9c, 0xf3, 0x9f, 0x39, 0xbf, 0xd1, 0xc0, 0xc0, 0xa3, 0x62, 0x9c, 0x8c,
-	0x4c, 0x87, 0x05, 0xd6, 0x09, 0x0d, 0x76, 0x4e, 0xc7, 0x34, 0xf4, 0x62, 0x6b, 0xe0, 0xb3, 0xc4,
-	0x1d, 0x8c, 0x71, 0x30, 0x22, 0xdc, 0x8a, 0x2e, 0x3c, 0x2b, 0xe2, 0x4c, 0xb0, 0xd8, 0x0a, 0x58,
-	0x48, 0x05, 0xe3, 0xc5, 0xaf, 0x99, 0x2e, 0xa3, 0x76, 0xfe, 0x69, 0xfc, 0x62, 0x35, 0x87, 0x05,
-	0x01, 0x0b, 0x2d, 0x07, 0x47, 0xd8, 0xa1, 0x62, 0x9a, 0x55, 0x33, 0x0e, 0x1e, 0x54, 0x44, 0xd0,
-	0x80, 0xc4, 0x02, 0x07, 0x51, 0x5e, 0x65, 0xdd, 0x63, 0xcc, 0xf3, 0x49, 0xa6, 0x1a, 0x25, 0xe7,
-	0x16, 0x09, 0xa2, 0xa2, 0xc5, 0xd6, 0xf7, 0x16, 0xb4, 0xb0, 0x23, 0x12, 0xec, 0xa3, 0x6d, 0x68,
-	0x52, 0x41, 0x82, 0x58, 0x57, 0x36, 0xeb, 0x5d, 0xb5, 0xbf, 0x6a, 0x16, 0x5b, 0xcb, 0xe2, 0xa6,
-	0x0c, 0xda, 0x99, 0xc4, 0xf8, 0x0c, 0x7f, 0x8d, 0x7c, 0xec, 0x92, 0x33, 0x97, 0x08, 0x4c, 0xfd,
-	0x18, 0x2d, 0x43, 0x8d, 0xba, 0xba, 0xb2, 0xa9, 0x74, 0xeb, 0x76, 0x8d, 0xba, 0xa8, 0x07, 0xed,
-	0x88, 0x93, 0x98, 0x84, 0x42, 0xaf, 0x6d, 0x2a, 0x5d, 0xb5, 0xbf, 0x66, 0x66, 0xf6, 0xcc, 0x2c,
-	0xaf, 0xd8, 0xa9, 0x5d, 0xc8, 0xd0, 0x36, 0x34, 0x92, 0x98, 0xb8, 0x7a, 0x7d, 0xae, 0x3c, 0xd5,
-	0x18, 0x5f, 0x14, 0x50, 0x23, 0x37, 0xb9, 0xea, 0xfe, 0x06, 0x5a, 0x0e, 0x1e, 0xf9, 0xa4, 0xf0,
-	0xfe, 0xb4, 0xea, 0xbd, 0x24, 0x36, 0x07, 0xa9, 0xf2, 0x30, 0x14, 0x7c, 0x6a, 0xe7, 0x69, 0xc6,
-	0x4b, 0x50, 0x4b, 0xcb, 0x48, 0x83, 0xfa, 0x05, 0x99, 0xe6, 0xdb, 0x91, 0x7f, 0xd1, 0x2a, 0x34,
-	0x27, 0xd8, 0x4f, 0x48, 0xba, 0x9b, 0x45, 0x3b, 0xfb, 0x78, 0x55, 0x7b, 0xa1, 0xa4, 0x5e, 0x04,
-	0xe3, 0xf7, 0xf7, 0x52, 0x12, 0xff, 0x69, 0x2f, 0x5f, 0x6b, 0xd0, 0x90, 0x03, 0x42, 0xeb, 0xd0,
-	0xe1, 0xd8, 0xb9, 0x38, 0x0b, 0x71, 0x40, 0xd2, 0xd4, 0x8e, 0xbd, 0x28, 0x17, 0xde, 0xe3, 0x80,
-	0x20, 0x13, 0x5a, 0x63, 0x82, 0x7d, 0x31, 0x4e, 0x0b, 0x2c, 0xf7, 0xd7, 0xaa, 0x0e, 0xb3, 0xa8,
-	0x9d, 0xab, 0x50, 0x0f, 0xc0, 0xc7, 0xb1, 0x38, 0x8b, 0x05, 0xe6, 0x22, 0x9f, 0xcf, 0xdf, 0xc5,
-	0x7c, 0x4e, 0x0b, 0xda, 0xec, 0x8e, 0x14, 0x0d, 0xa5, 0x06, 0xed, 0x42, 0x33, 0x9d, 0x9b, 0xde,
-	0x48, 0xc5, 0xff, 0x55, 0x1b, 0xcc, 0xb0, 0x73, 0xb4, 0x60, 0x67, 0x6a, 0x64, 0x41, 0x3d, 0x72,
-	0x13, 0xbd, 0x99, 0x26, 0xad, 0xcf, 0x99, 0xe1, 0xd1, 0x82, 0x2d, 0x95, 0x32, 0x41, 0x30, 0xae,
-	0xb7, 0x6e, 0x4e, 0x28, 0x1d, 0xb4, 0x4c, 0x10, 0x8c, 0xef, 0x77, 0xa0, 0x9d, 0xaf, 0x6c, 0x7d,
-	0x28, 0x4e, 0x01, 0xa9, 0xd0, 0x3e, 0x0e, 0x27, 0xd8, 0xa7, 0xae, 0xb6, 0x80, 0x56, 0x40, 0xfd,
-	0x18, 0xe2, 0x09, 0xa6, 0xbe, 0x9c, 0x81, 0xa6, 0xa0, 0x25, 0x58, 0x3c, 0xe0, 0x98, 0x86, 0x34,
-	0xf4, 0xb4, 0x9a, 0xd4, 0x1e, 0xa5, 0x59, 0x53, 0xad, 0x2e, 0x43, 0x36, 0x09, 0xd8, 0x44, 0x86,
-	0x1a, 0x5b, 0x3f, 0x9a, 0xb2, 0x78, 0x4c, 0x39, 0x71, 0xd1, 0xb3, 0xd9, 0xbb, 0xf4, 0xcf, 0x95,
-	0xb5, 0x5c, 0x30, 0x73, 0x99, 0x9e, 0xdc, 0x71, 0x99, 0x8c, 0xcb, 0x0a, 0xee, 0x6f, 0x2b, 0x88,
-	0x75, 0xaf, 0x95, 0x7f, 0x44, 0xde, 0x2f, 0x2b, 0xbc, 0xdf, 0x6d, 0xe6, 0x11, 0x81, 0xff, 0x76,
-	0x2f, 0xe0, 0xad, 0x0a, 0xf0, 0xff, 0x5e, 0xb3, 0xf8, 0xdb, 0xc4, 0x3f, 0x9f, 0x25, 0xfe, 0xff,
-	0x6b, 0x1d, 0x6e, 0x41, 0xbe, 0x57, 0x46, 0x7e, 0x63, 0xde, 0x1c, 0x0b, 0xe6, 0x7b, 0x65, 0xe6,
-	0x37, 0xe6, 0x1d, 0xf6, 0x0d, 0xd0, 0x9f, 0xdc, 0x0c, 0x7d, 0x99, 0x71, 0x45, 0x86, 0x86, 0x82,
-	0x45, 0x11, 0x71, 0xab, 0xc0, 0xab, 0xd0, 0x4e, 0x81, 0x27, 0xae, 0xd6, 0xe8, 0xef, 0x43, 0xfb,
-	0x5d, 0xd6, 0x1c, 0xed, 0xc1, 0x92, 0x4d, 0x22, 0xc6, 0x45, 0x26, 0x45, 0x2b, 0x95, 0xab, 0x68,
-	0xac, 0x99, 0xd9, 0x23, 0x64, 0x16, 0x8f, 0x90, 0x79, 0x28, 0x1f, 0xa1, 0xfe, 0x14, 0x3a, 0xc7,
-	0xe1, 0x84, 0x84, 0x82, 0xf1, 0x29, 0x7a, 0x0d, 0x9d, 0x21, 0x11, 0x03, 0x16, 0x9e, 0x53, 0x0f,
-	0xdd, 0x92, 0x71, 0x5b, 0x25, 0x64, 0x01, 0x0c, 0x89, 0x38, 0xc5, 0xdc, 0x23, 0x22, 0x46, 0x5a,
-	0xf5, 0x5c, 0x8c, 0xaa, 0xa5, 0xfd, 0xbd, 0x4f, 0xbb, 0x0f, 0x7a, 0xf1, 0x47, 0xad, 0xf4, 0x7b,
-	0xe7, 0x67, 0x00, 0x00, 0x00, 0xff, 0xff, 0x46, 0x3b, 0x56, 0x2b, 0x31, 0x08, 0x00, 0x00,
+	// 852 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xb4, 0x96, 0xcf, 0x6e, 0xeb, 0x44,
+	0x14, 0xc6, 0x71, 0x92, 0xe6, 0xcf, 0xf1, 0x85, 0x6b, 0x46, 0x97, 0x12, 0xf9, 0x6e, 0x42, 0xd8,
+	0x54, 0x17, 0x62, 0x5f, 0x25, 0x42, 0xb7, 0x81, 0x15, 0xc9, 0xad, 0x44, 0x2b, 0x41, 0x25, 0xa7,
+	0x6c, 0x90, 0xa0, 0x9a, 0xd8, 0x53, 0xc7, 0xaa, 0xed, 0xb1, 0xc6, 0xe3, 0x08, 0xb3, 0xe4, 0x0d,
+	0x58, 0xc2, 0x0b, 0xf0, 0x12, 0x6c, 0x78, 0x05, 0xc4, 0x7b, 0x20, 0xb6, 0xac, 0xd0, 0x8c, 0x6d,
+	0xea, 0x38, 0x71, 0x22, 0xda, 0xdb, 0x55, 0x66, 0x32, 0xdf, 0xf9, 0xce, 0x39, 0x9e, 0x99, 0x9f,
+	0x06, 0xe6, 0xae, 0xc7, 0x57, 0xc9, 0xd2, 0xb0, 0x69, 0x60, 0x5e, 0x78, 0xc1, 0xe4, 0x6a, 0xe5,
+	0x85, 0x6e, 0x6c, 0xce, 0x7d, 0x9a, 0x38, 0xf3, 0x15, 0x0e, 0x96, 0x84, 0x99, 0xd1, 0xad, 0x6b,
+	0x46, 0x8c, 0x72, 0x1a, 0x9b, 0x01, 0x0d, 0x3d, 0x4e, 0x59, 0xf1, 0x6b, 0xc8, 0xbf, 0x51, 0x27,
+	0x9f, 0xea, 0x9f, 0x97, 0xdc, 0x48, 0xb8, 0xa6, 0x69, 0xc4, 0xe8, 0xf7, 0x69, 0x16, 0x6c, 0x8f,
+	0x5c, 0x12, 0x8e, 0xd6, 0xd8, 0xf7, 0x1c, 0xcc, 0x89, 0xb9, 0x35, 0xc8, 0xbc, 0xf4, 0xff, 0x59,
+	0x90, 0x4d, 0x83, 0x80, 0x86, 0xa6, 0x8d, 0x23, 0x6c, 0x7b, 0x3c, 0xcd, 0x4d, 0x5e, 0xdf, 0xcb,
+	0x84, 0x7b, 0x01, 0x89, 0x39, 0x0e, 0xa2, 0xdc, 0xe5, 0xb9, 0x4b, 0xa9, 0xeb, 0x93, 0x4c, 0xb5,
+	0x4c, 0x6e, 0x4c, 0x12, 0x44, 0x45, 0x8a, 0xe1, 0xcf, 0x3d, 0x68, 0x63, 0x9b, 0x27, 0xd8, 0x47,
+	0x2f, 0xe0, 0x88, 0x61, 0xfb, 0x36, 0xee, 0x2b, 0x83, 0xe6, 0x89, 0x3a, 0x7e, 0x66, 0x14, 0x5f,
+	0x27, 0x5b, 0x37, 0xc4, 0xa2, 0x95, 0x49, 0xf4, 0x9f, 0xba, 0xd0, 0x12, 0x23, 0x84, 0xa0, 0x15,
+	0xe2, 0x80, 0xf4, 0x95, 0x81, 0x72, 0xd2, 0xb3, 0xe4, 0x18, 0x8d, 0xa1, 0x19, 0x39, 0x49, 0xbf,
+	0x31, 0x50, 0x4e, 0xd4, 0xf1, 0x60, 0x97, 0x8d, 0x11, 0x39, 0xc9, 0xb5, 0x43, 0x38, 0xf6, 0xfc,
+	0xd8, 0x12, 0x62, 0x11, 0xc3, 0x29, 0xeb, 0x37, 0xf7, 0xc4, 0x70, 0xca, 0xee, 0x62, 0x38, 0x65,
+	0x68, 0x06, 0xed, 0xa5, 0x8f, 0x1d, 0x12, 0xf7, 0x5b, 0xb2, 0xe2, 0xdd, 0x61, 0x33, 0x29, 0x39,
+	0x0b, 0x39, 0x4b, 0x67, 0xdd, 0x7f, 0x66, 0x47, 0xbf, 0x28, 0x8d, 0xae, 0x62, 0xe5, 0x91, 0x7a,
+	0x0a, 0xea, 0x12, 0xc7, 0xe4, 0x3a, 0xe6, 0x98, 0x27, 0x31, 0x3a, 0x85, 0xf6, 0x8a, 0x60, 0x9f,
+	0xaf, 0x64, 0x43, 0xef, 0x8c, 0x8f, 0xab, 0x96, 0xd9, 0xaa, 0x34, 0xfa, 0x51, 0x69, 0x68, 0x8a,
+	0x95, 0xeb, 0xd1, 0x4b, 0x00, 0x1f, 0xc7, 0x5c, 0x18, 0x31, 0x9e, 0xf7, 0xfe, 0xae, 0x91, 0x6d,
+	0x89, 0x71, 0x55, 0x6c, 0x89, 0xd5, 0x13, 0xa2, 0x85, 0xd0, 0xe8, 0xbf, 0x2a, 0xf0, 0xb6, 0xac,
+	0xa2, 0xe8, 0x4a, 0x64, 0xcf, 0xea, 0x90, 0xd9, 0xeb, 0x1a, 0x2a, 0xd5, 0x6b, 0xe5, 0x7a, 0xf4,
+	0x12, 0x3a, 0x11, 0x23, 0x31, 0x09, 0x8b, 0xd4, 0xc7, 0x45, 0xea, 0x2c, 0x43, 0x71, 0xb0, 0xac,
+	0x42, 0x86, 0x5e, 0x40, 0x2b, 0x89, 0x89, 0x93, 0x7f, 0xf1, 0x3a, 0xb9, 0xd4, 0xe8, 0x7f, 0x29,
+	0xa0, 0x96, 0x76, 0xec, 0x01, 0x75, 0x3e, 0x87, 0x9e, 0xd8, 0x46, 0x1b, 0x2f, 0x7d, 0x22, 0x2b,
+	0xed, 0x5a, 0x5d, 0x4e, 0xd9, 0x5c, 0xcc, 0xd1, 0x57, 0xd0, 0x96, 0x0b, 0x71, 0xbf, 0x29, 0xf7,
+	0xf3, 0xe3, 0x43, 0x47, 0xc7, 0x90, 0x71, 0xdb, 0x7b, 0x9b, 0xb9, 0xe8, 0x53, 0x50, 0x4b, 0x02,
+	0xa4, 0x41, 0xf3, 0x96, 0xa4, 0xb2, 0xe4, 0xa6, 0x25, 0x86, 0xe8, 0x19, 0x1c, 0xad, 0xb1, 0x9f,
+	0x14, 0x95, 0x64, 0x93, 0x4f, 0x1b, 0xa7, 0x8a, 0xfe, 0x87, 0x02, 0x6a, 0xe9, 0xbc, 0x3d, 0xa0,
+	0xe3, 0xbb, 0xa6, 0x1a, 0x7b, 0x9a, 0x2a, 0xe5, 0x7a, 0xbc, 0xa6, 0xbe, 0x05, 0xb5, 0x74, 0x19,
+	0x76, 0x84, 0x9e, 0x96, 0x43, 0xd5, 0xf1, 0x70, 0x77, 0x93, 0xe5, 0x23, 0x5b, 0xb2, 0x1f, 0x5e,
+	0x16, 0x77, 0x07, 0xa9, 0xd0, 0x39, 0x0f, 0x25, 0x10, 0xb5, 0xb7, 0xd0, 0x53, 0x50, 0xbf, 0x0e,
+	0xf1, 0x1a, 0x7b, 0xbe, 0x28, 0x5b, 0x53, 0xd0, 0x13, 0xe8, 0xbe, 0x66, 0xd8, 0x0b, 0xbd, 0xd0,
+	0xd5, 0x1a, 0x42, 0xfb, 0x85, 0x8c, 0x4a, 0xb5, 0xa6, 0x58, 0xb2, 0x48, 0x40, 0xd7, 0x62, 0xa9,
+	0x35, 0xfc, 0xbd, 0x0b, 0x1d, 0x87, 0xc4, 0x1e, 0x23, 0x0e, 0xfa, 0x68, 0x13, 0x4e, 0xef, 0xfd,
+	0x57, 0x5a, 0x2e, 0xd8, 0xa0, 0xd3, 0x6f, 0x9d, 0x3d, 0x74, 0x9a, 0x94, 0xe9, 0xf4, 0xc1, 0x4e,
+	0x9f, 0x6d, 0x3c, 0x4d, 0xca, 0x78, 0xaa, 0x09, 0xda, 0xe2, 0xd3, 0xbc, 0xc2, 0xa7, 0x9a, 0xb8,
+	0xfd, 0x80, 0xfa, 0x61, 0x13, 0x50, 0xd3, 0x0a, 0xa0, 0xde, 0xdf, 0xf2, 0x7c, 0x83, 0x84, 0xba,
+	0xa8, 0x02, 0x6a, 0x5a, 0xb9, 0x06, 0x35, 0x1d, 0xed, 0xb8, 0x07, 0xfa, 0xdf, 0x15, 0x86, 0xdc,
+	0xdf, 0x6a, 0x3f, 0x44, 0x2e, 0x2b, 0x10, 0x19, 0x1d, 0xdc, 0xe1, 0xc7, 0xbb, 0x70, 0x7f, 0x56,
+	0x28, 0xf2, 0x80, 0x9e, 0x2f, 0x2b, 0x18, 0x19, 0x1d, 0x3c, 0x83, 0x8f, 0xd7, 0xd6, 0x77, 0x87,
+	0x38, 0x32, 0xdd, 0xe4, 0xc8, 0x87, 0x35, 0x6d, 0xd6, 0x81, 0xe4, 0x62, 0x37, 0x48, 0xca, 0xdc,
+	0x50, 0xc4, 0xd2, 0x82, 0xd3, 0x28, 0x22, 0x4e, 0x15, 0x22, 0x2a, 0x74, 0x24, 0x44, 0x88, 0xa3,
+	0xb5, 0xc6, 0x33, 0xe8, 0x7c, 0x99, 0x25, 0x47, 0xaf, 0xe0, 0x89, 0x45, 0x22, 0xca, 0x78, 0x26,
+	0x45, 0x4f, 0x2b, 0x78, 0xd3, 0x8f, 0x8d, 0xec, 0xa5, 0x64, 0x14, 0x2f, 0x25, 0xe3, 0x4c, 0xbc,
+	0x94, 0xc6, 0x29, 0xf4, 0xce, 0xc3, 0x35, 0x09, 0x39, 0x65, 0x29, 0xfa, 0x0c, 0x7a, 0x0b, 0xc2,
+	0xe7, 0x34, 0xbc, 0xf1, 0x5c, 0x54, 0x13, 0x51, 0xe7, 0x84, 0x4c, 0x80, 0x05, 0xe1, 0x57, 0x98,
+	0xb9, 0x84, 0xc7, 0x48, 0xab, 0x7e, 0x17, 0xbd, 0x5a, 0xd2, 0xec, 0xd5, 0x37, 0x9f, 0xdc, 0xeb,
+	0x65, 0xbb, 0x6c, 0xcb, 0xf9, 0xe4, 0xdf, 0x00, 0x00, 0x00, 0xff, 0xff, 0x38, 0x64, 0x9d, 0x82,
+	0x19, 0x0b, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.

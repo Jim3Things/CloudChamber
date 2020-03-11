@@ -3,6 +3,12 @@ if /i "%GOPATH%" == "" (
   goto :EOF
 )
 
+rem fetch & install the protobuf validation plugin
+go get -d github.com/envoyproxy/protoc-gen-validate
+pushd %GOPATH%\src\github.com\envoyproxy\protoc-gen-validate
+make build
+popd
+
 go get -u go.opentelemetry.io/otel
 
 go get google.golang.org/grpc

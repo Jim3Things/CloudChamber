@@ -1,8 +1,12 @@
-// This file contains the definitions used by configuration and external
-// commands for describing the simulated inventory
+// This file contains the definitions used by configuration and external commands for describing the simulated
+// inventory.  These definitions describe the items, but do not define any status for them.
+//
+// Note that we may, at some point, want to add an initial status definition in order to define inventory that begins
+// in a partially failed manner.
 
 syntax = "proto3";
 
+import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
 
 package inventory;
@@ -11,9 +15,9 @@ option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message external {
 
-    // The three types here are common overhead items in a rack.  All are pure skeletons at this point.
-    // Note that all have implied connectivity with all other items in a rack.  Currently elided
-    // in the external model, but used in the other models.
+    // The two types here are common overhead items in a rack.  All are pure skeletons at this point.
+    // Note that all have implied connectivity with all other items in a rack.  Currently elided in the external model,
+    // but used in the other models.
 
     // Power distribution unit.  Network accessible power controller
     message pdu {
@@ -25,29 +29,20 @@ message external {
         // Note that full internal name for a tor is <rackname>-tor-0
     }
 
-    // Management controller.  Provides direct ability halt or boot a specific
-    // blade.
-    message mc {
-        // Note that full internal name for a sc is <rackname>-mc-0
-    }
-
     message rack {
-        string name = 1;
-
         // This assumes a single overhead item per rack.  May want to allow multiple to handle
         // subdivisions for power or network, say.
 
-        pdu pdu = 2;
-        tor tor = 3;
-        mc mc = 4;
+        pdu pdu = 1;
+        tor tor = 2;
 
-        // specify the blades in the rack.  Note that full internal name for a blade is <rackname>-blade-<bladeId>,
-        // where <bladeId> is the key in that blade's map entry below.
-        map<int64, common.blade_capacity> blades = 5;
+        // specify the blades in the rack.  Each blade is defined by an integer index within that rack, which is used
+        // here as the key.
+        map<int64, common.blade_capacity> blades = 3 [(validate.rules).map.min_pairs = 1];
     }
 
-    // This is probably not needed at this point.
+    // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in the map below.
     message zone {
-        repeated rack racks = 1;
+        map<string, rack> racks = 1 [(validate.rules).map.min_pairs = 1];
     }
 }

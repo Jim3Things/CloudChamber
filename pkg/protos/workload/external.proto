@@ -2,37 +2,81 @@ syntax = "proto3";
 
 package workload;
 
+import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
+
 option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/workload";
 
 message external {
-    // TODO: Open question.  Given the features of protobuf, I'm not sure that a generic 'features' collection
-    // makes sense.  I've left it in here for now, but I think we will probably remove it.
-
+    // Define a disk volume
     message volume {
-        int64 size_in_gb = 2;
-        bool creatable = 3;
-        bool write_locked = 4;
-        map<string, int64> features = 5;
+        enum attr {
+            Invalid = 0;
+
+            // Volume can be dynamically created, implicitly writable
+            Creatable = 1;
+
+            // Volume exists, and is write locked
+            Write_locked = 2;
+
+            // Volume exists, and is writable
+            Writable = 3;
+        }
+
+        // Volume size in gigabytes
+        int64 size_in_gb = 1 [(validate.rules).int64.gt = 0];
+
+        // Constraint on the volume type.
+        attr attribute = 2 [(validate.rules).enum.defined_only = true];
     }
 
-    message capacity {
-        float cores = 1;
-        int64 memory_in_mb = 2;
-    }
-
+    // Define a single instance
     message instance {
-        string name = 1;
-        capacity capacity = 2;
+        // Define the logical affinity group where this instance belongs.
+        int64 affinity_group = 1;
 
-        map<string, int64> features = 3;
+        // Defined the required blade capacity used by this instance
+        common.blade_capacity required_capacity = 2;
 
         // Boot volume name
-        string system_name = 4;
+        string system_name = 3 [(validate.rules).string.min_len = 1];
 
         // all volumes, must include the boot volume
-        map<string, volume> volumes = 5;
+        map<string, volume> volumes = 4 [(validate.rules).map.min_pairs = 1];
 
         // configuration / metadata to pass to the instance
-        string config = 6;
+        string config = 5;
+    }
+
+    // Define the policy for how to manage affinity groups
+    enum affinity_type {
+        // No placement restrictions, ignore affinity groups
+        None = 0;
+
+        // Require that all instances within one affinity group are placed in the same fault domain
+        Strong_Affinity = 1;
+
+        // Attempt to place all instances within one affinity group into the same fault domain
+        Weak_Affinity = 2;
+
+        // Require that no two instances with differing affinity groups are placed in the same fault domain.  There is
+        // no guarantee that two instances with the same affinity group will be placed in the same fault domain
+        Strong_AntiAffinity = 3;
+
+        // Attempt to place instances with different affinity groups into different fault domains
+        Weak_AntiAffinity = 4;
+    }
+
+    // Define a workload.  This is a logical service made up of one or more instances
+    message workload {
+        // Specify the workload's name
+        string name = 1 [(validate.rules).string.min_len = 1];
+
+        // Specify the affinity policy to apply to the instances
+        affinity_type affinity = 2 [(validate.rules).enum.defined_only = true];
+
+        // Define the set of instances in this workload.  Each instance has a name that is unique within
+        // the workload.  That name is used as the key in the instance map.
+        map<string, instance> instances = 3 [(validate.rules).map.min_pairs = 1];
     }
 }

@@ -4,9 +4,13 @@ syntax = "proto3";
 
 package common;
 
+import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
+
 option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/common";
 
 // Define the structure for a simulated time
+//
+// Simulated time is defined as an incrementing tick count, that begins at zero.
 message Timestamp {
-    int64 ticks = 1;
+    int64 ticks = 1 [(validate.rules).int64.gte = 0];
 }
