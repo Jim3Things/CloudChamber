@@ -28,6 +28,9 @@ message external {
 
         // Constraint on the volume type.
         attr attribute = 2 [(validate.rules).enum.defined_only = true];
+
+        // Address where the volume is located
+        string uri = 3 [(validate.rules).string.min_len = 1];
     }
 
     // Define a single instance
@@ -36,7 +39,7 @@ message external {
         int64 affinity_group = 1;
 
         // Defined the required blade capacity used by this instance
-        common.blade_capacity required_capacity = 2;
+        common.instance_requirements required_capacity = 2;
 
         // Boot volume name
         string system_name = 3 [(validate.rules).string.min_len = 1];

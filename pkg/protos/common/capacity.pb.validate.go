@@ -36,6 +36,93 @@ var (
 // define the regex for a UUID once up-front
 var _capacity_uuidPattern = regexp.MustCompile("^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
 
+// Validate checks the field values on Accelerator with the rules defined in
+// the proto definition for this message. If any rules are violated, an error
+// is returned.
+func (m *Accelerator) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	switch m.AcceleratorType.(type) {
+
+	case *Accelerator_V100:
+
+		if v, ok := interface{}(m.GetV100()).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return AcceleratorValidationError{
+					field:  "V100",
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	default:
+		return AcceleratorValidationError{
+			field:  "AcceleratorType",
+			reason: "value is required",
+		}
+
+	}
+
+	return nil
+}
+
+// AcceleratorValidationError is the validation error returned by
+// Accelerator.Validate if the designated constraints aren't met.
+type AcceleratorValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e AcceleratorValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e AcceleratorValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e AcceleratorValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e AcceleratorValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e AcceleratorValidationError) ErrorName() string { return "AcceleratorValidationError" }
+
+// Error satisfies the builtin error interface
+func (e AcceleratorValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sAccelerator.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = AcceleratorValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = AcceleratorValidationError{}
+
 // Validate checks the field values on BladeCapacity with the rules defined in
 // the proto definition for this message. If any rules are violated, an error
 // is returned.
@@ -65,9 +152,9 @@ func (m *BladeCapacity) Validate() error {
 		}
 	}
 
-	if m.GetNetworkBandwidth() <= 0 {
+	if m.GetNetworkBandwidthInMbps() <= 0 {
 		return BladeCapacityValidationError{
-			field:  "NetworkBandwidth",
+			field:  "NetworkBandwidthInMbps",
 			reason: "value must be greater than 0",
 		}
 	}
@@ -151,42 +238,63 @@ var _ interface {
 	ErrorName() string
 } = BladeCapacityValidationError{}
 
-// Validate checks the field values on BladeCapacityAccelerator with the rules
+// Validate checks the field values on InstanceRequirements with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, an error is returned.
-func (m *BladeCapacityAccelerator) Validate() error {
+func (m *InstanceRequirements) Validate() error {
 	if m == nil {
 		return nil
 	}
 
-	switch m.AcceleratorType.(type) {
+	if m.GetCores() <= 0 {
+		return InstanceRequirementsValidationError{
+			field:  "Cores",
+			reason: "value must be greater than 0",
+		}
+	}
 
-	case *BladeCapacityAccelerator_V100:
+	if m.GetMemoryInMb() <= 0 {
+		return InstanceRequirementsValidationError{
+			field:  "MemoryInMb",
+			reason: "value must be greater than 0",
+		}
+	}
 
-		if v, ok := interface{}(m.GetV100()).(interface{ Validate() error }); ok {
+	if m.GetNetworkBandwidthInMbps() <= 0 {
+		return InstanceRequirementsValidationError{
+			field:  "NetworkBandwidthInMbps",
+			reason: "value must be greater than 0",
+		}
+	}
+
+	if utf8.RuneCountInString(m.GetArch()) < 1 {
+		return InstanceRequirementsValidationError{
+			field:  "Arch",
+			reason: "value length must be at least 1 runes",
+		}
+	}
+
+	for idx, item := range m.GetAccelerators() {
+		_, _ = idx, item
+
+		if v, ok := interface{}(item).(interface{ Validate() error }); ok {
 			if err := v.Validate(); err != nil {
-				return BladeCapacityAcceleratorValidationError{
-					field:  "V100",
+				return InstanceRequirementsValidationError{
+					field:  fmt.Sprintf("Accelerators[%v]", idx),
 					reason: "embedded message failed validation",
 					cause:  err,
 				}
 			}
 		}
 
-	default:
-		return BladeCapacityAcceleratorValidationError{
-			field:  "AcceleratorType",
-			reason: "value is required",
-		}
-
 	}
 
 	return nil
 }
 
-// BladeCapacityAcceleratorValidationError is the validation error returned by
-// BladeCapacityAccelerator.Validate if the designated constraints aren't met.
-type BladeCapacityAcceleratorValidationError struct {
+// InstanceRequirementsValidationError is the validation error returned by
+// InstanceRequirements.Validate if the designated constraints aren't met.
+type InstanceRequirementsValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -194,24 +302,24 @@ type BladeCapacityAcceleratorValidationError struct {
 }
 
 // Field function returns field value.
-func (e BladeCapacityAcceleratorValidationError) Field() string { return e.field }
+func (e InstanceRequirementsValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e BladeCapacityAcceleratorValidationError) Reason() string { return e.reason }
+func (e InstanceRequirementsValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e BladeCapacityAcceleratorValidationError) Cause() error { return e.cause }
+func (e InstanceRequirementsValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e BladeCapacityAcceleratorValidationError) Key() bool { return e.key }
+func (e InstanceRequirementsValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e BladeCapacityAcceleratorValidationError) ErrorName() string {
-	return "BladeCapacityAcceleratorValidationError"
+func (e InstanceRequirementsValidationError) ErrorName() string {
+	return "InstanceRequirementsValidationError"
 }
 
 // Error satisfies the builtin error interface
-func (e BladeCapacityAcceleratorValidationError) Error() string {
+func (e InstanceRequirementsValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -223,14 +331,14 @@ func (e BladeCapacityAcceleratorValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sBladeCapacityAccelerator.%s: %s%s",
+		"invalid %sInstanceRequirements.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = BladeCapacityAcceleratorValidationError{}
+var _ error = InstanceRequirementsValidationError{}
 
 var _ interface {
 	Field() string
@@ -238,12 +346,12 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = BladeCapacityAcceleratorValidationError{}
+} = InstanceRequirementsValidationError{}
 
-// Validate checks the field values on BladeCapacityAccelerator_NVIDIA_V100
-// with the rules defined in the proto definition for this message. If any
-// rules are violated, an error is returned.
-func (m *BladeCapacityAccelerator_NVIDIA_V100) Validate() error {
+// Validate checks the field values on Accelerator_NVIDIA_V100 with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, an error is returned.
+func (m *Accelerator_NVIDIA_V100) Validate() error {
 	if m == nil {
 		return nil
 	}
@@ -251,10 +359,9 @@ func (m *BladeCapacityAccelerator_NVIDIA_V100) Validate() error {
 	return nil
 }
 
-// BladeCapacityAccelerator_NVIDIA_V100ValidationError is the validation error
-// returned by BladeCapacityAccelerator_NVIDIA_V100.Validate if the designated
-// constraints aren't met.
-type BladeCapacityAccelerator_NVIDIA_V100ValidationError struct {
+// Accelerator_NVIDIA_V100ValidationError is the validation error returned by
+// Accelerator_NVIDIA_V100.Validate if the designated constraints aren't met.
+type Accelerator_NVIDIA_V100ValidationError struct {
 	field  string
 	reason string
 	cause  error
@@ -262,24 +369,24 @@ type BladeCapacityAccelerator_NVIDIA_V100ValidationError struct {
 }
 
 // Field function returns field value.
-func (e BladeCapacityAccelerator_NVIDIA_V100ValidationError) Field() string { return e.field }
+func (e Accelerator_NVIDIA_V100ValidationError) Field() string { return e.field }
 
 // Reason function returns reason value.
-func (e BladeCapacityAccelerator_NVIDIA_V100ValidationError) Reason() string { return e.reason }
+func (e Accelerator_NVIDIA_V100ValidationError) Reason() string { return e.reason }
 
 // Cause function returns cause value.
-func (e BladeCapacityAccelerator_NVIDIA_V100ValidationError) Cause() error { return e.cause }
+func (e Accelerator_NVIDIA_V100ValidationError) Cause() error { return e.cause }
 
 // Key function returns key value.
-func (e BladeCapacityAccelerator_NVIDIA_V100ValidationError) Key() bool { return e.key }
+func (e Accelerator_NVIDIA_V100ValidationError) Key() bool { return e.key }
 
 // ErrorName returns error name.
-func (e BladeCapacityAccelerator_NVIDIA_V100ValidationError) ErrorName() string {
-	return "BladeCapacityAccelerator_NVIDIA_V100ValidationError"
+func (e Accelerator_NVIDIA_V100ValidationError) ErrorName() string {
+	return "Accelerator_NVIDIA_V100ValidationError"
 }
 
 // Error satisfies the builtin error interface
-func (e BladeCapacityAccelerator_NVIDIA_V100ValidationError) Error() string {
+func (e Accelerator_NVIDIA_V100ValidationError) Error() string {
 	cause := ""
 	if e.cause != nil {
 		cause = fmt.Sprintf(" | caused by: %v", e.cause)
@@ -291,14 +398,14 @@ func (e BladeCapacityAccelerator_NVIDIA_V100ValidationError) Error() string {
 	}
 
 	return fmt.Sprintf(
-		"invalid %sBladeCapacityAccelerator_NVIDIA_V100.%s: %s%s",
+		"invalid %sAccelerator_NVIDIA_V100.%s: %s%s",
 		key,
 		e.field,
 		e.reason,
 		cause)
 }
 
-var _ error = BladeCapacityAccelerator_NVIDIA_V100ValidationError{}
+var _ error = Accelerator_NVIDIA_V100ValidationError{}
 
 var _ interface {
 	Field() string
@@ -306,4 +413,4 @@ var _ interface {
 	Key() bool
 	Cause() error
 	ErrorName() string
-} = BladeCapacityAccelerator_NVIDIA_V100ValidationError{}
+} = Accelerator_NVIDIA_V100ValidationError{}

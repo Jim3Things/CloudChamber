@@ -122,6 +122,13 @@ func (m *ExternalVolume) Validate() error {
 		}
 	}
 
+	if utf8.RuneCountInString(m.GetUri()) < 1 {
+		return ExternalVolumeValidationError{
+			field:  "Uri",
+			reason: "value length must be at least 1 runes",
+		}
+	}
+
 	return nil
 }
 
