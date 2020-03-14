@@ -90,11 +90,6 @@ var (
     //
     ErrUserAlreadyCreated = errors.New("CloudChamber: user already exists")
 
-    // ErrUserAlreadyExists indicates the specified user account already exists
-    // and is not a detectable duplicate
-    //
-    ErrUserAlreadyExists = errors.New("CloudChamber: user already exists")
-
     // ErrUserNotFound indicates the specified user account was determined to
     // not exist (i.e. the search succeeded but no record was found)
     //
@@ -132,6 +127,11 @@ func initHandlers() error {
     usersAddRoutes(routeAPI)
     workloadsAddRoutes(routeAPI)
 
+    // TODO the following handler definitions are just temporary placeholders and 
+    // should at some point be converted to follow the same pattern as for files,
+    // users and workloads, namely moved to a separate file and defined/handler
+    // there.
+    //
     routeAPI.HandleFunc("/logs", handlerLogsRoot).Methods("GET")
     routeAPI.HandleFunc("/stepper", handlerStepperRoot).Methods("GET")
     routeAPI.HandleFunc("/injector", handlerInjectorRoot).Methods("GET")
@@ -163,11 +163,18 @@ func initArguments() error {
 
 func initService() error {
 
-    // Really need some error handling here since continuation from this
-    // point in the face of failure represents a compromise in security
+    // A failure to generate a random key is most likely a result of a failure of the
+    // system supplied random number generator mechanism. Although not known for sure
+    // at this point, this is likely a result of the system not yet having been running
+    // long enough to gather enough random timing events (aka entropy) to allow for a
+    // sufficiently random number to be properly generated. If this is the underlying
+    // cause, a suitable delay (say 60 seconds) and then restarting the service will
+    // likely resolve the issue.
     //
-    if nil == keyAuthentication || nil == keyEncryption {
-        log.Fatalf("Failed to generate required keys %v", ErrNotInitialized)
+    if nil == keyAuthentication {
+        log.Fatalf("Failed to generate required authentication key (Check system Random Number Generator and restart the service after 60s). Error: %v", ErrNotInitialized)
+    } else if nil == keyEncryption {
+        log.Fatalf("Failed to generate required encryption key (Check system Random Number Generator and restart the service after 60s). Error: %v", ErrNotInitialized)
     }
 
     server.cookieStore = sessions.NewCookieStore(keyAuthentication, keyEncryption)

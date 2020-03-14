@@ -65,7 +65,7 @@ func userAdd(name string, password []byte) error {
     _, found := dbUsers.Users[name]
 
     if found {
-        return ErrUserAlreadyExists
+        return ErrUserAlreadyCreated
     }
 
     dbUsers.Users[name] = *newUser
