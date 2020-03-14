@@ -94,6 +94,10 @@ func Reset() {
 func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
 	trace.AddEvent(ctx, in.String(), latest, "Setting the policy")
 
+	if err := in.Validate(); err != nil {
+		return nil, trace.LogError(ctx, latest, err)
+	}
+
 	if policy != pb.StepperPolicy_Invalid {
 		// A policy has been set already.  If there is no change, then we can silently
 		// ignore this call.  Otherwise, this is an error
@@ -113,9 +117,6 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 	// This is an initial policy setup, so make the appropriate change after validating
 	// the input.
 	switch in.Policy {
-	case pb.StepperPolicy_Invalid:
-		return nil, trace.LogError(ctx, latest, "stepper policy may not be set to %v", pb.StepperPolicy_Invalid)
-
 	case pb.StepperPolicy_Measured:
 		if in.MeasuredDelay.Seconds <= 0 {
 			return nil, trace.LogError(ctx, latest, "delay must be greater than zero, but was %d", in.MeasuredDelay.Seconds)
@@ -129,9 +130,6 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 				in.Policy,
 				in.MeasuredDelay.Seconds)
 		}
-
-	default:
-		return nil, trace.LogError(ctx, latest, "unknown policy specified: %v", in.Policy)
 	}
 
 	// We have a new, valid policy.  Set it up.
@@ -200,12 +198,8 @@ func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timest
 		return nil, trace.LogError(ctx, latest, "stepper not initialized: no stepper policy has been set")
 	}
 
-	if in.AtLeast.Ticks < 0 {
-		return nil, trace.LogError(ctx, latest, "base delay time must be non-negative, was specified as %d", in.AtLeast.Ticks)
-	}
-
-	if in.Jitter < 0 {
-		return nil, trace.LogError(ctx, latest, "delay jitter must be non-negative, was specified as %d", in.Jitter)
+	if err := in.Validate(); err != nil {
+		return nil, trace.LogError(ctx, latest, err)
 	}
 
 	var adjust int64 = 0

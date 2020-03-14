@@ -5,6 +5,7 @@ package common
 
 import (
 	fmt "fmt"
+	_ "github.com/envoyproxy/protoc-gen-validate/validate"
 	proto "github.com/golang/protobuf/proto"
 	math "math"
 )
@@ -20,24 +21,128 @@ var _ = math.Inf
 // proto package needs to be updated.
 const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 
+// Define the set of known accelerators, such as GPUs or FPGAs.
+type Accelerator struct {
+	// Types that are valid to be assigned to AcceleratorType:
+	//	*Accelerator_V100
+	AcceleratorType      isAccelerator_AcceleratorType `protobuf_oneof:"accelerator_type"`
+	XXX_NoUnkeyedLiteral struct{}                      `json:"-"`
+	XXX_unrecognized     []byte                        `json:"-"`
+	XXX_sizecache        int32                         `json:"-"`
+}
+
+func (m *Accelerator) Reset()         { *m = Accelerator{} }
+func (m *Accelerator) String() string { return proto.CompactTextString(m) }
+func (*Accelerator) ProtoMessage()    {}
+func (*Accelerator) Descriptor() ([]byte, []int) {
+	return fileDescriptor_426fce80509e2de4, []int{0}
+}
+
+func (m *Accelerator) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Accelerator.Unmarshal(m, b)
+}
+func (m *Accelerator) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Accelerator.Marshal(b, m, deterministic)
+}
+func (m *Accelerator) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Accelerator.Merge(m, src)
+}
+func (m *Accelerator) XXX_Size() int {
+	return xxx_messageInfo_Accelerator.Size(m)
+}
+func (m *Accelerator) XXX_DiscardUnknown() {
+	xxx_messageInfo_Accelerator.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Accelerator proto.InternalMessageInfo
+
+type isAccelerator_AcceleratorType interface {
+	isAccelerator_AcceleratorType()
+}
+
+type Accelerator_V100 struct {
+	V100 *Accelerator_NVIDIA_V100 `protobuf:"bytes,1,opt,name=v100,proto3,oneof"`
+}
+
+func (*Accelerator_V100) isAccelerator_AcceleratorType() {}
+
+func (m *Accelerator) GetAcceleratorType() isAccelerator_AcceleratorType {
+	if m != nil {
+		return m.AcceleratorType
+	}
+	return nil
+}
+
+func (m *Accelerator) GetV100() *Accelerator_NVIDIA_V100 {
+	if x, ok := m.GetAcceleratorType().(*Accelerator_V100); ok {
+		return x.V100
+	}
+	return nil
+}
+
+// XXX_OneofWrappers is for the internal use of the proto package.
+func (*Accelerator) XXX_OneofWrappers() []interface{} {
+	return []interface{}{
+		(*Accelerator_V100)(nil),
+	}
+}
+
+type Accelerator_NVIDIA_V100 struct {
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Accelerator_NVIDIA_V100) Reset()         { *m = Accelerator_NVIDIA_V100{} }
+func (m *Accelerator_NVIDIA_V100) String() string { return proto.CompactTextString(m) }
+func (*Accelerator_NVIDIA_V100) ProtoMessage()    {}
+func (*Accelerator_NVIDIA_V100) Descriptor() ([]byte, []int) {
+	return fileDescriptor_426fce80509e2de4, []int{0, 0}
+}
+
+func (m *Accelerator_NVIDIA_V100) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_Accelerator_NVIDIA_V100.Unmarshal(m, b)
+}
+func (m *Accelerator_NVIDIA_V100) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_Accelerator_NVIDIA_V100.Marshal(b, m, deterministic)
+}
+func (m *Accelerator_NVIDIA_V100) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Accelerator_NVIDIA_V100.Merge(m, src)
+}
+func (m *Accelerator_NVIDIA_V100) XXX_Size() int {
+	return xxx_messageInfo_Accelerator_NVIDIA_V100.Size(m)
+}
+func (m *Accelerator_NVIDIA_V100) XXX_DiscardUnknown() {
+	xxx_messageInfo_Accelerator_NVIDIA_V100.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Accelerator_NVIDIA_V100 proto.InternalMessageInfo
+
 // Defines the capacity dimensions and values for a blade
 type BladeCapacity struct {
-	Cores                float32                  `protobuf:"fixed32,1,opt,name=cores,proto3" json:"cores,omitempty"`
-	MemoryInMb           int64                    `protobuf:"varint,2,opt,name=memory_in_mb,json=memoryInMb,proto3" json:"memory_in_mb,omitempty"`
-	DiskInGb             int64                    `protobuf:"varint,3,opt,name=disk_in_gb,json=diskInGb,proto3" json:"disk_in_gb,omitempty"`
-	NetworkBandwidth     int64                    `protobuf:"varint,4,opt,name=network_bandwidth,json=networkBandwidth,proto3" json:"network_bandwidth,omitempty"`
-	Arch                 string                   `protobuf:"bytes,5,opt,name=arch,proto3" json:"arch,omitempty"`
-	Gpus                 *BladeCapacityGpuDetails `protobuf:"bytes,6,opt,name=gpus,proto3" json:"gpus,omitempty"`
-	XXX_NoUnkeyedLiteral struct{}                 `json:"-"`
-	XXX_unrecognized     []byte                   `json:"-"`
-	XXX_sizecache        int32                    `json:"-"`
+	// The number of cores on the blade.
+	Cores int64 `protobuf:"varint,1,opt,name=cores,proto3" json:"cores,omitempty"`
+	// The amount of memory, in megabytes
+	MemoryInMb int64 `protobuf:"varint,2,opt,name=memory_in_mb,json=memoryInMb,proto3" json:"memory_in_mb,omitempty"`
+	// The amount of local disk space, in gigabytes.  Note that this assumes either one disk, or that the disks are
+	// mounted collectively as a single volume
+	DiskInGb int64 `protobuf:"varint,3,opt,name=disk_in_gb,json=diskInGb,proto3" json:"disk_in_gb,omitempty"`
+	// The network bandwidth from the host in megabits per second
+	NetworkBandwidthInMbps int64 `protobuf:"varint,4,opt,name=network_bandwidth_in_mbps,json=networkBandwidthInMbps,proto3" json:"network_bandwidth_in_mbps,omitempty"`
+	// The processor architecture
+	Arch string `protobuf:"bytes,5,opt,name=arch,proto3" json:"arch,omitempty"`
+	// Supply the set of accelerators for this blade, including none.
+	Accelerators         []*Accelerator `protobuf:"bytes,6,rep,name=accelerators,proto3" json:"accelerators,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
 func (m *BladeCapacity) Reset()         { *m = BladeCapacity{} }
 func (m *BladeCapacity) String() string { return proto.CompactTextString(m) }
 func (*BladeCapacity) ProtoMessage()    {}
 func (*BladeCapacity) Descriptor() ([]byte, []int) {
-	return fileDescriptor_426fce80509e2de4, []int{0}
+	return fileDescriptor_426fce80509e2de4, []int{1}
 }
 
 func (m *BladeCapacity) XXX_Unmarshal(b []byte) error {
@@ -58,7 +163,7 @@ func (m *BladeCapacity) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_BladeCapacity proto.InternalMessageInfo
 
-func (m *BladeCapacity) GetCores() float32 {
+func (m *BladeCapacity) GetCores() int64 {
 	if m != nil {
 		return m.Cores
 	}
@@ -79,9 +184,9 @@ func (m *BladeCapacity) GetDiskInGb() int64 {
 	return 0
 }
 
-func (m *BladeCapacity) GetNetworkBandwidth() int64 {
+func (m *BladeCapacity) GetNetworkBandwidthInMbps() int64 {
 	if m != nil {
-		return m.NetworkBandwidth
+		return m.NetworkBandwidthInMbps
 	}
 	return 0
 }
@@ -93,74 +198,94 @@ func (m *BladeCapacity) GetArch() string {
 	return ""
 }
 
-func (m *BladeCapacity) GetGpus() *BladeCapacityGpuDetails {
+func (m *BladeCapacity) GetAccelerators() []*Accelerator {
 	if m != nil {
-		return m.Gpus
+		return m.Accelerators
 	}
 	return nil
 }
 
-// GPUs may not be present at all on a blade, so if they are
-// not then the 'present' flag is false and the other fields are
-// ignored.
-type BladeCapacityGpuDetails struct {
-	Units                int32    `protobuf:"varint,1,opt,name=units,proto3" json:"units,omitempty"`
-	Arch                 string   `protobuf:"bytes,2,opt,name=arch,proto3" json:"arch,omitempty"`
-	Present              bool     `protobuf:"varint,3,opt,name=present,proto3" json:"present,omitempty"`
-	XXX_NoUnkeyedLiteral struct{} `json:"-"`
-	XXX_unrecognized     []byte   `json:"-"`
-	XXX_sizecache        int32    `json:"-"`
+type InstanceRequirements struct {
+	// The number of (potentially fractional) cores used by the instance.
+	Cores float32 `protobuf:"fixed32,1,opt,name=cores,proto3" json:"cores,omitempty"`
+	// The amount of memory, in megabytes
+	MemoryInMb int64 `protobuf:"varint,2,opt,name=memory_in_mb,json=memoryInMb,proto3" json:"memory_in_mb,omitempty"`
+	// The network bandwidth required in megabits per second
+	NetworkBandwidthInMbps int64 `protobuf:"varint,4,opt,name=network_bandwidth_in_mbps,json=networkBandwidthInMbps,proto3" json:"network_bandwidth_in_mbps,omitempty"`
+	// The processor architecture
+	Arch string `protobuf:"bytes,5,opt,name=arch,proto3" json:"arch,omitempty"`
+	// Supply the set of accelerators required by this instance, including none.
+	Accelerators         []*Accelerator `protobuf:"bytes,6,rep,name=accelerators,proto3" json:"accelerators,omitempty"`
+	XXX_NoUnkeyedLiteral struct{}       `json:"-"`
+	XXX_unrecognized     []byte         `json:"-"`
+	XXX_sizecache        int32          `json:"-"`
 }
 
-func (m *BladeCapacityGpuDetails) Reset()         { *m = BladeCapacityGpuDetails{} }
-func (m *BladeCapacityGpuDetails) String() string { return proto.CompactTextString(m) }
-func (*BladeCapacityGpuDetails) ProtoMessage()    {}
-func (*BladeCapacityGpuDetails) Descriptor() ([]byte, []int) {
-	return fileDescriptor_426fce80509e2de4, []int{0, 0}
+func (m *InstanceRequirements) Reset()         { *m = InstanceRequirements{} }
+func (m *InstanceRequirements) String() string { return proto.CompactTextString(m) }
+func (*InstanceRequirements) ProtoMessage()    {}
+func (*InstanceRequirements) Descriptor() ([]byte, []int) {
+	return fileDescriptor_426fce80509e2de4, []int{2}
 }
 
-func (m *BladeCapacityGpuDetails) XXX_Unmarshal(b []byte) error {
-	return xxx_messageInfo_BladeCapacityGpuDetails.Unmarshal(m, b)
+func (m *InstanceRequirements) XXX_Unmarshal(b []byte) error {
+	return xxx_messageInfo_InstanceRequirements.Unmarshal(m, b)
 }
-func (m *BladeCapacityGpuDetails) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
-	return xxx_messageInfo_BladeCapacityGpuDetails.Marshal(b, m, deterministic)
+func (m *InstanceRequirements) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	return xxx_messageInfo_InstanceRequirements.Marshal(b, m, deterministic)
 }
-func (m *BladeCapacityGpuDetails) XXX_Merge(src proto.Message) {
-	xxx_messageInfo_BladeCapacityGpuDetails.Merge(m, src)
+func (m *InstanceRequirements) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_InstanceRequirements.Merge(m, src)
 }
-func (m *BladeCapacityGpuDetails) XXX_Size() int {
-	return xxx_messageInfo_BladeCapacityGpuDetails.Size(m)
+func (m *InstanceRequirements) XXX_Size() int {
+	return xxx_messageInfo_InstanceRequirements.Size(m)
 }
-func (m *BladeCapacityGpuDetails) XXX_DiscardUnknown() {
-	xxx_messageInfo_BladeCapacityGpuDetails.DiscardUnknown(m)
+func (m *InstanceRequirements) XXX_DiscardUnknown() {
+	xxx_messageInfo_InstanceRequirements.DiscardUnknown(m)
 }
 
-var xxx_messageInfo_BladeCapacityGpuDetails proto.InternalMessageInfo
+var xxx_messageInfo_InstanceRequirements proto.InternalMessageInfo
 
-func (m *BladeCapacityGpuDetails) GetUnits() int32 {
+func (m *InstanceRequirements) GetCores() float32 {
 	if m != nil {
-		return m.Units
+		return m.Cores
 	}
 	return 0
 }
 
-func (m *BladeCapacityGpuDetails) GetArch() string {
+func (m *InstanceRequirements) GetMemoryInMb() int64 {
+	if m != nil {
+		return m.MemoryInMb
+	}
+	return 0
+}
+
+func (m *InstanceRequirements) GetNetworkBandwidthInMbps() int64 {
+	if m != nil {
+		return m.NetworkBandwidthInMbps
+	}
+	return 0
+}
+
+func (m *InstanceRequirements) GetArch() string {
 	if m != nil {
 		return m.Arch
 	}
 	return ""
 }
 
-func (m *BladeCapacityGpuDetails) GetPresent() bool {
+func (m *InstanceRequirements) GetAccelerators() []*Accelerator {
 	if m != nil {
-		return m.Present
+		return m.Accelerators
 	}
-	return false
+	return nil
 }
 
 func init() {
+	proto.RegisterType((*Accelerator)(nil), "common.accelerator")
+	proto.RegisterType((*Accelerator_NVIDIA_V100)(nil), "common.accelerator.NVIDIA_V100")
 	proto.RegisterType((*BladeCapacity)(nil), "common.blade_capacity")
-	proto.RegisterType((*BladeCapacityGpuDetails)(nil), "common.blade_capacity.gpu_details")
+	proto.RegisterType((*InstanceRequirements)(nil), "common.instance_requirements")
 }
 
 func init() {
@@ -168,24 +293,31 @@ func init() {
 }
 
 var fileDescriptor_426fce80509e2de4 = []byte{
-	// 295 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x9c, 0x91, 0xcf, 0x4b, 0xc3, 0x30,
-	0x1c, 0xc5, 0x69, 0xf7, 0xc3, 0xf9, 0x9d, 0x88, 0x06, 0x0f, 0x41, 0x3c, 0x94, 0x9d, 0x0a, 0x42,
-	0x0b, 0x4e, 0xf6, 0x07, 0x6c, 0x07, 0x99, 0xe0, 0xc1, 0xe2, 0xc9, 0x4b, 0x49, 0xda, 0x90, 0x86,
-	0x2d, 0x3f, 0x48, 0x52, 0xc6, 0xfe, 0x2d, 0xff, 0x42, 0x59, 0x62, 0x65, 0x5e, 0xbd, 0xe5, 0x7d,
-	0xde, 0x83, 0x97, 0xc7, 0x17, 0x36, 0x5c, 0xf8, 0xae, 0xa7, 0x45, 0xa3, 0x65, 0xf9, 0x2a, 0xe4,
-	0xf2, 0xa3, 0x13, 0x8a, 0xbb, 0x72, 0xb3, 0xd7, 0x7d, 0xbb, 0xe9, 0x88, 0xa4, 0xcc, 0x96, 0x66,
-	0xc7, 0x4b, 0x63, 0xb5, 0xd7, 0xae, 0x6c, 0xb4, 0x94, 0x5a, 0x95, 0x0d, 0x31, 0xa4, 0x11, 0xfe,
-	0x58, 0x04, 0x8c, 0xa6, 0x11, 0x2f, 0xbe, 0x52, 0xb8, 0xa6, 0x7b, 0xd2, 0xb2, 0x7a, 0x08, 0xa0,
-	0x3b, 0x98, 0x34, 0xda, 0x32, 0x87, 0x93, 0x2c, 0xc9, 0xd3, 0x2a, 0x0a, 0x94, 0xc1, 0x95, 0x64,
-	0x52, 0xdb, 0x63, 0x2d, 0x54, 0x2d, 0x29, 0x4e, 0xb3, 0x24, 0x1f, 0x55, 0x10, 0xd9, 0x56, 0xbd,
-	0x51, 0xf4, 0x00, 0xd0, 0x0a, 0xb7, 0x3b, 0xf9, 0x9c, 0xe2, 0x51, 0xf0, 0x67, 0x27, 0xb2, 0x55,
-	0x2f, 0x14, 0x3d, 0xc2, 0xad, 0x62, 0xfe, 0xa0, 0xed, 0xae, 0xa6, 0x44, 0xb5, 0x07, 0xd1, 0xfa,
-	0x0e, 0x8f, 0x43, 0xe8, 0xe6, 0xc7, 0x58, 0x0f, 0x1c, 0x21, 0x18, 0x13, 0xdb, 0x74, 0x78, 0x92,
-	0x25, 0xf9, 0x65, 0x15, 0xde, 0x68, 0x05, 0x63, 0x6e, 0x7a, 0x87, 0xa7, 0x59, 0x92, 0xcf, 0x9f,
-	0x16, 0x45, 0x1c, 0x50, 0xfc, 0xfd, 0x7c, 0xc1, 0x4d, 0x5f, 0xb7, 0xcc, 0x13, 0xb1, 0x77, 0x55,
-	0xc8, 0xdf, 0xbf, 0xc3, 0xfc, 0x0c, 0x9e, 0xd6, 0xf5, 0x4a, 0xf8, 0xb8, 0x6e, 0x52, 0x45, 0xf1,
-	0x5b, 0x98, 0x9e, 0x15, 0x62, 0xb8, 0x30, 0x96, 0x39, 0xa6, 0x7c, 0x18, 0x33, 0xab, 0x06, 0xb9,
-	0x5e, 0x7d, 0x3e, 0xff, 0xe7, 0x06, 0x74, 0x1a, 0xe4, 0xf2, 0x3b, 0x00, 0x00, 0xff, 0xff, 0xc4,
-	0x6b, 0x5d, 0x45, 0xc2, 0x01, 0x00, 0x00,
+	// 414 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcc, 0x93, 0x4f, 0x6b, 0xd4, 0x40,
+	0x18, 0xc6, 0x93, 0xec, 0x9f, 0xea, 0xbb, 0x55, 0xca, 0x88, 0x1a, 0x2b, 0x62, 0x58, 0x28, 0xac,
+	0x87, 0x26, 0xdb, 0xd6, 0x3f, 0xe7, 0xce, 0x0a, 0xba, 0x82, 0x1e, 0x16, 0xe9, 0xc1, 0x4b, 0x98,
+	0x99, 0x0c, 0xc9, 0xb0, 0x99, 0x99, 0x38, 0x33, 0xbb, 0x35, 0x9f, 0xc5, 0x2f, 0x2a, 0x3d, 0x88,
+	0x6c, 0x62, 0x21, 0x41, 0x4f, 0x7b, 0xea, 0x2d, 0x79, 0xde, 0xdf, 0xfb, 0x3c, 0xbc, 0x0f, 0x0c,
+	0x2c, 0x72, 0xe1, 0x8a, 0x0d, 0x8d, 0x99, 0x96, 0xc9, 0x27, 0x21, 0x2f, 0xbe, 0x16, 0x42, 0xe5,
+	0x36, 0x59, 0x94, 0x7a, 0x93, 0x2d, 0x0a, 0x22, 0x29, 0x37, 0x49, 0xb5, 0xce, 0x93, 0xca, 0x68,
+	0xa7, 0x6d, 0xc2, 0xb4, 0x94, 0x5a, 0x25, 0x8c, 0x54, 0x84, 0x09, 0x57, 0xc7, 0x8d, 0x8c, 0xc6,
+	0xad, 0x7c, 0x7c, 0xd9, 0x31, 0xe3, 0x6a, 0xab, 0xeb, 0xca, 0xe8, 0x1f, 0x75, 0xbb, 0xcb, 0x4e,
+	0x73, 0xae, 0x4e, 0xb7, 0xa4, 0x14, 0x19, 0x71, 0x3c, 0xf9, 0xe7, 0xa3, 0xb5, 0x9a, 0x96, 0x30,
+	0x21, 0x8c, 0xf1, 0x92, 0x1b, 0xe2, 0xb4, 0x41, 0x6f, 0x60, 0xb8, 0x3d, 0x9b, 0xcf, 0x43, 0x3f,
+	0xf2, 0x67, 0x93, 0xf3, 0x97, 0x71, 0x1b, 0x14, 0x77, 0x90, 0xf8, 0xcb, 0xd5, 0xf2, 0xfd, 0xf2,
+	0x32, 0xbd, 0x3a, 0x9b, 0xcf, 0x3f, 0x7a, 0xab, 0x06, 0x3f, 0x7e, 0x00, 0x93, 0x8e, 0x8c, 0x9f,
+	0xc2, 0x51, 0x67, 0x23, 0x75, 0x75, 0xc5, 0xd1, 0xe0, 0x17, 0xf6, 0xa7, 0x3f, 0x03, 0x78, 0x48,
+	0x4b, 0x92, 0xf1, 0xf4, 0xf6, 0x22, 0xf4, 0x02, 0x46, 0x4c, 0x1b, 0x6e, 0x9b, 0xc8, 0x01, 0x3e,
+	0xb8, 0xc1, 0xc3, 0x69, 0x10, 0x79, 0xab, 0x56, 0x45, 0xaf, 0xe0, 0x50, 0x72, 0xa9, 0x4d, 0x9d,
+	0x0a, 0x95, 0x4a, 0x1a, 0x06, 0x7d, 0x0a, 0xda, 0xe1, 0x52, 0x7d, 0xa6, 0xe8, 0x04, 0x20, 0x13,
+	0x76, 0xbd, 0x03, 0x73, 0x1a, 0x0e, 0xfa, 0xe0, 0xbd, 0xdd, 0x68, 0xa9, 0x3e, 0x50, 0x84, 0xe1,
+	0x99, 0xe2, 0xee, 0x5a, 0x9b, 0x75, 0x4a, 0x89, 0xca, 0xae, 0x45, 0xe6, 0x8a, 0xd6, 0xbc, 0xb2,
+	0xe1, 0xb0, 0xbf, 0xf5, 0xe4, 0x2f, 0x89, 0x6f, 0xc1, 0x5d, 0x50, 0x65, 0xd1, 0x73, 0x18, 0x12,
+	0xc3, 0x8a, 0x70, 0x14, 0xf9, 0xb3, 0xfb, 0x0d, 0x6e, 0x82, 0x23, 0x7f, 0xd5, 0x88, 0xe8, 0x1d,
+	0x1c, 0x76, 0xae, 0xb7, 0xe1, 0x38, 0x1a, 0xcc, 0x26, 0xe7, 0x8f, 0xfe, 0xd3, 0xe5, 0xaa, 0x07,
+	0x4e, 0x7f, 0xfb, 0xf0, 0x58, 0x28, 0xeb, 0x88, 0x62, 0x3c, 0x35, 0xfc, 0xfb, 0x46, 0x18, 0x2e,
+	0xb9, 0x72, 0x16, 0x45, 0xdd, 0x92, 0x02, 0x0c, 0x37, 0xf8, 0x00, 0x46, 0x27, 0x9e, 0xe7, 0xed,
+	0xd3, 0xd3, 0x9d, 0x2d, 0x00, 0xbf, 0xfd, 0xf6, 0x7a, 0x9f, 0xe7, 0x41, 0xc7, 0xcd, 0xef, 0xc5,
+	0x9f, 0x00, 0x00, 0x00, 0xff, 0xff, 0xd1, 0x0b, 0x69, 0x9a, 0x5d, 0x03, 0x00, 0x00,
 }
