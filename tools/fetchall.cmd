@@ -5,7 +5,6 @@ if /i "%GOPATH%" == "" (
 
 pushd %GOPATH%\src
 
-
 go get github.com/golang/protobuf
 go get github.com/golang/protobuf/protoc-gen-go
 
@@ -31,5 +30,8 @@ go get go.opentelemetry.io/otel
 go get google.golang.org/grpc
 
 go get golang.org/x/crypto/...
+
+
+go get githbu.com/Jim3Things/CloudChamber
 
 popd
