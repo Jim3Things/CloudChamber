@@ -32,6 +32,6 @@ go get google.golang.org/grpc
 go get golang.org/x/crypto/...
 
 
-go get githbu.com/Jim3Things/CloudChamber
+go get github.com/Jim3Things/CloudChamber
 
 popd
