@@ -795,11 +795,11 @@ var fileDescriptor_318189739c1c4c20 = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // MonitorClient is the client API for Monitor service.
 //
@@ -810,10 +810,10 @@ type MonitorClient interface {
 }
 
 type monitorClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewMonitorClient(cc *grpc.ClientConn) MonitorClient {
+func NewMonitorClient(cc grpc.ClientConnInterface) MonitorClient {
 	return &monitorClient{cc}
 }
 
@@ -887,10 +887,10 @@ type InventoryClient interface {
 }
 
 type inventoryClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewInventoryClient(cc *grpc.ClientConn) InventoryClient {
+func NewInventoryClient(cc grpc.ClientConnInterface) InventoryClient {
 	return &inventoryClient{cc}
 }
 

@@ -32,8 +32,8 @@ func Interceptor(ctx context.Context, method string, req, reply interface{}, cc 
 func setTraceStatus(ctx context.Context, err error) {
 	if err != nil {
 		s, _ := status.FromError(err)
-		trace.SpanFromContext(ctx).SetStatus(s.Code())
+		trace.SpanFromContext(ctx).SetStatus(s.Code(), s.Message())
 	} else {
-		trace.SpanFromContext(ctx).SetStatus(codes.OK)
+		trace.SpanFromContext(ctx).SetStatus(codes.OK, "OK")
 	}
 }
