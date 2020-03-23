@@ -214,11 +214,11 @@ var fileDescriptor_fd4a41c05ff9560e = []byte{
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ context.Context
-var _ grpc.ClientConn
+var _ grpc.ClientConnInterface
 
 // This is a compile-time assertion to ensure that this generated file
 // is compatible with the grpc package it is being compiled against.
-const _ = grpc.SupportPackageIsVersion4
+const _ = grpc.SupportPackageIsVersion6
 
 // StepperClient is the client API for Stepper service.
 //
@@ -238,10 +238,10 @@ type StepperClient interface {
 }
 
 type stepperClient struct {
-	cc *grpc.ClientConn
+	cc grpc.ClientConnInterface
 }
 
-func NewStepperClient(cc *grpc.ClientConn) StepperClient {
+func NewStepperClient(cc grpc.ClientConnInterface) StepperClient {
 	return &stepperClient{cc}
 }
 

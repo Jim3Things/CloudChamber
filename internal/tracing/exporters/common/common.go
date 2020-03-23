@@ -18,7 +18,7 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
 		Name:     data.Name,
 		SpanID:   spanId,
 		ParentID: parentId,
-		Status:   data.Status.String(),
+		Status:   fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
 	}
 
 	for _, event := range data.MessageEvents {
