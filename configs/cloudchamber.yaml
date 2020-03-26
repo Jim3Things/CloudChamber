@@ -1,0 +1,23 @@
+controller:
+  Port: 8081
+  Hostname: localhost
+
+inventory:
+  port: 8082
+  hostname: localhost
+
+simSupport:
+  port: 8083
+  hostname: localhost
+
+webServer:
+  fe:
+    port: 8080
+    hostname: localhost
+
+  be:
+    port: 8084
+    hostname: localhost
+
+  rootFilePath: c:\CloudChamber
+  systemAccount: admin
