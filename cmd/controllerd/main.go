@@ -23,12 +23,10 @@ func main() {
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
-		panic(err)
+		log.Fatalf("failed to process the global configuration: %v", err)
 	}
 
-	fmt.Print(config.ToString(cfg))
-
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Controller.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Controller.EP.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

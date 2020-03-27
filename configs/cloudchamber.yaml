@@ -1,23 +1,42 @@
+# Cloud Chamber service configuration values
+
+# control management service (controllerd)
 controller:
-  Port: 8081
-  Hostname: localhost
+  # GRPC endpoint
+  EP:
+    Port: 8081
+    Hostname: localhost
 
+# simulated inventory service (inventoryd)
 inventory:
-  port: 8082
-  hostname: localhost
+  # GRPC endpoint
+  EP:
+    port: 8082
+    hostname: localhost
 
+# simulation support services (sim_supportd)
 simSupport:
-  port: 8083
-  hostname: localhost
+  # GRPC endpoint
+  EP:
+    port: 8083
+    hostname: localhost
 
+# TODO: etcd settings
+
+# front end service, client web server
 webServer:
+  # front end (exposed http) endpoint
   fe:
     port: 8080
     hostname: localhost
 
+  # back end (GRPC internal notifications) endpoint
   be:
     port: 8084
     hostname: localhost
 
+  # file system path to the static files and scripts
   rootFilePath: c:\CloudChamber
+
+  # pre-defined account
   systemAccount: admin

@@ -8,27 +8,25 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/services/stepper"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 )
 
-const (
-	defaultPort = 8080
-)
-
 func main() {
-	port := flag.Int(
-		"port",
-		defaultPort,
-		"port to listen on for simulation utility functions")
-
-	flag.Parse()
-
 	setup.Init(exporters.StdOut)
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", *port))
+	cfgPath := flag.String("config", ".", "path to the configuration file")
+	flag.Parse()
+
+	cfg, err := config.ReadGlobalConfig(*cfgPath)
+	if err != nil {
+		log.Fatalf("failed to process the global configuration: %v", err)
+	}
+
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.SimSupport.EP.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
