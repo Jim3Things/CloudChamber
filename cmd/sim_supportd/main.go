@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 
 	"google.golang.org/grpc"
 
@@ -19,11 +20,17 @@ func main() {
 	setup.Init(exporters.StdOut)
 
 	cfgPath := flag.String("config", ".", "path to the configuration file")
+	showConfig := flag.Bool("showConfig", false, "display the current configuration settings")
 	flag.Parse()
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
 		log.Fatalf("failed to process the global configuration: %v", err)
+	}
+
+	if *showConfig {
+		fmt.Println(config.ToString(cfg))
+		os.Exit(0)
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.SimSupport.EP.Port))

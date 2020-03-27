@@ -132,7 +132,7 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
             span.AddEvent(
                 ctx,
                 fmt.Sprintf(
-                    "No config file found at %s/%s (%s), applying defaults.\n",
+                    "No config file found at %s/%s (%s), applying defaults.",
                     path,
                     DefaultGlobalConfigFile,
                     DefaultConfigType))
