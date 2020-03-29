@@ -11,7 +11,6 @@ pushd %GOPATH%\src\github.com\envoyproxy\protoc-gen-validate
 go install .
 popd
 
-
 go get -u github.com/etcd-io/etcd
 
 go get -u github.com/gorilla/mux
@@ -27,5 +26,7 @@ go get -u go.opentelemetry.io/otel
 go get -u google.golang.org/grpc
 
 go get -u golang.org/x/crypto/...
+
+go get -u github.com/spf13/viper
 
 popd
