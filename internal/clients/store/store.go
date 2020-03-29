@@ -15,14 +15,10 @@ import (
 	"sync"
 	"time"
 
-	//    "github.com/etcd-io/etcd/clientv3"
-	//    "github.com/etcd-io/etcd/etcdserver/api/v3rpc/rpctypes"
-
-	//    "github.com/coreos/etcd/clientv3"
-	//    "github.com/coreos/etcd/etcdserver/api/v3rpc/rpctypes"
-
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	//    "go.etcd.io/etcd/clientv3/namespace"
 )
 
@@ -294,7 +290,18 @@ func (store *Store) Read(key string) (string, error) {
 			log.Printf("client-side error: %v\n", err)
 
 		default:
-			fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
+			if ev, ok := status.FromError(err); ok {
+				code := ev.Code()
+				if code == codes.DeadlineExceeded {
+					// server-side context might have timed-out first (due to clock skew)
+					// while original client-side context is not timed-out yet
+					//
+					log.Printf("server-side deadline is exceeded: %v\n", code)
+
+				}
+			} else {
+				fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
+			}
 		}
 		return value, err
 	}
@@ -306,6 +313,74 @@ func (store *Store) Read(key string) (string, error) {
 	}
 
 	return value, nil
+}
+
+// KeyValue is a struct used to describe one or more key, value pairs returned on a read from the store
+//
+type KeyValue struct {
+	key   string
+	value string
+}
+
+// ReadMultipleWithPrefix is a method
+//
+func (store *Store) ReadMultipleWithPrefix(keyPrefix string) ([]KeyValue, error) {
+
+	var err error
+
+	if nil == store.Client {
+		err = ErrStoreNoCurrentClient
+
+		log.Printf("Failed to read - no current connection - error: %v", err)
+		return nil, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+
+	response, err := store.Client.Get(ctx, keyPrefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+	cancel()
+
+	if err != nil {
+		switch err {
+		case context.Canceled:
+			log.Printf("ctx is canceled by another routine: %v\n", err)
+
+		case context.DeadlineExceeded:
+			log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
+
+		case rpctypes.ErrEmptyKey:
+			log.Printf("client-side error: %v\n", err)
+
+		default:
+			if ev, ok := status.FromError(err); ok {
+				code := ev.Code()
+				if code == codes.DeadlineExceeded {
+					// server-side context might have timed-out first (due to clock skew)
+					// while original client-side context is not timed-out yet
+					//
+					log.Printf("server-side deadline is exceeded: %v\n", code)
+
+				}
+			} else {
+				fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
+			}
+		}
+		return nil, err
+	}
+
+	result := make([]KeyValue, len(response.Kvs))
+
+	for i := range response.Kvs {
+		result[i] = KeyValue{string(response.Kvs[i].Key), string(response.Kvs[i].Value)}
+	}
+
+	fmt.Printf("GET returned\n")
+
+	for _, vp := range result {
+		fmt.Printf("%s: %s\n", vp.key, vp.value)
+	}
+
+	return result, nil
 }
 
 // SetWatch is a method
@@ -365,10 +440,13 @@ func storeInitialize() error {
 		switch err {
 		case context.Canceled:
 			log.Printf("ctx is canceled by another routine: %v\n", err)
+
 		case context.DeadlineExceeded:
 			log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
+
 		case rpctypes.ErrEmptyKey:
 			log.Printf("client-side error: %v\n", err)
+
 		default:
 			fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
 		}

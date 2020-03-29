@@ -3,6 +3,7 @@
 package store
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -13,8 +14,6 @@ var (
 	baseURI     string
 	initialized bool
 )
-
-//const storeAddress = string("localhost:2379")
 
 func commonSetup() error {
 
@@ -133,7 +132,40 @@ func TestStoreWriteRead(t *testing.T) {
 	return
 }
 
-func TestStoreWriteMultiRead(t *testing.T) {
+func TestStoreWriteReadMultippleWithPrefix(t *testing.T) {
 
+	endpoints := defaultEndpoints
+	timeoutConnect := defaultTimeoutConnect
+	timeoutRequest := defaultTimeoutRequest
+
+	prefixKey := "TestStoreWriteRead/Key"
+	prefixVal := "TestStoreWriteRead/Value"
+
+	store, err := New(endpoints, timeoutConnect, timeoutRequest)
+	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
+	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+
+	err = store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	err = store.Write(prefixKey, prefixVal)
+	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+
+	for i := 0; i < 10; i++ {
+
+		key := fmt.Sprintf("%s/%d", prefixKey, i)
+		val := fmt.Sprintf("%s/%d", prefixVal, i)
+
+		err = store.Write(key, val)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+	}
+
+	response, err := store.ReadMultipleWithPrefix(prefixKey)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
+
+	for _, vp := range response {
+		fmt.Printf("%s: %s\n", vp.key, vp.value)
+	}
 	return
 }
