@@ -58,7 +58,7 @@ echo.
 echo Starts a single etcd instance.
 echo.
 echo There are a number of (required on Windows) parameters which have default values as listed below but
-echo which can be overrider by setting environment variables using the appropriate names along with the
+echo which can be overriden by setting environment variables using the appropriate names along with the
 echo desired values.
 echo.
 echo ETCDINSTANCE (defaults to %DEFAULT_ETCDINSTANCE%) - name of the ETCD instance
