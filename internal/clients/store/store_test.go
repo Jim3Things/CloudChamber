@@ -132,14 +132,28 @@ func TestStoreWriteRead(t *testing.T) {
 	return
 }
 
-func TestStoreWriteReadMultippleWithPrefix(t *testing.T) {
+func TestStoreWriteReadMultiple(t *testing.T) {
 
 	endpoints := defaultEndpoints
 	timeoutConnect := defaultTimeoutConnect
 	timeoutRequest := defaultTimeoutRequest
 
-	prefixKey := "TestStoreWriteRead/Key"
-	prefixVal := "TestStoreWriteRead/Value"
+	keyValueSetSize := 100
+
+	prefixKey := "TestStoreWriteReadMultiple/Key"
+	prefixVal := "TestStoreWriteReadMultiple/Value"
+
+	keySet := make([]string, keyValueSetSize)
+	keyValueSet := make([]KeyValue, keyValueSetSize)
+
+	for i := range keySet {
+		keySet[i] = fmt.Sprintf("%s%04d", prefixKey, i)
+	}
+
+	for i := range keyValueSet {
+		keyValueSet[i].key = fmt.Sprintf("%s%04d", prefixKey, i)
+		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
+	}
 
 	store, err := New(endpoints, timeoutConnect, timeoutRequest)
 	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
@@ -148,24 +162,75 @@ func TestStoreWriteReadMultippleWithPrefix(t *testing.T) {
 	err = store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.Write(prefixKey, prefixVal)
+	err = store.WriteMultiple(keyValueSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
-	for i := 0; i < 10; i++ {
-
-		key := fmt.Sprintf("%s/%d", prefixKey, i)
-		val := fmt.Sprintf("%s/%d", prefixVal, i)
-
-		err = store.Write(key, val)
-		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
-	}
-
-	response, err := store.ReadMultipleWithPrefix(prefixKey)
+	response, err := store.ReadMultiple(keySet)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
 
-	for _, vp := range response {
-		fmt.Printf("%s: %s\n", vp.key, vp.value)
+	for i, kv := range response {
+		assert.Equal(t, keyValueSet[i].key, kv.key, "Unexpected key - expected: %s received: %s", keyValueSet[i].key, kv.key)
+		assert.Equal(t, keyValueSet[i].value, kv.value, "Unexpected value - expected: %s received: %s", keyValueSet[i].value, kv.value)
 	}
+
+	err = store.Disconnect()
+	assert.Nilf(t, err, "Failed to disconnect from store - error: %v", err)
+
+	store = nil
+
+	return
+}
+
+func TestStoreWriteReadWithPrefix(t *testing.T) {
+
+	endpoints := defaultEndpoints
+	timeoutConnect := defaultTimeoutConnect
+	timeoutRequest := defaultTimeoutRequest
+
+	keyValueSetSize := 100
+
+	prefixKey := "TestStoreWriteReadWithPrefix/Key"
+	prefixVal := "TestStoreWriteReadWithPrefix/Value"
+
+	keyValueSet := make([]KeyValue, keyValueSetSize)
+
+	for i := range keyValueSet {
+		keyValueSet[i].key = fmt.Sprintf("%s%04d", prefixKey, i)
+		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
+	}
+
+	keyValueMap := make(map[string]string, len(keyValueSet))
+
+	for _, kv := range keyValueSet {
+		keyValueMap[kv.key] = kv.value
+	}
+
+	store, err := New(endpoints, timeoutConnect, timeoutRequest)
+	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
+	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+
+	err = store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	for _, kv := range keyValueSet {
+		err = store.Write(kv.key, kv.value)
+		assert.Nilf(t, err, "Failed to write to store - error: %v key: %v value %v", err, kv.key, kv.value)
+	}
+
+	response, err := store.ReadWithPrefix(prefixKey)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
+
+	for _, kv := range response {
+		fmt.Printf("%s: %s\n", kv.key, kv.value)
+		assert.Equal(t, keyValueMap[kv.key], kv.value, "Unexpected value - expected: %s received: %s", keyValueMap[kv.key], kv.value)
+	}
+
+	err = store.Disconnect()
+	assert.Nilf(t, err, "Failed to disconnect from store - error: %v", err)
+
+	store = nil
+
 	return
 }

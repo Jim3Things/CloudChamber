@@ -16,14 +16,14 @@ import (
 	"time"
 
 	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3/namespace"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	//    "go.etcd.io/etcd/clientv3/namespace"
 )
 
 const (
-	namespacePrefix = string("CloudChamber/v0.1/")
+	namespacePrefix = string("/CloudChamber/v0.1")
 	defaultEndpoint = string("localhost:2379")
 
 	defaultTimeoutConnect = 5 * time.Second
@@ -42,11 +42,21 @@ type global struct {
 // Store is a struct used to collect al the interesting state value associated with communicating with an instance of the store
 //
 type Store struct {
-	Endpoints      []string
-	TimeoutConnect time.Duration
-	TimeoutRequest time.Duration
-	Client         *clientv3.Client
-	Mutex          sync.Mutex
+	Endpoints         []string
+	TimeoutConnect    time.Duration
+	TimeoutRequest    time.Duration
+	Mutex             sync.Mutex
+	Client            *clientv3.Client
+	UnprefixedKV      clientv3.KV
+	UnprefixedWatcher clientv3.Watcher
+	UnprefixedLease   clientv3.Lease
+}
+
+// KeyValue is a struct used to describe one or more key/value pairs returned on a read from the store
+//
+type KeyValue struct {
+	key   string
+	value string
 }
 
 var (
@@ -65,6 +75,15 @@ var (
 	// ErrStoreNoCurrentClient indicates the store instance does not have a currently active client. The Conect() method can be used to establist a client.
 	//
 	ErrStoreNoCurrentClient = errors.New("CloudChamber: no currently active client")
+
+	// ErrStoreBadResultSize indicates the size of the result set does not match expectations. There may be either too many, or too few. Typically a single
+	// result way anticipated and more that that was received.
+	//
+	ErrStoreBadResultSize = errors.New("CloudChamber: unexpected size for result set")
+
+	// ErrStoreNotImplemented indicated the called method does not yet have an implementation
+	//
+	ErrStoreNotImplemented = errors.New("CloudChamber: method not currently implemented")
 )
 
 // Initialize is a method used to initialise the basic global state used to access the back-end db service.
@@ -112,6 +131,33 @@ func (store *Store) Initialize(endpoints []string, defaultTimeoutConnect time.Du
 	return nil
 }
 
+func logEtcdResponseError(err error) {
+	switch err {
+	case context.Canceled:
+		log.Printf("ctx is canceled by another routine: %v\n", err)
+
+	case context.DeadlineExceeded:
+		log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
+
+	case rpctypes.ErrEmptyKey:
+		log.Printf("client-side error: %v\n", err)
+
+	default:
+		if ev, ok := status.FromError(err); ok {
+			code := ev.Code()
+			if code == codes.DeadlineExceeded {
+				// server-side context might have timed-out first (due to clock skew)
+				// while original client-side context is not timed-out yet
+				//
+				log.Printf("server-side deadline is exceeded: %v\n", code)
+
+			}
+		} else {
+			fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
+		}
+	}
+}
+
 // NewWithDefaults is a method to allocate a new Store struct using the defaults which can later be overridden with
 //
 //    SetAddress()
@@ -141,16 +187,6 @@ func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.D
 		TimeoutConnect: timeoutConnect,
 		TimeoutRequest: timeoutRequest,
 	}
-
-	/*
-		if nil == store {
-			err = ErrStoreUnableToCreateClient
-
-			log.Printf("Unable to allocate a new client instance - error: %v endpoints: %v", err, endpoints)
-			return nil, err
-		}
-	*/
-	//	err = store.Initialize(endpoints, timeoutConnect, timeoutRequest)
 
 	return &store, err
 }
@@ -209,6 +245,13 @@ func (store *Store) Connect() error {
 	}
 
 	store.Client = cli
+	store.UnprefixedKV = cli.KV
+	store.UnprefixedLease = cli.Lease
+	store.UnprefixedWatcher = cli.Watcher
+
+	cli.KV = namespace.NewKV(cli.KV, namespacePrefix)
+	cli.Watcher = namespace.NewWatcher(cli.Watcher, namespacePrefix)
+	cli.Lease = namespace.NewLease(cli.Lease, namespacePrefix)
 
 	return nil
 }
@@ -220,6 +263,9 @@ func (store *Store) Disconnect() error {
 	store.Client.Close()
 
 	store.Client = nil
+	store.UnprefixedKV = nil
+	store.UnprefixedLease = nil
+	store.UnprefixedWatcher = nil
 
 	return nil
 }
@@ -240,19 +286,33 @@ func (store *Store) Write(key string, value string) error {
 	cancel()
 
 	if err != nil {
-		switch err {
-		case context.Canceled:
-			log.Printf("Write ctx is canceled by another routine: %v\n", err)
+		logEtcdResponseError(err)
+		return err
+	}
 
-		case context.DeadlineExceeded:
-			log.Printf("Write deadline exceeded: %v\n", err)
+	return nil
+}
 
-		case rpctypes.ErrEmptyKey:
-			log.Printf("client-side error: %v\n", err)
+// WriteMultiple is a method
+//
+func (store *Store) WriteMultiple(keyValueSet []KeyValue) error {
 
-		default:
-			fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
-		}
+	var err error
+
+	if nil == store.Client {
+		err = ErrStoreNoCurrentClient
+		log.Printf("Failed to write - no current connection - error: %v", err)
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
+	for _, vp := range keyValueSet {
+		_, err = store.Client.Put(ctx, vp.key, vp.value)
+	}
+	cancel()
+
+	if err != nil {
+		logEtcdResponseError(err)
 		return err
 	}
 
@@ -263,74 +323,82 @@ func (store *Store) Write(key string, value string) error {
 //
 func (store *Store) Read(key string) (string, error) {
 
-	var err error
 	var value string
 
 	if nil == store.Client {
-		err = ErrStoreNoCurrentClient
+		err := ErrStoreNoCurrentClient
 
 		log.Printf("Failed to read - no current connection - error: %v", err)
 		return value, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-
 	response, err := store.Client.Get(ctx, key)
 	cancel()
 
 	if err != nil {
-		switch err {
-		case context.Canceled:
-			log.Printf("ctx is canceled by another routine: %v\n", err)
-
-		case context.DeadlineExceeded:
-			log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
-
-		case rpctypes.ErrEmptyKey:
-			log.Printf("client-side error: %v\n", err)
-
-		default:
-			if ev, ok := status.FromError(err); ok {
-				code := ev.Code()
-				if code == codes.DeadlineExceeded {
-					// server-side context might have timed-out first (due to clock skew)
-					// while original client-side context is not timed-out yet
-					//
-					log.Printf("server-side deadline is exceeded: %v\n", code)
-
-				}
-			} else {
-				fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
-			}
-		}
+		logEtcdResponseError(err)
 		return value, err
 	}
 
-	fmt.Printf("GET returned\n")
-	for _, ev := range response.Kvs {
-		value = string(ev.Value)
-		fmt.Printf("%s: %s\n", ev.Key, ev.Value)
+	if 1 != len(response.Kvs) {
+		err = ErrStoreBadResultSize
+		log.Printf("expected a single result and instead received something else - error: %v expected: 1 received: %v\n", err, len(response.Kvs))
+		return value, err
 	}
+
+	value = string(response.Kvs[0].Value)
 
 	return value, nil
 }
 
-// KeyValue is a struct used to describe one or more key, value pairs returned on a read from the store
+// ReadMultiple is a method
 //
-type KeyValue struct {
-	key   string
-	value string
-}
-
-// ReadMultipleWithPrefix is a method
-//
-func (store *Store) ReadMultipleWithPrefix(keyPrefix string) ([]KeyValue, error) {
+func (store *Store) ReadMultiple(keySet []string) ([]KeyValue, error) {
 
 	var err error
 
 	if nil == store.Client {
 		err = ErrStoreNoCurrentClient
+		log.Printf("Failed to read - no current connection - error: %v", err)
+		return nil, err
+	}
 
+	responses := make([]*clientv3.GetResponse, len(keySet))
+
+	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*10)
+
+	for i, key := range keySet {
+		responses[i], err = store.Client.Get(ctx, key)
+		if err != nil {
+			break
+		}
+	}
+	cancel()
+
+	if err != nil {
+		logEtcdResponseError(err)
+		return nil, err
+	}
+
+	results := make([]KeyValue, len(responses))
+
+	for i, ev := range responses {
+		results[i].key = string(ev.Kvs[0].Key)
+		results[i].value = string(ev.Kvs[0].Value)
+	}
+
+	return results, err
+}
+
+// ReadWithPrefix is a method
+//
+func (store *Store) ReadWithPrefix(keyPrefix string) ([]KeyValue, error) {
+
+	var err error
+
+	if nil == store.Client {
+		err = ErrStoreNoCurrentClient
 		log.Printf("Failed to read - no current connection - error: %v", err)
 		return nil, err
 	}
@@ -341,43 +409,14 @@ func (store *Store) ReadMultipleWithPrefix(keyPrefix string) ([]KeyValue, error)
 	cancel()
 
 	if err != nil {
-		switch err {
-		case context.Canceled:
-			log.Printf("ctx is canceled by another routine: %v\n", err)
-
-		case context.DeadlineExceeded:
-			log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
-
-		case rpctypes.ErrEmptyKey:
-			log.Printf("client-side error: %v\n", err)
-
-		default:
-			if ev, ok := status.FromError(err); ok {
-				code := ev.Code()
-				if code == codes.DeadlineExceeded {
-					// server-side context might have timed-out first (due to clock skew)
-					// while original client-side context is not timed-out yet
-					//
-					log.Printf("server-side deadline is exceeded: %v\n", code)
-
-				}
-			} else {
-				fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
-			}
-		}
+		logEtcdResponseError(err)
 		return nil, err
 	}
 
 	result := make([]KeyValue, len(response.Kvs))
 
-	for i := range response.Kvs {
-		result[i] = KeyValue{string(response.Kvs[i].Key), string(response.Kvs[i].Value)}
-	}
-
-	fmt.Printf("GET returned\n")
-
-	for _, vp := range result {
-		fmt.Printf("%s: %s\n", vp.key, vp.value)
+	for i, kv := range response.Kvs {
+		result[i] = KeyValue{string(kv.Key), string(kv.Value)}
 	}
 
 	return result, nil
@@ -386,74 +425,11 @@ func (store *Store) ReadMultipleWithPrefix(keyPrefix string) ([]KeyValue, error)
 // SetWatch is a method
 //
 func (store *Store) SetWatch(key string) error {
-	return nil
+	return ErrStoreNotImplemented
 }
 
-/*
-func (store Store) UpdateEndpoints(endpoints []string) error {
-
-	if nil != store.Client  {
-		store.Client.SetEndpoints()
-		store.Client = nil
-	}
-
-	store.Endpoints = endpoints
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutRequest)
-
-	err := store.Sync(ctx)
-
-	if nil != err {
-		store.Disconnect()
-		log.Printf("Failed to update endpoint(s) - connection closed - error: %v", err)
-	}
-
-	return err
+// SetWatchWithPrefix is a method
+//
+func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
+	return ErrStoreNotImplemented
 }
-*/
-/*
-func storeInitialize() error {
-
-	storeRoot.DefaultStoreAddress = defaultStoreAddress
-	storeRoot.DefaultTimeoutConnect = defaultTimeoutConnect
-	storeRoot.DefaultTimeoutRequest = defaultTimeoutRequest
-
-	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   []string{storeAddress},
-		DialTimeout: timeoutConnect,
-	})
-	if err != nil {
-		log.Printf("Failed to establish connection to standard store - error : %v", err)
-		return err
-	}
-
-	defer cli.Close()
-
-	ctx, cancel := context.WithTimeout(context.Background(), timeoutRequest)
-
-	_, err = cli.Put(ctx, "sample_key", "sample_value")
-	cancel()
-	//	if err != nil {
-	//		log.Fatal(err)
-	//	}
-	if err != nil {
-		switch err {
-		case context.Canceled:
-			log.Printf("ctx is canceled by another routine: %v\n", err)
-
-		case context.DeadlineExceeded:
-			log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
-
-		case rpctypes.ErrEmptyKey:
-			log.Printf("client-side error: %v\n", err)
-
-		default:
-			fmt.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
-		}
-		return err
-	}
-	// Output: client-side error: etcdserver: key is not provided
-
-	return nil
-}
-*/
