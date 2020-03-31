@@ -17,7 +17,6 @@ package frontend
 
 import (
     "errors"
-    "flag"
     "fmt"
     "log"
     "net/http"
@@ -26,6 +25,8 @@ import (
     "github.com/gorilla/mux"
     "github.com/gorilla/securecookie"
     "github.com/gorilla/sessions"
+
+    "github.com/Jim3Things/CloudChamber/internal/config"
 )
 
 // Computer is a represention an individual Computer
@@ -61,17 +62,10 @@ type Server struct {
     cookieStore *sessions.CookieStore
 }
 
-const (
-    defaultPort     = 8080
-    defaultRootFilePath = "C:\\Chamber"
-)
-
 var (
     // key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
-    keyAuthentication = securecookie.GenerateRandomKey(64)
-    keyEncryption     = securecookie.GenerateRandomKey(64)
-
-    store *sessions.CookieStore
+    keyAuthentication = securecookie.GenerateRandomKey(32)
+    keyEncryption     = securecookie.GenerateRandomKey(32)
 
     // ErrNotInitialized is a new error to indicate initialization failures.
     ErrNotInitialized = errors.New("CloudChamber: initialization failure")
@@ -139,29 +133,7 @@ func initHandlers() error {
     return nil
 }
 
-func initArguments() error {
-
-    if !flag.Parsed() {
-        port := flag.Int(
-            "port",
-            defaultPort,
-            "port used by the web service")
-
-        rootFilePath := flag.String(
-            "path",
-            defaultRootFilePath,
-            "directory path holding the cloud chamber web service data")
-
-        flag.Parse()
-
-        server.rootFilePath = *rootFilePath
-        server.port = *port
-    }
-
-    return nil
-}
-
-func initService() error {
+func initService(cfg *config.GlobalConfig) error {
 
     // A failure to generate a random key is most likely a result of a failure of the
     // system supplied random number generator mechanism. Although not known for sure
@@ -177,29 +149,30 @@ func initService() error {
         log.Fatalf("Failed to generate required encryption key (Check system Random Number Generator and restart the service after 60s). Error: %v", ErrNotInitialized)
     }
 
+    server.rootFilePath = cfg.WebServer.RootFilePath
+    server.port = cfg.WebServer.FE.Port
     server.cookieStore = sessions.NewCookieStore(keyAuthentication, keyEncryption)
 
-    if err := initArguments(); err != nil {
-        log.Fatalf("Error initializing arguments: %v", err)
-    }
+    // TODO: These are here only because we've not gotten https working yet.  Once it is, these need to be removed.
+    server.cookieStore.Options.Secure = false
+    server.cookieStore.Options.HttpOnly = false
 
+    // TODO: This is the minimal hook to pre-establish the system account
     if err := initHandlers(); err != nil {
-        log.Fatalf("Error initializing handlers: %v", err)
+        return err
     }
 
-    return nil
+    return UserAdd(cfg.WebServer.SystemAccount, nil)
 }
 
 // StartService is the primary entry point to start the front-end web service.
-func StartService() error {
+func StartService(cfg *config.GlobalConfig) error {
 
-    if err := initService(); err != nil {
+    if err := initService(cfg); err != nil {
         log.Fatalf("Error initializing service: %v", err)
     }
 
-    http.ListenAndServe(fmt.Sprintf(":%d", server.port), server.handler)
-
-    return nil
+    return http.ListenAndServe(fmt.Sprintf(":%d", server.port), server.handler)
 }
 
 //func handlerRoot(w http.ResponseWriter, r *http.Request) {
