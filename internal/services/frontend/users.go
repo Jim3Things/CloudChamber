@@ -12,7 +12,6 @@ import (
     "sync"
 
     "github.com/gorilla/mux"
-    "go.opentelemetry.io/otel/api/global"
     "go.opentelemetry.io/otel/api/trace"
 
     "golang.org/x/crypto/bcrypt"
@@ -47,14 +46,28 @@ type DbUsers struct {
 
 var (
     dbUsers DbUsers
-    tr trace.Tracer
 )
 
 // Helper functions
 
+// Set an http error, and log it to the tracing system.
 func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, msg string, sc int) {
     span.AddEvent(ctx, fmt.Sprintf("http error %v: %s", sc, msg))
     http.Error(w, msg, sc)
+}
+
+// Get the secret associated with this session
+func secret(w http.ResponseWriter, r *http.Request) {
+    session, _ := server.cookieStore.Get(r, "cookie-name")
+
+    // Check if user is authenticated
+    if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+        http.Error(w, "Forbidden", http.StatusForbidden)
+        return
+    }
+
+    // Print secret message
+    fmt.Fprintln(w, "secret message")
 }
 
 func userCreate(name string, password []byte) (*User, error) {
@@ -124,8 +137,6 @@ func usersAddRoutes(routeBase *mux.Router) {
 
     const routeString = "/{username:[a-z,A-Z][a-z,A-Z,0-9]*}"
 
-    tr = global.TraceProvider().Tracer("UsersFE")
-
     dbUsers = DbUsers{
         Mutex: sync.Mutex{},
         Users: map[string]User{},
@@ -163,22 +174,37 @@ func usersDisplayArguments(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+// Process an http request for the list of users.  Response should contain a document of links to the
+// details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
-    ctx, span := tr.Start(context.Background(), "HandleUsersUpdate")
-    defer span.End()
+    _ = tr.WithSpan(context.Background(), "HandleUsersUpdate", func(ctx context.Context) error {
+        span := trace.SpanFromContext(ctx)
 
-    fmt.Fprintf(w, "Users (List)\n")
+        _, err := fmt.Fprintf(w, "Users (List)\n")
+        if err != nil {
+            httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
+            return err
+        }
 
-    b := r.URL.String()
-    if !strings.HasSuffix(b, "/") {
-        b += "/"
-    }
+        b := r.URL.String()
+        if !strings.HasSuffix(b, "/") {
+            b += "/"
+        }
 
-    for _, user := range dbUsers.Users {
-        target := fmt.Sprintf("%s%s", b, user.Name)
-        span.AddEvent(ctx, fmt.Sprintf("   Listing user '%s' at '%s'", user.Name, target))
-        fmt.Fprintln(w, target)
-    }
+        for _, user := range dbUsers.Users {
+            target := fmt.Sprintf("%s%s", b, user.Name)
+
+            span.AddEvent(ctx, fmt.Sprintf("   Listing user '%s' at '%s'", user.Name, target))
+
+            _, err = fmt.Fprintln(w, target)
+            if err != nil {
+                httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
+                return err
+            }
+        }
+
+        return nil
+    })
 }
 
 func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
@@ -207,46 +233,37 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 
-    ctx, span := tr.Start(context.Background(), "HandleUsersOperation")
-    defer span.End()
+    _ = tr.WithSpan(context.Background(), "HandleUsersUpdate", func(ctx context.Context) error {
+        span := trace.SpanFromContext(ctx)
 
-    op := r.FormValue("op")
-    vars := mux.Vars(r)
-    username := vars["username"]
+        op := r.FormValue("op")
+        vars := mux.Vars(r)
+        username := vars["username"]
 
-    span.AddEvent(ctx, fmt.Sprintf("Operation '%s', user '%s'", op, username))
+        span.AddEvent(ctx, fmt.Sprintf("Operation '%s', user '%s'", op, username))
 
-    switch op  {
-    case Enable:
-        usersDisplayArguments(w, r)
+        switch op {
+        case Enable:
+            usersDisplayArguments(w, r)
 
-    case Disable:
-        usersDisplayArguments(w, r)
+        case Disable:
+            usersDisplayArguments(w, r)
 
-    case Login:
-        login(ctx, span, w, r)
+        case Login:
+            login(ctx, span, w, r)
 
-    case Logout:
-        usersDisplayArguments(w, r)
+        case Logout:
+            usersDisplayArguments(w, r)
 
-    default:
-        httpError(ctx, span, w, fmt.Sprintf("Invalid user operation requested (?op=%s)", op), http.StatusBadRequest)
-    }
+        default:
+            httpError(ctx, span, w, fmt.Sprintf("Invalid user operation requested (?op=%s)", op), http.StatusBadRequest)
+        }
+
+        return nil
+    })
 }
 
-func secret(w http.ResponseWriter, r *http.Request) {
-    session, _ := server.cookieStore.Get(r, "cookie-name")
-
-    // Check if user is authenticated
-    if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-        http.Error(w, "Forbidden", http.StatusForbidden)
-        return
-    }
-
-    // Print secret message
-    fmt.Fprintln(w, "secret message")
-}
-
+// Process a login request
 func login(ctx context.Context, span trace.Span, w http.ResponseWriter, r *http.Request) {
     session, _ := server.cookieStore.Get(r, "cookie-name")
     if auth, ok := session.Values["authenticated"].(bool); ok && auth {
@@ -274,13 +291,13 @@ func logout(w http.ResponseWriter, r *http.Request) {
     session.Save(r, w)
 }
 
-//func handlerAuthenticateSession(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
-//    return func(w http.ResponseWriter, r *http.Request) {
-//    m := validPath.FindStringSubmatch(r.URL.Path)
-//    if m == nil {
-//        http.NotFound(w, r)
-//        return
-//    }
-//    fn(w, r, m[2])
-//    }
-//}
+// func handlerAuthenticateSession(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+//     return func(w http.ResponseWriter, r *http.Request) {
+//     m := validPath.FindStringSubmatch(r.URL.Path)
+//     if m == nil {
+//         http.NotFound(w, r)
+//         return
+//     }
+//     fn(w, r, m[2])
+//     }
+// }

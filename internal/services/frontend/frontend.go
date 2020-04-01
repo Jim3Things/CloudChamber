@@ -25,13 +25,15 @@ import (
     "github.com/gorilla/mux"
     "github.com/gorilla/securecookie"
     "github.com/gorilla/sessions"
+    "go.opentelemetry.io/otel/api/global"
+    "go.opentelemetry.io/otel/api/trace"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
 )
 
-// Computer is a represention an individual Computer
+// Computer is a representation an individual Computer
 //
-//TODO This is just a placeholder until we have proper inventory items
+// TODO This is just a placeholder until we have proper inventory items
 //     held in a persisted store (Etcd)
 //
 type Computer struct {
@@ -43,7 +45,7 @@ type Computer struct {
 // DbComputers is a container used to established synchronized access to
 // the in-memory set of inventory records.
 //
-//TODO This is just a placeholder until we have proper inventory items
+// TODO This is just a placeholder until we have proper inventory items
 //     held in the persisted store (Etcd)
 //
 type DbComputers struct {
@@ -107,6 +109,8 @@ var (
     dbComputers DbComputers
 
     server Server
+    tr trace.Tracer
+
 )
 
 func initHandlers() error {
@@ -149,6 +153,8 @@ func initService(cfg *config.GlobalConfig) error {
         log.Fatalf("Failed to generate required encryption key (Check system Random Number Generator and restart the service after 60s). Error: %v", ErrNotInitialized)
     }
 
+    tr = global.TraceProvider().Tracer("WebServerFE")
+
     server.rootFilePath = cfg.WebServer.RootFilePath
     server.port = cfg.WebServer.FE.Port
     server.cookieStore = sessions.NewCookieStore(keyAuthentication, keyEncryption)
@@ -175,10 +181,10 @@ func StartService(cfg *config.GlobalConfig) error {
     return http.ListenAndServe(fmt.Sprintf(":%d", server.port), server.handler)
 }
 
-//func handlerRoot(w http.ResponseWriter, r *http.Request) {
+// func handlerRoot(w http.ResponseWriter, r *http.Request) {
 //
-//  fmt.Fprintf(w, "Cloudchamber")
-//}
+//   fmt.Fprintf(w, "Cloudchamber")
+// }
 
 func handlerLogsRoot(w http.ResponseWriter, r *http.Request) {
 

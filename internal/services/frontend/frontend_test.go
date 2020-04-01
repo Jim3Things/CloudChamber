@@ -16,6 +16,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 )
 
 var (
@@ -26,12 +29,13 @@ var (
 // commonSetup bears more than a passing resemblance to the primary package
 // entry point StartService()
 //
-func commonSetup() error {
+func commonSetup() {
 
 	if initialized {
 		log.Fatalf("Error initializing service for second or subsequent time")
 	}
 
+	setup.Init(exporters.UnitTest)
 	if err := initService(&config.GlobalConfig{
 		Controller: config.ControllerType{},
 		Inventory:  config.InventoryType{},
@@ -52,8 +56,15 @@ func commonSetup() error {
 	baseURI = fmt.Sprintf("http://localhost:%d", server.port)
 
 	initialized = true
+}
 
-	return nil
+// Helper function to execute the http request/response sequence
+func doHttp(req *http.Request) *http.Response {
+	w := httptest.NewRecorder()
+
+	server.handler.ServeHTTP(w, req)
+
+	return w.Result()
 }
 
 func TestMain(m *testing.M) {
@@ -64,23 +75,18 @@ func TestMain(m *testing.M) {
 }
 
 func TestUsersList(t *testing.T) {
-
 	route := "/api/users"
 
+	unit_test.SetTesting(t)
+
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, route), nil)
-
-	w := httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response := w.Result()
+	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Println(response.StatusCode)
-	fmt.Println(response.Header.Get("Content-Type"))
-	fmt.Println(string(body))
+	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", route, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 	assert.Equal(t, "Users (List)\nhttp://localhost:8080/api/users/Admin\n", string(body), "Handler returned unexpected response body: %v", string(body))
@@ -94,20 +100,16 @@ func TestUsersRead(t *testing.T) {
 
 	const route = "/api/users/Alice"
 
+	unit_test.SetTesting(t)
+
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, route), nil)
-
-	w := httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response := w.Result()
+	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Println(response.StatusCode)
-	fmt.Println(response.Header.Get("Content-Type"))
-	fmt.Println(string(body))
+	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", route, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
 
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
@@ -120,6 +122,8 @@ func TestUsersOperation(t *testing.T) {
 
 	const route = "/api/users/Alice"
 
+	unit_test.SetTesting(t)
+
 	// First verify a bunch of failure cases. Specifically,
 	// - that a naked op fails
 	// - that an invalid op fails
@@ -129,19 +133,13 @@ func TestUsersOperation(t *testing.T) {
 	// Case 1, check that naked op fails
 	//
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op", baseURI, route), nil)
-
-	w := httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response := w.Result()
+	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Println(response.StatusCode)
-	fmt.Println(response.Header.Get("Content-Type"))
-	fmt.Println(string(body))
+	t.Logf("[?op]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
 
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
@@ -152,19 +150,13 @@ func TestUsersOperation(t *testing.T) {
 	// Case 2, check that an invalid op fails
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=testInvalid", baseURI, route), nil)
-
-	w = httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response = w.Result()
+	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Println(response.StatusCode)
-	fmt.Println(response.Header.Get("Content-Type"))
-	fmt.Println(string(body))
+	t.Logf("[?op=testInvalid]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
 
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
@@ -177,19 +169,13 @@ func TestUsersOperation(t *testing.T) {
 	// 3a, enable
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=enable", baseURI, route), nil)
-
-	w = httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response = w.Result()
+	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Println(response.StatusCode)
-	fmt.Println(response.Header.Get("Content-Type"))
-	fmt.Println(string(body))
+	t.Logf("[?op=enable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
 
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
@@ -197,22 +183,16 @@ func TestUsersOperation(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 	assert.Equal(t, "User: Alice op: enable", string(body), "Handler returned unexpected response body: %v", string(body))
 
-	// 4b, disable
+	// 3b, disable
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=disable", baseURI, route), nil)
-
-	w = httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response = w.Result()
+	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Println(response.StatusCode)
-	fmt.Println(response.Header.Get("Content-Type"))
-	fmt.Println(string(body))
+	t.Logf("[?op=disable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
 
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
@@ -220,41 +200,30 @@ func TestUsersOperation(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 	assert.Equal(t, "User: Alice op: disable", string(body), "Handler returned unexpected response body: %v", string(body))
 
-	// 4c, login
+	// 3c, login
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, route), nil)
-
-	w = httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response = w.Result()
+	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Printf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
 
-	// 4d, logout
+	// 3d, logout
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, route), nil)
-
-	w = httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, request)
-
-	response = w.Result()
+	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
 
-	fmt.Println(response.StatusCode)
-	fmt.Println(response.Header.Get("Content-Type"))
-	fmt.Println(string(body))
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
 
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.

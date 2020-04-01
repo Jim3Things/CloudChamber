@@ -48,13 +48,42 @@ func main() {
     baseAddress := fmt.Sprintf("http://%s:%d/api", cfg.WebServer.FE.Hostname, cfg.WebServer.FE.Port)
     client := &http.Client{}
 
-    target := fmt.Sprintf("%s/users/admin?op=login", baseAddress)
-    resp, err := put(client, target, nil)
+    // 0: get list of known users
+    target := fmt.Sprintf("%s/users/admin", baseAddress)
+    resp, err := get(client, target, nil)
     if err != nil {
         panic(err)
     }
 
     dumpResponse(resp, err)
+
+    // 1: try to login
+    target = fmt.Sprintf("%s/users/admin?op=login", baseAddress)
+    resp, err = put(client, target, nil)
+    if err != nil {
+        panic(err)
+    }
+
+    dumpResponse(resp, err)
+
+    // 2: get the list of racks
+    // TBD
+}
+
+func get(client *http.Client, uri string, body io.Reader) (*http.Response, error) {
+    fmt.Printf("GET to %s\n", uri)
+    req, err := http.NewRequest("GET", uri, body)
+
+    if err != nil {
+        return nil, err
+    }
+
+    resp, err := client.Do(req)
+    if err != nil {
+        return nil, err
+    }
+
+    return resp, nil
 }
 
 func put(client *http.Client, uri string, body io.Reader) (*http.Response, error) {
@@ -74,7 +103,11 @@ func put(client *http.Client, uri string, body io.Reader) (*http.Response, error
 }
 
 func dumpResponse(resp *http.Response, err error) {
-    fmt.Printf("resp: %v\nerr: %v", resp, err)
+    fmt.Printf("resp: %v\nerr: %v\n", resp, err)
+
+    for _, cookie := range resp.Cookies() {
+        fmt.Println(cookie.Name)
+    }
 
     defer resp.Body.Close()
     scanner := bufio.NewScanner(resp.Body)
@@ -82,4 +115,6 @@ func dumpResponse(resp *http.Response, err error) {
     for scanner.Scan() {
         fmt.Print(scanner.Text())
     }
+
+    fmt.Println("")
 }
