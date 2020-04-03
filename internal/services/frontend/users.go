@@ -8,6 +8,7 @@ import (
     "context"
     "fmt"
     "net/http"
+    "runtime"
     "strings"
     "sync"
 
@@ -54,6 +55,24 @@ var (
 func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, msg string, sc int) {
     span.AddEvent(ctx, fmt.Sprintf("http error %v: %s", sc, msg))
     http.Error(w, msg, sc)
+}
+
+// Return the caller's fully qualified method name
+func methodName() string {
+    fpcs := make([]uintptr, 1)
+
+    // Get the caller's caller information (i.e. the caller of this method)
+    if runtime.Callers(2, fpcs) == 0 {
+        return "?"
+    }
+
+    caller := runtime.FuncForPC(fpcs[0] - 1)
+    if caller == nil {
+        return "?"
+    }
+
+    // ... and return the name
+    return caller.Name()
 }
 
 // Get the secret associated with this session
@@ -177,7 +196,7 @@ func usersDisplayArguments(w http.ResponseWriter, r *http.Request) {
 // Process an http request for the list of users.  Response should contain a document of links to the
 // details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), "HandleUsersUpdate", func(ctx context.Context) error {
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) error {
         span := trace.SpanFromContext(ctx)
 
         _, err := fmt.Fprintf(w, "Users (List)\n")
@@ -219,7 +238,7 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 
-    ctx, span := tr.Start(context.Background(), "HandleUsersUpdate")
+    ctx, span := tr.Start(context.Background(), methodName())
     defer span.End()
 
     span.AddEvent(ctx, "Update hit")
@@ -233,7 +252,7 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 
-    _ = tr.WithSpan(context.Background(), "HandleUsersUpdate", func(ctx context.Context) error {
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) error {
         span := trace.SpanFromContext(ctx)
 
         op := r.FormValue("op")
