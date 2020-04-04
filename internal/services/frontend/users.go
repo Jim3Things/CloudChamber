@@ -5,18 +5,29 @@
 package frontend
 
 import (
+    "context"
     "fmt"
     "net/http"
+    "runtime"
+    "strings"
     "sync"
 
     "github.com/gorilla/mux"
+    "go.opentelemetry.io/otel/api/trace"
 
     "golang.org/x/crypto/bcrypt"
 )
 
+const (
+    Enable = "enable"
+    Disable = "disable"
+    Login = "login"
+    Logout = "logout"
+)
+
 // User is a representation of an individual user
 //
-//TODO This is just a placeholder until we have proper user records held
+// TODO This is just a placeholder until we have proper user records held
 //     in a persisted store (Etcd)
 //
 type User struct {
@@ -38,6 +49,46 @@ var (
     dbUsers DbUsers
 )
 
+// Helper functions
+
+// Set an http error, and log it to the tracing system.
+func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, msg string, sc int) {
+    span.AddEvent(ctx, fmt.Sprintf("http error %v: %s", sc, msg))
+    http.Error(w, msg, sc)
+}
+
+// Return the caller's fully qualified method name
+func methodName() string {
+    fpcs := make([]uintptr, 1)
+
+    // Get the caller's caller information (i.e. the caller of this method)
+    if runtime.Callers(2, fpcs) == 0 {
+        return "?"
+    }
+
+    caller := runtime.FuncForPC(fpcs[0] - 1)
+    if caller == nil {
+        return "?"
+    }
+
+    // ... and return the name
+    return caller.Name()
+}
+
+// Get the secret associated with this session
+func secret(w http.ResponseWriter, r *http.Request) {
+    session, _ := server.cookieStore.Get(r, "cookie-name")
+
+    // Check if user is authenticated
+    if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
+        http.Error(w, "Forbidden", http.StatusForbidden)
+        return
+    }
+
+    // Print secret message
+    fmt.Fprintln(w, "secret message")
+}
+
 func userCreate(name string, password []byte) (*User, error) {
 
     passwordHash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
@@ -46,12 +97,12 @@ func userCreate(name string, password []byte) (*User, error) {
         return nil, err
     }
 
-    user := User{Name: name, PasswordHash: passwordHash}
+    user := &User{Name: name, PasswordHash: passwordHash}
 
-    return &user, nil
+    return user, nil
 }
 
-func userAdd(name string, password []byte) error {
+func UserAdd(name string, password []byte) error {
 
     newUser, err := userCreate(name, password)
 
@@ -104,7 +155,11 @@ func userEnable(name string, enable bool) error {
 func usersAddRoutes(routeBase *mux.Router) {
 
     const routeString = "/{username:[a-z,A-Z][a-z,A-Z,0-9]*}"
-    const routeStringOp = "/{username:[a-z,A-Z][a-z,A-Z,0-9]*}/"
+
+    dbUsers = DbUsers{
+        Mutex: sync.Mutex{},
+        Users: map[string]User{},
+    }
 
     routeUsers := routeBase.PathPrefix("/users").Subrouter()
 
@@ -119,54 +174,56 @@ func usersAddRoutes(routeBase *mux.Router) {
     //   PUT is idempotent so translates to UPDATE in the CRUD methodolgy
     //   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
     //
+    routeUsers.HandleFunc(routeString, handlerUsersOperation).Queries("op", "{op}").Methods("PUT")
     routeUsers.HandleFunc(routeString, handlerUsersCreate).Methods("POST")
     routeUsers.HandleFunc(routeString, handlerUsersRead).Methods("GET")
     routeUsers.HandleFunc(routeString, handlerUsersUpdate).Methods("PUT")
     routeUsers.HandleFunc(routeString, handlerUsersDelete).Methods("DELETE")
-    routeUsers.HandleFunc(routeStringOp, handlerUsersOperation).Methods("PUT")
-}
-
-func usersOpIsValid(w http.ResponseWriter, r *http.Request) bool {
-
-    var isValid bool = false
-
-    op := r.FormValue("op")
-
-    switch op {
-    case "enable":
-        isValid = true
-
-    case "disable":
-        isValid = true
-
-    case "login":
-        isValid = true
-
-    case "logout":
-        isValid = true
-    }
-
-    return isValid
 }
 
 func usersDisplayArguments(w http.ResponseWriter, r *http.Request) {
-
     op := r.FormValue("op")
-
     vars := mux.Vars(r)
-
     username := vars["username"]
 
-    if "" == op {
-        fmt.Fprintf(w, "User: %v", username)
-    } else {
+    if op != "" {
         fmt.Fprintf(w, "User: %v op: %v", username, op)
+    } else {
+        fmt.Fprintf(w, "User: %v", username)
     }
 }
 
+// Process an http request for the list of users.  Response should contain a document of links to the
+// details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) error {
+        span := trace.SpanFromContext(ctx)
 
-    fmt.Fprintf(w, "Users (List)")
+        _, err := fmt.Fprintf(w, "Users (List)\n")
+        if err != nil {
+            httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
+            return err
+        }
+
+        b := r.URL.String()
+        if !strings.HasSuffix(b, "/") {
+            b += "/"
+        }
+
+        for _, user := range dbUsers.Users {
+            target := fmt.Sprintf("%s%s", b, user.Name)
+
+            span.AddEvent(ctx, fmt.Sprintf("   Listing user '%s' at '%s'", user.Name, target))
+
+            _, err = fmt.Fprintln(w, target)
+            if err != nil {
+                httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
+                return err
+            }
+        }
+
+        return nil
+    })
 }
 
 func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
@@ -181,6 +238,10 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 
+    ctx, span := tr.Start(context.Background(), methodName())
+    defer span.End()
+
+    span.AddEvent(ctx, "Update hit")
     usersDisplayArguments(w, r)
 }
 
@@ -191,52 +252,71 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 
-    if usersOpIsValid(w, r) {
-        usersDisplayArguments(w, r)
-    } else {
-        http.Error(w, "InvalidOp", http.StatusBadRequest)
-    }
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) error {
+        span := trace.SpanFromContext(ctx)
+
+        op := r.FormValue("op")
+        vars := mux.Vars(r)
+        username := vars["username"]
+
+        span.AddEvent(ctx, fmt.Sprintf("Operation '%s', user '%s'", op, username))
+
+        switch op {
+        case Enable:
+            usersDisplayArguments(w, r)
+
+        case Disable:
+            usersDisplayArguments(w, r)
+
+        case Login:
+            login(ctx, span, w, r)
+
+        case Logout:
+            usersDisplayArguments(w, r)
+
+        default:
+            httpError(ctx, span, w, fmt.Sprintf("Invalid user operation requested (?op=%s)", op), http.StatusBadRequest)
+        }
+
+        return nil
+    })
 }
 
-func secret(w http.ResponseWriter, r *http.Request) {
-    session, _ := store.Get(r, "cookie-name")
-
-    // Check if user is authenticated
-    if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-        http.Error(w, "Forbidden", http.StatusForbidden)
+// Process a login request
+func login(ctx context.Context, span trace.Span, w http.ResponseWriter, r *http.Request) {
+    session, _ := server.cookieStore.Get(r, "cookie-name")
+    if auth, ok := session.Values["authenticated"].(bool); ok && auth {
+        http.Error(w, "Session already established", http.StatusLocked)
         return
     }
-
-    // Print secret message
-    fmt.Fprintln(w, "secret message")
-}
-
-func login(w http.ResponseWriter, r *http.Request) {
-    session, _ := store.Get(r, "cookie-name")
 
     // Authentication goes here
     // ...
 
     // Set user as authenticated
+    //
     session.Values["authenticated"] = true
-    session.Save(r, w)
+
+    if err := session.Save(r, w); err != nil {
+        httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
+    }
 }
 
 func logout(w http.ResponseWriter, r *http.Request) {
-    session, _ := store.Get(r, "cookie-name")
+    session, _ := server.cookieStore.Get(r, "cookie-name")
 
     // Revoke users authentication
     session.Values["authenticated"] = false
     session.Save(r, w)
 }
 
-//func handlerAuthenticateSession(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
-//    return func(w http.ResponseWriter, r *http.Request) {
-//    m := validPath.FindStringSubmatch(r.URL.Path)
-//    if m == nil {
-//        http.NotFound(w, r)
-//        return
-//    }
-//    fn(w, r, m[2])
-//    }
-//}
+// func handlerAuthenticateSession(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {
+//     return func(w http.ResponseWriter, r *http.Request) {
+//     m := validPath.FindStringSubmatch(r.URL.Path)
+//     if m == nil {
+//         http.NotFound(w, r)
+//         return
+//     }
+//     fn(w, r, m[2])
+//     }
+// }
