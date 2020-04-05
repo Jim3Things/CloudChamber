@@ -69,6 +69,7 @@ package store
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -86,6 +87,16 @@ const (
 
 	defaultTimeoutConnect = 5 * time.Second
 	defaultTimeoutRequest = 5 * time.Second
+	defaultTraceFlags     = traceFlagEnabled | traceFlagExpandResults
+)
+
+// TraceFlags is the type used when setting of fetching the relevant flags
+// representing the level of verbosity being used when tracing.
+type TraceFlags uint
+
+const (
+	traceFlagEnabled TraceFlags = 1 << iota
+	traceFlagExpandResults
 )
 
 type global struct {
@@ -95,6 +106,7 @@ type global struct {
 	DefaultTimeoutConnect time.Duration
 	DefaultTimeoutRequest time.Duration
 	DefaultEndpoints      []string
+	DefaultTraceFlags     TraceFlags
 }
 
 // Store is a struct used to collect al the interesting state value associated with
@@ -109,6 +121,7 @@ type Store struct {
 	UnprefixedKV      clientv3.KV
 	UnprefixedWatcher clientv3.Watcher
 	UnprefixedLease   clientv3.Lease
+	TraceFlags        TraceFlags
 }
 
 // KeyValueArg is a struct used to describe one or more key/value pairs supplied
@@ -147,18 +160,66 @@ var (
 	// connected and the request is not possible in that condition.
 	//
 	ErrStoreConnected = errors.New("CloudChamber: client currently connected")
-
-	// ErrStoreBadResultSize indicates the size of the result set does not match
-	// expectations. There may be either too many, or too few. Typically a single
-	// result way anticipated and more that that was received.
-	//
-	ErrStoreBadResultSize = errors.New("CloudChamber: unexpected size for result set")
-
-	// ErrStoreNotImplemented indicated the called method does not yet have an
-	//implementation
-	//
-	ErrStoreNotImplemented = errors.New("CloudChamber: method not currently implemented")
 )
+
+// ErrStoreBadResultSize indicates the size of the result set does not match
+// expectations. There may be either too many, or too few. Typically a single
+// result way anticipated and more that that was received.
+//
+type ErrStoreBadResultSize struct {
+	expected int
+	actual   int
+}
+
+func (esbrs ErrStoreBadResultSize) Error() string {
+	return fmt.Sprintf("CloudChamber: unexpected size for result set - got %v expected %v", esbrs.actual, esbrs.expected)
+}
+
+// ErrStoreNotImplemented indicated the called method does not yet have an
+//implementation
+//
+type ErrStoreNotImplemented string
+
+func (esni ErrStoreNotImplemented) Error() string {
+	return fmt.Sprintf("CloudChamber: method %v not currently implemented", string(esni))
+}
+
+func (store *Store) traceEnabled() bool { return store.TraceFlags != 0 }
+
+func (store *Store) trace(v TraceFlags) (result bool) {
+
+	if v&traceFlagEnabled == traceFlagEnabled {
+		return store.traceEnabled()
+	}
+
+	if v&store.TraceFlags != 0 {
+		return true
+	}
+
+	return false
+}
+
+func (store *Store) connected(op string) error {
+
+	if nil != store.Client {
+		err := ErrStoreConnected
+		log.Printf("Unable to %v - store is connected - error: %v", op, err)
+		return err
+	}
+
+	return nil
+}
+
+func (store *Store) disconnected(op string) error {
+
+	if nil == store.Client {
+		err := ErrStoreNotConnected
+		log.Printf("Failed to %v - no current connection - error: %v", op, err)
+		return err
+	}
+
+	return nil
+}
 
 // Initialize is a method used to initialise the basic global state used to access
 // the back-end db service.
@@ -167,6 +228,7 @@ func Initialize() {
 	storeRoot.DefaultEndpoints = defaultEndpoints
 	storeRoot.DefaultTimeoutConnect = defaultTimeoutConnect
 	storeRoot.DefaultTimeoutRequest = defaultTimeoutRequest
+	storeRoot.DefaultTraceFlags = defaultTraceFlags
 }
 
 // NewWithDefaults is a method to allocate a new Store struct using the defaults which can later be overridden with
@@ -177,8 +239,12 @@ func Initialize() {
 //
 // providing the store has not yet connect3d to the back-end db service.
 //
-func NewWithDefaults() (*Store, error) {
-	return New(storeRoot.DefaultEndpoints, storeRoot.DefaultTimeoutConnect, storeRoot.DefaultTimeoutRequest)
+func NewWithDefaults() *Store {
+	return New(
+		storeRoot.DefaultEndpoints,
+		storeRoot.DefaultTimeoutConnect,
+		storeRoot.DefaultTimeoutRequest,
+		storeRoot.DefaultTraceFlags)
 }
 
 // New is a method supplied values. These values can later be overridden with
@@ -189,63 +255,78 @@ func NewWithDefaults() (*Store, error) {
 //
 // providing the store has not yet connect3d to the back-end db service.
 //
-func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration) (*Store, error) {
-
-	var err error
+func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags) *Store {
 
 	store := Store{
 		Endpoints:      endpoints,
 		TimeoutConnect: timeoutConnect,
 		TimeoutRequest: timeoutRequest,
+		TraceFlags:     traceFlags,
 	}
 
-	return &store, err
+	return &store
 }
 
 // Initialize is a method used to initialize a specific instance of a Store struct.
 //
-func (store *Store) Initialize(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration) (err error) {
+func (store *Store) Initialize(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags) error {
 
-	if nil != store.Client {
-		err = ErrStoreConnected
-		log.Printf("Unable to initialize a store that is already in use - error: %v", err)
+	if err := store.connected("Initialize"); err != nil {
 		return err
 	}
 
 	store.SetAddress(endpoints)
 	store.SetTimeoutConnect(timeoutConnect)
 	store.SetTimeoutRequest(timeoutRequest)
+	store.SetTraceFlags(traceFlags)
 
 	store.Client = nil
 
 	return nil
 }
 
-func logEtcdResponseError(err error) {
-	switch err {
-	case context.Canceled:
-		log.Printf("ctx is canceled by another routine: %v\n", err)
+func (store *Store) logEtcdResponseError(err error) {
+	if store.traceEnabled() {
+		switch err {
+		case context.Canceled:
+			log.Printf("ctx is canceled by another routine: %v\n", err)
 
-	case context.DeadlineExceeded:
-		log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
+		case context.DeadlineExceeded:
+			log.Printf("ctx is attached with a deadline is exceeded: %v\n", err)
 
-	case rpctypes.ErrEmptyKey:
-		log.Printf("client-side error: %v\n", err)
+		case rpctypes.ErrEmptyKey:
+			log.Printf("client-side error: %v\n", err)
 
-	default:
-		if ev, ok := status.FromError(err); ok {
-			code := ev.Code()
-			if code == codes.DeadlineExceeded {
-				// server-side context might have timed-out first (due to clock skew)
-				// while original client-side context is not timed-out yet
-				//
-				log.Printf("server-side deadline is exceeded: %v\n", code)
+		default:
+			if ev, ok := status.FromError(err); ok {
+				code := ev.Code()
+				if code == codes.DeadlineExceeded {
+					// server-side context might have timed-out first (due to clock skew)
+					// while original client-side context is not timed-out yet
+					//
+					log.Printf("server-side deadline is exceeded: %v\n", code)
+				}
+			} else {
+				log.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
 			}
-		} else {
-			log.Printf("bad cluster endpoints, which are not etcd servers: %v\n", err)
 		}
 	}
 }
+
+// SetTraceFlags is a method that can be used to change the verbosity of the tracing.
+//
+// The verbosity level can be set or updated regardless of the connection state of the
+// store object.
+//
+func (store *Store) SetTraceFlags(traceLevel TraceFlags) {
+
+	store.TraceFlags = traceLevel
+	return
+}
+
+// GetTraceFlags is a method to retrieve the current trace flags value.
+//
+func (store *Store) GetTraceFlags() TraceFlags { return store.TraceFlags }
 
 // SetAddress is a method that can be used to set or update the set of one or more endpoint
 // that CloudChamber should use to connect to the backend etcd store.
@@ -254,15 +335,18 @@ func logEtcdResponseError(err error) {
 //
 func (store *Store) SetAddress(endpoints []string) (err error) {
 
-	if nil != store.Client {
-		err = ErrStoreConnected
-		log.Printf("Cannot set the endpoint if the store is currently connected - error: %v endpoints: %v", err, endpoints)
+	if err := store.connected("Set(address)"); err != nil {
 		return err
 	}
 
 	store.Endpoints = endpoints
 	return nil
 }
+
+// GetAddress is a method to retrieve the current set of addresses used to connect to
+// the underlying store.
+//
+func (store *Store) GetAddress() []string { return store.Endpoints }
 
 // SetTimeoutConnect is a method that can be used to update the timeout the store object
 // uses when establishing a connection to the backend etcd store.
@@ -271,15 +355,18 @@ func (store *Store) SetAddress(endpoints []string) (err error) {
 //
 func (store *Store) SetTimeoutConnect(timeout time.Duration) (err error) {
 
-	if nil != store.Client {
-		err = ErrStoreConnected
-		log.Printf("Cannot set the connection timeout if the store is currently connected - error: %v timeout: %v", err, timeout)
+	if err := store.connected("Set(timeoutConnect)"); err != nil {
 		return err
 	}
 
 	store.TimeoutConnect = timeout
 	return nil
 }
+
+// GetTimeoutConnect is a method which can be used to query the current timeout being
+// used when the connection to the underlying store service is being established.
+//
+func (store *Store) GetTimeoutConnect() time.Duration { return store.TimeoutConnect }
 
 // SetTimeoutRequest is a method that can be used to update the timeout the store object
 // uses when establishing a connection to the backend etcd store.
@@ -293,15 +380,18 @@ func (store *Store) SetTimeoutRequest(timeout time.Duration) (err error) {
 	return nil
 }
 
+// GetTimeoutRequest is a method which can be used to query the current timeout being
+// used for individual requests to the underlying store service.
+//
+func (store *Store) GetTimeoutRequest() time.Duration { return store.TimeoutRequest }
+
 // Connect is a method that will establish a connection between the store object and the
 // backend etcd database. A connection is required before any IO to the database can be
 // attempted.
 //
 func (store *Store) Connect() (err error) {
 
-	if nil != store.Client {
-		err = ErrStoreConnected
-		log.Printf("Store is already connect - error: %v", err)
+	if err := store.connected("CONNECT"); err != nil {
 		return err
 	}
 
@@ -358,9 +448,7 @@ func (store *Store) Disconnect() {
 //
 func (store *Store) Write(key string, value string) error {
 
-	if nil == store.Client {
-		err := ErrStoreNotConnected
-		log.Printf("Failed to write - no current connection - error: %v", err)
+	if err := store.disconnected("WRITE"); err != nil {
 		return err
 	}
 
@@ -369,7 +457,7 @@ func (store *Store) Write(key string, value string) error {
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 	} else {
 		log.Printf("wrote/updated key: %v value: %v", key, value)
 	}
@@ -387,12 +475,12 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) (err error) {
 
 	var processedCount int
 
-	if nil == store.Client {
-		err = ErrStoreNotConnected
-		log.Printf("Failed to write - no current connection - error: %v", err)
+	if err = store.disconnected("WRITE(Multiple)"); err != nil {
 		return err
 	}
 
+	// The timeout multiplier (5) is arbitrary. May not even be necessary.
+	//
 	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
 	for _, vp := range keyValueSet {
@@ -406,12 +494,14 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) (err error) {
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 		log.Printf("Unable to write all the key/value pairs - requested: %v achieved: %v", len(keyValueSet), processedCount)
 	}
 
-	for i := 0; i < processedCount; i++ {
-		log.Printf("wrote/updated [%v/%v] key: %v value: %v", i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
+	if store.trace(traceFlagExpandResults) {
+		for i := 0; i < processedCount; i++ {
+			log.Printf("wrote/updated [%v/%v] key: %v value: %v", i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
+		}
 	}
 
 	log.Printf("Processed %v items", processedCount)
@@ -426,9 +516,7 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) (err error) {
 //
 func (store *Store) Read(key string) (result []byte, err error) {
 
-	if nil == store.Client {
-		err = ErrStoreNotConnected
-		log.Printf("Failed to read - no current connection - error: %v", err)
+	if err = store.disconnected("READ"); err != nil {
 		return result, err
 	}
 
@@ -437,9 +525,9 @@ func (store *Store) Read(key string) (result []byte, err error) {
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 	} else if 1 != len(response.Kvs) {
-		err = ErrStoreBadResultSize
+		err = ErrStoreBadResultSize{1, len(response.Kvs)}
 		log.Printf("expected a single result and instead received something else - error: %v expected: 1 received: %v\n", err, len(response.Kvs))
 	} else {
 		result = response.Kvs[0].Value
@@ -459,15 +547,15 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 
 	var processedCount int
 
-	if nil == store.Client {
-		err = ErrStoreNotConnected
-		log.Printf("Failed to read - no current connection - error: %v", err)
-		return nil, err
+	if err = store.disconnected("READ(Multiple)"); err != nil {
+		return results, err
 	}
 
 	responses := make([]*clientv3.GetResponse, len(keySet))
 
-	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*10)
+	// The timeout multiplier (5) is arbitrary. May not even be necessary.
+	//
+	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
 	for i, key := range keySet {
 		responses[i], err = store.Client.Get(ctx, key)
@@ -480,19 +568,26 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 		log.Printf("Unable to read all the key/value pairs - requested: %v achieved: %v", len(keySet), processedCount)
 	} else {
 		results = make([]KeyValueResponse, processedCount)
 
 		for i := 0; i < processedCount; i++ {
-			results[i].key = string(responses[i].Kvs[0].Key)
-			results[i].value = responses[i].Kvs[0].Value
+			if 1 != len(responses[i].Kvs) {
+				err = ErrStoreBadResultSize{1, len(responses[i].Kvs)}
+				log.Printf("expected a single result and instead received something else - error: %v expected: 1 received: %v\n", err, len(responses[i].Kvs))
+			} else {
+				results[i].key = string(responses[i].Kvs[0].Key)
+				results[i].value = responses[i].Kvs[0].Value
+			}
 		}
 	}
 
-	for i := 0; i < processedCount; i++ {
-		log.Printf("read [%v/%v] key: %v value: %v", i, processedCount, string(results[i].key), string(results[i].value))
+	if store.trace(traceFlagExpandResults) {
+		for i := 0; i < processedCount; i++ {
+			log.Printf("read [%v/%v] key: %v value: %v", i, processedCount, string(results[i].key), string(results[i].value))
+		}
 	}
 
 	log.Printf("Processed %v items", processedCount)
@@ -512,10 +607,8 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 //
 func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse, err error) {
 
-	if nil == store.Client {
-		err := ErrStoreNotConnected
-		log.Printf("Failed to read - no current connection - error: %v", err)
-		return nil, err
+	if err = store.disconnected("READ(Prefix)"); err != nil {
+		return result, err
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
@@ -523,7 +616,7 @@ func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse,
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 	} else {
 		result = make([]KeyValueResponse, len(response.Kvs))
 
@@ -531,8 +624,10 @@ func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse,
 			result[i] = KeyValueResponse{string(kv.Key), kv.Value}
 		}
 
-		for i, kv := range result {
-			log.Printf("read [%v/%v] key: %v value: %v", i, len(result), string(kv.key), string(kv.value))
+		if store.trace(traceFlagExpandResults) {
+			for i, kv := range result {
+				log.Printf("read [%v/%v] key: %v value: %v", i, len(result), string(kv.key), string(kv.value))
+			}
 		}
 
 		log.Printf("Processed %v items", len(result))
@@ -543,11 +638,9 @@ func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse,
 
 // Delete is a method used to remove a single key/value pair using the supplied name.
 //
-func (store *Store) Delete(key string) error {
+func (store *Store) Delete(key string) (err error) {
 
-	if nil == store.Client {
-		err := ErrStoreNotConnected
-		log.Printf("Failed to read - no current connection - error: %v", err)
+	if err = store.disconnected("DELETE"); err != nil {
 		return err
 	}
 
@@ -556,9 +649,9 @@ func (store *Store) Delete(key string) error {
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 	} else if 1 != response.Deleted {
-		err = ErrStoreBadResultSize
+		err = ErrStoreBadResultSize{1, int(response.Deleted)}
 		log.Printf("expected a single deletion and instead received something else - error: %v expected: 1 received: %v\n", err, response.Deleted)
 	} else {
 		log.Printf("deleted key: %v", key)
@@ -577,12 +670,12 @@ func (store *Store) DeleteMultiple(keySet []string) error {
 	var err error
 	var processedCount int
 
-	if nil == store.Client {
-		err = ErrStoreNotConnected
-		log.Printf("Failed to delete - no current connection - error: %v", err)
+	if err = store.disconnected("DELETE(Multiple)"); err != nil {
 		return err
 	}
 
+	// The timeout multiplier (5) is arbitrary. May not even be necessary.
+	//
 	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
 	for _, key := range keySet {
@@ -596,12 +689,14 @@ func (store *Store) DeleteMultiple(keySet []string) error {
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 		log.Printf("Unable to delete all the keys - requested: %v achieved: %v", len(keySet), processedCount)
 	}
 
-	for i := 0; i < processedCount; i++ {
-		log.Printf("deleted [%v/%v] key: %v", i, processedCount, keySet[i])
+	if store.trace(traceFlagExpandResults) {
+		for i := 0; i < processedCount; i++ {
+			log.Printf("deleted [%v/%v] key: %v", i, processedCount, keySet[i])
+		}
 	}
 
 	log.Printf("Processed %v items", processedCount)
@@ -612,11 +707,9 @@ func (store *Store) DeleteMultiple(keySet []string) error {
 // DeleteWithPrefix is a method used to remove an entire sub-tree of key/value
 // pairs which have a common key name prefix.
 //
-func (store *Store) DeleteWithPrefix(keyPrefix string) error {
+func (store *Store) DeleteWithPrefix(keyPrefix string) (err error) {
 
-	if nil == store.Client {
-		err := ErrStoreNotConnected
-		log.Printf("Failed to delete - no current connection - error: %v", err)
+	if err = store.disconnected("DELETE(Prefix)"); err != nil {
 		return err
 	}
 
@@ -625,7 +718,7 @@ func (store *Store) DeleteWithPrefix(keyPrefix string) error {
 	cancel()
 
 	if err != nil {
-		logEtcdResponseError(err)
+		store.logEtcdResponseError(err)
 	} else {
 		log.Printf("deleted %v keys under prefix %v", response.Deleted, keyPrefix)
 	}
@@ -636,7 +729,7 @@ func (store *Store) DeleteWithPrefix(keyPrefix string) error {
 // SetWatch is a method used to establish a watchpoint on a single key/value pari
 //
 func (store *Store) SetWatch(key string) error {
-	return ErrStoreNotImplemented
+	return ErrStoreNotImplemented("SetWatch")
 }
 
 // SetWatchMultiple is a method used to establish a set of watchpoints on a set of
@@ -646,12 +739,12 @@ func (store *Store) SetWatch(key string) error {
 // in a single call rather than repeating individual calls to the SetWatch() method.
 //
 func (store *Store) SetWatchMultiple(key []string) error {
-	return ErrStoreNotImplemented
+	return ErrStoreNotImplemented("SetWatchMultiple")
 }
 
 // SetWatchWithPrefix is a method used to establish a watchpoint on a entire
 // sub-tree of key/value pairs whic have a common key name prefix/
 //
 func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
-	return ErrStoreNotImplemented
+	return ErrStoreNotImplemented("SetWatchWithPrefix")
 }

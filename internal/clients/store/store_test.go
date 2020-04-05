@@ -30,10 +30,9 @@ func TestMain(m *testing.M) {
 
 func TestNew(t *testing.T) {
 
-	store, err := NewWithDefaults()
+	store := NewWithDefaults()
 
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	store = nil
 
@@ -42,18 +41,26 @@ func TestNew(t *testing.T) {
 
 func TestInitialize(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
+	store := NewWithDefaults()
 
-	store, err := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+	assert.Equal(t, defaultEndpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", defaultEndpoints, store.Endpoints)
+	assert.Equal(t, defaultTimeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", defaultTimeoutConnect, store.TimeoutConnect)
+	assert.Equal(t, defaultTimeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", defaultTimeoutRequest, store.TimeoutRequest)
+	assert.Equal(t, defaultTraceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", defaultTraceFlags, store.TraceFlags)
 
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	endpoints := []string{"localhost:8080", "localhost:8181"}
+	timeoutConnect := defaultTimeoutConnect * 2
+	timeoutRequest := defaultTimeoutRequest * 3
+	traceFlags := traceFlagEnabled
 
-	err = store.Initialize(endpoints, timeoutConnect, timeoutRequest)
+	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 
 	assert.Nilf(t, err, "Failed to initialize new store - error: %v", err)
+	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", endpoints, store.Endpoints)
+	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", timeoutConnect, store.TimeoutConnect)
+	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", timeoutRequest, store.TimeoutRequest)
+	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", traceFlags, store.TraceFlags)
 
 	store = nil
 
@@ -62,18 +69,58 @@ func TestInitialize(t *testing.T) {
 
 func TestNewWithArgs(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
+	// Use non-default values to ensure we get what we asked for and not the defaults.
+	//
+	endpoints := []string{"localhost:8282", "localhost:8383"}
+	timeoutConnect := defaultTimeoutConnect * 4
+	timeoutRequest := defaultTimeoutRequest * 5
+	traceFlags := traceFlagExpandResults
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
+	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", endpoints, store.Endpoints)
+	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", timeoutConnect, store.TimeoutConnect)
+	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", timeoutRequest, store.TimeoutRequest)
+	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", traceFlags, store.TraceFlags)
 
 	store = nil
 
 	return
+}
+
+func TestStoreSetAndGet(t *testing.T) {
+
+	store := NewWithDefaults()
+
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+	assert.Equal(t, defaultEndpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", defaultEndpoints, store.Endpoints)
+	assert.Equal(t, defaultTimeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", defaultTimeoutConnect, store.TimeoutConnect)
+	assert.Equal(t, defaultTimeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", defaultTimeoutRequest, store.TimeoutRequest)
+	assert.Equal(t, defaultTraceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", defaultTraceFlags, store.TraceFlags)
+
+	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in fetch of endpoints - expected: %v got: %v", store.Endpoints, store.GetAddress())
+	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in fetch of connection timeout - expected: %v got: %v", store.TimeoutConnect, store.GetTimeoutConnect())
+	assert.Equal(t, store.TimeoutRequest, store.GetTimeoutRequest(), "Mismatch in fetch of request timeout - expected: %v got: %v", store.TimeoutRequest, store.GetTimeoutRequest())
+	assert.Equal(t, store.TraceFlags, store.GetTraceFlags(), "Mismatch in fetch of trace flags - expected: %v got: %v", store.TraceFlags, store.GetTraceFlags())
+
+	endpoints := []string{"localhost:8484", "localhost:8585"}
+	timeoutConnect := defaultTimeoutConnect * 6
+	timeoutRequest := defaultTimeoutRequest * 7
+	traceFlags := traceFlagExpandResults
+
+	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+
+	assert.Nilf(t, err, "Failed to update new store - error: %v", err)
+	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in update of endpoints - expected: %v got: %v", endpoints, store.Endpoints)
+	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in update of connection timeout - expected: %v got: %v", timeoutConnect, store.TimeoutConnect)
+	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in update of request timeout - expected: %v got: %v", timeoutRequest, store.TimeoutRequest)
+	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in update of trace flags - expected: %v got: %v", traceFlags, store.TraceFlags)
+
+	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in re-fetch of endpoints - expected: %v got: %v", store.Endpoints, store.GetAddress())
+	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in re-fetch of connection timeout - expected: %v got: %v", store.TimeoutConnect, store.GetTimeoutConnect())
+	assert.Equal(t, store.TimeoutRequest, store.GetTimeoutRequest(), "Mismatch in re-fetch of request timeout - expected: %v got: %v", store.TimeoutRequest, store.GetTimeoutRequest())
+	assert.Equal(t, store.TraceFlags, store.GetTraceFlags(), "Mismatch in re-fetch of trace flags - expected: %v got: %v", store.TraceFlags, store.GetTraceFlags())
 }
 
 func TestStoreConnectDisconnect(t *testing.T) {
@@ -81,12 +128,12 @@ func TestStoreConnectDisconnect(t *testing.T) {
 	endpoints := defaultEndpoints
 	timeoutConnect := defaultTimeoutConnect
 	timeoutRequest := defaultTimeoutRequest
+	traceFlags := defaultTraceFlags
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.Connect()
@@ -110,18 +157,18 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 	endpoints := defaultEndpoints
 	timeoutConnect := defaultTimeoutConnect
 	timeoutRequest := defaultTimeoutRequest
+	traceFlags := defaultTraceFlags
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Initialize(endpoints, timeoutConnect, timeoutRequest)
+	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 	assert.Nilf(t, err, "Failed to re-initialize store - error: %v", err)
 
 	err = store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.Initialize(endpoints, timeoutConnect, timeoutRequest)
+	err = store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 	assert.NotNilf(t, err, "Unexpectedly re-initialized store after connect - error: %v", err)
 	assert.Equal(t, ErrStoreConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected, err)
 
@@ -142,12 +189,12 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 	endpoints := defaultEndpoints
 	timeoutConnect := defaultTimeoutConnect
 	timeoutRequest := defaultTimeoutRequest
+	traceFlags := defaultTraceFlags
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.SetAddress(endpoints)
+	err := store.SetAddress(endpoints)
 	assert.Nilf(t, err, "Failed to update the address - error: %v", err)
 
 	err = store.SetTimeoutConnect(timeoutConnect)
@@ -155,6 +202,11 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 
 	err = store.SetTimeoutRequest(timeoutRequest)
 	assert.Nilf(t, err, "Failed to update the request timeout - error: %v", err)
+
+	store.SetTraceFlags(0)
+	store.SetTraceFlags(traceFlagEnabled)
+	store.SetTraceFlags(traceFlagExpandResults)
+	store.SetTraceFlags(traceFlagEnabled | traceFlagExpandResults)
 
 	err = store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
@@ -188,18 +240,13 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 
 func TestStoreWriteRead(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-
 	key := "TestStoreWriteRead/Key"
 	value := "TestStoreWriteRead/Value"
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.Write(key, value)
@@ -228,10 +275,6 @@ func TestStoreWriteRead(t *testing.T) {
 
 func TestStoreWriteReadMultiple(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-
 	keyValueSetSize := 100
 
 	prefixKey := "TestStoreWriteReadMultiple/Key"
@@ -249,11 +292,10 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
 	}
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.WriteMultiple(keyValueSet)
@@ -279,10 +321,6 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 
 func TestStoreWriteReadWithPrefix(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-
 	keyValueSetSize := 100
 
 	prefixKey := "TestStoreWriteReadWithPrefix/Key"
@@ -301,11 +339,10 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 		keyValueMap[kv.key] = kv.value
 	}
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.WriteMultiple(keyValueSet)
@@ -350,18 +387,13 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 
 func TestStoreWriteDelete(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-
 	key := "TestStoreWriteDelete/Key"
 	value := "TestStoreWriteDelete/Value"
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.Write(key, value)
@@ -392,10 +424,6 @@ func TestStoreWriteDelete(t *testing.T) {
 
 func TestStoreWriteDeleteMultiple(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-
 	keyValueSetSize := 100
 
 	prefixKey := "TestStoreWriteDeleteMultiple/Key"
@@ -413,11 +441,10 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
 	}
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.WriteMultiple(keyValueSet)
@@ -434,10 +461,6 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 }
 
 func TestStoreWriteDeleteWithPrefix(t *testing.T) {
-
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
 
 	keyValueSetSize := 100
 
@@ -457,11 +480,10 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 		keyValueMap[kv.key] = kv.value
 	}
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.WriteMultiple(keyValueSet)
@@ -482,10 +504,6 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 
 func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-
 	key := "TestStoreWriteReadDeleteWithoutConnect/Key"
 	value := "TestStoreWriteReadDeleteWithoutConnect/Value"
 
@@ -496,11 +514,10 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 	keyValueSet[0].key = key
 	keyValueSet[0].value = value
 
-	store, err := New(endpoints, timeoutConnect, timeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Write(key, value)
+	err := store.Write(key, value)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to write to store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected, err)
 
@@ -541,16 +558,15 @@ func TestStoreSetWatch(t *testing.T) {
 
 	key := "TestStoreSetWatch/Key"
 
-	store, err := New(defaultEndpoints, defaultTimeoutConnect, defaultTimeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.SetWatch(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, ErrStoreNotImplemented, err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented, err)
+	assert.Equal(t, ErrStoreNotImplemented("SetWatch"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented("SetWatch"), err)
 
 	store.Disconnect()
 
@@ -563,16 +579,15 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 
 	keySet := []string{"TestStoreSetWatchMultiple/Key"}
 
-	store, err := New(defaultEndpoints, defaultTimeoutConnect, defaultTimeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.SetWatchMultiple(keySet)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, ErrStoreNotImplemented, err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented, err)
+	assert.Equal(t, ErrStoreNotImplemented("SetWatchMultiple"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented("SetWatchMultiple"), err)
 
 	store.Disconnect()
 
@@ -585,16 +600,15 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 
 	key := "TestStoreSetWatchPrefix/Key"
 
-	store, err := New(defaultEndpoints, defaultTimeoutConnect, defaultTimeoutRequest)
-	assert.Nilf(t, err, "Failed to allocate new store - error: %v", err)
-	assert.NotNilf(t, store, "Failed to get the store as expected - error: %v", err)
+	store := NewWithDefaults()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err = store.Connect()
+	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
 	err = store.SetWatchWithPrefix(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, ErrStoreNotImplemented, err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented, err)
+	assert.Equal(t, ErrStoreNotImplemented("SetWatchWithPrefix"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented("SetWatchWithPrefix"), err)
 
 	store.Disconnect()
 
