@@ -20,5 +20,6 @@ go build -o github.com\Jim3Things\CloudChamber\deployments\inventoryd.exe github
 go build -o github.com\Jim3Things\CloudChamber\deployments\sim_supportd.exe github.com\Jim3Things\CloudChamber\cmd\sim_supportd\main.go
 go build -o github.com\Jim3Things\CloudChamber\deployments\web_server.exe github.com\Jim3Things\CloudChamber\cmd\web_server\main.go
 
+copy github.com\Jim3Things\CloudChamber\Configs\cloudchamber.yaml github.com\Jim3Things\CloudChamber\deployments\cloudchamber.yaml
 popd
 
