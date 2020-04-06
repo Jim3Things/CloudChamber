@@ -1,5 +1,6 @@
 pushd %gopath%\src
 
+protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\admin\users.proto
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\common\capacity.proto
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\common\timestamp.proto
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\log\entry.proto

@@ -16,6 +16,7 @@
 package frontend
 
 import (
+    "context"
     "errors"
     "fmt"
     "log"
@@ -81,15 +82,9 @@ var (
     //
     ErrUserUnableToCreate = errors.New("CloudChamber: unable to create a user account at this time")
 
-    // ErrUserAlreadyCreated indicates the specified user account was previously
-    // created and the request was determined to be a duplicate Create request.
-    //
-    ErrUserAlreadyCreated = errors.New("CloudChamber: user already exists")
-
-    // ErrUserNotFound indicates the specified user account was determined to
-    // not exist (i.e. the search succeeded but no record was found)
-    //
-    ErrUserNotFound = errors.New("CloudChamber: user not found")
+    // ErrUserAlreadyLoggedIn indicates that the session is currently logged in
+    // and a new log in cannot be processed
+    ErrUserAlreadyLoggedIn = errors.New("CloudChamber: session already has a logged in user")
 
     // ErrUserAuthFailed indicates the supplied username and password combination
     // is not valid.
@@ -110,8 +105,29 @@ var (
 
     server Server
     tr trace.Tracer
-
 )
+
+// ErrUserNotFound indicates the specified user account was determined to
+// not exist (i.e. the search succeeded but no record was found)
+//
+type ErrUserNotFound string
+func (unf ErrUserNotFound) Error() string {
+    return fmt.Sprintf("CloudChamber: user %q not found", string(unf))
+}
+
+// ErrUserAlreadyCreated indicates the specified user account was previously
+// created and the request was determined to be a duplicate Create request.
+//
+type ErrUserAlreadyCreated string
+func (uac ErrUserAlreadyCreated) Error() string {
+    return fmt.Sprintf("CloudChamber: user %q already exists", string(uac))
+}
+
+// ErrNoLoginActive indicates that the specified user is not logged into this session
+type ErrNoLoginActive string
+func (enla ErrNoLoginActive) Error() string {
+    return fmt.Sprintf("CloudChamber: user %q not logged into this session", string(enla))
+}
 
 func initHandlers() error {
 
@@ -163,11 +179,11 @@ func initService(cfg *config.GlobalConfig) error {
     server.cookieStore.Options.Secure = false
     server.cookieStore.Options.HttpOnly = false
 
-    // TODO: This is the minimal hook to pre-establish the system account
     if err := initHandlers(); err != nil {
         return err
     }
 
+    // TODO: This is the minimal hook to pre-establish the system account
     return UserAdd(cfg.WebServer.SystemAccount, nil)
 }
 
@@ -199,4 +215,26 @@ func handlerStepperRoot(w http.ResponseWriter, r *http.Request) {
 func handlerInjectorRoot(w http.ResponseWriter, r *http.Request) {
 
     fmt.Fprintf(w, "Injector (Root)")
+}
+
+// WithSession wraps a handler action with the necessary code to retrieve any existing session state,
+// and to attach that state to the response prior to returning.
+func WithSession(ctx context.Context, w http.ResponseWriter, r *http.Request,
+    action func(ctx context.Context, span trace.Span, session *sessions.Session) error) error {
+
+    span := trace.SpanFromContext(ctx)
+    session, _ := server.cookieStore.Get(r, SessionCookieName)
+
+    err := action(ctx, span, session)
+
+    if errx := session.Save(r, w); errx != nil {
+        httpError(ctx, span, w, errx.Error(), http.StatusInternalServerError)
+        return errx
+    }
+
+    if err != nil {
+        httpError(ctx, span, w, err.Error(), http.StatusBadRequest)
+    }
+
+    return err
 }
