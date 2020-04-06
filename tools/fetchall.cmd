@@ -17,7 +17,7 @@ go install .
 popd
 
 
-go get github.com/etcd-io/etcd
+go get go.etcd.io/etcd
 
 go get github.com/gorilla/mux
 go get github.com/gorilla/securecookie
