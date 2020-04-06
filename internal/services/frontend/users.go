@@ -13,9 +13,12 @@ import (
     "sync"
 
     "github.com/gorilla/mux"
+    "github.com/gorilla/sessions"
     "go.opentelemetry.io/otel/api/trace"
 
     "golang.org/x/crypto/bcrypt"
+
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 const (
@@ -23,26 +26,18 @@ const (
     Disable = "disable"
     Login = "login"
     Logout = "logout"
-)
 
-// User is a representation of an individual user
-//
-// TODO This is just a placeholder until we have proper user records held
-//     in a persisted store (Etcd)
-//
-type User struct {
-    Name         string
-    PasswordHash []byte
-    //  UserId   int64
-    Enabled bool
-}
+    SessionCookieName = "CC-Session"
+    AuthStateKey      = "authenticated"
+    UserNameKey       = "username"
+)
 
 // DbUsers is a container used to established synchronized access to
 // the in-memory set of user records.
 //
 type DbUsers struct {
     Mutex sync.Mutex
-    Users map[string]User
+    Users map[string]pb.User
 }
 
 var (
@@ -77,7 +72,7 @@ func methodName() string {
 
 // Get the secret associated with this session
 func secret(w http.ResponseWriter, r *http.Request) {
-    session, _ := server.cookieStore.Get(r, "cookie-name")
+    session, _ := server.cookieStore.Get(r, SessionCookieName)
 
     // Check if user is authenticated
     if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
@@ -86,10 +81,10 @@ func secret(w http.ResponseWriter, r *http.Request) {
     }
 
     // Print secret message
-    fmt.Fprintln(w, "secret message")
+    _, _ = fmt.Fprintln(w, "secret message")
 }
 
-func userCreate(name string, password []byte) (*User, error) {
+func userCreate(name string, password []byte) (*pb.User, error) {
 
     passwordHash, err := bcrypt.GenerateFromPassword(password, bcrypt.DefaultCost)
 
@@ -97,7 +92,7 @@ func userCreate(name string, password []byte) (*User, error) {
         return nil, err
     }
 
-    user := &User{Name: name, PasswordHash: passwordHash}
+    user := &pb.User{Name: name, PasswordHash: passwordHash}
 
     return user, nil
 }
@@ -116,7 +111,7 @@ func UserAdd(name string, password []byte) error {
     _, found := dbUsers.Users[name]
 
     if found {
-        return ErrUserAlreadyCreated
+        return ErrUserAlreadyCreated(name)
     }
 
     dbUsers.Users[name] = *newUser
@@ -145,7 +140,7 @@ func userEnable(name string, enable bool) error {
 
     user, found := dbUsers.Users[name]
     if !found {
-        return ErrUserNotFound
+        return ErrUserNotFound(name)
     }
 
     user.Enabled = enable
@@ -158,7 +153,7 @@ func usersAddRoutes(routeBase *mux.Router) {
 
     dbUsers = DbUsers{
         Mutex: sync.Mutex{},
-        Users: map[string]User{},
+        Users: map[string]pb.User{},
     }
 
     routeUsers := routeBase.PathPrefix("/users").Subrouter()
@@ -167,7 +162,7 @@ func usersAddRoutes(routeBase *mux.Router) {
     routeUsers.HandleFunc("/", handlerUsersList).Methods("GET")
 
     // In the following, the "GET" method is allowed just for the purposes of test and
-    // evaluation. At somepoint, it will need to be removed, but in the meantime, leaving
+    // evaluation. At some point, it will need to be removed, but in the meantime, leaving
     // it there allows simple experimentation with just a browser.
     //
     // As a reminder,
@@ -181,16 +176,18 @@ func usersAddRoutes(routeBase *mux.Router) {
     routeUsers.HandleFunc(routeString, handlerUsersDelete).Methods("DELETE")
 }
 
-func usersDisplayArguments(w http.ResponseWriter, r *http.Request) {
+func usersDisplayArguments(w http.ResponseWriter, r *http.Request) (err error) {
     op := r.FormValue("op")
     vars := mux.Vars(r)
     username := vars["username"]
 
     if op != "" {
-        fmt.Fprintf(w, "User: %v op: %v", username, op)
+        _, err = fmt.Fprintf(w, "User: %v op: %v", username, op)
     } else {
-        fmt.Fprintf(w, "User: %v", username)
+        _, err = fmt.Fprintf(w, "User: %v", username)
     }
+
+    return err
 }
 
 // Process an http request for the list of users.  Response should contain a document of links to the
@@ -227,87 +224,112 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
-
-    usersDisplayArguments(w, r)
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        return WithSession(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            span.AddEvent(ctx, "TBD: user creation")
+            return usersDisplayArguments(w, r)
+        })
+    })
 }
 
 func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
-
-    usersDisplayArguments(w, r)
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        return WithSession(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            span.AddEvent(ctx, "TBD: user details read")
+            return usersDisplayArguments(w, r)
+        })
+    })
 }
 
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 
-    ctx, span := tr.Start(context.Background(), methodName())
-    defer span.End()
-
-    span.AddEvent(ctx, "Update hit")
-    usersDisplayArguments(w, r)
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        return WithSession(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            span.AddEvent(ctx, "TBD: user update")
+            return usersDisplayArguments(w, r)
+        })
+    })
 }
 
 func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
-
-    usersDisplayArguments(w, r)
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        return WithSession(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            span.AddEvent(ctx, "TBD: user deletion")
+            return usersDisplayArguments(w, r)
+        })
+    })
 }
 
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        return WithSession(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            op := r.FormValue("op")
+            vars := mux.Vars(r)
+            username := vars["username"]
 
-    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) error {
-        span := trace.SpanFromContext(ctx)
+            span.AddEvent(ctx, fmt.Sprintf("Operation %q, user %q", op, username))
 
-        op := r.FormValue("op")
-        vars := mux.Vars(r)
-        username := vars["username"]
+            switch op {
+            case Enable:
+                err = usersDisplayArguments(w, r)
 
-        span.AddEvent(ctx, fmt.Sprintf("Operation '%s', user '%s'", op, username))
+            case Disable:
+                err = usersDisplayArguments(w, r)
 
-        switch op {
-        case Enable:
-            usersDisplayArguments(w, r)
+            case Login:
+                err = login(ctx, span, session, w, r)
 
-        case Disable:
-            usersDisplayArguments(w, r)
+            case Logout:
+                err = logout(ctx, span, session, w, r)
 
-        case Login:
-            login(ctx, span, w, r)
+            default:
+                err = fmt.Errorf("invalid user operation requested (?op=%s)", op)
+            }
 
-        case Logout:
-            usersDisplayArguments(w, r)
-
-        default:
-            httpError(ctx, span, w, fmt.Sprintf("Invalid user operation requested (?op=%s)", op), http.StatusBadRequest)
-        }
-
-        return nil
+            return err
+        })
     })
 }
 
 // Process a login request
-func login(ctx context.Context, span trace.Span, w http.ResponseWriter, r *http.Request) {
-    session, _ := server.cookieStore.Get(r, "cookie-name")
-    if auth, ok := session.Values["authenticated"].(bool); ok && auth {
-        http.Error(w, "Session already established", http.StatusLocked)
-        return
+func login(_ context.Context, _ trace.Span, session *sessions.Session, _ http.ResponseWriter, r *http.Request) error {
+    vars := mux.Vars(r)
+    username := vars["username"]
+
+    // Verify that there is no logged in user
+    if auth, ok := session.Values[AuthStateKey].(bool); ok && auth {
+        return ErrUserAlreadyLoggedIn
     }
 
     // Authentication goes here
     // ...
 
-    // Set user as authenticated
+    // .. and finally mark the session as logged in
     //
-    session.Values["authenticated"] = true
-
-    if err := session.Save(r, w); err != nil {
-        httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
-    }
+    session.Values[AuthStateKey] = true
+    session.Values[UserNameKey] = username
+    return nil
 }
 
-func logout(w http.ResponseWriter, r *http.Request) {
-    session, _ := server.cookieStore.Get(r, "cookie-name")
+// Process a logout request
+func logout(_ context.Context, _ trace.Span, session *sessions.Session, _ http.ResponseWriter, r *http.Request) error {
+    vars := mux.Vars(r)
+    username := vars["username"]
 
-    // Revoke users authentication
-    session.Values["authenticated"] = false
-    session.Save(r, w)
+    // Verify that there is a logged in user on this session
+    if auth, ok := session.Values[AuthStateKey].(bool); !ok || !auth {
+        return ErrNoLoginActive(username)
+    }
+
+    // .. and that it is the user we're trying to logout
+    if name, ok := session.Values[UserNameKey].(string); !ok || name != username {
+        return ErrNoLoginActive(username)
+    }
+
+    // .. and now log the user out
+    session.Values[AuthStateKey] = false
+    delete(session.Values, UserNameKey)
+    return nil
 }
 
 // func handlerAuthenticateSession(fn func(http.ResponseWriter, *http.Request, string)) http.HandlerFunc {

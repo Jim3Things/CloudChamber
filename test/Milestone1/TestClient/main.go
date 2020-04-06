@@ -49,8 +49,8 @@ func main() {
     client := &http.Client{}
 
     // 0: get list of known users
-    target := fmt.Sprintf("%s/users/admin", baseAddress)
-    resp, err := get(client, target, nil)
+    target := fmt.Sprintf("%s/users", baseAddress)
+    resp, err := get(client, target, nil, nil)
     if err != nil {
         panic(err)
     }
@@ -59,7 +59,7 @@ func main() {
 
     // 1: try to login
     target = fmt.Sprintf("%s/users/admin?op=login", baseAddress)
-    resp, err = put(client, target, nil)
+    resp, err = put(client, target, resp.Cookies(), nil)
     if err != nil {
         panic(err)
     }
@@ -68,14 +68,28 @@ func main() {
 
     // 2: get the list of racks
     // TBD
+
+    // last: and now logout
+    target = fmt.Sprintf("%s/users/admin?op=logout", baseAddress)
+    resp, err = put(client, target, resp.Cookies(), nil)
+    if err != nil {
+        panic(err)
+    }
+
+    dumpResponse(resp, err)
 }
 
-func get(client *http.Client, uri string, body io.Reader) (*http.Response, error) {
+func get(client *http.Client, uri string, cookies []*http.Cookie, body io.Reader) (*http.Response, error) {
     fmt.Printf("GET to %s\n", uri)
     req, err := http.NewRequest("GET", uri, body)
-
     if err != nil {
         return nil, err
+    }
+
+    if cookies != nil {
+        for _, c := range cookies {
+            req.AddCookie(c)
+        }
     }
 
     resp, err := client.Do(req)
@@ -86,12 +100,18 @@ func get(client *http.Client, uri string, body io.Reader) (*http.Response, error
     return resp, nil
 }
 
-func put(client *http.Client, uri string, body io.Reader) (*http.Response, error) {
+func put(client *http.Client, uri string, cookies []*http.Cookie, body io.Reader) (*http.Response, error) {
     fmt.Printf("PUT to %s\n", uri)
     req, err := http.NewRequest("PUT", uri, body)
 
     if err != nil {
         return nil, err
+    }
+
+    if cookies != nil {
+        for _, c := range cookies {
+            req.AddCookie(c)
+        }
     }
 
     resp, err := client.Do(req)

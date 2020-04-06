@@ -25,6 +25,11 @@ var (
 	baseURI     string
 	initialized bool
 )
+const (
+	alice = "/api/users/Alice"
+	bob = "/api/users/Bob"
+)
+
 
 // commonSetup bears more than a passing resemblance to the primary package
 // entry point StartService()
@@ -75,7 +80,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestUsersList(t *testing.T) {
-	route := "/api/users"
+	const route = "/api/users"
 
 	unit_test.SetTesting(t)
 
@@ -97,18 +102,15 @@ func TestUsersCreate(t *testing.T) {
 }
 
 func TestUsersRead(t *testing.T) {
-
-	const route = "/api/users/Alice"
-
 	unit_test.SetTesting(t)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, route), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, alice), nil)
 	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", route, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", alice, response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
 	// At present, all base handlers effectively echo the supplied username so all
@@ -119,9 +121,6 @@ func TestUsersRead(t *testing.T) {
 }
 
 func TestUsersOperation(t *testing.T) {
-
-	const route = "/api/users/Alice"
-
 	unit_test.SetTesting(t)
 
 	// First verify a bunch of failure cases. Specifically,
@@ -132,11 +131,11 @@ func TestUsersOperation(t *testing.T) {
 
 	// Case 1, check that naked op fails
 	//
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op", baseURI, route), nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op", baseURI, alice), nil)
 	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
@@ -145,15 +144,15 @@ func TestUsersOperation(t *testing.T) {
 	// we need to verify is that we get a successful return of the supplied username.
 	//
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
-	assert.Equal(t, "Invalid user operation requested (?op=)\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	assert.Equal(t, "invalid user operation requested (?op=)\n", string(body), "Handler returned unexpected response body: %v", string(body))
 
 	// Case 2, check that an invalid op fails
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=testInvalid", baseURI, route), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=testInvalid", baseURI, alice), nil)
 	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=testInvalid]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
@@ -162,17 +161,17 @@ func TestUsersOperation(t *testing.T) {
 	// we need to verify is that we get a successful return of the supplied username.
 	//
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
-	assert.Equal(t, "Invalid user operation requested (?op=testInvalid)\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	assert.Equal(t, "invalid user operation requested (?op=testInvalid)\n", string(body), "Handler returned unexpected response body: %v", string(body))
 
 	// Case 3, check that each of the valid ops succeed
 	//
 	// 3a, enable
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=enable", baseURI, route), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=enable", baseURI, alice), nil)
 	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=enable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
@@ -185,11 +184,11 @@ func TestUsersOperation(t *testing.T) {
 
 	// 3b, disable
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=disable", baseURI, route), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=disable", baseURI, alice), nil)
 	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=disable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
@@ -202,11 +201,12 @@ func TestUsersOperation(t *testing.T) {
 
 	// 3c, login
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, route), nil)
+	// 3c1: login for the first time, should succeed
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
 	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
@@ -214,13 +214,32 @@ func TestUsersOperation(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
 
-	// 3d, logout
-	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, route), nil)
+	// 3c2: attempt to login again, should fail
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
 	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", route, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body), "Handler returned unexpected response body: %v", string(body))
+
+	// 3d, logout
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
@@ -229,7 +248,289 @@ func TestUsersOperation(t *testing.T) {
 	// we need to verify is that we get a successful return of the supplied username.
 	//
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
-	assert.Equal(t, "User: Alice op: logout", string(body), "Handler returned unexpected response body: %v", string(body))
+}
+
+func TestLoginSessionSimple(t *testing.T)  {
+	unit_test.SetTesting(t)
+
+	// login for the first time, should succeed
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	response := doHttp(request)
+
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
+
+	// ... and logout, which should succeed
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+}
+
+func TestLoginSessionRepeat(t *testing.T)  {
+	unit_test.SetTesting(t)
+
+	// login for the first time, should succeed
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	response := doHttp(request)
+
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
+
+	// ... and logout, which should succeed
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+
+	// login for the second iteration, should succeed
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
+
+	// ... and logout, which should succeed
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+}
+
+func TestLoginDupLogins(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	// login for the first time, should succeed
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	response := doHttp(request)
+
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
+
+	// now repeat the attempt to login again, which should fail
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body), "Handler returned unexpected response body: %v", string(body))
+
+	// .. and let's just try with another user, which should also fail
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, bob), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", bob, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body), "Handler returned unexpected response body: %v", string(body))
+
+	// ... and logout, which should succeed
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+}
+
+func TestLoginLogoutDiffAccounts(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	// login for the first time, should succeed
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	response := doHttp(request)
+
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
+
+	// ... and logout, which should not succeed
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, bob), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", bob, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+
+	// ... and logout, which should succeed
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+}
+
+func TestDoubleLogout(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	// login for the first time, should succeed
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	response := doHttp(request)
+
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, 0, len(body), "Handler returned unexpected response body: %v", string(body))
+
+	// ... logout as 'bob', which should fail
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, bob), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", bob, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+
+	// ... logout, which should succeed
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+
+	// ... logout again, which should fail
+	//
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+
+	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
 }
 
 func TestUsersUpdate(t *testing.T) {

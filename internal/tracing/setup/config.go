@@ -18,6 +18,9 @@ func Init(exportType int) trace.SpanSyncer {
 	var err error
 
 	exporter, err = exporters.NewExporter(exportType, exporter, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	tp, err := sdktrace.NewProvider(
 		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
@@ -26,6 +29,7 @@ func Init(exportType int) trace.SpanSyncer {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	global.SetTraceProvider(tp)
 
 	return exporter
