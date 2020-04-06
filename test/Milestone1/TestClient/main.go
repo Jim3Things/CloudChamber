@@ -86,10 +86,8 @@ func get(client *http.Client, uri string, cookies []*http.Cookie, body io.Reader
         return nil, err
     }
 
-    if cookies != nil {
-        for _, c := range cookies {
-            req.AddCookie(c)
-        }
+    for _, c := range cookies {
+        req.AddCookie(c)
     }
 
     resp, err := client.Do(req)
@@ -108,10 +106,8 @@ func put(client *http.Client, uri string, cookies []*http.Cookie, body io.Reader
         return nil, err
     }
 
-    if cookies != nil {
-        for _, c := range cookies {
-            req.AddCookie(c)
-        }
+    for _, c := range cookies {
+        req.AddCookie(c)
     }
 
     resp, err := client.Do(req)
