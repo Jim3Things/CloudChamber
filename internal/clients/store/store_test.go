@@ -44,18 +44,6 @@ func etcdStart() {
 	hostList[defaultEmbeddedEtcdNode] = struct{}{}
 	hostList[defaultEmbeddedEtcdAddr] = struct{}{}
 
-	/*
-			oldClient := embed.DefaultAdvertiseClientURLs
-			oldPeer := embed.DefaultInitialAdvertisePeerURLs
-
-			log.Printf("Client: %v Peer: %v", oldClient, oldPeer)
-
-			embed.DefaultInitialAdvertisePeerURLs = urlPeer
-			embed.DefaultAdvertiseClientURLs = urlClient
-		//	embed.DefaultListenPeerURLs = urlPeer
-		//	embed.DefaultListenClientURLs = urlClient
-	*/
-
 	etcdConfig = embed.NewConfig()
 
 	// Set a location to place the underlying files for the store
