@@ -16,4 +16,27 @@ message user {
   bytes password_hash = 2;
   int64 user_id = 3;
   bool enabled = 4;
+
+  // The rights this user has
+  bool account_manager = 5;
+}
+
+message user_internal {
+  user user = 1;
+  int64 revision = 2;
+}
+
+message user_public {
+  bool enabled = 1;
+
+  // The rights this user has
+  bool account_manager = 2;
+}
+
+message user_definition {
+  string password = 1 [(validate.rules).string.min_len = 1];
+  bool enabled = 2;
+
+  // The rights this user has
+  bool account_manager = 3;
 }

@@ -123,6 +123,14 @@ func (uac ErrUserAlreadyCreated) Error() string {
     return fmt.Sprintf("CloudChamber: user %q already exists", string(uac))
 }
 
+// ErrUserAlreadyCreated indicates the specified user account was previously
+// created and the request was determined to be a duplicate Create request.
+//
+type ErrUserUpdateFailed string
+func (uuf ErrUserUpdateFailed) Error() string {
+    return fmt.Sprintf("CloudChamber: could not update the entry for user %q", string(uuf))
+}
+
 // ErrNoLoginActive indicates that the specified user is not logged into this session
 type ErrNoLoginActive string
 func (enla ErrNoLoginActive) Error() string {
@@ -184,7 +192,7 @@ func initService(cfg *config.GlobalConfig) error {
     }
 
     // TODO: This is the minimal hook to pre-establish the system account
-    return UserAdd(cfg.WebServer.SystemAccount, nil)
+    return UserAdd(cfg.WebServer.SystemAccount, nil, true, true)
 }
 
 // StartService is the primary entry point to start the front-end web service.
@@ -217,10 +225,12 @@ func handlerInjectorRoot(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "Injector (Root)")
 }
 
-// WithSession wraps a handler action with the necessary code to retrieve any existing session state,
+// doSessionHeader wraps a handler action with the necessary code to retrieve any existing session state,
 // and to attach that state to the response prior to returning.
-func WithSession(ctx context.Context, w http.ResponseWriter, r *http.Request,
-    action func(ctx context.Context, span trace.Span, session *sessions.Session) error) error {
+//
+// The session object is passed out for reference use by any later body processing.
+func doSessionHeader(ctx context.Context, w http.ResponseWriter, r *http.Request,
+    action func(ctx context.Context, span trace.Span, session *sessions.Session) error) (*sessions.Session, error) {
 
     span := trace.SpanFromContext(ctx)
     session, _ := server.cookieStore.Get(r, SessionCookieName)
@@ -229,12 +239,13 @@ func WithSession(ctx context.Context, w http.ResponseWriter, r *http.Request,
 
     if errx := session.Save(r, w); errx != nil {
         httpError(ctx, span, w, errx.Error(), http.StatusInternalServerError)
-        return errx
+        return nil, errx
     }
 
     if err != nil {
         httpError(ctx, span, w, err.Error(), http.StatusBadRequest)
+        return nil, err
     }
 
-    return err
+    return session, nil
 }
