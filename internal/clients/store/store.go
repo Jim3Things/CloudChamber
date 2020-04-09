@@ -82,12 +82,14 @@ import (
 )
 
 const (
-	namespacePrefix = string("/CloudChamber/v0.1")
-	defaultEndpoint = string("localhost:2379")
+	defaultEndpointNode = string("localhost")
+	defaultEndpointPort = string("2379")
+	namespacePrefix     = string("/CloudChamber/v0.1")
+	defaultEndpoint     = defaultEndpointNode + ":" + defaultEndpointPort
 
 	defaultTimeoutConnect = 5 * time.Second
 	defaultTimeoutRequest = 5 * time.Second
-	defaultTraceFlags     = traceFlagEnabled | traceFlagExpandResults
+	defaultTraceFlags     = traceFlagEnabled /*| traceFlagExpandResults */
 )
 
 // TraceFlags is the type used when setting of fetching the relevant flags
@@ -175,6 +177,15 @@ func (esbrs ErrStoreBadResultSize) Error() string {
 	return fmt.Sprintf("CloudChamber: unexpected size for result set - got %v expected %v", esbrs.actual, esbrs.expected)
 }
 
+// ErrStoreKeyNotFound indicates the request key was not found when the store
+// lookup/fetch was attempted.
+//
+type ErrStoreKeyNotFound string
+
+func (esknf ErrStoreKeyNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: key %q not found", string(esknf))
+}
+
 // ErrStoreNotImplemented indicated the called method does not yet have an
 //implementation
 //
@@ -197,6 +208,21 @@ func (store *Store) trace(v TraceFlags) (result bool) {
 	}
 
 	return false
+}
+
+func getDefaultEndpoints() []string {
+	return storeRoot.DefaultEndpoints
+}
+
+func getDefaultTimeoutConnect() time.Duration {
+	return storeRoot.DefaultTimeoutConnect
+}
+func getDefaultTimeoutRequest() time.Duration {
+	return storeRoot.DefaultTimeoutRequest
+}
+
+func getDefaultTraceFlags() TraceFlags {
+	return storeRoot.DefaultTraceFlags
 }
 
 func (store *Store) connected(op string) error {
@@ -526,9 +552,12 @@ func (store *Store) Read(key string) (result []byte, err error) {
 
 	if err != nil {
 		store.logEtcdResponseError(err)
+	} else if 0 == len(response.Kvs) {
+		err = ErrStoreKeyNotFound(key)
+		log.Printf("unable to read the requested key/value pair - error: %v\n", err)
 	} else if 1 != len(response.Kvs) {
 		err = ErrStoreBadResultSize{1, len(response.Kvs)}
-		log.Printf("expected a single result and instead received something else - error: %v expected: 1 received: %v\n", err, len(response.Kvs))
+		log.Printf("expected a single result and instead received something else - error: %v\n", err)
 	} else {
 		result = response.Kvs[0].Value
 		log.Printf("read key: %v value: %v", key, result)
@@ -575,8 +604,8 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 
 		for i := 0; i < processedCount; i++ {
 			if 1 != len(responses[i].Kvs) {
-				err = ErrStoreBadResultSize{1, len(responses[i].Kvs)}
-				log.Printf("expected a single result and instead received something else - error: %v expected: 1 received: %v\n", err, len(responses[i].Kvs))
+				err = ErrStoreBadResultSize{processedCount, len(responses[i].Kvs)}
+				log.Printf("number of responses did not match expectations - error: %v\n", err)
 			} else {
 				results[i].key = string(responses[i].Kvs[0].Key)
 				results[i].value = responses[i].Kvs[0].Value
@@ -650,9 +679,12 @@ func (store *Store) Delete(key string) (err error) {
 
 	if err != nil {
 		store.logEtcdResponseError(err)
+	} else if 0 == response.Deleted {
+		err = ErrStoreKeyNotFound(key)
+		log.Printf("failed to delete the requested key/value pair - error: %v\n", err)
 	} else if 1 != response.Deleted {
 		err = ErrStoreBadResultSize{1, int(response.Deleted)}
-		log.Printf("expected a single deletion and instead received something else - error: %v expected: 1 received: %v\n", err, response.Deleted)
+		log.Printf("expected a single deletion and instead received something else - error: %v\n", err)
 	} else {
 		log.Printf("deleted key: %v", key)
 	}

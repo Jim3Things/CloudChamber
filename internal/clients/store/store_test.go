@@ -4,28 +4,129 @@ package store
 
 import (
 	"fmt"
+	"log"
+	"net/url"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"go.etcd.io/etcd/embed"
+)
+
+const (
+	defaultEmbeddedEtcdAddr       = string("127.0.0.1")
+	defaultEmbeddedEtcdNode       = string("localhost")
+	defaultEmbeddedEtcdPortClient = string("9379")
+	defaultEmbeddedEtcdPortPeer   = string("9380")
+
+	defaultEmbeddedEtcdPeer   = defaultEmbeddedEtcdNode + ":" + defaultEmbeddedEtcdPortPeer
+	defaultEmbeddedEtcdClient = defaultEmbeddedEtcdNode + ":" + defaultEmbeddedEtcdPortClient
+
+	useEmbeddedEtcd = true
 )
 
 var (
 	baseURI     string
 	initialized bool
+
+	etcdConfig  *embed.Config
+	etcdService *embed.Etcd
 )
 
-func commonSetup() error {
+func etcdStart() {
+
+	var err error
+	var hostList = make(map[string]struct{})
+	var urlPeer = "http://" + defaultEmbeddedEtcdPeer
+	var urlClient = "http://" + defaultEmbeddedEtcdClient
+
+	hostList[defaultEmbeddedEtcdNode] = struct{}{}
+	hostList[defaultEmbeddedEtcdAddr] = struct{}{}
+
+	etcdConfig = embed.NewConfig()
+
+	// Set a location to place the underlying files for the store
+	//
+	etcdConfig.Dir = "c:\\temp\\CloudChamber\\default.etcd"
+
+	// Only allow calls from clients on the current node
+	//
+	etcdConfig.HostWhitelist = hostList
+
+	// Override the default listening and advertising endpoints for both clients and peers.
+	//
+	lpurl, _ := url.Parse(urlPeer)
+	lcurl, _ := url.Parse(urlClient)
+	apurl, _ := url.Parse(urlPeer)
+	acurl, _ := url.Parse(urlClient)
+
+	etcdConfig.LPUrls = []url.URL{*lpurl}
+	etcdConfig.LCUrls = []url.URL{*lcurl}
+	etcdConfig.APUrls = []url.URL{*apurl}
+	etcdConfig.ACUrls = []url.URL{*acurl}
+
+	// Override the default log level "info" which is very noisy
+	//
+	etcdConfig.LogLevel = "warn"
+
+	etcdService, err = embed.StartEtcd(etcdConfig)
+	if err != nil {
+		log.Fatalf("Failed to start Etcd instance - error: %v", err)
+	}
+
+	select {
+	case <-etcdService.Server.ReadyNotify():
+		log.Printf("Server is ready!")
+
+	case <-time.After(60 * time.Second):
+		etcdService.Server.Stop() // trigger a shutdown
+		log.Fatalf("Server took too long to start! - error: %v", <-etcdService.Err())
+	}
+
+	return
+}
+
+func etcdStop() {
+
+	log.Printf("Server is stopping...")
+
+	etcdService.Close()
+
+	etcdService = nil
+	etcdConfig = nil
+
+	log.Printf("Server is stopped!")
+}
+
+func commonSetup() {
 
 	Initialize()
-	return nil
+
+	if useEmbeddedEtcd {
+
+		// Override the normal default endpoint list.
+		//
+		storeRoot.DefaultEndpoints = []string{defaultEmbeddedEtcdClient}
+	}
+
+	etcdStart()
+	return
+}
+
+func commonCleanup() {
+	etcdStop()
 }
 
 func TestMain(m *testing.M) {
 
 	commonSetup()
 
-	os.Exit(m.Run())
+	result := m.Run()
+
+	commonCleanup()
+
+	os.Exit(result)
 }
 
 func TestNew(t *testing.T) {
@@ -44,23 +145,23 @@ func TestInitialize(t *testing.T) {
 	store := NewWithDefaults()
 
 	assert.NotNilf(t, store, "Failed to get the store as expected")
-	assert.Equal(t, defaultEndpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", defaultEndpoints, store.Endpoints)
-	assert.Equal(t, defaultTimeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", defaultTimeoutConnect, store.TimeoutConnect)
-	assert.Equal(t, defaultTimeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", defaultTimeoutRequest, store.TimeoutRequest)
-	assert.Equal(t, defaultTraceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", defaultTraceFlags, store.TraceFlags)
+	assert.Equal(t, getDefaultEndpoints(), store.Endpoints, "Mismatch in initialization of endpoints")
+	assert.Equal(t, getDefaultTimeoutConnect(), store.TimeoutConnect, "Mismatch in initialization of connection timeout")
+	assert.Equal(t, getDefaultTimeoutRequest(), store.TimeoutRequest, "Mismatch in initialization of request timeout")
+	assert.Equal(t, getDefaultTraceFlags(), store.TraceFlags, "Mismatch in initialization of trace flags")
 
 	endpoints := []string{"localhost:8080", "localhost:8181"}
-	timeoutConnect := defaultTimeoutConnect * 2
-	timeoutRequest := defaultTimeoutRequest * 3
+	timeoutConnect := getDefaultTimeoutConnect() * 2
+	timeoutRequest := getDefaultTimeoutRequest() * 3
 	traceFlags := traceFlagEnabled
 
 	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 
 	assert.Nilf(t, err, "Failed to initialize new store - error: %v", err)
-	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", endpoints, store.Endpoints)
-	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", timeoutConnect, store.TimeoutConnect)
-	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", timeoutRequest, store.TimeoutRequest)
-	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", traceFlags, store.TraceFlags)
+	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints")
+	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout")
+	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout")
+	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags")
 
 	store = nil
 
@@ -72,17 +173,17 @@ func TestNewWithArgs(t *testing.T) {
 	// Use non-default values to ensure we get what we asked for and not the defaults.
 	//
 	endpoints := []string{"localhost:8282", "localhost:8383"}
-	timeoutConnect := defaultTimeoutConnect * 4
-	timeoutRequest := defaultTimeoutRequest * 5
+	timeoutConnect := getDefaultTimeoutConnect() * 4
+	timeoutRequest := getDefaultTimeoutRequest() * 5
 	traceFlags := traceFlagExpandResults
 
 	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 
 	assert.NotNilf(t, store, "Failed to get the store as expected")
-	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", endpoints, store.Endpoints)
-	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", timeoutConnect, store.TimeoutConnect)
-	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", timeoutRequest, store.TimeoutRequest)
-	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", traceFlags, store.TraceFlags)
+	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints")
+	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout")
+	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout")
+	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags")
 
 	store = nil
 
@@ -94,41 +195,41 @@ func TestStoreSetAndGet(t *testing.T) {
 	store := NewWithDefaults()
 
 	assert.NotNilf(t, store, "Failed to get the store as expected")
-	assert.Equal(t, defaultEndpoints, store.Endpoints, "Mismatch in initialization of endpoints - expected: %v got: %v", defaultEndpoints, store.Endpoints)
-	assert.Equal(t, defaultTimeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout - expected: %v got: %v", defaultTimeoutConnect, store.TimeoutConnect)
-	assert.Equal(t, defaultTimeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout - expected: %v got: %v", defaultTimeoutRequest, store.TimeoutRequest)
-	assert.Equal(t, defaultTraceFlags, store.TraceFlags, "Mismatch in initialization of trace flags - expected: %v got: %v", defaultTraceFlags, store.TraceFlags)
+	assert.Equal(t, getDefaultEndpoints(), store.Endpoints, "Mismatch in initialization of endpoints")
+	assert.Equal(t, getDefaultTimeoutConnect(), store.TimeoutConnect, "Mismatch in initialization of connection timeout")
+	assert.Equal(t, getDefaultTimeoutRequest(), store.TimeoutRequest, "Mismatch in initialization of request timeout")
+	assert.Equal(t, getDefaultTraceFlags(), store.TraceFlags, "Mismatch in initialization of trace flags")
 
-	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in fetch of endpoints - expected: %v got: %v", store.Endpoints, store.GetAddress())
-	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in fetch of connection timeout - expected: %v got: %v", store.TimeoutConnect, store.GetTimeoutConnect())
-	assert.Equal(t, store.TimeoutRequest, store.GetTimeoutRequest(), "Mismatch in fetch of request timeout - expected: %v got: %v", store.TimeoutRequest, store.GetTimeoutRequest())
-	assert.Equal(t, store.TraceFlags, store.GetTraceFlags(), "Mismatch in fetch of trace flags - expected: %v got: %v", store.TraceFlags, store.GetTraceFlags())
+	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in fetch of endpoints")
+	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in fetch of connection timeout")
+	assert.Equal(t, store.TimeoutRequest, store.GetTimeoutRequest(), "Mismatch in fetch of request timeout")
+	assert.Equal(t, store.TraceFlags, store.GetTraceFlags(), "Mismatch in fetch of trace flags")
 
 	endpoints := []string{"localhost:8484", "localhost:8585"}
-	timeoutConnect := defaultTimeoutConnect * 6
-	timeoutRequest := defaultTimeoutRequest * 7
+	timeoutConnect := getDefaultTimeoutConnect() * 6
+	timeoutRequest := getDefaultTimeoutRequest() * 7
 	traceFlags := traceFlagExpandResults
 
 	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 
 	assert.Nilf(t, err, "Failed to update new store - error: %v", err)
-	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in update of endpoints - expected: %v got: %v", endpoints, store.Endpoints)
-	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in update of connection timeout - expected: %v got: %v", timeoutConnect, store.TimeoutConnect)
-	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in update of request timeout - expected: %v got: %v", timeoutRequest, store.TimeoutRequest)
-	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in update of trace flags - expected: %v got: %v", traceFlags, store.TraceFlags)
+	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in update of endpoints")
+	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in update of connection timeout")
+	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in update of request timeout")
+	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in update of trace flags")
 
-	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in re-fetch of endpoints - expected: %v got: %v", store.Endpoints, store.GetAddress())
-	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in re-fetch of connection timeout - expected: %v got: %v", store.TimeoutConnect, store.GetTimeoutConnect())
-	assert.Equal(t, store.TimeoutRequest, store.GetTimeoutRequest(), "Mismatch in re-fetch of request timeout - expected: %v got: %v", store.TimeoutRequest, store.GetTimeoutRequest())
-	assert.Equal(t, store.TraceFlags, store.GetTraceFlags(), "Mismatch in re-fetch of trace flags - expected: %v got: %v", store.TraceFlags, store.GetTraceFlags())
+	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in re-fetch of endpoints")
+	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in re-fetch of connection timeout")
+	assert.Equal(t, store.TimeoutRequest, store.GetTimeoutRequest(), "Mismatch in re-fetch of request timeout")
+	assert.Equal(t, store.TraceFlags, store.GetTraceFlags(), "Mismatch in re-fetch of trace flags")
 }
 
 func TestStoreConnectDisconnect(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-	traceFlags := defaultTraceFlags
+	endpoints := getDefaultEndpoints()
+	timeoutConnect := getDefaultTimeoutConnect()
+	timeoutRequest := getDefaultTimeoutRequest()
+	traceFlags := getDefaultTraceFlags()
 
 	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -154,10 +255,10 @@ func TestStoreConnectDisconnect(t *testing.T) {
 
 func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-	traceFlags := defaultTraceFlags
+	endpoints := getDefaultEndpoints()
+	timeoutConnect := getDefaultTimeoutConnect()
+	timeoutRequest := getDefaultTimeoutRequest()
+	traceFlags := getDefaultTraceFlags()
 
 	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -186,10 +287,10 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 
 func TestStoreConnectDisconnectWithSet(t *testing.T) {
 
-	endpoints := defaultEndpoints
-	timeoutConnect := defaultTimeoutConnect
-	timeoutRequest := defaultTimeoutRequest
-	traceFlags := defaultTraceFlags
+	endpoints := getDefaultEndpoints()
+	timeoutConnect := getDefaultTimeoutConnect()
+	timeoutRequest := getDefaultTimeoutRequest()
+	traceFlags := getDefaultTraceFlags()
 
 	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -257,6 +358,7 @@ func TestStoreWriteRead(t *testing.T) {
 	invalidKey := key + "invalidname"
 	response, err := store.Read(invalidKey)
 	assert.NotNilf(t, err, "Succeeded to read non-existing key/value from store - error: %v key: %v value: %v", err, invalidKey, string(response))
+	assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
 	assert.Nilf(t, response, "Failed to get a nil response as expected - error: %v key: %v value: %v", err, invalidKey, string(response))
 
 	// Now try to read a key which should be there.
@@ -307,7 +409,9 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 
 	for i, kv := range response {
 		kvValue := string(kv.value)
-		fmt.Printf("[%v/%v] %v: %v\n", i, len(response), kv.key, kvValue)
+		if store.trace(traceFlagExpandResults) {
+			fmt.Printf("[%v/%v] %v: %v\n", i, len(response), kv.key, kvValue)
+		}
 		assert.Equal(t, keyValueSet[i].key, kv.key, "Unexpected key - expected: %s received: %s", keyValueSet[i].key, kv.key)
 		assert.Equal(t, keyValueSet[i].value, kvValue, "Unexpected value - expected: %s received: %s", keyValueSet[i].value, kvValue)
 	}
@@ -373,7 +477,9 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 
 	for i, kv := range response {
 		kvValue := string(kv.value)
-		fmt.Printf("[%v/%v] %v: %v\n", i, len(response), kv.key, kvValue)
+		if store.trace(traceFlagExpandResults) {
+			fmt.Printf("[%v/%v] %v: %v\n", i, len(response), kv.key, kvValue)
+		}
 		assert.Equal(t, keyValueSet[i].key, kv.key, "Unexpected key - expected: %s received: %s", keyValueSet[i].key, kv.key)
 		assert.Equal(t, keyValueMap[kv.key], kvValue, "Unexpected value - expected: %s received: %s", keyValueMap[kv.key], kvValue)
 	}
@@ -408,12 +514,14 @@ func TestStoreWriteDelete(t *testing.T) {
 	//
 	err = store.Delete(key)
 	assert.NotNilf(t, err, "Unexpectedly deleted the key from store for a second time - error: %v key: %v", err, key)
+	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for a previously deleted key - error %v", err)
 
 	// Try to delete a name we do not expect to be present
 	//
 	invalidKey := key + "invalidname"
 	err = store.Delete(invalidKey)
 	assert.NotNilf(t, err, "Succeeded to delete a non-existing key/value from store - error: %v key: %v", err, invalidKey)
+	assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
 
 	store.Disconnect()
 
