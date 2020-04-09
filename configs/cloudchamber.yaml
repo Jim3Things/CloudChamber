@@ -40,3 +40,6 @@ webServer:
 
   # pre-defined account
   systemAccount: admin
+
+  # .. and its password (a really bad pattern here, but we'll use it for now)
+  systemAccountPassword: adminPassword

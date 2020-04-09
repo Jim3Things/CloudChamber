@@ -191,8 +191,8 @@ func initService(cfg *config.GlobalConfig) error {
         return err
     }
 
-    // TODO: This is the minimal hook to pre-establish the system account
-    return UserAdd(cfg.WebServer.SystemAccount, nil, true, true)
+    // Finally, initialize the user store
+    return InitDbUsers(cfg)
 }
 
 // StartService is the primary entry point to start the front-end web service.

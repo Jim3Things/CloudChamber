@@ -31,9 +31,10 @@ var (
 
 const (
 	userURI = "/api/users/"
-	alice = "/api/users/Alice"
-	admin = "/api/users/Admin"
-	bob = "/api/users/Bob"
+	alice = userURI + "Alice"
+	admin = userURI + "Admin"
+	bob = userURI + "Bob"
+	adminPassword = "AdminPassword"
 )
 
 
@@ -54,6 +55,7 @@ func commonSetup() {
 		WebServer:  config.WebServerType{
 			RootFilePath:  "C:\\CloudChamber",
 			SystemAccount: "Admin",
+			SystemAccountPassword: adminPassword,
 			FE:            config.Endpoint{
 				Hostname: "localhost",
 				Port:     8080,
@@ -78,11 +80,11 @@ func doHttp(req *http.Request) *http.Response {
 	return w.Result()
 }
 
-func doLogin(t *testing.T, user string, cookies []*http.Cookie) *http.Response{
+func doLogin(t *testing.T, user string, password string, cookies []*http.Cookie) *http.Response{
 	path := fmt.Sprintf("%s%s%s?op=login", baseURI, userURI, user)
 	t.Logf("[login as %q (%q)]", user, path)
 
-	request := httptest.NewRequest("PUT", path, nil)
+	request := httptest.NewRequest("PUT", path, strings.NewReader(password))
 	for _, c := range cookies {
 		request.AddCookie(c)
 	}
@@ -124,7 +126,7 @@ func TestLoginSessionSimple(t *testing.T)  {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword))
 	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
@@ -154,32 +156,31 @@ func TestLoginSessionSimple(t *testing.T)  {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 }
 
-func TestUsersList(t *testing.T) {
+func TestLogingSessionBadPassword(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", nil)
-
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	// login for the first time, should succeed
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword + "rubbish"))
+	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI + admin, err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
-	assert.Equal(t, "Users (List)\nhttp://localhost:8080/api/users/Admin\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+
+	// Now just validate that there really isn't an active session here.
+	response = doLogin(t, "Admin", adminPassword, response.Cookies())
 	doLogout(t, "admin", response.Cookies())
 }
 
 func TestUsersCreate(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", nil)
+	response := doLogin(t, "Admin", adminPassword, nil)
 
 	request := httptest.NewRequest(
 		"POST",
@@ -197,16 +198,37 @@ func TestUsersCreate(t *testing.T) {
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
-
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 	assert.Equal(t, "User \"Alice\" created.  enabled: true, can manage accounts: false", string(body), "Handler returned unexpected response body: %v", string(body))
+	doLogout(t, "admin", response.Cookies())
+}
+
+func TestUsersList(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, "Admin", adminPassword, nil)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+	response = doHttp(request)
+
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+
+	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, "Users (List)\nhttp://localhost:8080/api/users/Admin\nhttp://localhost:8080/api/users/Alice\n", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "admin", response.Cookies())
 }
 
 func TestUsersRead(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", nil)
+	response := doLogin(t, "Admin", adminPassword, nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "admin"), nil)
 	for _, c := range response.Cookies() {
@@ -272,7 +294,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 }
 
 func TestUserOperationsDisable(t *testing.T) {
-	response := doLogin(t, "Admin", nil)
+	response := doLogin(t, "Admin", adminPassword, nil)
 
 	// 3b, disable
 	//
@@ -292,12 +314,12 @@ func TestUserOperationsDisable(t *testing.T) {
 	// we need to verify is that we get a successful return of the supplied username.
 	//
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
-	assert.Equal(t, "User \"alice\" disabled\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	assert.Equal(t, "User \"Alice\" disabled\n", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "admin", response.Cookies())
 }
 
 func TestUsersOperationEnable(t *testing.T) {
-	response := doLogin(t, "Admin", nil)
+	response := doLogin(t, "Admin", adminPassword, nil)
 
 	// Case 3, check that each of the valid ops succeed
 	//
@@ -319,7 +341,7 @@ func TestUsersOperationEnable(t *testing.T) {
 	// we need to verify is that we get a successful return of the supplied username.
 	//
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
-	assert.Equal(t, "User \"alice\" enabled\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	assert.Equal(t, "User \"Alice\" enabled\n", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "admin", response.Cookies())
 }
 
@@ -327,7 +349,7 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
 	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
@@ -357,7 +379,7 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 
 	// login for the second iteration, should succeed
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
 	response = doHttp(request)
 
 	body, err = ioutil.ReadAll(response.Body)
@@ -391,7 +413,7 @@ func TestLoginDupLogins(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
 	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
@@ -404,7 +426,7 @@ func TestLoginDupLogins(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 
 	// now repeat the attempt to login again, which should fail
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
 	for _, c := range response.Cookies() {
 		request.AddCookie(c)
 	}
@@ -420,7 +442,7 @@ func TestLoginDupLogins(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body), "Handler returned unexpected response body: %v", string(body))
 
 	// .. and let's just try with another user, which should also fail
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, bob), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, bob), strings.NewReader("test2"))
 	for _, c := range response.Cookies() {
 		request.AddCookie(c)
 	}
@@ -457,7 +479,7 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
 	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)
@@ -508,7 +530,7 @@ func TestDoubleLogout(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
 	response := doHttp(request)
 
 	body, err := ioutil.ReadAll(response.Body)

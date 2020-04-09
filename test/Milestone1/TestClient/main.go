@@ -8,6 +8,7 @@ import (
     "log"
     "net/http"
     "os"
+    "strings"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
     "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
@@ -50,7 +51,7 @@ func main() {
 
     // 1: try to login
     target := fmt.Sprintf("%s/users/admin?op=login", baseAddress)
-    resp, err := put(client, target, nil, nil)
+    resp, err := put(client, target, nil, strings.NewReader(cfg.WebServer.SystemAccountPassword))
     if err != nil {
         panic(err)
     }

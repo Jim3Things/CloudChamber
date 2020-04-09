@@ -25,6 +25,7 @@ const (
     DefaultHost = ""
     DefaultRootFilePath = "."
     DefaultSystemAccount = "Admin"
+    DefaultSystemPassword = "SystemPassword"
 )
 
 // Define the global configuration structure produced from reading the config
@@ -70,6 +71,9 @@ type WebServerType struct {
     // Predefined starting account
     SystemAccount string
 
+    // .. and that account's password
+    SystemAccountPassword string
+
     // External http endpoint
     FE Endpoint
 
@@ -98,6 +102,7 @@ func newGlobalConfig() *GlobalConfig {
         WebServer: WebServerType{
             RootFilePath: DefaultRootFilePath,
             SystemAccount: DefaultSystemAccount,
+            SystemAccountPassword: DefaultSystemPassword,
             FE: Endpoint{
                 Hostname: DefaultHost,
                 Port:     WebServerFEDefaultPort,
@@ -175,12 +180,14 @@ func ToString(data *GlobalConfig) string {
             "  BE:\n" +
             "    port: %v\n    hostname: %v\n" +
             "  RootFilePath: %s\n" +
-            "  SystemAccount: %s\n",
+            "  SystemAccount: %s\n" +
+            "  SystemAccountPassword: %s\n",
         data.Controller.EP.Port, data.Controller.EP.Hostname,
         data.Inventory.EP.Port, data.Inventory.EP.Hostname,
         data.SimSupport.EP.Port, data.SimSupport.EP.Hostname,
         data.WebServer.FE.Port, data.WebServer.FE.Hostname,
         data.WebServer.BE.Port, data.WebServer.BE.Hostname,
         data.WebServer.RootFilePath,
-        data.WebServer.SystemAccount)
+        data.WebServer.SystemAccount,
+        data.WebServer.SystemAccountPassword)
 }

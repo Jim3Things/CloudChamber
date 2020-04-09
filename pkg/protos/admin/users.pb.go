@@ -27,6 +27,7 @@ const _ = proto.ProtoPackageIsVersion3 // please upgrade the proto package
 //     in a persisted store (Etcd)
 //
 type User struct {
+	// The username, held so as to preserve the original case
 	Name         string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	PasswordHash []byte `protobuf:"bytes,2,opt,name=password_hash,json=passwordHash,proto3" json:"password_hash,omitempty"`
 	UserId       int64  `protobuf:"varint,3,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -98,6 +99,9 @@ func (m *User) GetAccountManager() bool {
 	return false
 }
 
+// Extend the base user definition with the revision number.  This is
+// managed by the storage layer only, and is used as match criteria on
+// updates.
 type UserInternal struct {
 	User                 *User    `protobuf:"bytes,1,opt,name=user,proto3" json:"user,omitempty"`
 	Revision             int64    `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
@@ -145,6 +149,8 @@ func (m *UserInternal) GetRevision() int64 {
 	return 0
 }
 
+// Limited exposure of user attributes for use when returning information
+// to a remote client.
 type UserPublic struct {
 	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// The rights this user has
@@ -193,6 +199,8 @@ func (m *UserPublic) GetAccountManager() bool {
 	return false
 }
 
+// Public definition for a user, sent by a remote client to the Cloud Chamber
+// controller.
 type UserDefinition struct {
 	Password string `protobuf:"bytes,1,opt,name=password,proto3" json:"password,omitempty"`
 	Enabled  bool   `protobuf:"varint,2,opt,name=enabled,proto3" json:"enabled,omitempty"`
