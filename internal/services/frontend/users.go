@@ -246,20 +246,21 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        var sc int
+
         vars := mux.Vars(r)
         username := vars["username"]
 
-        if _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            err, sc := canManageAccounts(session, "")
-            if err != nil {
-                httpError(ctx, span, w, err.Error(), sc)
-            }
+        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            err, sc = canManageAccounts(session, "")
+            return err })
 
-            return err }); err != nil {
+        span := trace.SpanFromContext(ctx)
+        if err != nil {
+            httpError(ctx, span, w, err.Error(), sc)
             return err
         }
 
-        span := trace.SpanFromContext(ctx)
         span.AddEvent(ctx, fmt.Sprintf("Creating user %q", username))
 
         u := &pb.UserDefinition{}
@@ -269,7 +270,7 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
         }
 
         if err = UserAdd(username, u.Password, u.AccountManager, u.Enabled); err != nil {
-            httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
+            httpError(ctx, span, w, err.Error(), http.StatusBadRequest)
             return err
         }
 
@@ -281,22 +282,23 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        var sc int
+
         vars := mux.Vars(r)
         username := vars["username"]
 
-        if _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            err, sc := canManageAccounts(session, username)
-            if err != nil {
-                httpError(ctx, span, w, err.Error(), sc)
-                return err
-            }
+        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            err, sc = canManageAccounts(session, username)
 
             w.Header().Set("Content-Type", "application/json")
-            return nil }); err != nil {
-            return err
-        }
+
+            return err })
 
         span := trace.SpanFromContext(ctx)
+        if err != nil {
+            httpError(ctx, span, w, err.Error(), sc)
+            return err
+        }
 
         u, _, err := dbUsers.Get(username)
         if err != nil {
@@ -344,33 +346,40 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
         var s string
+        var sc int
 
         _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
             op := r.FormValue("op")
             vars := mux.Vars(r)
             username := vars["username"]
 
-            span.AddEvent(ctx, fmt.Sprintf("Operation %q, user %q", op, username))
+            span.AddEvent(ctx, fmt.Sprintf("Operation %q, user %q, session %v", op, username, session))
 
             switch op {
             case Enable:
-                s, err = enableDisable(ctx, span, session, w, r, true, "enable")
+                s, err, sc = enableDisable(session, r, true, "enable")
 
             case Disable:
-                s, err = enableDisable(ctx, span, session, w, r, false, "disable")
+                s, err, sc = enableDisable(session, r, false, "disable")
 
             case Login:
-                s, err = login(ctx, span, session, w, r)
+                s, err, sc = login(session, r)
 
             case Logout:
-                s, err = logout(ctx, span, session, w, r)
+                s, err, sc = logout(session, r)
 
             default:
                 err = fmt.Errorf("invalid user operation requested (?op=%s)", op)
+                sc = http.StatusBadRequest
             }
 
             return err
         })
+
+        if err != nil {
+            span := trace.SpanFromContext(ctx)
+            httpError(ctx, span, w, err.Error(), sc)
+        }
 
         if err == nil {
             _, err = fmt.Fprintln(w, s)
@@ -389,37 +398,23 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 // applied to the response body.
 
 // Process a request to enable (?op=enable), or disable (?op=disable) an account
-func enableDisable(
-        ctx context.Context,
-        span trace.Span,
-        session *sessions.Session,
-        w http.ResponseWriter,
-        r *http.Request,
-        v bool,
-        s string) (string, error) {
+func enableDisable(session *sessions.Session, r *http.Request, v bool, s string) (string, error, int) {
     vars := mux.Vars(r)
     username := vars["username"]
 
     if err, sc := canManageAccounts(session, username); err != nil {
-        httpError(ctx, span, w, err.Error(), sc)
-        return "", err
+        return "", err, sc
     }
 
     if err := userEnable(username, v); err != nil {
-        httpError(ctx, span, w, err.Error(), http.StatusBadRequest)
-        return "", err
+        return "", err, http.StatusBadRequest
     }
 
-    return fmt.Sprintf("User %q %sd", username, s), nil
+    return fmt.Sprintf("User %q %sd", username, s), nil, http.StatusOK
 }
 
 // Process a login request (?op=login)
-func login(
-        _ context.Context,
-        _ trace.Span,
-        session *sessions.Session,
-        _ http.ResponseWriter,
-        r *http.Request) (_ string, err error) {
+func login(session *sessions.Session, r *http.Request) (_ string, err error, sc int) {
     var pwd []byte
 
     vars := mux.Vars(r)
@@ -427,7 +422,7 @@ func login(
 
     // Verify that there is no logged in user
     if auth, ok := session.Values[AuthStateKey].(bool); ok && auth {
-        return "", ErrUserAlreadyLoggedIn
+        return "", ErrUserAlreadyLoggedIn, http.StatusBadRequest
     }
 
     // We have a session that could support a login.  Let's verify that this
@@ -436,18 +431,18 @@ func login(
     // First, verify that this is an actual user account, and that account is
     // enabled for login operations.
     if u, _, err := dbUsers.Get(username); err != nil || !u.Enabled {
-        return "", ErrUserAuthFailed
+        return "", ErrUserAuthFailed, http.StatusNotFound
     }
 
     // .. next, let's get the password, which is the body of the request
     if pwd, err = ioutil.ReadAll(r.Body); err != nil {
-        return "", ErrUserAuthFailed
+        return "", ErrUserAuthFailed, http.StatusBadRequest
     }
 
     // .. finally, let's confirm that this password matches the one for the
     // designated user account.
     if userVerifyPassword(username, pwd) != nil {
-        return "", ErrUserAuthFailed
+        return "", ErrUserAuthFailed, http.StatusForbidden
     }
 
     // .. all passed.  So finally mark the session as logged in
@@ -455,34 +450,29 @@ func login(
     session.Values[AuthStateKey] = true
     session.Values[UserNameKey] = username
 
-    return fmt.Sprintf("User %q logged in", username), nil
+    return fmt.Sprintf("User %q logged in", username), nil, http.StatusOK
 }
 
 // Process a logout request (?op=logout)
-func logout(
-        _ context.Context,
-        _ trace.Span,
-        session *sessions.Session,
-        _ http.ResponseWriter,
-        r *http.Request) (_ string, err error) {
+func logout(session *sessions.Session, r *http.Request) (_ string, err error, sc int) {
     vars := mux.Vars(r)
     username := vars["username"]
 
     // Verify that there is a logged in user on this session
     if auth, ok := session.Values[AuthStateKey].(bool); !ok || !auth {
-        return "", ErrNoLoginActive(username)
+        return "", ErrNoLoginActive(username), http.StatusBadRequest
     }
 
     // .. and that it is the user we're trying to logout
     if name, ok := session.Values[UserNameKey].(string); !ok || !strings.EqualFold(name, username) {
-        return "", ErrNoLoginActive(username)
+        return "", ErrNoLoginActive(username), http.StatusBadRequest
     }
 
     // .. and now log the user out
     session.Values[AuthStateKey] = false
     delete(session.Values, UserNameKey)
 
-    return fmt.Sprintf("User %q logged out", username), nil
+    return fmt.Sprintf("User %q logged out", username), nil, http.StatusOK
 }
 
 // --- Query tag implementations

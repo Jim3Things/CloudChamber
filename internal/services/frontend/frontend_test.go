@@ -170,7 +170,7 @@ func TestLogingSessionBadPassword(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", err)
 
 	// Now just validate that there really isn't an active session here.
 	response = doLogin(t, "Admin", adminPassword, response.Cookies())
@@ -203,6 +203,58 @@ func TestUsersCreate(t *testing.T) {
 	doLogout(t, "admin", response.Cookies())
 }
 
+func TestUsersCreateDup(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, "Admin", adminPassword, nil)
+
+	request := httptest.NewRequest(
+		"POST",
+		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice"),
+		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+	response = doHttp(request)
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+
+	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, "CloudChamber: user \"Alice\" already exists\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	doLogout(t, "admin", response.Cookies())
+}
+
+func TestUsersCreateNoPriv(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, "Alice", "test", nil)
+
+	request := httptest.NewRequest(
+		"POST",
+		fmt.Sprintf("%s%s%s", baseURI, userURI, "Bob"),
+		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
+	for _, c := range response.Cookies() {
+		request.AddCookie(c)
+	}
+
+	request.Header.Set("Content-Type", "application/json")
+	response = doHttp(request)
+	body, err := ioutil.ReadAll(response.Body)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+
+	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, "CloudChamber: permission denied\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	doLogout(t, "Alice", response.Cookies())
+}
+
 func TestUsersList(t *testing.T) {
 	unit_test.SetTesting(t)
 
@@ -218,10 +270,14 @@ func TestUsersList(t *testing.T) {
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
 
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	s := string(body)
+
+	t.Log(s)
+	ok := s == "Users (List)\nhttp://localhost:8080/api/users/Admin\nhttp://localhost:8080/api/users/Alice\n" ||
+		  s == "Users (List)\nhttp://localhost:8080/api/users/Alice\nhttp://localhost:8080/api/users/Admin\n"
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
-	assert.Equal(t, "Users (List)\nhttp://localhost:8080/api/users/Admin\nhttp://localhost:8080/api/users/Alice\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	assert.True(t, ok, "Handler returned unexpected response body: %v", s)
 	doLogout(t, "admin", response.Cookies())
 }
 

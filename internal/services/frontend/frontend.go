@@ -243,7 +243,6 @@ func doSessionHeader(ctx context.Context, w http.ResponseWriter, r *http.Request
     }
 
     if err != nil {
-        httpError(ctx, span, w, err.Error(), http.StatusBadRequest)
         return nil, err
     }
 
