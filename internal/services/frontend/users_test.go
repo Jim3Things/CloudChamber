@@ -616,23 +616,3 @@ func TestUsersUpdate(t *testing.T) {
 func TestUsersDelete(t *testing.T) {
 
 }
-
-func TestWorkloadsFetch(t *testing.T) {
-
-}
-
-func TestWorkloadsCreate(t *testing.T) {
-
-}
-
-func TestWorkloadsRead(t *testing.T) {
-
-}
-
-func TestWorkloadsUpdate(t *testing.T) {
-
-}
-
-func TestWorkloadsDelete(t *testing.T) {
-
-}

@@ -137,6 +137,30 @@ func (enla ErrNoLoginActive) Error() string {
     return fmt.Sprintf("CloudChamber: user %q not logged into this session", string(enla))
 }
 
+// Custom common HTTP error type that includes the status code to use in
+// the response.
+type HTTPError struct {
+    // HTTP status code
+    SC   int
+
+    // Underlying Go error
+    Base error
+}
+
+func (he *HTTPError) StatusCode() int {
+    // We should not need this, but if we're called with no error at all,
+    // then the status should be success...
+    if he == nil {
+        return http.StatusOK
+    }
+
+    return he.SC
+}
+
+func (he *HTTPError) Error() string {
+    return he.Base.Error()
+}
+
 func initHandlers() error {
 
     server.handler = mux.NewRouter()
@@ -225,22 +249,45 @@ func handlerInjectorRoot(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "Injector (Root)")
 }
 
+// Set an http error, and log it to the tracing system.
+func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, err error) {
+    // We're hoping this is an HTTPError form of error, which would have the
+    // preferred HTTP status code included.
+    //
+    // If it isn't, then the error originated in some support or library logic,
+    // rather than the web server's business logic.  In that case we assume a
+    // status code of internal server error as the most likely correct value.
+    he := err.(*HTTPError)
+    if he == nil {
+        he = &HTTPError {
+            SC:   http.StatusInternalServerError,
+            Base: err,
+        }
+    }
+
+    span.AddEvent(ctx, fmt.Sprintf("http error %v: %s", he.StatusCode(), he.Error()))
+    http.Error(w, he.Error(), he.StatusCode())
+}
+
 // doSessionHeader wraps a handler action with the necessary code to retrieve any existing session state,
 // and to attach that state to the response prior to returning.
 //
 // The session object is passed out for reference use by any later body processing.
 func doSessionHeader(
     ctx context.Context, w http.ResponseWriter, r *http.Request,
-    action func(ctx context.Context, span trace.Span, session *sessions.Session) (int, error)) (int, error) {
+    action func(ctx context.Context, span trace.Span, session *sessions.Session) error) error {
 
     span := trace.SpanFromContext(ctx)
     session, _ := server.cookieStore.Get(r, SessionCookieName)
 
-    sc, err := action(ctx, span, session)
+    err := action(ctx, span, session)
 
     if errx := session.Save(r, w); errx != nil {
-        return http.StatusInternalServerError, errx
+        return &HTTPError{
+            SC:   http.StatusInternalServerError,
+            Base: errx,
+        }
     }
 
-    return sc, err
+    return err
 }
