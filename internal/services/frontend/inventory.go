@@ -32,7 +32,7 @@ type Inventory struct {
 //
 type DbInventory struct {
 	Mutex     sync.Mutex
-	Inventory map[string]Inventory
+	Inventory map[string]Inventory 
 }
 
 var (
@@ -41,10 +41,10 @@ var (
 
 func inventoryAddRoutes(routeBase *mux.Router) {
 
-	routeInventory := routeBase.PathPrefix("/Inventory").Subrouter()
+	routeRacks := routeBase.PathPrefix("/Racks").Subrouter() //api/rackid/ declared the path prefix
 
-	routeInventory.HandleFunc("", handlerInventoryList).Methods("GET")
-	routeInventory.HandleFunc("/", handlerInventoryList).Methods("GET")
+	routeRacks.HandleFunc("", handlerRacksList).Methods("GET") //handler rack list function is called for the Get method
+	routeRacks.HandleFunc("/", handlerRacksList).Methods("GET")
 
 	// In the following, the "GET" method is allowed just for the purposes of test and
 	// evaluation. At somepoint, it will need to be removed, but in the meantime, leaving
@@ -54,42 +54,42 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//	 PUT is idempotent so translates to UPDATE in the CRUD methodolgy
 	//   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
 	//
-	routeInventory.HandleFunc("/{rackid}", handlerInventoryCreate).Methods("POST", "GET") // May be only GET
-	routeInventory.HandleFunc("/{rackid}", handlerInventoryRead).Methods("GET")
-	routeInventory.HandleFunc("/{rackid}", handlerInventoryUpdate).Methods("PUT", "GET")
-	routeInventory.HandleFunc("/{rackid}", handlerInventoryDelete).Methods("DELETE", "GET")
+	//routeRacks.HandleFunc("/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
+	routeRacks.HandleFunc("/{rackid}", handlerRacksRead).Methods("GET")
+	//routeRacks.HandleFunc("/{rackid}", handlerRacksUpdate).Methods("PUT", "GET")
+	//routeRacks.HandleFunc("/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
 }
 
-func inventoryDisplayArguments(w http.ResponseWriter, r *http.Request, command string) {
+func racksDisplayArguments(w http.ResponseWriter, r *http.Request, command string) {
 
 	vars := mux.Vars(r)
 
-	inventory := vars["rackid"]
+	racks := vars["rackid"]
 
-	fmt.Fprintf(w, "Inventory: %s command: %s", inventory, command)
+	fmt.Fprintf(w, "racks: %v command: %v", racks, command)
 }
 
-func handlerInventoryList(w http.ResponseWriter, r *http.Request) {
+func handlerracksList(w http.ResponseWriter, r *http.Request) {
 
-	fmt.Fprintf(w, "Inventory (List)")
+	fmt.Fprintf(w, "racks (List)")
 }
 
-func handlerInventoryCreate(w http.ResponseWriter, r *http.Request) {
+//func handlerracksCreate(w http.ResponseWriter, r *http.Request) {
 
-	inventoryDisplayArguments(w, r, "add")
+//	racksDisplayArguments(w, r, "add")
+//}
+
+func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
+
+	racksDisplayArguments(w, r, "fetch")
 }
 
-func handlerInventoryRead(w http.ResponseWriter, r *http.Request) {
+//func handlerracksUpdate(w http.ResponseWriter, r *http.Request) {
 
-	inventoryDisplayArguments(w, r, "fetch")
-}
+//	racksDisplayArguments(w, r, "update")
+//}
 
-func handlerInventoryUpdate(w http.ResponseWriter, r *http.Request) {
-
-	inventoryDisplayArguments(w, r, "update")
-}
-
-func handlerInventoryDelete(w http.ResponseWriter, r *http.Request) {
+//func handlerracksDelete(w http.ResponseWriter, r *http.Request) {
 
 
 
@@ -99,5 +99,5 @@ func handlerInventoryDelete(w http.ResponseWriter, r *http.Request) {
 
 
 
-	inventoryDisplayArguments(w, r, "remove")
-}
+//	racksDisplayArguments(w, r, "remove")
+//}
