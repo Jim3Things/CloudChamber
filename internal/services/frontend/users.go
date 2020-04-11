@@ -1,4 +1,4 @@
-// This module containes the routines etc to implement the frontend handlers for the users
+// This module contains the routines etc to implement the frontend handlers for the users
 // part of the API
 //
 
@@ -7,6 +7,7 @@ package frontend
 import (
     "context"
     "fmt"
+    "io"
     "io/ioutil"
     "net/http"
     "runtime"
@@ -17,7 +18,6 @@ import (
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
     "go.opentelemetry.io/otel/api/trace"
-
     "golang.org/x/crypto/bcrypt"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
@@ -47,18 +47,18 @@ const (
 // username.  The supplied name is retained as an attribute in order to present
 // the form that the caller originally used for display purposes.
 
-// DbUsers is a container used to established synchronized access to
+// DBUsers is a container used to established synchronized access to
 // the in-memory set of user records.
 //
-type DbUsers struct {
+type DBUsers struct {
     Mutex sync.Mutex
     Users map[string]pb.UserInternal
 }
 
 // Initialize the users store.  For now this is only a map in memory.
-func InitDbUsers(cfg *config.GlobalConfig) error {
+func InitDBUsers(cfg *config.GlobalConfig) error {
     if dbUsers == nil {
-        dbUsers = &DbUsers{
+        dbUsers = &DBUsers{
             Mutex: sync.Mutex{},
             Users: make(map[string]pb.UserInternal),
         }
@@ -68,7 +68,7 @@ func InitDbUsers(cfg *config.GlobalConfig) error {
 }
 
 // Create a new user entry in the store.
-func (m *DbUsers) Create(u *pb.User) error {
+func (m *DBUsers) Create(u *pb.User) error {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
@@ -94,7 +94,7 @@ func (m *DbUsers) Create(u *pb.User) error {
 }
 
 // Get the specified user from the store.
-func (m *DbUsers) Get(name string) (*pb.User, int64, error) {
+func (m *DBUsers) Get(name string) (*pb.User, int64, error) {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
@@ -110,7 +110,7 @@ func (m *DbUsers) Get(name string) (*pb.User, int64, error) {
 
 // Scan the set of known users in the store, invoking the supplied
 // function with each entry.
-func (m *DbUsers) Scan(action func(entry *pb.User) error) error {
+func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
@@ -124,7 +124,7 @@ func (m *DbUsers) Scan(action func(entry *pb.User) error) error {
 }
 
 
-func (m *DbUsers) Update(u *pb.User, match int64) error {
+func (m *DBUsers) Update(u *pb.User, match int64) error {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
@@ -150,7 +150,7 @@ func (m *DbUsers) Update(u *pb.User, match int64) error {
     return nil
 }
 
-func (m *DbUsers) Remove(name string) error {
+func (m *DBUsers) Remove(name string) error {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
@@ -169,7 +169,7 @@ func (m *DbUsers) Remove(name string) error {
 
 
 var (
-    dbUsers *DbUsers
+    dbUsers *DBUsers
 )
 
 // +++ Route handling methods
@@ -207,18 +207,14 @@ func usersAddRoutes(routeBase *mux.Router) {
 // Process an http request for the list of users.  Response should contain a document of links to the
 // details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) error {
-        if _, err := doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            err, sc := canManageAccounts(session, "")
-            if err != nil {
-                httpError(ctx, span, w, err.Error(), sc)
-            }
-
-            return err }); err != nil {
-            return err
-        }
+    _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        sc, err := doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (int, error) {
+            return canManageAccounts(session, "") })
 
         span := trace.SpanFromContext(ctx)
+        if err != nil {
+            httpError(ctx, span, w, err.Error(), sc)
+        }
 
         if _, err := fmt.Fprintf(w, "Users (List)\n"); err != nil {
             httpError(ctx, span, w, err.Error(), http.StatusInternalServerError)
@@ -246,14 +242,11 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
-        var sc int
-
         vars := mux.Vars(r)
         username := vars["username"]
 
-        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            err, sc = canManageAccounts(session, "")
-            return err })
+        sc, err := doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (int, error) {
+            return canManageAccounts(session, "") })
 
         span := trace.SpanFromContext(ctx)
         if err != nil {
@@ -282,17 +275,15 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 
 func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
-        var sc int
-
         vars := mux.Vars(r)
         username := vars["username"]
 
-        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            err, sc = canManageAccounts(session, username)
+        sc, err := doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (int, error) {
+            sc, err := canManageAccounts(session, username)
 
             w.Header().Set("Content-Type", "application/json")
 
-            return err })
+            return sc, err })
 
         span := trace.SpanFromContext(ctx)
         if err != nil {
@@ -322,7 +313,7 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 // TBD
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
-        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (int, error) {
             span.AddEvent(ctx, "TBD: user update")
             return usersDisplayArguments(w, r)
         })
@@ -334,7 +325,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 // TBD
 func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
-        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (int, error) {
             span.AddEvent(ctx, "TBD: user deletion")
             return usersDisplayArguments(w, r)
         })
@@ -346,9 +337,8 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
         var s string
-        var sc int
 
-        _, err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+        sc, err := doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (sc int, err error) {
             op := r.FormValue("op")
             vars := mux.Vars(r)
             username := vars["username"]
@@ -357,23 +347,23 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 
             switch op {
             case Enable:
-                s, err, sc = enableDisable(session, r, true, "enable")
+                s, sc, err = enableDisable(session, r, true, "enable")
 
             case Disable:
-                s, err, sc = enableDisable(session, r, false, "disable")
+                s, sc, err = enableDisable(session, r, false, "disable")
 
             case Login:
-                s, err, sc = login(session, r)
+                s, sc, err = login(session, r)
 
             case Logout:
-                s, err, sc = logout(session, r)
+                s, sc, err = logout(session, r)
 
             default:
                 err = fmt.Errorf("invalid user operation requested (?op=%s)", op)
                 sc = http.StatusBadRequest
             }
 
-            return err
+            return sc, err
         })
 
         if err != nil {
@@ -398,23 +388,23 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 // applied to the response body.
 
 // Process a request to enable (?op=enable), or disable (?op=disable) an account
-func enableDisable(session *sessions.Session, r *http.Request, v bool, s string) (string, error, int) {
+func enableDisable(session *sessions.Session, r *http.Request, v bool, s string) (string, int, error) {
     vars := mux.Vars(r)
     username := vars["username"]
 
-    if err, sc := canManageAccounts(session, username); err != nil {
-        return "", err, sc
+    if sc, err := canManageAccounts(session, username); err != nil {
+        return "", sc, err
     }
 
     if err := userEnable(username, v); err != nil {
-        return "", err, http.StatusBadRequest
+        return "", http.StatusBadRequest, err
     }
 
-    return fmt.Sprintf("User %q %sd", username, s), nil, http.StatusOK
+    return fmt.Sprintf("User %q %sd", username, s), http.StatusOK, nil
 }
 
 // Process a login request (?op=login)
-func login(session *sessions.Session, r *http.Request) (_ string, err error, sc int) {
+func login(session *sessions.Session, r *http.Request) (_ string, sc int, err error) {
     var pwd []byte
 
     vars := mux.Vars(r)
@@ -422,7 +412,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error, sc 
 
     // Verify that there is no logged in user
     if auth, ok := session.Values[AuthStateKey].(bool); ok && auth {
-        return "", ErrUserAlreadyLoggedIn, http.StatusBadRequest
+        return "", http.StatusBadRequest, ErrUserAlreadyLoggedIn
     }
 
     // We have a session that could support a login.  Let's verify that this
@@ -431,18 +421,18 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error, sc 
     // First, verify that this is an actual user account, and that account is
     // enabled for login operations.
     if u, _, err := dbUsers.Get(username); err != nil || !u.Enabled {
-        return "", ErrUserAuthFailed, http.StatusNotFound
+        return "", http.StatusNotFound, ErrUserAuthFailed
     }
 
     // .. next, let's get the password, which is the body of the request
     if pwd, err = ioutil.ReadAll(r.Body); err != nil {
-        return "", ErrUserAuthFailed, http.StatusBadRequest
+        return "", http.StatusBadRequest, ErrUserAuthFailed
     }
 
     // .. finally, let's confirm that this password matches the one for the
     // designated user account.
     if userVerifyPassword(username, pwd) != nil {
-        return "", ErrUserAuthFailed, http.StatusForbidden
+        return "", http.StatusForbidden, ErrUserAuthFailed
     }
 
     // .. all passed.  So finally mark the session as logged in
@@ -450,35 +440,35 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error, sc 
     session.Values[AuthStateKey] = true
     session.Values[UserNameKey] = username
 
-    return fmt.Sprintf("User %q logged in", username), nil, http.StatusOK
+    return fmt.Sprintf("User %q logged in", username), http.StatusOK, nil
 }
 
 // Process a logout request (?op=logout)
-func logout(session *sessions.Session, r *http.Request) (_ string, err error, sc int) {
+func logout(session *sessions.Session, r *http.Request) (_ string, sc int, err error) {
     vars := mux.Vars(r)
     username := vars["username"]
 
     // Verify that there is a logged in user on this session
     if auth, ok := session.Values[AuthStateKey].(bool); !ok || !auth {
-        return "", ErrNoLoginActive(username), http.StatusBadRequest
+        return "", http.StatusBadRequest, ErrNoLoginActive(username)
     }
 
     // .. and that it is the user we're trying to logout
     if name, ok := session.Values[UserNameKey].(string); !ok || !strings.EqualFold(name, username) {
-        return "", ErrNoLoginActive(username), http.StatusBadRequest
+        return "", http.StatusBadRequest, ErrNoLoginActive(username)
     }
 
     // .. and now log the user out
     session.Values[AuthStateKey] = false
     delete(session.Values, UserNameKey)
 
-    return fmt.Sprintf("User %q logged out", username), nil, http.StatusOK
+    return fmt.Sprintf("User %q logged out", username), http.StatusOK, nil
 }
 
 // --- Query tag implementations
 
 // This is a temporary method used for tracing prior to actual implementations.  Will be removed.
-func usersDisplayArguments(w http.ResponseWriter, r *http.Request) (err error) {
+func usersDisplayArguments(w io.Writer, r *http.Request) (sc int, err error) {
     op := r.FormValue("op")
     vars := mux.Vars(r)
     username := vars["username"]
@@ -489,7 +479,7 @@ func usersDisplayArguments(w http.ResponseWriter, r *http.Request) (err error) {
         _, err = fmt.Fprintf(w, "User: %v", username)
     }
 
-    return err
+    return http.StatusBadRequest, err
 }
 
 // +++ Mid-level support methods
@@ -569,22 +559,22 @@ func methodName() string {
 
 // Determine if this session's active login has permission to change or
 // manage the targeted account.  Note that any account may manage itself.
-func canManageAccounts(session *sessions.Session, username string) (error, int) {
+func canManageAccounts(session *sessions.Session, username string) (int, error) {
     key, ok := session.Values[UserNameKey].(string)
     if !ok {
-        return http.ErrNoCookie, http.StatusBadRequest
+        return http.StatusBadRequest, http.ErrNoCookie
     }
 
     user, _, err := dbUsers.Get(key)
     if err != nil {
-        return ErrUserPermissionDenied, http.StatusForbidden
+        return http.StatusForbidden, ErrUserPermissionDenied
     }
 
     if !user.AccountManager && !strings.EqualFold(user.Name, username) {
-        return ErrUserPermissionDenied, http.StatusForbidden
+        return http.StatusForbidden, ErrUserPermissionDenied
     }
 
-    return nil, http.StatusOK
+    return http.StatusOK, nil
 }
 
 // Get the secret associated with this session

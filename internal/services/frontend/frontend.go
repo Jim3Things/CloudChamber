@@ -192,7 +192,7 @@ func initService(cfg *config.GlobalConfig) error {
     }
 
     // Finally, initialize the user store
-    return InitDbUsers(cfg)
+    return InitDBUsers(cfg)
 }
 
 // StartService is the primary entry point to start the front-end web service.
@@ -229,22 +229,18 @@ func handlerInjectorRoot(w http.ResponseWriter, r *http.Request) {
 // and to attach that state to the response prior to returning.
 //
 // The session object is passed out for reference use by any later body processing.
-func doSessionHeader(ctx context.Context, w http.ResponseWriter, r *http.Request,
-    action func(ctx context.Context, span trace.Span, session *sessions.Session) error) (*sessions.Session, error) {
+func doSessionHeader(
+    ctx context.Context, w http.ResponseWriter, r *http.Request,
+    action func(ctx context.Context, span trace.Span, session *sessions.Session) (int, error)) (int, error) {
 
     span := trace.SpanFromContext(ctx)
     session, _ := server.cookieStore.Get(r, SessionCookieName)
 
-    err := action(ctx, span, session)
+    sc, err := action(ctx, span, session)
 
     if errx := session.Save(r, w); errx != nil {
-        httpError(ctx, span, w, errx.Error(), http.StatusInternalServerError)
-        return nil, errx
+        return http.StatusInternalServerError, errx
     }
 
-    if err != nil {
-        return nil, err
-    }
-
-    return session, nil
+    return sc, err
 }

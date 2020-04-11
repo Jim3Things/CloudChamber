@@ -48,6 +48,7 @@ func commonSetup() {
 	}
 
 	setup.Init(exporters.UnitTest)
+
 	if err := initService(&config.GlobalConfig{
 		Controller: config.ControllerType{},
 		Inventory:  config.InventoryType{},
@@ -72,7 +73,11 @@ func commonSetup() {
 }
 
 // Helper function to execute the http request/response sequence
-func doHttp(req *http.Request) *http.Response {
+func doHTTP(req *http.Request, cookies []*http.Cookie) *http.Response {
+	for _, c := range cookies {
+		req.AddCookie(c)
+	}
+
 	w := httptest.NewRecorder()
 
 	server.handler.ServeHTTP(w, req)
@@ -80,17 +85,19 @@ func doHttp(req *http.Request) *http.Response {
 	return w.Result()
 }
 
+func getBody(resp *http.Response) ([]byte, error) {
+	defer func() { _ = resp.Body.Close() }()
+	return ioutil.ReadAll(resp.Body)
+}
+
 func doLogin(t *testing.T, user string, password string, cookies []*http.Cookie) *http.Response{
 	path := fmt.Sprintf("%s%s%s?op=login", baseURI, userURI, user)
 	t.Logf("[login as %q (%q)]", user, path)
 
 	request := httptest.NewRequest("PUT", path, strings.NewReader(password))
-	for _, c := range cookies {
-		request.AddCookie(c)
-	}
-	response := doHttp(request)
+	response := doHTTP(request, cookies)
+	_, err := getBody(response)
 
-	_, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %q: %v", path, err)
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
@@ -103,12 +110,9 @@ func doLogout(t *testing.T, user string, cookies []*http.Cookie) *http.Response 
 	t.Logf("[logout from %q (%q)]", user, path)
 
 	request := httptest.NewRequest("PUT", path, nil)
-	for _, c := range cookies {
-		request.AddCookie(c)
-	}
-	response := doHttp(request)
+	response := doHTTP(request, cookies)
+	_, err := getBody(response)
 
-	_, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
 
@@ -127,26 +131,23 @@ func TestLoginSessionSimple(t *testing.T)  {
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword))
-	response := doHttp(request)
-
-	body, err := ioutil.ReadAll(response.Body)
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", admin, err)
+	response := doHTTP(request, nil)
+	body, err := getBody(response)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Nilf(t, response.Body.Close(), "Failed to successfully close the response")
 
 	// ... and logout, which should succeed
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, admin), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
+	assert.Nilf(t, response.Body.Close(), "Failed to successfully close the response")
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", admin, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -161,9 +162,9 @@ func TestLogingSessionBadPassword(t *testing.T) {
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword + "rubbish"))
-	response := doHttp(request)
+	response := doHTTP(request, nil)
+	body, err := getBody(response)
 
-	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI + admin, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -186,13 +187,11 @@ func TestUsersCreate(t *testing.T) {
 		"POST",
 		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice"),
 		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-
 	request.Header.Set("Content-Type", "application/json")
-	response = doHttp(request)
-	body, err := ioutil.ReadAll(response.Body)
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
 
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
@@ -212,13 +211,11 @@ func TestUsersCreateDup(t *testing.T) {
 		"POST",
 		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice"),
 		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-
 	request.Header.Set("Content-Type", "application/json")
-	response = doHttp(request)
-	body, err := ioutil.ReadAll(response.Body)
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
 
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
@@ -238,13 +235,11 @@ func TestUsersCreateNoPriv(t *testing.T) {
 		"POST",
 		fmt.Sprintf("%s%s%s", baseURI, userURI, "Bob"),
 		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-
 	request.Header.Set("Content-Type", "application/json")
-	response = doHttp(request)
-	body, err := ioutil.ReadAll(response.Body)
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
 
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
@@ -261,12 +256,10 @@ func TestUsersList(t *testing.T) {
 	response := doLogin(t, "Admin", adminPassword, nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
 
-	body, err := ioutil.ReadAll(response.Body)
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
 
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
@@ -287,15 +280,15 @@ func TestUsersRead(t *testing.T) {
 	response := doLogin(t, "Admin", adminPassword, nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "admin"), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	request.Header.Set("Content-Type", "application/json")
+
+	response = doHTTP(request, response.Cookies())
 
 	user := &pb.UserPublic{}
 	err := jsonpb.Unmarshal(response.Body, user)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
+	assert.Nilf(t, response.Body.Close(), "Failed to successfully close the response")
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(t, true, user.Enabled)
 	assert.Equal(t, true, user.AccountManager)
@@ -317,9 +310,11 @@ func TestUsersOperationIllegal(t *testing.T) {
 	// Case 1, check that naked op fails
 	//
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op", baseURI, alice), nil)
-	response := doHttp(request)
+	response := doHTTP(request, nil)
 
-	body, err := ioutil.ReadAll(response.Body)
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -334,9 +329,9 @@ func TestUsersOperationIllegal(t *testing.T) {
 	// Case 2, check that an invalid op fails
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=testInvalid", baseURI, alice), nil)
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=testInvalid]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -355,12 +350,9 @@ func TestUserOperationsDisable(t *testing.T) {
 	// 3b, disable
 	//
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=disable", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
 
-	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=disable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -382,12 +374,9 @@ func TestUsersOperationEnable(t *testing.T) {
 	// 3a, enable
 	//
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=enable", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
 
-	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=enable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -406,9 +395,9 @@ func TestLoginSessionRepeat(t *testing.T)  {
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
-	response := doHttp(request)
+	response := doHTTP(request, nil)
+	body, err := getBody(response)
 
-	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -420,12 +409,9 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	// ... and logout, which should succeed
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -436,9 +422,9 @@ func TestLoginSessionRepeat(t *testing.T)  {
 
 	// login for the second iteration, should succeed
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -450,12 +436,9 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	// ... and logout, which should succeed
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -470,9 +453,9 @@ func TestLoginDupLogins(t *testing.T) {
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
-	response := doHttp(request)
+	response := doHTTP(request, nil)
+	body, err := getBody(response)
 
-	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -483,12 +466,9 @@ func TestLoginDupLogins(t *testing.T) {
 
 	// now repeat the attempt to login again, which should fail
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -499,12 +479,9 @@ func TestLoginDupLogins(t *testing.T) {
 
 	// .. and let's just try with another user, which should also fail
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, bob), strings.NewReader("test2"))
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", bob, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -516,12 +493,9 @@ func TestLoginDupLogins(t *testing.T) {
 	// ... and logout, which should succeed
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -536,9 +510,9 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
-	response := doHttp(request)
+	response := doHTTP(request, nil)
+	body, err := getBody(response)
 
-	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -550,12 +524,9 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	// ... and logout, which should not succeed
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, bob), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", bob, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -567,12 +538,9 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	// ... and logout, which should succeed
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -587,9 +555,9 @@ func TestDoubleLogout(t *testing.T) {
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
-	response := doHttp(request)
+	response := doHTTP(request, nil)
+	body, err := getBody(response)
 
-	body, err := ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -601,12 +569,9 @@ func TestDoubleLogout(t *testing.T) {
 	// ... logout as 'bob', which should fail
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, bob), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", bob, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -618,12 +583,9 @@ func TestDoubleLogout(t *testing.T) {
 	// ... logout, which should succeed
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
@@ -635,12 +597,9 @@ func TestDoubleLogout(t *testing.T) {
 	// ... logout again, which should fail
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
-	for _, c := range response.Cookies() {
-		request.AddCookie(c)
-	}
-	response = doHttp(request)
+	response = doHTTP(request, response.Cookies())
+	body, err = getBody(response)
 
-	body, err = ioutil.ReadAll(response.Body)
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
 
 	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
