@@ -140,8 +140,9 @@ func initHandlers() error {
     filesAddRoutes(server.rootFilePath, server.handler)
     usersAddRoutes(routeAPI)
     workloadsAddRoutes(routeAPI)
+    inventoryAddRoutes(routeAPI)
 
-    // TODO the following handler definitions are just temporary placeholders and 
+    // TODO the following handler definitions are just temporary placeholders and
     // should at some point be converted to follow the same pattern as for files,
     // users and workloads, namely moved to a separate file and defined/handler
     // there.
