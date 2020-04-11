@@ -1,2 +1,5 @@
+.exe
 .vscode
+/deployments/
 /.idea/
+.*~
