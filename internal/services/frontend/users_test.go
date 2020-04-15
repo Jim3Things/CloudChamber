@@ -171,7 +171,7 @@ func TestLogingSessionBadPassword(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now just validate that there really isn't an active session here.
 	response = doLogin(t, "Admin", adminPassword, response.Cookies())
@@ -186,7 +186,7 @@ func TestUsersCreate(t *testing.T) {
 	request := httptest.NewRequest(
 		"POST",
 		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice"),
-		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
+		strings.NewReader("{\"enabled\":true,\"manageAccounts\":false, \"password\":\"test\"}"))
 	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())
@@ -210,7 +210,7 @@ func TestUsersCreateDup(t *testing.T) {
 	request := httptest.NewRequest(
 		"POST",
 		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice"),
-		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
+		strings.NewReader("{\"enabled\":true,\"manageAccounts\":false, \"password\":\"test\"}"))
 	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())
@@ -234,7 +234,7 @@ func TestUsersCreateNoPriv(t *testing.T) {
 	request := httptest.NewRequest(
 		"POST",
 		fmt.Sprintf("%s%s%s", baseURI, userURI, "Bob"),
-		strings.NewReader("{\"enabled\":true,\"accountManager\":false, \"password\":\"test\"}"))
+		strings.NewReader("{\"enabled\":true,\"manageAccounts\":false, \"password\":\"test\"}"))
 	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())

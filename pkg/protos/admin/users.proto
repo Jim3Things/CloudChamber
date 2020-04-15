@@ -47,5 +47,5 @@ message user_definition {
   bool enabled = 2;
 
   // The rights this user has
-  bool account_manager = 3;
+  bool manage_accounts = 3;
 }

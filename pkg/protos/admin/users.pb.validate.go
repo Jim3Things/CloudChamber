@@ -277,7 +277,7 @@ func (m *UserDefinition) Validate() error {
 
 	// no validation rules for Enabled
 
-	// no validation rules for AccountManager
+	// no validation rules for ManageAccounts
 
 	return nil
 }

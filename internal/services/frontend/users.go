@@ -208,8 +208,11 @@ func usersAddRoutes(routeBase *mux.Router) {
 // details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
-        err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            return canManageAccounts(session, "") })
+        err = doSessionHeader(
+            ctx, w, r,
+            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+                return canManageAccounts(session, "")
+            })
 
         span := trace.SpanFromContext(ctx)
         if err != nil {
@@ -245,8 +248,11 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
         vars := mux.Vars(r)
         username := vars["username"]
 
-        err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            return canManageAccounts(session, "") })
+        err = doSessionHeader(
+            ctx, w, r,
+            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+                return canManageAccounts(session, "")
+            })
 
         span := trace.SpanFromContext(ctx)
         if err != nil {
@@ -262,13 +268,13 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
             return err
         }
 
-        if err = UserAdd(username, u.Password, u.AccountManager, u.Enabled); err != nil {
+        if err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
             httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
             return err
         }
 
-        span.AddEvent(ctx, fmt.Sprintf("Created user %q, pwd: %q, enabled: %v, accountManager: %v", username, u.Password, u.Enabled, u.AccountManager))
-        _, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.AccountManager)
+        span.AddEvent(ctx, fmt.Sprintf("Created user %q, pwd: %q, enabled: %v, accountManager: %v", username, u.Password, u.Enabled, u.ManageAccounts))
+        _, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.ManageAccounts)
         return err
     })
 }
@@ -278,12 +284,15 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
         vars := mux.Vars(r)
         username := vars["username"]
 
-        err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            err := canManageAccounts(session, username)
+        err = doSessionHeader(
+            ctx, w, r,
+            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+                err := canManageAccounts(session, username)
 
-            w.Header().Set("Content-Type", "application/json")
+                w.Header().Set("Content-Type", "application/json")
 
-            return err })
+                return err
+            })
 
         span := trace.SpanFromContext(ctx)
         if err != nil {
@@ -313,10 +322,12 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 // TBD
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
-        err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            span.AddEvent(ctx, "TBD: user update")
-            return usersDisplayArguments(w, r)
-        })
+        err = doSessionHeader(
+            ctx, w, r,
+            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+                span.AddEvent(ctx, "TBD: user update")
+                return usersDisplayArguments(w, r)
+            })
 
         return err
     })
@@ -325,10 +336,12 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 // TBD
 func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
-        err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-            span.AddEvent(ctx, "TBD: user deletion")
-            return usersDisplayArguments(w, r)
-        })
+        err = doSessionHeader(
+            ctx, w, r,
+            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+                span.AddEvent(ctx, "TBD: user deletion")
+                return usersDisplayArguments(w, r)
+            })
 
         return err
     })
@@ -529,6 +542,7 @@ func userRemove(name string) error {
     return dbUsers.Remove(name)
 }
 
+// TODO: Figure out how to better protect leakage of the password in memory.
 func userVerifyPassword(name string, password []byte) error {
 
     entry, _, err := dbUsers.Get(name)
