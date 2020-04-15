@@ -8,6 +8,7 @@ import (
     "log"
     "net/http"
     "os"
+    "strings"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
     "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
@@ -48,18 +49,18 @@ func main() {
     baseAddress := fmt.Sprintf("http://%s:%d/api", cfg.WebServer.FE.Hostname, cfg.WebServer.FE.Port)
     client := &http.Client{}
 
-    // 0: get list of known users
-    target := fmt.Sprintf("%s/users", baseAddress)
-    resp, err := get(client, target, nil, nil)
+    // 1: try to login
+    target := fmt.Sprintf("%s/users/admin?op=login", baseAddress)
+    resp, err := put(client, target, nil, strings.NewReader(cfg.WebServer.SystemAccountPassword))
     if err != nil {
         panic(err)
     }
 
     dumpResponse(resp, err)
 
-    // 1: try to login
-    target = fmt.Sprintf("%s/users/admin?op=login", baseAddress)
-    resp, err = put(client, target, resp.Cookies(), nil)
+    // 0: get list of known users
+    target = fmt.Sprintf("%s/users", baseAddress)
+    resp, err = get(client, target, resp.Cookies(), nil)
     if err != nil {
         panic(err)
     }

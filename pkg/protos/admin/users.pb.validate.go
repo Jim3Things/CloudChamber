@@ -56,6 +56,8 @@ func (m *User) Validate() error {
 
 	// no validation rules for Enabled
 
+	// no validation rules for AccountManager
+
 	return nil
 }
 
@@ -112,3 +114,224 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = UserValidationError{}
+
+// Validate checks the field values on UserInternal with the rules defined in
+// the proto definition for this message. If any rules are violated, an error
+// is returned.
+func (m *UserInternal) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	if v, ok := interface{}(m.GetUser()).(interface{ Validate() error }); ok {
+		if err := v.Validate(); err != nil {
+			return UserInternalValidationError{
+				field:  "User",
+				reason: "embedded message failed validation",
+				cause:  err,
+			}
+		}
+	}
+
+	// no validation rules for Revision
+
+	return nil
+}
+
+// UserInternalValidationError is the validation error returned by
+// UserInternal.Validate if the designated constraints aren't met.
+type UserInternalValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e UserInternalValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e UserInternalValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e UserInternalValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e UserInternalValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e UserInternalValidationError) ErrorName() string { return "UserInternalValidationError" }
+
+// Error satisfies the builtin error interface
+func (e UserInternalValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sUserInternal.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = UserInternalValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = UserInternalValidationError{}
+
+// Validate checks the field values on UserPublic with the rules defined in the
+// proto definition for this message. If any rules are violated, an error is returned.
+func (m *UserPublic) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	// no validation rules for Enabled
+
+	// no validation rules for AccountManager
+
+	return nil
+}
+
+// UserPublicValidationError is the validation error returned by
+// UserPublic.Validate if the designated constraints aren't met.
+type UserPublicValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e UserPublicValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e UserPublicValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e UserPublicValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e UserPublicValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e UserPublicValidationError) ErrorName() string { return "UserPublicValidationError" }
+
+// Error satisfies the builtin error interface
+func (e UserPublicValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sUserPublic.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = UserPublicValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = UserPublicValidationError{}
+
+// Validate checks the field values on UserDefinition with the rules defined in
+// the proto definition for this message. If any rules are violated, an error
+// is returned.
+func (m *UserDefinition) Validate() error {
+	if m == nil {
+		return nil
+	}
+
+	if utf8.RuneCountInString(m.GetPassword()) < 1 {
+		return UserDefinitionValidationError{
+			field:  "Password",
+			reason: "value length must be at least 1 runes",
+		}
+	}
+
+	// no validation rules for Enabled
+
+	// no validation rules for ManageAccounts
+
+	return nil
+}
+
+// UserDefinitionValidationError is the validation error returned by
+// UserDefinition.Validate if the designated constraints aren't met.
+type UserDefinitionValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e UserDefinitionValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e UserDefinitionValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e UserDefinitionValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e UserDefinitionValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e UserDefinitionValidationError) ErrorName() string { return "UserDefinitionValidationError" }
+
+// Error satisfies the builtin error interface
+func (e UserDefinitionValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sUserDefinition.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = UserDefinitionValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = UserDefinitionValidationError{}

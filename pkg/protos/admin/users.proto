@@ -12,8 +12,40 @@ option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/admin";
 //     in a persisted store (Etcd)
 //
 message user {
+  // The username, held so as to preserve the original case
   string name = 1 [(validate.rules).string.min_len = 1];
+
   bytes password_hash = 2;
   int64 user_id = 3;
   bool enabled = 4;
+
+  // The rights this user has
+  bool account_manager = 5;
+}
+
+// Extend the base user definition with the revision number.  This is
+// managed by the storage layer only, and is used as match criteria on
+// updates.
+message user_internal {
+  user user = 1;
+  int64 revision = 2;
+}
+
+// Limited exposure of user attributes for use when returning information
+// to a remote client.
+message user_public {
+  bool enabled = 1;
+
+  // The rights this user has
+  bool account_manager = 2;
+}
+
+// Public definition for a user, sent by a remote client to the Cloud Chamber
+// controller.
+message user_definition {
+  string password = 1 [(validate.rules).string.min_len = 1];
+  bool enabled = 2;
+
+  // The rights this user has
+  bool manage_accounts = 3;
 }
