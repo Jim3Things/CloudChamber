@@ -100,7 +100,7 @@ func doLogin(t *testing.T, user string, password string, cookies []*http.Cookie)
 
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %q: %v", path, err)
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	return response
 }
@@ -114,7 +114,7 @@ func doLogout(t *testing.T, user string, cookies []*http.Cookie) *http.Response 
 	_, err := getBody(response)
 
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	return response
 }
@@ -138,7 +138,7 @@ func TestLoginSessionSimple(t *testing.T)  {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Nilf(t, response.Body.Close(), "Failed to successfully close the response")
 
 	// ... and logout, which should succeed
@@ -154,7 +154,7 @@ func TestLoginSessionSimple(t *testing.T)  {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
 func TestLogingSessionBadPassword(t *testing.T) {
@@ -197,7 +197,7 @@ func TestUsersCreate(t *testing.T) {
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "User \"Alice\" created.  enabled: true, can manage accounts: false", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "admin", response.Cookies())
 }
@@ -221,7 +221,7 @@ func TestUsersCreateDup(t *testing.T) {
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "CloudChamber: user \"Alice\" already exists\n", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "admin", response.Cookies())
 }
@@ -245,7 +245,7 @@ func TestUsersCreateNoPriv(t *testing.T) {
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "CloudChamber: permission denied\n", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "Alice", response.Cookies())
 }
@@ -269,7 +269,7 @@ func TestUsersList(t *testing.T) {
 	ok := s == "Users (List)\nhttp://localhost:8080/api/users/Admin\nhttp://localhost:8080/api/users/Alice\n" ||
 		  s == "Users (List)\nhttp://localhost:8080/api/users/Alice\nhttp://localhost:8080/api/users/Admin\n"
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.True(t, ok, "Handler returned unexpected response body: %v", s)
 	doLogout(t, "admin", response.Cookies())
 }
@@ -296,7 +296,7 @@ func TestUsersRead(t *testing.T) {
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
 	//
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	doLogout(t, "admin", response.Cookies())
 }
 
@@ -323,7 +323,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
 	//
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "invalid user operation requested (?op=)\n", string(body), "Handler returned unexpected response body: %v", string(body))
 
 	// Case 2, check that an invalid op fails
@@ -340,7 +340,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
 	//
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "invalid user operation requested (?op=testInvalid)\n", string(body), "Handler returned unexpected response body: %v", string(body))
 }
 
@@ -361,7 +361,7 @@ func TestUserOperationsDisable(t *testing.T) {
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
 	//
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "User \"Alice\" disabled\n", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "admin", response.Cookies())
 }
@@ -385,7 +385,7 @@ func TestUsersOperationEnable(t *testing.T) {
 	// At present, all base handlers effectively echo the supplied username so all
 	// we need to verify is that we get a successful return of the supplied username.
 	//
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "User \"Alice\" enabled\n", string(body), "Handler returned unexpected response body: %v", string(body))
 	doLogout(t, "admin", response.Cookies())
 }
@@ -404,7 +404,7 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
@@ -418,7 +418,7 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// login for the second iteration, should succeed
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
@@ -431,7 +431,7 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
@@ -445,7 +445,7 @@ func TestLoginSessionRepeat(t *testing.T)  {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
 func TestLoginDupLogins(t *testing.T) {
@@ -462,7 +462,7 @@ func TestLoginDupLogins(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// now repeat the attempt to login again, which should fail
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, alice), strings.NewReader("test"))
@@ -474,7 +474,7 @@ func TestLoginDupLogins(t *testing.T) {
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body), "Handler returned unexpected response body: %v", string(body))
 
 	// .. and let's just try with another user, which should also fail
@@ -487,7 +487,7 @@ func TestLoginDupLogins(t *testing.T) {
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body), "Handler returned unexpected response body: %v", string(body))
 
 	// ... and logout, which should succeed
@@ -502,7 +502,7 @@ func TestLoginDupLogins(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
 func TestLoginLogoutDiffAccounts(t *testing.T) {
@@ -519,7 +519,7 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should not succeed
 	//
@@ -533,7 +533,7 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
@@ -547,7 +547,7 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
 func TestDoubleLogout(t *testing.T) {
@@ -564,7 +564,7 @@ func TestDoubleLogout(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... logout as 'bob', which should fail
 	//
@@ -578,7 +578,7 @@ func TestDoubleLogout(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... logout, which should succeed
 	//
@@ -592,7 +592,7 @@ func TestDoubleLogout(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... logout again, which should fail
 	//
@@ -606,7 +606,7 @@ func TestDoubleLogout(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", err)
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
 func TestUsersUpdate(t *testing.T) {
