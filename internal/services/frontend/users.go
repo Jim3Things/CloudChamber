@@ -11,6 +11,7 @@ import (
     "io/ioutil"
     "net/http"
     "runtime"
+    "strconv"
     "strings"
     "sync"
 
@@ -64,18 +65,19 @@ func InitDBUsers(cfg *config.GlobalConfig) error {
         }
     }
 
-    return UserAdd(cfg.WebServer.SystemAccount, cfg.WebServer.SystemAccountPassword, true, true)
+    _, err := UserAdd(cfg.WebServer.SystemAccount, cfg.WebServer.SystemAccountPassword, true, true)
+    return err
 }
 
 // Create a new user entry in the store.
-func (m *DBUsers) Create(u *pb.User) error {
+func (m *DBUsers) Create(u *pb.User) (int64, error) {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
     key := strings.ToLower(u.Name)
 
     if _, ok := m.Users[key]; ok {
-        return ErrUserAlreadyCreated(u.Name)
+        return -1, ErrUserAlreadyCreated(u.Name)
     }
 
     entry := &pb.UserInternal{
@@ -90,7 +92,7 @@ func (m *DBUsers) Create(u *pb.User) error {
     }
     m.Users[key] = *entry
 
-    return nil
+    return 1, nil
 }
 
 // Get the specified user from the store.
@@ -268,10 +270,14 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
             return err
         }
 
-        if err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
+        var rev int64
+
+        if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
             httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
             return err
         }
+
+        w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         span.AddEvent(ctx, fmt.Sprintf("Created user %q, pwd: %q, enabled: %v, accountManager: %v", username, u.Password, u.Enabled, u.ManageAccounts))
         _, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.ManageAccounts)
@@ -287,11 +293,7 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
         err = doSessionHeader(
             ctx, w, r,
             func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-                err := canManageAccounts(session, username)
-
-                w.Header().Set("Content-Type", "application/json")
-
-                return err
+                return canManageAccounts(session, username)
             })
 
         span := trace.SpanFromContext(ctx)
@@ -300,16 +302,20 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
             return err
         }
 
-        u, _, err := dbUsers.Get(username)
+        u, rev, err := dbUsers.Get(username)
         if err != nil {
-            httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
+            httpError(ctx, span, w, &HTTPError{ SC: http.StatusNotFound, Base: err })
             return err
         }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         ext := &pb.UserPublic{
             Enabled:              u.Enabled,
             AccountManager:       u.AccountManager,
         }
+
         span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, u))
 
         // Get the user entry, and serialize it to json
@@ -322,14 +328,72 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 // TBD
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        vars := mux.Vars(r)
+        username := vars["username"]
+
         err = doSessionHeader(
             ctx, w, r,
             func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-                span.AddEvent(ctx, "TBD: user update")
-                return usersDisplayArguments(w, r)
+                return canManageAccounts(session, username)
             })
 
-        return err
+        span := trace.SpanFromContext(ctx)
+        if err != nil {
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        var match int64
+
+        matchString := r.Header.Get("If-Match")
+        match, err = strconv.ParseInt(matchString, 10, 64)
+        if err != nil {
+            httpError(ctx, span, w, NewErrBadMatchType(matchString))
+            return err
+        }
+
+        upd := &pb.UserDefinition{}
+        if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
+            httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
+            return err
+        }
+
+        _, rev, err := dbUsers.Get(username)
+        if err != nil {
+            httpError(ctx, span, w, &HTTPError{ SC: http.StatusNotFound, Base: err })
+            return err
+        }
+
+        if match != rev {
+            err = &HTTPError{ SC: http.StatusConflict, Base: fmt.Errorf("revision %v does not match", match) }
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        if err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
+            err = &HTTPError{ SC: http.StatusConflict, Base: ErrUserUpdateFailed(username) }
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        u, rev, err := dbUsers.Get(username)
+        if err != nil {
+            httpError(ctx, span, w, &HTTPError{ SC: http.StatusNotFound, Base: err })
+            return err
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+
+        ext := &pb.UserPublic{
+            Enabled:              u.Enabled,
+            AccountManager:       u.AccountManager,
+        }
+
+        span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, u))
+
+        p := jsonpb.Marshaler{}
+        return p.Marshal(w, ext)
     })
 }
 
@@ -523,12 +587,11 @@ func usersDisplayArguments(w io.Writer, r *http.Request) (err error) {
 // attributes that are understood by the route handlers to the internal user
 // attributes understood by the storage system.
 
-func UserAdd(name string, password string, accountManager bool, enabled bool) error {
-
+func UserAdd(name string, password string, accountManager bool, enabled bool) (int64, error) {
     passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
     if err != nil {
-        return err
+        return -1, err
     }
 
     return dbUsers.Create(&pb.User{
@@ -536,6 +599,20 @@ func UserAdd(name string, password string, accountManager bool, enabled bool) er
         PasswordHash: passwordHash,
         Enabled: enabled,
         AccountManager: accountManager})
+}
+
+func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) error {
+    passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+
+    if err != nil {
+        return err
+    }
+
+    return dbUsers.Update(&pb.User{
+        Name: name,
+        PasswordHash: passwordHash,
+        Enabled: enabled,
+        AccountManager: accountManager}, rev)
 }
 
 func userRemove(name string) error {

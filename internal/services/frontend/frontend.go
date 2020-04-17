@@ -161,6 +161,13 @@ func (he *HTTPError) Error() string {
     return he.Base.Error()
 }
 
+func NewErrBadMatchType(match string) *HTTPError {
+    return &HTTPError{
+        SC : http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: match value %q is not recognized as a valid integer", match),
+    }
+}
+
 func initHandlers() error {
 
     server.handler = mux.NewRouter()

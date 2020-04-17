@@ -5,12 +5,15 @@
 package frontend
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -117,6 +120,47 @@ func doLogout(t *testing.T, user string, cookies []*http.Cookie) *http.Response 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	return response
+}
+
+func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*http.Cookie) (int64, []*http.Cookie) {
+	path := baseURI + userURI + user
+
+	req := httptest.NewRequest("GET", path, nil)
+	req.Header.Set("Content-Type", "application/json")
+	response := doHTTP(req, cookies)
+	_ = response.Body.Close()
+
+	// If we found the user, just return the existing revision and cookies
+	if response.StatusCode == http.StatusOK {
+		var rev int64
+		rev, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+		assert.Nilf(t, err, fmt.Sprintf("Error parsing ETag. Value received is : %q", err))
+
+		return rev, response.Cookies()
+	}
+
+	// Didn't find the user, create a new incarnation of it.
+	var buf bytes.Buffer
+	w := bufio.NewWriter(&buf)
+
+	req = httptest.NewRequest("POST", path, nil)
+	p := jsonpb.Marshaler{}
+	err := p.Marshal(w, u)
+	assert.Nilf(t, err, fmt.Sprintf("Error formatting the new user definition. err = %v", err))
+	_ = w.Flush()
+	r := bufio.NewReader(&buf)
+
+	req = httptest.NewRequest("POST", path, r)
+	req.Header.Set("Content-Type", "application/json")
+
+	response = doHTTP(req, response.Cookies())
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	tagString := response.Header.Get("ETag")
+	tag, err := strconv.ParseInt(tagString, 10, 64)
+	assert.Nilf(t, err, fmt.Sprintf("Error parsing ETag. tag = %q, err = %v", tagString, err))
+
+	return tag, response.Cookies()
 }
 
 func TestMain(m *testing.M) {
@@ -226,6 +270,30 @@ func TestUsersCreateDup(t *testing.T) {
 	doLogout(t, "admin", response.Cookies())
 }
 
+func TestUsersCreateBadData(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, "Admin", adminPassword, nil)
+
+	request := httptest.NewRequest(
+		"POST",
+		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice2"),
+		strings.NewReader("{\"enabled\":123,\"manageAccounts\":false, \"password\":\"test\"}"))
+	request.Header.Set("Content-Type", "application/json")
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+
+	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
+	t.Log(string(body))
+
+	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(t, "json: cannot unmarshal number into Go value of type bool\n", string(body), "Handler returned unexpected response body: %v", string(body))
+	doLogout(t, "admin", response.Cookies())
+}
+
 func TestUsersCreateNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
 
@@ -290,6 +358,7 @@ func TestUsersRead(t *testing.T) {
 
 	assert.Nilf(t, response.Body.Close(), "Failed to successfully close the response")
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal(t, "1", response.Header.Get("ETag"))
 	assert.Equal(t, true, user.Enabled)
 	assert.Equal(t, true, user.AccountManager)
 
@@ -298,6 +367,48 @@ func TestUsersRead(t *testing.T) {
 	//
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	doLogout(t, "admin", response.Cookies())
+}
+
+func TestUsersReadUnknownUser(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, "Admin", adminPassword, nil)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "BadUser"), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+	t.Log(string(body))
+	assert.Nilf(t, err, "Expected no error in getting body.  err=%v", err)
+	assert.NotEqual(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+
+	// At present, all base handlers effectively echo the supplied username so all
+	// we need to verify is that we get a successful return of the supplied username.
+	//
+	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	doLogout(t, "admin", response.Cookies())
+}
+
+func TestUsersReadNoPriv(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, "Alice", "test", nil)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "BadUser"), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+	t.Log(string(body))
+	assert.Nilf(t, err, "Expected no error in getting body.  err=%v", err)
+	assert.NotEqual(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+
+	// At present, all base handlers effectively echo the supplied username so all
+	// we need to verify is that we get a successful return of the supplied username.
+	//
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	doLogout(t, "alice", response.Cookies())
 }
 
 func TestUsersOperationIllegal(t *testing.T) {
@@ -610,6 +721,40 @@ func TestDoubleLogout(t *testing.T) {
 }
 
 func TestUsersUpdate(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, "Admin", adminPassword, nil)
+
+	rev, cookies := ensureAccount(
+		t,
+		"Alice",
+		&pb.UserDefinition{
+			Password:             "test",
+			Enabled:              true,
+			ManageAccounts:       false,
+		},
+		response.Cookies())
+	request := httptest.NewRequest(
+		"PUT",
+		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice"),
+		strings.NewReader("{\"enabled\":true,\"manageAccounts\":true, \"password\":\"test\"}"))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+
+	response = doHTTP(request, cookies)
+
+	user := &pb.UserPublic{}
+	err := jsonpb.Unmarshal(response.Body, user)
+	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+
+	assert.Nilf(t, response.Body.Close(), "Failed to successfully close the response")
+	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal(t, fmt.Sprintf("%v", rev + 1), response.Header.Get("ETag"))
+	assert.Equal(t, true, user.Enabled)
+	assert.Equal(t, true, user.AccountManager)
+
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	doLogout(t, "admin", response.Cookies())
 
 }
 
