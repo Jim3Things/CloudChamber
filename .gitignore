@@ -1,7 +1,6 @@
 .exe
 .vscode
-.pb.go
-.pg.validate.go
 /deployments/
+/pkg/protos/**/*.go
 /.idea/
 *~
