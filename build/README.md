@@ -1,6 +1,7 @@
 This directory contains the scripts used to build Cloud Chamber, 
 along with associated scripts used to validate the build, and clean it up.
 
+# Build, Test, Clean
 The procedures are:
 - buildall.cmd: builds the full Cloud Chamber and places the result in the
 \deployments directory.
@@ -15,3 +16,11 @@ Future work:
 - It should work for both building and cleaning.
 - We should have UTs use some form of tagging so that we can just use the
 'go test .\...' with some filter from the CloudChamber directory
+
+# Build environment setup
+
+Additionally, the subtree 'dev_tools' contains support scripts and tools used to set up the
+CloudChamber development environment.
+
+- fetchall.cmd: initial retrieval of all required go packages
+- updateall.cmd: update all required go packages

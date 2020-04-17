@@ -59,6 +59,7 @@ go build -o github.com\Jim3Things\CloudChamber\deployments\web_server.exe github
 
 copy github.com\Jim3Things\CloudChamber\Configs\cloudchamber.yaml github.com\Jim3Things\CloudChamber\deployments\cloudchamber.yaml
 copy github.com\Jim3Things\CloudChamber\scripts\start_cloud_chamber.cmd github.com\Jim3Things\CloudChamber\deployments\start_cloud_chamber.cmd
+copy github.com\Jim3Things\CloudChamber\scripts\startetcd.cmd github.com\Jim3Things\CloudChamber\deployments\startetcd.cmd
 
 echo rem > %CCDeployments%\readme.md
 echo rem R E A D M E . m d >> %CCDeployments%\readme.md
