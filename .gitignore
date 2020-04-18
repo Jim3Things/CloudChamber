@@ -1,5 +1,6 @@
 .exe
 .vscode
 /deployments/
+/pkg/protos/**/*.go
 /.idea/
 *~
