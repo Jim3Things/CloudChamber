@@ -91,11 +91,6 @@ var (
     //
     ErrUserAuthFailed = errors.New("CloudChamber: authentication failed, invalid user name or password")
 
-    // ErrUserPermissionDenied indicates the user does not have the appropriate
-    // permissions for the requested operation.
-    //
-    ErrUserPermissionDenied = errors.New("CloudChamber: permission denied")
-
     // ErrUserInvalidOperation indicates the operation requested for the supplied
     // user account is invalid in some way, likely a non-existent operation code.
     //
@@ -106,36 +101,6 @@ var (
     server Server
     tr trace.Tracer
 )
-
-// ErrUserNotFound indicates the specified user account was determined to
-// not exist (i.e. the search succeeded but no record was found)
-//
-type ErrUserNotFound string
-func (unf ErrUserNotFound) Error() string {
-    return fmt.Sprintf("CloudChamber: user %q not found", string(unf))
-}
-
-// ErrUserAlreadyCreated indicates the specified user account was previously
-// created and the request was determined to be a duplicate Create request.
-//
-type ErrUserAlreadyCreated string
-func (uac ErrUserAlreadyCreated) Error() string {
-    return fmt.Sprintf("CloudChamber: user %q already exists", string(uac))
-}
-
-// ErrUserAlreadyCreated indicates the specified user account was previously
-// created and the request was determined to be a duplicate Create request.
-//
-type ErrUserUpdateFailed string
-func (uuf ErrUserUpdateFailed) Error() string {
-    return fmt.Sprintf("CloudChamber: could not update the entry for user %q", string(uuf))
-}
-
-// ErrNoLoginActive indicates that the specified user is not logged into this session
-type ErrNoLoginActive string
-func (enla ErrNoLoginActive) Error() string {
-    return fmt.Sprintf("CloudChamber: user %q not logged into this session", string(enla))
-}
 
 // Custom common HTTP error type that includes the status code to use in
 // the response.
@@ -161,12 +126,66 @@ func (he *HTTPError) Error() string {
     return he.Base.Error()
 }
 
+// +++ HTTPError specializations
+
+// ErrNoLoginActive indicates that the specified user is not logged into this session
+func NewErrNoLoginActive(name string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: user %q not logged into this session", name),
+    }
+}
+
+// ErrUserNotFound indicates the specified user account was determined to
+// not exist (i.e. the search succeeded but no record was found)
+//
+func NewErrUserNotFound(name string) *HTTPError {
+    return &HTTPError{
+        SC : http.StatusNotFound,
+        Base : fmt.Errorf("CloudChamber: user %q not found", name),
+    }
+}
+
+// ErrUserAlreadyCreated indicates the specified user account was previously
+// created and the request was determined to be a duplicate Create request.
+//
+func NewErrUserAlreadyCreated(name string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: user %q already exists", name),
+    }
+}
+
+// ErrUserPermissionDenied indicates the user does not have the appropriate
+// permissions for the requested operation.
+//
+func NewErrUserPermissionDenied() *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusForbidden,
+        Base: errors.New("CloudChamber: permission denied"),
+    }
+}
+
+// ErrUserStaleVersion indicates that an operation against the specified user
+// expected a different revision number than was found
+//
+func NewErrUserStaleVersion(name string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusConflict,
+        Base: fmt.Errorf("CloudChamber: user %q has a newer version than expected", name),
+    }
+}
+
+// ErrBadMatchType indicates that the If-Match value was syntactically incorrect,
+// and could not be processed
 func NewErrBadMatchType(match string) *HTTPError {
     return &HTTPError{
         SC : http.StatusBadRequest,
         Base: fmt.Errorf("CloudChamber: match value %q is not recognized as a valid integer", match),
     }
 }
+
+// --- HTTPError specializations
 
 func initHandlers() error {
 
