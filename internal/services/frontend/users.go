@@ -25,6 +25,9 @@ import (
 )
 
 const (
+    // Value that can never be a valid version number
+    InvalidRev = -1
+
     Enable = "enable"
     Disable = "disable"
     Login = "login"
@@ -76,7 +79,7 @@ func (m *DBUsers) Create(u *pb.User) (int64, error) {
     key := strings.ToLower(u.Name)
 
     if _, ok := m.Users[key]; ok {
-        return -1, NewErrUserAlreadyCreated(u.Name)
+        return InvalidRev, NewErrUserAlreadyCreated(u.Name)
     }
 
     entry := &pb.UserInternal{
@@ -103,7 +106,7 @@ func (m *DBUsers) Get(name string) (*pb.User, int64, error) {
 
     entry, ok := m.Users[key]
     if !ok {
-        return nil, -1, NewErrUserNotFound(name)
+        return nil, InvalidRev, NewErrUserNotFound(name)
     }
 
     return entry.User, entry.Revision, nil
@@ -125,7 +128,7 @@ func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
 }
 
 
-func (m *DBUsers) Update(u *pb.User, match int64) error {
+func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
@@ -133,11 +136,11 @@ func (m *DBUsers) Update(u *pb.User, match int64) error {
 
     old, ok := m.Users[key]
     if !ok {
-        return NewErrUserNotFound(u.Name)
+        return InvalidRev, NewErrUserNotFound(u.Name)
     }
 
     if old.Revision != match {
-        return NewErrUserStaleVersion(u.Name)
+        return InvalidRev, NewErrUserStaleVersion(u.Name)
     }
 
     entry := &pb.UserInternal{
@@ -152,7 +155,7 @@ func (m *DBUsers) Update(u *pb.User, match int64) error {
     }
     m.Users[key] = *entry
 
-    return nil
+    return entry.Revision, nil
 }
 
 func (m *DBUsers) Remove(name string) error {
@@ -377,15 +380,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         // All the prep is done.  Proceed with the update.  This may get a version
         // mismatch, or the user may have been deleted.  Given the check above, these
         // can all be considered version conflicts.
-        if err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
-            httpError(ctx, span, w, err)
-            return err
-        }
-
-        // Finally, get the current user definition and return it.  Again, protecting
-        // against the user getting deleted in another (racing) thread.
-        u, rev, err := dbUsers.Get(username)
-        if err != nil {
+        if rev, err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
             httpError(ctx, span, w, err)
             return err
         }
@@ -394,11 +389,11 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         ext := &pb.UserPublic{
-            Enabled:              u.Enabled,
-            AccountManager:       u.AccountManager,
+            Enabled:              upd.Enabled,
+            AccountManager:       upd.ManageAccounts,
         }
 
-        span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, u))
+        span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, upd))
 
         p := jsonpb.Marshaler{}
         return p.Marshal(w, ext)
@@ -590,7 +585,7 @@ func UserAdd(name string, password string, accountManager bool, enabled bool) (i
     passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
     if err != nil {
-        return -1, err
+        return InvalidRev, err
     }
 
     return dbUsers.Create(&pb.User{
@@ -600,11 +595,11 @@ func UserAdd(name string, password string, accountManager bool, enabled bool) (i
         AccountManager: accountManager})
 }
 
-func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) error {
+func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) (int64, error) {
     passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
     if err != nil {
-        return err
+        return InvalidRev, err
     }
 
     return dbUsers.Update(&pb.User{
@@ -638,7 +633,8 @@ func userEnable(name string, enable bool) error {
     }
 
     entry.Enabled = enable
-    return dbUsers.Update(entry, rev)
+    _, err = dbUsers.Update(entry, rev)
+    return err
 }
 
 // --- Mid-level support methods
