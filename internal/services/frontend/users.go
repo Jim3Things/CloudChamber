@@ -7,10 +7,10 @@ package frontend
 import (
     "context"
     "fmt"
-    "io"
     "io/ioutil"
     "net/http"
     "runtime"
+    "strconv"
     "strings"
     "sync"
 
@@ -25,6 +25,9 @@ import (
 )
 
 const (
+    // Value that can never be a valid version number
+    InvalidRev = -1
+
     Enable = "enable"
     Disable = "disable"
     Login = "login"
@@ -64,18 +67,19 @@ func InitDBUsers(cfg *config.GlobalConfig) error {
         }
     }
 
-    return UserAdd(cfg.WebServer.SystemAccount, cfg.WebServer.SystemAccountPassword, true, true)
+    _, err := UserAdd(cfg.WebServer.SystemAccount, cfg.WebServer.SystemAccountPassword, true, true)
+    return err
 }
 
 // Create a new user entry in the store.
-func (m *DBUsers) Create(u *pb.User) error {
+func (m *DBUsers) Create(u *pb.User) (int64, error) {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
     key := strings.ToLower(u.Name)
 
     if _, ok := m.Users[key]; ok {
-        return ErrUserAlreadyCreated(u.Name)
+        return InvalidRev, NewErrUserAlreadyCreated(u.Name)
     }
 
     entry := &pb.UserInternal{
@@ -90,7 +94,7 @@ func (m *DBUsers) Create(u *pb.User) error {
     }
     m.Users[key] = *entry
 
-    return nil
+    return 1, nil
 }
 
 // Get the specified user from the store.
@@ -102,7 +106,7 @@ func (m *DBUsers) Get(name string) (*pb.User, int64, error) {
 
     entry, ok := m.Users[key]
     if !ok {
-        return nil, -1, ErrUserNotFound(name)
+        return nil, InvalidRev, NewErrUserNotFound(name)
     }
 
     return entry.User, entry.Revision, nil
@@ -124,15 +128,19 @@ func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
 }
 
 
-func (m *DBUsers) Update(u *pb.User, match int64) error {
+func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
     m.Mutex.Lock()
     defer m.Mutex.Unlock()
 
     key := strings.ToLower(u.Name)
 
     old, ok := m.Users[key]
-    if !ok || old.Revision != match {
-        return ErrUserUpdateFailed(u.Name)
+    if !ok {
+        return InvalidRev, NewErrUserNotFound(u.Name)
+    }
+
+    if old.Revision != match {
+        return InvalidRev, NewErrUserStaleVersion(u.Name)
     }
 
     entry := &pb.UserInternal{
@@ -147,7 +155,7 @@ func (m *DBUsers) Update(u *pb.User, match int64) error {
     }
     m.Users[key] = *entry
 
-    return nil
+    return entry.Revision, nil
 }
 
 func (m *DBUsers) Remove(name string) error {
@@ -158,7 +166,7 @@ func (m *DBUsers) Remove(name string) error {
 
     _, ok := m.Users[key]
     if !ok {
-        return ErrUserNotFound(name)
+        return NewErrUserNotFound(name)
     }
 
     delete(m.Users, key)
@@ -217,9 +225,10 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
         span := trace.SpanFromContext(ctx)
         if err != nil {
             httpError(ctx, span, w, err)
+            return err
         }
 
-        if _, err := fmt.Fprintf(w, "Users (List)\n"); err != nil {
+        if _, err := fmt.Fprintln(w, "Users (List)"); err != nil {
             httpError(ctx, span, w, err)
            return err
         }
@@ -268,10 +277,14 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
             return err
         }
 
-        if err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
-            httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
+        var rev int64
+
+        if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
+            httpError(ctx, span, w, err)
             return err
         }
+
+        w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         span.AddEvent(ctx, fmt.Sprintf("Created user %q, pwd: %q, enabled: %v, accountManager: %v", username, u.Password, u.Enabled, u.ManageAccounts))
         _, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.ManageAccounts)
@@ -287,11 +300,7 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
         err = doSessionHeader(
             ctx, w, r,
             func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-                err := canManageAccounts(session, username)
-
-                w.Header().Set("Content-Type", "application/json")
-
-                return err
+                return canManageAccounts(session, username)
             })
 
         span := trace.SpanFromContext(ctx)
@@ -300,16 +309,20 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
             return err
         }
 
-        u, _, err := dbUsers.Get(username)
+        u, rev, err := dbUsers.Get(username)
         if err != nil {
-            httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
+            httpError(ctx, span, w, err)
             return err
         }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         ext := &pb.UserPublic{
             Enabled:              u.Enabled,
             AccountManager:       u.AccountManager,
         }
+
         span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, u))
 
         // Get the user entry, and serialize it to json
@@ -319,34 +332,103 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
     })
 }
 
-// TBD
+// Update the user entry
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        vars := mux.Vars(r)
+        username := vars["username"]
+
         err = doSessionHeader(
             ctx, w, r,
             func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-                span.AddEvent(ctx, "TBD: user update")
-                return usersDisplayArguments(w, r)
+                return canManageAccounts(session, username)
             })
 
-        return err
+        span := trace.SpanFromContext(ctx)
+        if err != nil {
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        // All updates are qualified by an ETag match.  The ETag comes from the database
+        // revision number.  So, first we get the 'if-match' tag to determine the revision
+        // that must be current for the update to proceed.
+
+        var match int64
+
+        matchString := r.Header.Get("If-Match")
+        match, err = strconv.ParseInt(matchString, 10, 64)
+        if err != nil {
+            httpError(ctx, span, w, NewErrBadMatchType(matchString))
+            return err
+        }
+
+        // Next, get the new definition values, and make sure that they are valid.
+        upd := &pb.UserDefinition{}
+        if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
+            httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
+            return err
+        }
+
+        // Now with the input in hand, get the user (if it exists).
+        _, rev, err := dbUsers.Get(username)
+        if err != nil {
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        // All the prep is done.  Proceed with the update.  This may get a version
+        // mismatch, or the user may have been deleted.  Given the check above, these
+        // can all be considered version conflicts.
+        if rev, err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+        w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+
+        ext := &pb.UserPublic{
+            Enabled:              upd.Enabled,
+            AccountManager:       upd.ManageAccounts,
+        }
+
+        span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, upd))
+
+        p := jsonpb.Marshaler{}
+        return p.Marshal(w, ext)
     })
 }
 
-// TBD
+// Delete the user entry
 func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
+        vars := mux.Vars(r)
+        username := vars["username"]
+
         err = doSessionHeader(
             ctx, w, r,
             func(ctx context.Context, span trace.Span, session *sessions.Session) error {
-                span.AddEvent(ctx, "TBD: user deletion")
-                return usersDisplayArguments(w, r)
+                return canManageAccounts(session, username)
             })
 
+        span := trace.SpanFromContext(ctx)
+        if err != nil {
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        if err = userRemove(username); err != nil {
+            httpError(ctx, span, w, err)
+            return err
+        }
+
+        _, err = fmt.Fprintf(w, "User %q deleted.", username)
         return err
     })
 }
 
+// Perform an admin operation (login, logout, enable, disable) on an account
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
     _ = tr.WithSpan(context.Background(), methodName(), func(ctx context.Context) (err error) {
         var s string
@@ -411,10 +493,7 @@ func enableDisable(session *sessions.Session, r *http.Request, v bool, s string)
     }
 
     if err := userEnable(username, v); err != nil {
-        return "", &HTTPError{
-            SC:   http.StatusBadRequest,
-            Base: err,
-        }
+        return "", err
     }
 
     return fmt.Sprintf("User %q %sd", username, s), nil
@@ -479,18 +558,12 @@ func logout(session *sessions.Session, r *http.Request) (_ string, err error) {
 
     // Verify that there is a logged in user on this session
     if auth, ok := session.Values[AuthStateKey].(bool); !ok || !auth {
-        return "", &HTTPError{
-            SC:   http.StatusBadRequest,
-            Base: ErrNoLoginActive(username),
-        }
+        return "", NewErrNoLoginActive(username)
     }
 
     // .. and that it is the user we're trying to logout
     if name, ok := session.Values[UserNameKey].(string); !ok || !strings.EqualFold(name, username) {
-        return "", &HTTPError{
-            SC:   http.StatusBadRequest,
-            Base: ErrNoLoginActive(username),
-        }
+        return "", NewErrNoLoginActive(username)
     }
 
     // .. and now log the user out
@@ -502,33 +575,17 @@ func logout(session *sessions.Session, r *http.Request) (_ string, err error) {
 
 // --- Query tag implementations
 
-// This is a temporary method used for tracing prior to actual implementations.  Will be removed.
-func usersDisplayArguments(w io.Writer, r *http.Request) (err error) {
-    op := r.FormValue("op")
-    vars := mux.Vars(r)
-    username := vars["username"]
-
-    if op != "" {
-        _, err = fmt.Fprintf(w, "User: %v op: %v", username, op)
-    } else {
-        _, err = fmt.Fprintf(w, "User: %v", username)
-    }
-
-    return err
-}
-
 // +++ Mid-level support methods
 
 // This section contains the methods that translate from the logical user
 // attributes that are understood by the route handlers to the internal user
 // attributes understood by the storage system.
 
-func UserAdd(name string, password string, accountManager bool, enabled bool) error {
-
+func UserAdd(name string, password string, accountManager bool, enabled bool) (int64, error) {
     passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
     if err != nil {
-        return err
+        return InvalidRev, err
     }
 
     return dbUsers.Create(&pb.User{
@@ -536,6 +593,20 @@ func UserAdd(name string, password string, accountManager bool, enabled bool) er
         PasswordHash: passwordHash,
         Enabled: enabled,
         AccountManager: accountManager})
+}
+
+func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) (int64, error) {
+    passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+
+    if err != nil {
+        return InvalidRev, err
+    }
+
+    return dbUsers.Update(&pb.User{
+        Name: name,
+        PasswordHash: passwordHash,
+        Enabled: enabled,
+        AccountManager: accountManager}, rev)
 }
 
 func userRemove(name string) error {
@@ -562,7 +633,8 @@ func userEnable(name string, enable bool) error {
     }
 
     entry.Enabled = enable
-    return dbUsers.Update(entry, rev)
+    _, err = dbUsers.Update(entry, rev)
+    return err
 }
 
 // --- Mid-level support methods
@@ -600,17 +672,11 @@ func canManageAccounts(session *sessions.Session, username string) error {
 
     user, _, err := dbUsers.Get(key)
     if err != nil {
-        return &HTTPError{
-            SC:   http.StatusForbidden,
-            Base: ErrUserPermissionDenied,
-        }
+        return NewErrUserPermissionDenied()
     }
 
     if !user.AccountManager && !strings.EqualFold(user.Name, username) {
-        return &HTTPError{
-            SC:   http.StatusForbidden,
-            Base: ErrUserPermissionDenied,
-        }
+        return NewErrUserPermissionDenied()
     }
 
     return nil
