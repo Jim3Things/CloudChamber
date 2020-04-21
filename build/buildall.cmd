@@ -6,35 +6,42 @@
 
 @rem @if /i "%DbgScript%" == "" @echo off
 
-rem Generate a usable timestamp that we can use to generate a readme file containing
-rem the build time along with anything else we believe to be useful.
-rem
-rem Note - expects source date format to be US style MONTH/DAY/YEAR
-rem 
-setlocal
+@rem Generate a usable timestamp that we can use to generate a readme file containing
+@rem the build time along with anything else we believe to be useful.
+@rem
+@rem Note - expects source date format to be US style MONTH/DAY/YEAR
+@rem 
+@setlocal
 
-set UpdateDate=%date%
-set UpdateTime=%time%
+@set UpdateDate=%date%
+@set UpdateTime=%time%
 
-set UpdateYear=%UpdateDate:~10,4%
-set UpdateDay=%UpdateDate:~7,2%
-set UpdateMonth=%UpdateDate:~4,2%
+@set UpdateYear=%UpdateDate:~10,4%
+@set UpdateDay=%UpdateDate:~7,2%
+@set UpdateMonth=%UpdateDate:~4,2%
 
-set UpdateHour=%UpdateTime:~0,2%
-set UpdateMinute=%UpdateTime:~3,2%
-set UpdateSecond=%UpdateTime:~6,2%
+@set UpdateHour=%UpdateTime:~0,2%
+@set UpdateMinute=%UpdateTime:~3,2%
+@set UpdateSecond=%UpdateTime:~6,2%
 
-rem Allow for some variants dumping the time var with a leading space rather than a leading zero.
-rem
-if " " == "%UpdateHour:~0,1%" set UpdateHour=0%UpdateHour:~1,1%
+@rem Allow for some variants dumping the time var with a leading space rather than a leading zero.
+@rem
+@if " " == "%UpdateHour:~0,1%" set UpdateHour=0%UpdateHour:~1,1%
 
-set UpdateDateTime=%UpdateYear%%UpdateMonth%%UpdateDay%-%UpdateHour%%UpdateMinute%%UpdateSecond%
+@set UpdateDateTime=%UpdateYear%%UpdateMonth%%UpdateDay%-%UpdateHour%%UpdateMinute%%UpdateSecond%
+
+
+@rem Update PATH to include the tools from the local Go environment. This is a temporary update
+@rem due to the SETLOCAL above, and the PATH will return to its earlier value following the
+@rem ENDLOCAL below
+@rem 
+@set PATH=%PATH%;%GOPATH%\bin
+
+@set CCRoot=github.com\Jim3Things\CloudChamber
+@set CCDeployments=%CCRoot%\deployments
 
 
 pushd %gopath%\src
-
-set CCRoot=github.com\Jim3Things\CloudChamber
-set CCDeployments=%CCRoot%\deployments
 
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\admin\users.proto
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\common\capacity.proto
@@ -67,6 +74,6 @@ echo rem >> %CCDeployments%\readme.md
 echo rem >> %CCDeployments%\readme.md
 echo BuildTimeStamp %UpdateDateTime% >> %CCDeployments%\readme.md
 
-endlocal
 popd
 
+@endlocal

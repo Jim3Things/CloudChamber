@@ -4,3 +4,4 @@
 /pkg/protos/**/*.go
 /.idea/
 *~
+/**/#*#
