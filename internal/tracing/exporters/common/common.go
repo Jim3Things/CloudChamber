@@ -12,7 +12,7 @@ import (
 
 func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
 	spanID := data.SpanContext.SpanID.String()
-	parentID := fmt.Sprintf("%x", data.ParentSpanID)
+	parentID := data.ParentSpanID.String()
 
 	entry := log.Entry{
 		Name:     data.Name,
