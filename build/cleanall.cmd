@@ -11,7 +11,7 @@ if exist "%GOPATH%\src\github.com\Jim3Things\CloudChamber\deployments" (
 
   pushd "%GOPATH%\src\github.com\Jim3Things\CloudChamber\deployments"
 
-  del *.*
+  del /q *.*
 
   popd
 
