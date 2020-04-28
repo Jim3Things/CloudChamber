@@ -18,6 +18,36 @@ The environment will make use of the following
 VsCode is not required and other IDEs might be preferred. Configuring
 those IDEs is left as an exercise for the reader.
 
+# Assumptions
+
+There are some paths required with associated environment variables.
+Throughout the remainder of this documents these will be assumed to have
+the following values
+
+  - These instructions assume that the Go environment is rooted at the
+    C:\\Chamber directory and that the value of the environment variable
+    GOPATH is set to C:\\Chamber. This directory is an arbitrary choice
+    and an alternative location on a local filesystem can be chosen
+    instead of C:\\Chamber to suit the system being used provided GOPATH
+    is set to the same location.
+
+Note, avoid using a network share for the local copy of the repository
+as some problems have been encountered for files which originated on a
+non-Windows system.
+
+  - These instructions install some tools and assume these are placed in
+    the C:\\GoTools directory. This is an arbitrary selection and any
+    alternative location can be selected to suite the system being used.
+    If an alternative location is used, substitute the selected location
+    for any reference to C:\\GoTools.
+
+  - These instructions assume the Windows system is installed on the C:
+    drive and standard installation locations are used. In particular,
+    the instructions assume that the value of the standard environment
+    variable ProgramFiles has the value “C:\\Program Files”. If an
+    alternative value is used, substitute this value wherever the
+    instructions refer to “C:\\Program Files”.
+
 # Windows Basics
 
 ## Windows Command prompt
@@ -103,16 +133,16 @@ properly applied.
 To use the current value of an environment variable, enclose the
 variable name in '%' characters. For example
 
-> pushd %GOPATH%\\src
+> pushd %USERPROFILE%
 
-When this line is encountered, the %GOPATH% is replaced by the current
-value of the GOPATH environment variable and then in the example above,
-the pushd command uses that expanded path.
+When this line is encountered, the %USERPROFILE% is replaced by the
+current value of the USERPROFILE environment variable and then in the
+example above, the pushd command uses that expanded path.
 
 This can be verified using any variable using a Windows Command prompt
 by typing
 
-> echo %GOPATH%
+> echo %USERPROFILE%
 > 
 > echo %USERNAME%
 
@@ -129,7 +159,9 @@ not correctly installed. Either a repair can be attempted, but it is
 generally simpler to uninstall it and then re-install it (recommended).
 
 To see if it can be simply repaired, at the Command prompt check the
-value of the PATH environment variable verify that it contains
+value of the PATH environment variable verify that it contains (assuming
+that the ProgramFiles environment variable has the value “C:\\Program
+Files”)
 
 > C:\\Program Files\\Git\\cmd
 
@@ -182,9 +214,10 @@ you can add it using
 > File-\>Add local Repository…
 
 and then fill in the path to the local repo e.g. using the values from
-below
+below (assuming the GOPATH environment variable has the value
+“C:\\Chamber”)
 
-> C:\\CloudChamber\\src\\github.com\\Jim3Things\\CloudChamber
+> C:\\Chamber\\src\\github.com\\Jim3Things\\CloudChamber
 
 # Installing Go
 
@@ -212,7 +245,7 @@ be something like
 
 > protoc-3.11.4-win64.zip
 
-Create a directory where this should be installed, e.g. c:\\GoTools,
+Create a directory where this should be installed, e.g. C:\\GoTools,
 then copy the contents of the zip file to this directory. E.g.
 
 > Bin\\protoc,exe ==\> C:\\GoTools\\bin\\protoc.exe
@@ -227,7 +260,7 @@ the system PATH environment variable.
 This can be done every time you start a Windows Command Prompt windows
 using
 
-> set PATH=%PATH%;c:\\GoTools\\bin
+> set PATH=%PATH%;C:\\GoTools\\bin
 
 or you can change the persistent environment PATH variable (recommended)
 using any of the previously described methods.
@@ -239,29 +272,36 @@ using any of the previously described methods.
 There are several ways to do this, such as using git, using go, or using
 the GitHub desktop app. Select a preferred method.
 
-If using git, assuming the repository is to be rooted under z:\\Chamber,
-type either
+Using a Command prompt, start by setting the value of the GOPATH
+environment variable to the directory to be used as the root of the Go
+project directory. This is assumed to be C:\\Chamber for these
+instructions, but another directory could be used as an alternative.
+
+> set GOPATH=C:\\Chamber
+
+This will set the value temporarily but by using the methods described
+above, this could be set permanently which would allow the setting to
+persist across logout/login and reboots.
+
+If using git, type either
 
 > git clone <https://github.com/Jim3Things/CloudChamber>
-> C:\\Chamber\\src\\github.com\\Jim3Things\\CloudChamber
+> %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
 
-or the command can be broken down into multiple steps using
+or if preferred, the command can be broken down into multiple steps
+using
 
-> mkdir C:\\Chamber\\src\\github.com\\Jim3Things\\CloudChamber
+> mkdir %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
 > 
-> pushd C:\\Chamber\\src\\github.com\\Jim3Things
+> pushd %GOPATH%\\src\\github.com\\Jim3Things
 > 
 > git clone <https://github.com/Jim3Things/CloudChamber>
 
 This will initialize a git repository and populate it with the
 CloudChamber files under the specified directory.
 
-If using the go tool, set the GOPATH environment variable to the root of
-the Go project directory and then use the go tool to fetch the initial
-copy of the repository, e.g.
+If using the go tool to fetch the initial copy of the repository, type
 
-> set GOPATH=C:\\Chamber
-> 
 > go get github.com/Jim3Things/CloudChamber
 
 If using the GitHub desktop application, remember to add this newly
@@ -338,8 +378,8 @@ from Microsoft. Install this extension.
 
 ## Configure the Go extension
 
-Once the extension is installed, a number of values need to be
-configured. Start VsCode and navigate to the settings panel at
+Once the extension is installed, a few values need to be configured.
+Start VsCode and navigate to the settings panel at
 
 > File -\> Preferences -\> Settings
 
@@ -351,15 +391,15 @@ Scroll the right hand panel down to locate the GoPath settings and click
 on "Edit in settings.json”. Edit the value for go.gopath to match the
 value for the GOPATH environment variable. Note that the directory
 separator character ‘\\’ needs to be escaped with another ‘\\’
-character, so for a GOPATH environment variable value of “C:\\GoPath”,
-the go.gopath value should be “C:\\\\GoPath”. Save the value and close
-the settings.json tab
+character, so for a GOPATH environment variable value of “C:\\Chamber”,
+the go.gopath value should be “C:\\\\Chamber”. Save the value and close
+the settings.json tab.
 
 Once the GoPath value has been set, scroll the settings panel to “Infer
 GoPath” and enable.
 
 Scroll panel to “Tools GoPath” and set to directory where other binaries
-were installed, e.g. c:\\GoTools.
+were installed, e.g. C:\\GoTools.
 
 Scroll panel to Use Language Server and enable
 
@@ -368,11 +408,11 @@ settings.json" and confirm the layout is something like
 
 > {
 > 
-> "go.toolsGopath": "c:\\\\GoTools",
+> "go.toolsGopath": "C:\\\\GoTools",
 > 
 > "go.inferGopath": true,
 > 
-> "go.gopath": "c:\\\\Chamber",
+> "go.gopath": "C:\\\\Chamber",
 > 
 > "go.useLanguageServer": true,
 > 
