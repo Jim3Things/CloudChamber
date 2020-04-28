@@ -1,0 +1,12 @@
+// Defines the common data structure that holds a simulated time.
+
+syntax = "proto3";
+
+package common;
+
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/common";
+
+message Completion {
+  bool is_error = 1;
+  string error = 2;
+}

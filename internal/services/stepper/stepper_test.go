@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/golang/protobuf/ptypes/empty"
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 
@@ -82,7 +81,7 @@ func testSetPolicy(t *testing.T, ctx context.Context, policy pb.StepperPolicy, b
 }
 
 func callNow(t *testing.T, ctx context.Context) int64 {
-	resp, err := client.Now(ctx, &empty.Empty{})
+	resp, err := client.Now(ctx, &pb.NowRequest{})
 	assert.Nilf(t, err, "Now failed: %v", err)
 
 	return resp.GetTicks()
@@ -106,7 +105,7 @@ func testNow(t *testing.T, ctx context.Context, expected int64) {
 }
 
 func callStep(t *testing.T, ctx context.Context, expected int64) {
-	_, err := client.Step(ctx, &empty.Empty{})
+	_, err := client.Step(ctx, &pb.StepRequest{})
 	assert.Nilf(t, err, "Step failed: %v", err)
 	callNowVerify(t, ctx, expected)
 }

@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
@@ -19,7 +19,7 @@ import (
 )
 
 var policy = pb.StepperPolicy_Invalid // Active stepper policy
-var delay duration.Duration           // Time between ticks, iff Measured policy
+var delay time.Duration               // Time between ticks, iff Measured policy
 
 var syncLock sync.Mutex  // Access lock for current simulated time
 var broadcast *sync.Cond // Broadcast channel for time change notification
@@ -64,7 +64,7 @@ func waitUntil(atLeast int64) {
 // expected to happen in normal use, but does in several unit tests.  This
 // check allows those tests to run in a single combined test suite.
 func autoStep() {
-	time.Sleep(time.Duration(delay.Seconds) * time.Second)
+	time.Sleep(delay)
 	for policy == pb.StepperPolicy_Measured {
 		func() {
 			syncLock.Lock()
@@ -74,7 +74,7 @@ func autoStep() {
 			broadcast.Broadcast()
 		}()
 
-		time.Sleep(time.Duration(delay.Seconds) * time.Second)
+		time.Sleep(delay)
 	}
 }
 
@@ -82,7 +82,7 @@ func autoStep() {
 // tests to ensure a known starting point.
 func Reset() {
 	policy = pb.StepperPolicy_Invalid
-	delay.Seconds = 0
+	delay = 0
 	latest = 0
 }
 
@@ -91,17 +91,17 @@ func Reset() {
 
 // Set the stepper's policy governing the rate and conditions for the simulated
 // time to move forward.
-func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
+func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (res *empty.Empty, err error) {
 	trace.AddEvent(ctx, in.String(), latest, "Setting the policy")
 
-	if err := in.Validate(); err != nil {
+	if err = in.Validate(); err != nil {
 		return nil, trace.LogError(ctx, latest, err)
 	}
 
 	if policy != pb.StepperPolicy_Invalid {
 		// A policy has been set already.  If there is no change, then we can silently
 		// ignore this call.  Otherwise, this is an error
-		if (policy != in.Policy) || (delay.GetSeconds() != in.MeasuredDelay.GetSeconds()) {
+		if (policy != in.Policy) || (int64(delay.Seconds()) != in.MeasuredDelay.GetSeconds()) {
 			return nil, trace.LogError(ctx, latest,
 				"stepper already initialized, cannot change setting from %v: %d to %v: %d",
 				policy,
@@ -139,7 +139,10 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 	broadcast = sync.NewCond(&syncLock)
 
 	policy = in.Policy
-	delay = *in.MeasuredDelay
+	delay, err = ptypes.Duration(in.MeasuredDelay)
+	if err != nil {
+		return nil, err
+	}
 
 	// If the policy is 'measured', start the recurring auto-stepper go routine
 	if policy == pb.StepperPolicy_Measured {
@@ -151,7 +154,7 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 
 // When the stepper policy is for manual single-stepping, this function forces
 // a single step forward in simulated time.
-func (s *server) Step(ctx context.Context, _ *empty.Empty) (*empty.Empty, error) {
+func (s *server) Step(ctx context.Context, _ *pb.StepRequest) (*empty.Empty, error) {
 	trace.AddEvent(ctx, "", latest, "Single stepping time")
 
 	if policy == pb.StepperPolicy_Invalid {
@@ -176,7 +179,7 @@ func (s *server) Step(ctx context.Context, _ *empty.Empty) (*empty.Empty, error)
 }
 
 // Get the current simulated time.
-func (s *server) Now(ctx context.Context, in *empty.Empty) (*common.Timestamp, error) {
+func (s *server) Now(ctx context.Context, in *pb.NowRequest) (*common.Timestamp, error) {
 	trace.AddEvent(ctx, in.String(), latest, "Get the time")
 
 	if policy == pb.StepperPolicy_Invalid {
