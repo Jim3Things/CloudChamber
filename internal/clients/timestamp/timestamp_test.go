@@ -46,15 +46,15 @@ func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 }
 
 func commonSetup(t *testing.T) {
-	err := Reset()
-	assert.Nilf(t, err, "Reset failed")
-
 	unit_test.SetTesting(t)
 
 	InitTimestamp("bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ctrc.Interceptor))
+
+	err := Reset()
+	assert.Nilf(t, err, "Reset failed")
 }
 
 func TestNow(t *testing.T) {
