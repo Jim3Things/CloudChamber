@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
+	"strings"
 
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
@@ -39,17 +41,23 @@ func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInf
 }
 
 func AddEvent(ctx context.Context, msg string, tick int64, reason string) {
-	span := trace.SpanFromContext(ctx)
+	c := ctx
+	if c == nil { c = context.Background() }
+
+	span := trace.SpanFromContext(c)
 	ccTickKey := key.New(tracing.StepperTicksKey)
 	reasonKey := key.New(tracing.Reason)
 
-	span.AddEvent(ctx, msg, ccTickKey.Int64(tick), reasonKey.String(reason))
+	span.AddEvent(c, msg, ccTickKey.Int64(tick), reasonKey.String(reason))
 }
 
 func logError(ctx context.Context, tick int64, err error) error {
-	span := trace.SpanFromContext(ctx)
+	c := ctx
+	if c == nil { c = context.Background() }
+
+	span := trace.SpanFromContext(c)
 	ccTickKey := key.New(tracing.StepperTicksKey)
-	span.AddEvent(ctx, err.Error(), ccTickKey.Int64(tick))
+	span.AddEvent(c, err.Error(), ccTickKey.Int64(tick))
 
 	return err
 }
@@ -75,4 +83,31 @@ func LogError(ctx context.Context, tick int64, a ...interface{}) error {
 	}
 
 	panic("Invalid LogError call - no valid arguments found")
+}
+
+// Return the caller's fully qualified method name
+func MethodName(skip int) string {
+	fpcs := make([]uintptr, 1)
+
+	// Get the information up the stack (i.e. the caller of this method, or beyond)
+	if runtime.Callers(skip + 1, fpcs) == 0 {
+		return "?"
+	}
+
+	caller := runtime.FuncForPC(fpcs[0] - 1)
+	if caller == nil {
+		return "?"
+	}
+
+	// ... and return the name
+	return simpleName(caller.Name())
+}
+
+func simpleName(name string) string {
+	idx := strings.LastIndex(name, "/")
+	if idx >= 0 {
+		name = name[idx + 1:]
+	}
+
+	return name
 }

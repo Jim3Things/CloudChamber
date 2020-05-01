@@ -24,6 +24,7 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
 	for _, event := range data.MessageEvents {
 		item := log.Event{
 			Text: event.Name,
+			Tick: -1,
 		}
 
 		for _, attr := range event.Attributes {

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc/metadata"
 
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
@@ -60,7 +59,7 @@ func Advance() error {
 
 	client := pb.NewStepperClient(conn)
 
-	_, err = client.Step(ctx, &empty.Empty{})
+	_, err = client.Step(ctx, &pb.StepRequest{})
 
 	return err
 }
@@ -76,7 +75,7 @@ func Now() (*ct.Timestamp, error) {
 
 	client := pb.NewStepperClient(conn)
 
-	return client.Now(ctx, &empty.Empty{})
+	return client.Now(ctx, &pb.NowRequest{})
 }
 
 // Delay until the simulated time meets or exceeds the specified deadline.
@@ -108,6 +107,20 @@ func After(deadline *ct.Timestamp) (<-chan TimeData, error) {
 	}(ch)
 
 	return ch, nil
+}
+
+func Reset() error {
+	ctx, conn, err := connect()
+	if err != nil {
+		return err
+	}
+
+	defer func() { _ = conn.Close() }()
+
+	client := pb.NewStepperClient(conn)
+
+	_, err = client.Reset(ctx, &pb.ResetRequest{})
+	return err
 }
 
 // Helper function to connect to the stepper client.

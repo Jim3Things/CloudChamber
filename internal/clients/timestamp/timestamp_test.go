@@ -10,7 +10,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Jim3Things/CloudChamber/internal/services/stepper"
+	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
@@ -46,7 +46,9 @@ func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 }
 
 func commonSetup(t *testing.T) {
-	stepper.Reset()
+	err := Reset()
+	assert.Nilf(t, err, "Reset failed")
+
 	unit_test.SetTesting(t)
 
 	InitTimestamp("bufnet",

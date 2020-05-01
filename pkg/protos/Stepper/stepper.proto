@@ -32,6 +32,8 @@ service Stepper {
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
     rpc Delay (DelayRequest) returns (common.Timestamp);
+
+    rpc Reset (ResetRequest) returns (google.protobuf.Empty);
 }
 
 // Define the various simulated time stepping policies
@@ -68,6 +70,8 @@ message PolicyRequest {
 message StepRequest { }
 
 message NowRequest { }
+
+message ResetRequest { }
 
 // Define the parameters when requesting a delay
 message DelayRequest {
