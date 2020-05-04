@@ -21,18 +21,31 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
 		Status:   fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
 	}
 
+	for _, attr := range data.Attributes {
+		switch attr.Key {
+		case tracing.StackTraceKey:
+			entry.StackTrace = attr.Value.AsString()
+		}
+	}
+
 	for _, event := range data.MessageEvents {
 		item := log.Event{
-			Text: event.Name,
+			Name: event.Name,
 		}
 
 		for _, attr := range event.Attributes {
-			if attr.Key == tracing.StepperTicksKey {
+			switch attr.Key {
+			case tracing.StepperTicksKey:
 				item.Tick = attr.Value.AsInt64()
-			}
 
-			if attr.Key == tracing.Reason {
-				item.Reason = attr.Value.AsString()
+			case tracing.SeverityKey:
+				item.Severity = log.Severity(attr.Value.AsInt64())
+
+			case tracing.StackTraceKey:
+				item.StackTrace = attr.Value.AsString()
+
+			case tracing.MessageTextKey:
+				item.Text = attr.Value.AsString()
 			}
 		}
 

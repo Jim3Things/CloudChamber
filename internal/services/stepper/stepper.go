@@ -92,17 +92,17 @@ func Reset() {
 // Set the stepper's policy governing the rate and conditions for the simulated
 // time to move forward.
 func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
-	trace.AddEvent(ctx, in.String(), latest, "Setting the policy")
+	trace.OnEnter(ctx, latest, in.String())
 
 	if err := in.Validate(); err != nil {
-		return nil, trace.LogError(ctx, latest, err)
+		return nil, trace.Error(ctx, latest, err)
 	}
 
 	if policy != pb.StepperPolicy_Invalid {
 		// A policy has been set already.  If there is no change, then we can silently
 		// ignore this call.  Otherwise, this is an error
 		if (policy != in.Policy) || (delay.GetSeconds() != in.MeasuredDelay.GetSeconds()) {
-			return nil, trace.LogError(ctx, latest,
+			return nil, trace.Errorf(ctx, latest,
 				"stepper already initialized, cannot change setting from %v: %d to %v: %d",
 				policy,
 				delay.Seconds,
@@ -119,12 +119,12 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 	switch in.Policy {
 	case pb.StepperPolicy_Measured:
 		if in.MeasuredDelay.Seconds <= 0 {
-			return nil, trace.LogError(ctx, latest, "delay must be greater than zero, but was %d", in.MeasuredDelay.Seconds)
+			return nil, trace.Errorf(ctx, latest, "delay must be greater than zero, but was %d", in.MeasuredDelay.Seconds)
 		}
 
 	case pb.StepperPolicy_NoWait, pb.StepperPolicy_Manual:
 		if in.MeasuredDelay.Seconds != 0 {
-			return nil, trace.LogError(ctx, latest,
+			return nil, trace.Errorf(ctx, latest,
 				"delay must be zero when the policy is not %v, but was specified as %v: %d",
 				pb.StepperPolicy_Measured,
 				in.Policy,
@@ -152,14 +152,14 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 // When the stepper policy is for manual single-stepping, this function forces
 // a single step forward in simulated time.
 func (s *server) Step(ctx context.Context, _ *empty.Empty) (*empty.Empty, error) {
-	trace.AddEvent(ctx, "", latest, "Single stepping time")
+	trace.OnEnter(ctx, latest, "")
 
 	if policy == pb.StepperPolicy_Invalid {
-		return nil, trace.LogError(ctx, latest, "stepper not initialized: no stepper policy has been set")
+		return nil, trace.Error(ctx, latest, "stepper not initialized: no stepper policy has been set")
 	}
 
 	if policy != pb.StepperPolicy_Manual {
-		return nil, trace.LogError(ctx, latest,
+		return nil, trace.Errorf(ctx, latest,
 			"stepper must be using the %v policy.  Currently using %v",
 			pb.StepperPolicy_Manual,
 			policy)
@@ -171,16 +171,16 @@ func (s *server) Step(ctx context.Context, _ *empty.Empty) (*empty.Empty, error)
 
 	broadcast.Broadcast()
 
-	trace.AddEvent(ctx, "Stepped", latest, "Step completed")
+	trace.Info(ctx, latest, "Stepped")
 	return &empty.Empty{}, nil
 }
 
 // Get the current simulated time.
 func (s *server) Now(ctx context.Context, in *empty.Empty) (*common.Timestamp, error) {
-	trace.AddEvent(ctx, in.String(), latest, "Get the time")
+	trace.OnEnter(ctx, latest, in.String())
 
 	if policy == pb.StepperPolicy_Invalid {
-		return nil, trace.LogError(ctx, latest, "stepper not initialized: no stepper policy has been set")
+		return nil, trace.Error(ctx, latest, "stepper not initialized: no stepper policy has been set")
 	}
 
 	syncLock.Lock()
@@ -192,14 +192,14 @@ func (s *server) Now(ctx context.Context, in *empty.Empty) (*common.Timestamp, e
 // Delay the simulated time by a specified amount +/- an allowed variance.  Do
 // not return until that new time is current.
 func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timestamp, error) {
-	trace.AddEvent(ctx, in.String(), latest, "Wait for the target time")
+	trace.OnEnter(ctx, latest, in.String())
 
 	if policy == pb.StepperPolicy_Invalid {
-		return nil, trace.LogError(ctx, latest, "stepper not initialized: no stepper policy has been set")
+		return nil, trace.Error(ctx, latest, "stepper not initialized: no stepper policy has been set")
 	}
 
 	if err := in.Validate(); err != nil {
-		return nil, trace.LogError(ctx, latest, err)
+		return nil, trace.Error(ctx, latest, err)
 	}
 
 	var adjust int64 = 0
@@ -209,6 +209,6 @@ func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timest
 
 	waitUntil(in.AtLeast.Ticks + adjust)
 	resp := common.Timestamp{Ticks: latest}
-	trace.AddEvent(ctx, resp.String(), latest, "Delay completed")
+	trace.Info(ctx, latest, resp.String())
 	return &resp, nil
 }
