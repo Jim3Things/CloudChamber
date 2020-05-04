@@ -2,7 +2,6 @@ package unit_test
 
 import (
 	"context"
-	"fmt"
 	"testing"
 
 	export "go.opentelemetry.io/otel/sdk/export/trace"
@@ -31,14 +30,20 @@ func SetTesting(item *testing.T) {
 func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 	entry := common.ExtractEntry(ctx, data)
 
-	testContext.Log(fmt.Sprintf("[%s:%s] %s %s:", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName()))
+	spanID := entry.GetSpanID()
+	parentID := entry.GetParentID()
+	status := entry.GetStatus()
+	name := entry.GetName()
+	stack := entry.GetStackTrace()
+
+	testContext.Logf("[%s:%s] %s %s:%s", spanID, parentID, status, name, stack)
 	if entry.Event != nil {
 		for _, event := range entry.Event {
 			tick := event.GetTick()
 			if tick >= 0 {
-				testContext.Log(fmt.Sprintf("  @%d: %s (%s)", event.GetTick(), event.GetText(), event.GetReason()))
+				testContext.Logf("  @%d: %s (%s)%s", event.GetTick(), event.GetText(), event.GetReason(), event.GetStackTrace())
 			} else {
-				testContext.Log(fmt.Sprintf("     : %s (%s)", event.GetText(), event.GetReason()))
+				testContext.Logf("     : %s (%s)%s", event.GetText(), event.GetReason(), event.GetStackTrace())
 			}
 		}
 	}

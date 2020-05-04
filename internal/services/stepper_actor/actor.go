@@ -9,7 +9,6 @@ import (
     "github.com/AsynkronIT/protoactor-go/mailbox"
     "github.com/emirpasic/gods/maps/treemap"
     "github.com/emirpasic/gods/utils"
-    "go.opentelemetry.io/otel/api/global"
     trc "go.opentelemetry.io/otel/api/trace"
     "google.golang.org/grpc"
 
@@ -78,14 +77,13 @@ func (s *Actor) Receive(context actor.Context) {
     s.mgr.States[s.mgr.Current].Receive(context)
 }
 
-func (s *Actor) getSpan() (context.Context, trc.Span) {
+func (s *Actor) getSpan(ca actor.Context) (context.Context, trc.Span) {
     sn := s.mgr.GetStateName()
     mn := log.MethodName(2)
-    tr := global.TraceProvider().Tracer("server")
+    span := log.GetSpan(ca.Self())
+    ctx := context.Background()
 
-    return tr.Start(
-        context.Background(),
-        fmt.Sprintf("Stepper Actor/%s/%s", sn, mn),
-        trc.WithSpanKind(trc.SpanKindServer),
-    )
+    log.AddEvent(ctx, span, fmt.Sprintf("[In Stepper Actor/%s/%s]", sn, mn), s.latest, "")
+
+    return ctx, span
 }

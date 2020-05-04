@@ -18,6 +18,9 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
+const (
+	StackDepth = 5
+)
 // Interceptor intercepts and extracts incoming trace data
 func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
 	requestMetadata, _ := metadata.FromIncomingContext(ctx)
@@ -28,36 +31,44 @@ func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInf
 		MultiKV: entries,
 	}))
 
+	stackKey := key.New(tracing.StackTraceKey)
+
 	tr := global.TraceProvider().Tracer("server")
 
 	ctx, span := tr.Start(
 		trace.ContextWithRemoteSpanContext(ctx, spanCtx),
 		info.FullMethod,
 		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(stackKey.String(StackTrace())),
 	)
 	defer span.End()
 
 	return handler(ctx, req)
 }
 
-func AddEvent(ctx context.Context, msg string, tick int64, reason string) {
-	c := ctx
-	if c == nil { c = context.Background() }
-
-	span := trace.SpanFromContext(c)
+func AddEvent(ctx context.Context, span trace.Span, msg string, tick int64, reason string) {
 	ccTickKey := key.New(tracing.StepperTicksKey)
 	reasonKey := key.New(tracing.Reason)
+	stackKey  := key.New(tracing.StackTraceKey)
 
-	span.AddEvent(c, msg, ccTickKey.Int64(tick), reasonKey.String(reason))
+	span.AddEvent(
+		ctx,
+		msg,
+		ccTickKey.Int64(tick),
+		reasonKey.String(reason),
+		stackKey.String(StackTrace()))
 }
 
 func logError(ctx context.Context, tick int64, err error) error {
-	c := ctx
-	if c == nil { c = context.Background() }
-
-	span := trace.SpanFromContext(c)
+	span := trace.SpanFromContext(ctx)
 	ccTickKey := key.New(tracing.StepperTicksKey)
-	span.AddEvent(c, err.Error(), ccTickKey.Int64(tick))
+	stackKey  := key.New(tracing.StackTraceKey)
+
+	span.AddEvent(
+		ctx,
+		err.Error(),
+		ccTickKey.Int64(tick),
+		stackKey.String(StackTrace()))
 
 	return err
 }
@@ -110,4 +121,22 @@ func simpleName(name string) string {
 	}
 
 	return name
+}
+
+func StackTrace() string {
+	res := ""
+
+	fpcs := make([]uintptr, StackDepth)
+	runtime.Callers(1, fpcs)
+	frames := runtime.CallersFrames(fpcs)
+
+	more := true
+	for more {
+		var frame runtime.Frame
+
+		frame, more = frames.Next()
+		res = fmt.Sprintf("%s\n%s:%d", res, frame.File, frame.Line)
+	}
+
+	return res
 }

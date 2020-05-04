@@ -47,8 +47,10 @@ message event {
     // The event text itself.
     string text = 3;
 
+    string stack_trace = 4;
+
     // The set of modules impacted, and the type of impact.
-    repeated module impacted = 4;
+    repeated module impacted = 5;
 }
 
 // Describe a full correlated span, consisting of zero or more events.
@@ -60,5 +62,7 @@ message entry {
 
     string status = 4;
 
-    repeated event event = 5;
+    string stack_trace = 5;
+
+    repeated event event = 6;
 }

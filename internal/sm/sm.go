@@ -13,14 +13,14 @@ import (
 
 type State interface {
     actor.Actor
-    Enter(ctx actor.Context) error
+    Enter(ctx actor.Context, c context.Context, span trc.Span) error
     Leave()
 }
 
 type EmptyState struct {
 }
 
-func (*EmptyState) Enter(_ actor.Context) error { return nil }
+func (*EmptyState) Enter(_ actor.Context, _ context.Context, _ trc.Span) error { return nil }
 func (*EmptyState) Receive(_ actor.Context) {}
 func (*EmptyState) Leave()                  {}
 
@@ -37,7 +37,7 @@ func (sm *SM) ChangeState(c context.Context, span trc.Span, ctx actor.Context, l
     cur.Leave()
 
     cur = sm.States[newState]
-    if err := cur.Enter(ctx); err != nil {
+    if err := cur.Enter(ctx, c, span); err != nil {
         return trace.LogError(c, latest, err)
     }
 
@@ -48,7 +48,7 @@ func (sm *SM) ChangeState(c context.Context, span trc.Span, ctx actor.Context, l
 
 func (sm *SM) Initialize(c context.Context, span trc.Span, firstState int) error {
     cur := sm.States[firstState]
-    if err := cur.Enter(nil); err != nil {
+    if err := cur.Enter(nil, c, span); err != nil {
         return trace.LogError(c, 0, err)
     }
 
@@ -70,8 +70,8 @@ func (sm *SM) GetStateName() string {
     return n
 }
 
-func (sm *SM) AddEvent(c context.Context, _ trc.Span, latest int64, format string, a ...interface{}) {
+func (sm *SM) AddEvent(c context.Context, span trc.Span, latest int64, format string, a ...interface{}) {
     msg := fmt.Sprintf(format, a...)
-    trace.AddEvent(c, fmt.Sprintf("[In state %q]: %s", sm.StateNames[sm.Current], msg), latest, "")
+    trace.AddEvent(c, span, fmt.Sprintf("[In state %q]: %s", sm.GetStateName(), msg), latest, "")
 }
 

@@ -5,9 +5,12 @@ import (
     "fmt"
 
     "github.com/AsynkronIT/protoactor-go/actor"
+    "github.com/golang/protobuf/ptypes/empty"
     "go.opentelemetry.io/otel/api/global"
+    "go.opentelemetry.io/otel/api/key"
     trc "go.opentelemetry.io/otel/api/trace"
 
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
     "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
@@ -17,16 +20,23 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
     return func(c actor.ReceiverContext, envelope *actor.MessageEnvelope) {
         tr := global.TraceProvider().Tracer("server")
 
+        stackKey := key.New(tracing.StackTraceKey)
+
         ctx, span := tr.Start(
             context.Background(),
             fmt.Sprintf("Actor %q/Receive", c.Self()),
             trc.WithSpanKind(trc.SpanKindServer),
+            trc.WithAttributes(stackKey.String(StackTrace())),
         )
-        defer span.End()
+        defer func() {
+            ClearSpan(c.Self())
+            span.End()
+        }()
 
+        SetSpan(c.Self(), span)
         hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-        span.AddEvent(ctx, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
+        AddEvent(ctx, span, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)), -1, "")
 
         next(c, envelope)
         return
@@ -35,18 +45,9 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 
 func SendLogger(next actor.SenderFunc) actor.SenderFunc {
     return func (c actor.SenderContext, target *actor.PID, envelope *actor.MessageEnvelope) {
-        tr := global.TraceProvider().Tracer("server")
-
-        ctx, span := tr.Start(
-            context.Background(),
-            fmt.Sprintf("Actor %q/Send", c.Self()),
-            trc.WithSpanKind(trc.SpanKindServer),
-        )
-        defer span.End()
-
         hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-        span.AddEvent(ctx, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
+        AddEvent(context.Background(), GetSpan(c.Self()), fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)), -1, "")
 
         next(c, target, envelope)
         return
@@ -91,7 +92,12 @@ func dumpMessage(msg interface{}) string {
 
 
     case *common.Completion:
-        return "common.Completion"
+        cmp := msg.(*common.Completion)
+        if cmp.IsError {
+            return fmt.Sprintf("common.Completion error: %q", cmp.Error)
+        }
+
+        return "common.Completion success"
 
     case *common.Timestamp:
         return "common.Timestamp"
@@ -100,7 +106,8 @@ func dumpMessage(msg interface{}) string {
         return "AutoStepRequest"
 
     case *pb.PolicyRequest:
-        return fmt.Sprintf("PolicyRequest: %v", msg.(*pb.PolicyRequest))
+        pr := msg.(*pb.PolicyRequest)
+        return fmt.Sprintf("PolicyRequest: policy: %v, delay: %ds", pr.Policy, pr.MeasuredDelay.Seconds)
 
     case *pb.ResetRequest:
         return "ResetRequest"
@@ -114,6 +121,9 @@ func dumpMessage(msg interface{}) string {
     case *pb.DelayRequest:
         dr := msg.(*pb.DelayRequest)
         return fmt.Sprintf("DelayRequest: atLeast to %d, jitter %d", dr.AtLeast.Ticks, dr.Jitter)
+
+    case *empty.Empty:
+        return "<empty>"
 
     default:
         m, ok := msg.(actor.SystemMessage)

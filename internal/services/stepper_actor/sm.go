@@ -61,7 +61,7 @@ type InvalidStateImpl struct {
 func (s *InvalidStateImpl) Receive(ctx actor.Context) {
     holder := s.Holder
 
-    c, span := holder.getSpan()
+    c, span := holder.getSpan(ctx)
     defer span.End()
 
     switch ctx.Message().(type) {
@@ -85,7 +85,7 @@ type NoWaitStateImpl struct {
     Holder *Actor
 }
 
-func (s *NoWaitStateImpl) Enter(ctx actor.Context) error {
+func (s *NoWaitStateImpl) Enter(ctx actor.Context, c context.Context, span trc.Span) error {
     holder := s.Holder
 
     if err := holder.requireZeroDelay(ctx); err != nil {
@@ -96,9 +96,6 @@ func (s *NoWaitStateImpl) Enter(ctx actor.Context) error {
     // to the first waiter, if there are any
     k, _ := holder.waiters.Min()
     if k != nil {
-        c, span := holder.getSpan()
-        defer span.End()
-
         holder.Advance(c, span, ctx, k.(int64))
     }
 
@@ -108,7 +105,7 @@ func (s *NoWaitStateImpl) Enter(ctx actor.Context) error {
 func (s *NoWaitStateImpl) Receive(ctx actor.Context) {
     holder := s.Holder
 
-    c, span := holder.getSpan()
+    c, span := holder.getSpan(ctx)
     defer span.End()
 
 
@@ -135,7 +132,7 @@ type ManualStateImpl struct {
     Holder *Actor
 }
 
-func (s *ManualStateImpl) Enter(ctx actor.Context) error {
+func (s *ManualStateImpl) Enter(ctx actor.Context, c context.Context, span trc.Span) error {
     holder := s.Holder
 
     if err := holder.requireZeroDelay(ctx); err != nil {
@@ -146,7 +143,7 @@ func (s *ManualStateImpl) Enter(ctx actor.Context) error {
 }
 
 func (s *ManualStateImpl) Receive(ctx actor.Context) {
-    c, span := s.Holder.getSpan()
+    c, span := s.Holder.getSpan(ctx)
     defer span.End()
 
     s.Holder.ApplyDefaultActions(c, span, ctx)
@@ -167,7 +164,7 @@ type AutoStepStateImpl struct {
     epoch int64
 }
 
-func (s *AutoStepStateImpl) Enter(ctx actor.Context) error {
+func (s *AutoStepStateImpl) Enter(ctx actor.Context, c context.Context, span trc.Span) error {
     holder := s.Holder
 
     // Set up the automatic timer
@@ -179,7 +176,7 @@ func (s *AutoStepStateImpl) Enter(ctx actor.Context) error {
     }
 
     if delay <= 0 {
-        return trace.LogError(nil, holder.latest, "delay must be greater than zero, but was %d", delay)
+        return trace.LogError(c, holder.latest, "delay must be greater than zero, but was %d", delay)
     }
 
     s.delay = delay
@@ -192,7 +189,7 @@ func (s *AutoStepStateImpl) Enter(ctx actor.Context) error {
 func (s *AutoStepStateImpl) Receive(ctx actor.Context) {
     holder := s.Holder
 
-    c, span := holder.getSpan()
+    c, span := holder.getSpan(ctx)
     defer span.End()
 
     switch ctx.Message().(type) {
@@ -201,7 +198,7 @@ func (s *AutoStepStateImpl) Receive(ctx actor.Context) {
     case *pb.AutoStepRequest:
         asr := ctx.Message().(*pb.AutoStepRequest)
         if asr.Epoch == s.epoch {
-            holder.HandleStep(c, span, ctx)
+            holder.Advance(c, span, ctx, 1)
         }
 
     case *pb.StepRequest:
@@ -226,7 +223,7 @@ func (s *AutoStepStateImpl) Leave() {
 
 
 func (s *Actor) ApplyDefaultActions(c context.Context, span trc.Span, ctx actor.Context) {
-    span.AddEvent(c, "Applying Default Actions")
+    trace.AddEvent(c, span, "Applying Default Actions", s.latest, "")
     if !s.HandleSystemMessages(c, span, ctx) {
         switch ctx.Message().(type) {
         case *pb.NowRequest:
