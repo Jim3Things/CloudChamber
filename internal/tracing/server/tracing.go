@@ -14,10 +14,15 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
 // Interceptor intercepts and extracts incoming trace data
-func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+func Interceptor(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler) (resp interface{}, err error) {
 	requestMetadata, _ := metadata.FromIncomingContext(ctx)
 	metadataCopy := requestMetadata.Copy()
 
@@ -32,47 +37,83 @@ func Interceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInf
 		trace.ContextWithRemoteSpanContext(ctx, spanCtx),
 		info.FullMethod,
 		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(key.String(tracing.StackTraceKey, tracing.StackTrace())),
 	)
 	defer span.End()
 
 	return handler(ctx, req)
 }
 
-func AddEvent(ctx context.Context, msg string, tick int64, reason string) {
-	span := trace.SpanFromContext(ctx)
-	ccTickKey := key.New(tracing.StepperTicksKey)
-	reasonKey := key.New(tracing.Reason)
+// +++ Exported trace invocation methods
 
-	span.AddEvent(ctx, msg, ccTickKey.Int64(tick), reasonKey.String(reason))
+// There should be an Xxx and Xxxf method for every severity level, plus some
+// specific scenario functions (such as OnEnter to log an information entry
+// about arrival at a specific method).
+//
+// Note: The set of methods that are implemented below are based on what is
+// currently needed.  Others will be added as required.
+
+// Post a simple informational trace entry
+func Info(ctx context.Context, tick int64, msg string) {
+	span := trace.SpanFromContext(ctx)
+
+	span.AddEvent(
+		ctx,
+		tracing.MethodName(2),
+		key.Int64(tracing.StepperTicksKey, tick),
+		key.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
+		key.String(tracing.StackTraceKey, tracing.StackTrace()),
+		key.String(tracing.MessageTextKey, msg))
 }
 
+// Post a method arrival informational trace entry
+func OnEnter(ctx context.Context, tick int64, msg string) {
+	span := trace.SpanFromContext(ctx)
+
+	span.AddEvent(
+		ctx,
+		fmt.Sprintf("On %q entry", tracing.MethodName(2)),
+		key.Int64(tracing.StepperTicksKey, tick),
+		key.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
+		key.String(tracing.StackTraceKey, tracing.StackTrace()),
+		key.String(tracing.MessageTextKey, msg))
+}
+
+// Post a simple error trace
+func Error(ctx context.Context, tick int64, a interface{}) error {
+	if msg, ok := a.(string); ok {
+		return logError(ctx, tick, errors.New(msg))
+	}
+
+	if err, ok := a.(error); ok {
+		return logError(ctx, tick, err)
+	}
+
+	panic("Invalid Error call - no valid arguments found")
+}
+
+// Post an error trace with a complex string formatting
+func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
+	return logError(ctx, tick, fmt.Errorf(f, a...))
+}
+
+// --- Exported trace invocation methods
+
+// +++ Helper functions
+
+// Write a specific error entry
 func logError(ctx context.Context, tick int64, err error) error {
 	span := trace.SpanFromContext(ctx)
-	ccTickKey := key.New(tracing.StepperTicksKey)
-	span.AddEvent(ctx, err.Error(), ccTickKey.Int64(tick))
+
+	span.AddEvent(
+		ctx,
+		fmt.Sprintf("Error from %q", tracing.MethodName(3)),
+		key.Int64(tracing.StepperTicksKey, tick),
+		key.Int64(tracing.SeverityKey, int64(log.Severity_Error)),
+		key.String(tracing.StackTraceKey, tracing.StackTrace()),
+		key.String(tracing.MessageTextKey, err.Error()))
 
 	return err
 }
 
-func LogError(ctx context.Context, tick int64, a ...interface{}) error {
-	switch {
-	case len(a) == 1:
-		msg, ok := a[0].(string)
-		if ok {
-			return logError(ctx, tick, errors.New(msg))
-		}
-
-		err, ok := a[0].(error)
-		if ok {
-			return logError(ctx, tick, err)
-		}
-
-	case len(a) > 1:
-		f, ok := a[0].(string)
-		if ok {
-			return logError(ctx, tick, fmt.Errorf(f, a[1:]...))
-		}
-	}
-
-	panic("Invalid LogError call - no valid arguments found")
-}
+// --- Helper functions
