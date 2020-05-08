@@ -30,6 +30,8 @@ func main() {
 
 	setup.Init(exporters.StdOut)
 
+	version.TraceVersion()
+
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
 		log.Fatalf("failed to process the global configuration: %v", err)

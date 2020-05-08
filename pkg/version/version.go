@@ -3,7 +3,13 @@
 //
 package version
 
-import "fmt"
+import (
+	"context"
+	"fmt"
+
+	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/trace"
+)
 
 //go:generate go run generator\generate.go
 
@@ -34,4 +40,17 @@ func Show() {
 		BuildBranch,
 		BuildBranchDate,
 		BuildBranchHash)
+}
+
+// TraceVersion is a simple function to insert a trace record containing the
+// version information into the trace stream.
+//
+func TraceVersion() {
+	tr := global.TraceProvider().Tracer("")
+
+	_ = tr.WithSpan(context.Background(), "TraceVersion", func(ctx context.Context) (err error) {
+		span := trace.SpanFromContext(ctx)
+		span.AddEvent(ctx, ToString())
+		return nil
+	})
 }
