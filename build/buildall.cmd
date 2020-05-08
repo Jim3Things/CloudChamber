@@ -41,14 +41,6 @@
 @set CCDeployments=%CCRoot%\deployments
 
 
-@set BUILD_VERSION=v0.0.1
-
-@for /F "usebackq delims=" %%i in (`git symbolic-ref --short HEAD`)        do @set BUILD_BRANCH=%%i
-@for /F "usebackq delims=" %%i in (`git log -n 1 --pretty^=format:"%%cI"`) do @set BUILD_BRANCH_DATE=%%i
-@for /F "usebackq delims=" %%i in (`git log -n 1 --pretty^=format:"%%H"`)  do @set BUILD_BRANCH_HASH=%%i
-
-@set LD_FLAGS="-X 'main.version=%BUILD_VERSION%' -X 'main.buildDate=%BuildDateTime%' -X 'main.buildBranch=%BUILD_BRANCH%' -X 'main.buildBranchDate=%BUILD_BRANCH_DATE%' -X 'main.buildBranchHash=%BUILD_BRANCH_HASH%'"
-
 @pushd %gopath%\src
 
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\admin\users.proto
@@ -67,10 +59,12 @@ protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pk
 protoc --go_out=plugins=grpc:. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\monitor\monitor.proto
 protoc --go_out=plugins=grpc:. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\Stepper\stepper.proto
 
-go build -ldflags=%LD_FLAGS% -o github.com\Jim3Things\CloudChamber\deployments\controllerd.exe github.com\Jim3Things\CloudChamber\cmd\controllerd\main.go
-go build -ldflags=%LD_FLAGS% -o github.com\Jim3Things\CloudChamber\deployments\inventoryd.exe github.com\Jim3Things\CloudChamber\cmd\inventoryd\main.go
-go build -ldflags=%LD_FLAGS% -o github.com\Jim3Things\CloudChamber\deployments\sim_supportd.exe github.com\Jim3Things\CloudChamber\cmd\sim_supportd\main.go
-go build -ldflags=%LD_FLAGS% -o github.com\Jim3Things\CloudChamber\deployments\web_server.exe github.com\Jim3Things\CloudChamber\cmd\web_server\main.go
+go generate github.com\Jim3Things\CloudChamber\pkg\version\version.go
+
+go build -o github.com\Jim3Things\CloudChamber\deployments\controllerd.exe github.com\Jim3Things\CloudChamber\cmd\controllerd\main.go
+go build -o github.com\Jim3Things\CloudChamber\deployments\inventoryd.exe github.com\Jim3Things\CloudChamber\cmd\inventoryd\main.go
+go build -o github.com\Jim3Things\CloudChamber\deployments\sim_supportd.exe github.com\Jim3Things\CloudChamber\cmd\sim_supportd\main.go
+go build -o github.com\Jim3Things\CloudChamber\deployments\web_server.exe github.com\Jim3Things\CloudChamber\cmd\web_server\main.go
 
 copy github.com\Jim3Things\CloudChamber\Configs\cloudchamber.yaml github.com\Jim3Things\CloudChamber\deployments\cloudchamber.yaml
 copy github.com\Jim3Things\CloudChamber\scripts\start_cloud_chamber.cmd github.com\Jim3Things\CloudChamber\deployments\start_cloud_chamber.cmd
