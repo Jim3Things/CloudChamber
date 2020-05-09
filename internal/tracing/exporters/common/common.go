@@ -11,13 +11,13 @@ import (
 )
 
 func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
-	spanId := data.SpanContext.SpanIDString()
-	parentId := fmt.Sprintf("%x", data.ParentSpanID)
+	spanID := data.SpanContext.SpanID.String()
+	parentID := data.ParentSpanID.String()
 
 	entry := log.Entry{
 		Name:     data.Name,
-		SpanID:   spanId,
-		ParentID: parentId,
+		SpanID:   spanID,
+		ParentID: parentID,
 		Status:   fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
 	}
 

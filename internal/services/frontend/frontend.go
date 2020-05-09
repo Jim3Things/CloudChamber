@@ -91,11 +91,6 @@ var (
     //
     ErrUserAuthFailed = errors.New("CloudChamber: authentication failed, invalid user name or password")
 
-    // ErrUserPermissionDenied indicates the user does not have the appropriate
-    // permissions for the requested operation.
-    //
-    ErrUserPermissionDenied = errors.New("CloudChamber: permission denied")
-
     // ErrUserInvalidOperation indicates the operation requested for the supplied
     // user account is invalid in some way, likely a non-existent operation code.
     //
@@ -107,27 +102,90 @@ var (
     tr trace.Tracer
 )
 
+// Custom common HTTP error type that includes the status code to use in
+// the response.
+type HTTPError struct {
+    // HTTP status code
+    SC   int
+
+    // Underlying Go error
+    Base error
+}
+
+func (he *HTTPError) StatusCode() int {
+    // We should not need this, but if we're called with no error at all,
+    // then the status should be success...
+    if he == nil {
+        return http.StatusOK
+    }
+
+    return he.SC
+}
+
+func (he *HTTPError) Error() string {
+    return he.Base.Error()
+}
+
+// +++ HTTPError specializations
+
+// ErrNoLoginActive indicates that the specified user is not logged into this session
+func NewErrNoLoginActive(name string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: user %q not logged into this session", name),
+    }
+}
+
 // ErrUserNotFound indicates the specified user account was determined to
 // not exist (i.e. the search succeeded but no record was found)
 //
-type ErrUserNotFound string
-func (unf ErrUserNotFound) Error() string {
-    return fmt.Sprintf("CloudChamber: user %q not found", string(unf))
+func NewErrUserNotFound(name string) *HTTPError {
+    return &HTTPError{
+        SC : http.StatusNotFound,
+        Base : fmt.Errorf("CloudChamber: user %q not found", name),
+    }
 }
 
 // ErrUserAlreadyCreated indicates the specified user account was previously
 // created and the request was determined to be a duplicate Create request.
 //
-type ErrUserAlreadyCreated string
-func (uac ErrUserAlreadyCreated) Error() string {
-    return fmt.Sprintf("CloudChamber: user %q already exists", string(uac))
+func NewErrUserAlreadyCreated(name string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: user %q already exists", name),
+    }
 }
 
-// ErrNoLoginActive indicates that the specified user is not logged into this session
-type ErrNoLoginActive string
-func (enla ErrNoLoginActive) Error() string {
-    return fmt.Sprintf("CloudChamber: user %q not logged into this session", string(enla))
+// ErrUserPermissionDenied indicates the user does not have the appropriate
+// permissions for the requested operation.
+//
+func NewErrUserPermissionDenied() *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusForbidden,
+        Base: errors.New("CloudChamber: permission denied"),
+    }
 }
+
+// ErrUserStaleVersion indicates that an operation against the specified user
+// expected a different revision number than was found
+//
+func NewErrUserStaleVersion(name string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusConflict,
+        Base: fmt.Errorf("CloudChamber: user %q has a newer version than expected", name),
+    }
+}
+
+// ErrBadMatchType indicates that the If-Match value was syntactically incorrect,
+// and could not be processed
+func NewErrBadMatchType(match string) *HTTPError {
+    return &HTTPError{
+        SC : http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: match value %q is not recognized as a valid integer", match),
+    }
+}
+
+// --- HTTPError specializations
 
 func initHandlers() error {
 
@@ -184,8 +242,8 @@ func initService(cfg *config.GlobalConfig) error {
         return err
     }
 
-    // TODO: This is the minimal hook to pre-establish the system account
-    return UserAdd(cfg.WebServer.SystemAccount, nil)
+    // Finally, initialize the user store
+    return InitDBUsers(cfg)
 }
 
 // StartService is the primary entry point to start the front-end web service.
@@ -218,9 +276,32 @@ func handlerInjectorRoot(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "Injector (Root)")
 }
 
-// WithSession wraps a handler action with the necessary code to retrieve any existing session state,
+// Set an http error, and log it to the tracing system.
+func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, err error) {
+    // We're hoping this is an HTTPError form of error, which would have the
+    // preferred HTTP status code included.
+    //
+    // If it isn't, then the error originated in some support or library logic,
+    // rather than the web server's business logic.  In that case we assume a
+    // status code of internal server error as the most likely correct value.
+    he := err.(*HTTPError)
+    if he == nil {
+        he = &HTTPError {
+            SC:   http.StatusInternalServerError,
+            Base: err,
+        }
+    }
+
+    span.AddEvent(ctx, fmt.Sprintf("http error %v: %s", he.StatusCode(), he.Error()))
+    http.Error(w, he.Error(), he.StatusCode())
+}
+
+// doSessionHeader wraps a handler action with the necessary code to retrieve any existing session state,
 // and to attach that state to the response prior to returning.
-func WithSession(ctx context.Context, w http.ResponseWriter, r *http.Request,
+//
+// The session object is passed out for reference use by any later body processing.
+func doSessionHeader(
+    ctx context.Context, w http.ResponseWriter, r *http.Request,
     action func(ctx context.Context, span trace.Span, session *sessions.Session) error) error {
 
     span := trace.SpanFromContext(ctx)
@@ -229,12 +310,10 @@ func WithSession(ctx context.Context, w http.ResponseWriter, r *http.Request,
     err := action(ctx, span, session)
 
     if errx := session.Save(r, w); errx != nil {
-        httpError(ctx, span, w, errx.Error(), http.StatusInternalServerError)
-        return errx
-    }
-
-    if err != nil {
-        httpError(ctx, span, w, err.Error(), http.StatusBadRequest)
+        return &HTTPError{
+            SC:   http.StatusInternalServerError,
+            Base: errx,
+        }
     }
 
     return err
