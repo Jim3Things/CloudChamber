@@ -14,9 +14,9 @@ import (
 //go:generate go run generator\generate.go
 
 // ToString is a function which returns the version information formatted as a
-// single line, suitable for dumpting to a log file.
+// single line, suitable for dumping to a log file.
 //
-func ToString() string {
+func toString() string {
 	return fmt.Sprintf(
 		"Version: %v BuildHost: %v BuildDate: %v Branch: %v (%v \\ %v)",
 		BuildVersion,
@@ -45,12 +45,12 @@ func Show() {
 // TraceVersion is a simple function to insert a trace record containing the
 // version information into the trace stream.
 //
-func TraceVersion() {
+func Trace() {
 	tr := global.TraceProvider().Tracer("")
 
 	_ = tr.WithSpan(context.Background(), "TraceVersion", func(ctx context.Context) (err error) {
 		span := trace.SpanFromContext(ctx)
-		span.AddEvent(ctx, ToString())
+		span.AddEvent(ctx, toString())
 		return nil
 	})
 }

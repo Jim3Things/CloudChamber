@@ -26,7 +26,7 @@ func main() {
 
 	setup.Init(exporters.StdOut)
 
-	version.TraceVersion()
+	version.Trace()
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
