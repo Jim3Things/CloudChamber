@@ -9,18 +9,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
-)
-
-var (
-	// declare a bunch of variables whose values given here will be replaced by some
-	// build-time defined values. If for some reason those build-time replacements
-	// do not take place then the -version flag will dump these values as-is.
-	//
-	version         = "development"
-	buildDate       = "buildDate"
-	buildBranch     = "branch"
-	buildBranchHash = "branch-hash"
-	buildBranchDate = "branch-date"
+	"github.com/Jim3Things/CloudChamber/pkg/version"
 )
 
 func main() {
@@ -30,11 +19,13 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Printf("Version: %v\nBuildDate: %v\nBranch: %v (%v \\ %v)\n", version, buildDate, buildBranch, buildBranchDate, buildBranchHash)
+		version.Show()
 		os.Exit(0)
 	}
 
 	setup.Init(exporters.StdOut)
+
+	version.Trace()
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
