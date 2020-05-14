@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/grpctrace"
 	"google.golang.org/grpc"
@@ -28,7 +28,7 @@ func Interceptor(ctx context.Context, method string, req, reply interface{}, cc 
 			setTraceStatus(ctx, err)
 			return err
 		},
-		trace.WithAttributes(key.String(tracing.StackTraceKey, tracing.StackTrace())))
+		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
 	return err
 }
 

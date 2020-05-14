@@ -7,7 +7,7 @@ import (
 
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/key"
+	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/grpctrace"
 	"google.golang.org/grpc"
@@ -37,7 +37,7 @@ func Interceptor(
 		trace.ContextWithRemoteSpanContext(ctx, spanCtx),
 		info.FullMethod,
 		trace.WithSpanKind(trace.SpanKindServer),
-		trace.WithAttributes(key.String(tracing.StackTraceKey, tracing.StackTrace())),
+		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
 	)
 	defer span.End()
 
@@ -60,10 +60,10 @@ func Info(ctx context.Context, tick int64, msg string) {
 	span.AddEvent(
 		ctx,
 		tracing.MethodName(2),
-		key.Int64(tracing.StepperTicksKey, tick),
-		key.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
-		key.String(tracing.StackTraceKey, tracing.StackTrace()),
-		key.String(tracing.MessageTextKey, msg))
+		kv.Int64(tracing.StepperTicksKey, tick),
+		kv.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
+		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
+		kv.String(tracing.MessageTextKey, msg))
 }
 
 // Post a method arrival informational trace entry
@@ -73,10 +73,10 @@ func OnEnter(ctx context.Context, tick int64, msg string) {
 	span.AddEvent(
 		ctx,
 		fmt.Sprintf("On %q entry", tracing.MethodName(2)),
-		key.Int64(tracing.StepperTicksKey, tick),
-		key.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
-		key.String(tracing.StackTraceKey, tracing.StackTrace()),
-		key.String(tracing.MessageTextKey, msg))
+		kv.Int64(tracing.StepperTicksKey, tick),
+		kv.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
+		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
+		kv.String(tracing.MessageTextKey, msg))
 }
 
 // Post a simple error trace
@@ -108,10 +108,10 @@ func logError(ctx context.Context, tick int64, err error) error {
 	span.AddEvent(
 		ctx,
 		fmt.Sprintf("Error from %q", tracing.MethodName(3)),
-		key.Int64(tracing.StepperTicksKey, tick),
-		key.Int64(tracing.SeverityKey, int64(log.Severity_Error)),
-		key.String(tracing.StackTraceKey, tracing.StackTrace()),
-		key.String(tracing.MessageTextKey, err.Error()))
+		kv.Int64(tracing.StepperTicksKey, tick),
+		kv.Int64(tracing.SeverityKey, int64(log.Severity_Error)),
+		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
+		kv.String(tracing.MessageTextKey, err.Error()))
 
 	return err
 }
