@@ -28,7 +28,7 @@
 @rem
 @if " " == "%UpdateHour:~0,1%" set UpdateHour=0%UpdateHour:~1,1%
 
-@set UpdateDateTime=%UpdateYear%%UpdateMonth%%UpdateDay%-%UpdateHour%%UpdateMinute%%UpdateSecond%
+@set BuildDateTime=%UpdateYear%%UpdateMonth%%UpdateDay%-%UpdateHour%%UpdateMinute%%UpdateSecond%
 
 
 @rem Update PATH to include the tools from the local Go environment. This is a temporary update
@@ -41,7 +41,7 @@
 @set CCDeployments=%CCRoot%\deployments
 
 
-pushd %gopath%\src
+@pushd %gopath%\src
 
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\admin\users.proto
 protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\common\capacity.proto
@@ -60,6 +60,8 @@ protoc --go_out=. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pk
 protoc --go_out=plugins=grpc:. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\monitor\monitor.proto
 protoc --go_out=plugins=grpc:. --validate_out=lang=go:. github.com\Jim3Things\CloudChamber\pkg\protos\Stepper\stepper.proto
 
+go generate github.com\Jim3Things\CloudChamber\pkg\version\version.go
+
 go build -o github.com\Jim3Things\CloudChamber\deployments\controllerd.exe github.com\Jim3Things\CloudChamber\cmd\controllerd\main.go
 go build -o github.com\Jim3Things\CloudChamber\deployments\inventoryd.exe github.com\Jim3Things\CloudChamber\cmd\inventoryd\main.go
 go build -o github.com\Jim3Things\CloudChamber\deployments\sim_supportd.exe github.com\Jim3Things\CloudChamber\cmd\sim_supportd\main.go
@@ -69,12 +71,12 @@ copy github.com\Jim3Things\CloudChamber\Configs\cloudchamber.yaml github.com\Jim
 copy github.com\Jim3Things\CloudChamber\scripts\start_cloud_chamber.cmd github.com\Jim3Things\CloudChamber\deployments\start_cloud_chamber.cmd
 copy github.com\Jim3Things\CloudChamber\scripts\startetcd.cmd github.com\Jim3Things\CloudChamber\deployments\startetcd.cmd
 
-echo rem > %CCDeployments%\readme.md
-echo rem R E A D M E . m d >> %CCDeployments%\readme.md
-echo rem >> %CCDeployments%\readme.md
-echo rem >> %CCDeployments%\readme.md
-echo BuildTimeStamp %UpdateDateTime% >> %CCDeployments%\readme.md
+@echo rem > %CCDeployments%\readme.md
+@echo rem R E A D M E . m d >> %CCDeployments%\readme.md
+@echo rem >> %CCDeployments%\readme.md
+@echo rem >> %CCDeployments%\readme.md
+@echo BuildTimeStamp %BuildDateTime% >> %CCDeployments%\readme.md
 
-popd
+@popd
 
 @endlocal

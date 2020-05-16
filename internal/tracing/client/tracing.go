@@ -4,12 +4,14 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/global"
+	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/plugin/grpctrace"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
+
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 func Interceptor(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, invoker grpc.UnaryInvoker, opts ...grpc.CallOption) error {
@@ -30,6 +32,8 @@ func Interceptor(ctx context.Context, method string, req, reply interface{}, cc 
 }
 
 func setTraceStatus(span trace.Span, err error) {
+	// Spans assume a status of "OK", so we only need to update the
+	// status if it is an error.
 	if err != nil {
 		s, ok := status.FromError(err)
 		code := s.Code()

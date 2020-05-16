@@ -30,6 +30,18 @@ enum impact {
     Execute = 5;
 }
 
+enum severity {
+    Debug = 0;
+
+    // This is the severity use to denote an explanatory entry
+    Reason = 1;
+
+    Info = 2;
+    Warning = 3;
+    Error = 4;
+    Fatal = 5;
+}
+
 // Describe an impacted module
 message module {
     impact impact = 1;
@@ -41,16 +53,20 @@ message event {
     // Simulated time when it was logged.
     int64 tick = 1;
 
-    // Annotation that describes why the event occurred.
-    string reason = 2;
+    // Event severity
+    severity severity = 2;
+
+    // Label to quickly mark the event
+    string name = 3;
 
     // The event text itself.
-    string text = 3;
+    string text = 4;
 
-    string stack_trace = 4;
+    // Formatted caller's stack trace
+    string stack_trace = 5;
 
     // The set of modules impacted, and the type of impact.
-    repeated module impacted = 5;
+    repeated module impacted = 6;
 }
 
 // Describe a full correlated span, consisting of zero or more events.
