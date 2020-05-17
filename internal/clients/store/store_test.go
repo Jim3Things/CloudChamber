@@ -66,6 +66,8 @@ func etcdStart() {
 	etcdConfig.APUrls = []url.URL{*apurl}
 	etcdConfig.ACUrls = []url.URL{*acurl}
 
+	etcdConfig.InitialCluster = etcdConfig.InitialClusterFromName("")
+
 	// Override the default log level "info" which is very noisy
 	//
 	etcdConfig.LogLevel = "warn"
