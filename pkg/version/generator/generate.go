@@ -7,8 +7,10 @@
 // not form part of the version package itself, but is a standalone file used to generate
 // part of the package.
 //
-// +build ignore
+// Note: the VsCode linter requires a blank line after the ignore directive
 //
+// +build ignore
+
 package main
 
 import (
