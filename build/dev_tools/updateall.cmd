@@ -21,4 +21,10 @@ go get -u google.golang.org/grpc
 
 go get -u golang.org/x/crypto/...
 
+go get -u github.com/AsynkronIT/protoactor-go/...
+
+pushd github.com\AsynkronIT\protoactor-go
+make
+popd
+
 popd

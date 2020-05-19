@@ -32,10 +32,10 @@ func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 	entry := common.ExtractEntry(ctx, data)
 
 	testContext.Logf("[%s:%s] %s %s:\n%s", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName(), entry.GetStackTrace())
+
 	for _, event := range entry.Event {
 		if event.GetTick() < 0 {
 			testContext.Logf("       : [%s] (%s) %s\n%s", severityFlag(event.GetSeverity()), event.GetName(), event.GetText(), event.GetStackTrace())
-
 		} else {
 			testContext.Logf("  @%4d: [%s] (%s) %s\n%s", event.GetTick(), severityFlag(event.GetSeverity()), event.GetName(), event.GetText(), event.GetStackTrace())
 		}

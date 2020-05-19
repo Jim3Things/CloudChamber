@@ -19,6 +19,13 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
 		SpanID:   spanID,
 		ParentID: parentID,
 		Status:   fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
+		StackTrace: "",
+	}
+
+	for _, attr := range data.Attributes {
+		if attr.Key == tracing.StackTraceKey {
+			entry.StackTrace = attr.Value.AsString()
+		}
 	}
 
 	for _, attr := range data.Attributes {
@@ -30,7 +37,8 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
 
 	for _, event := range data.MessageEvents {
 		item := log.Event{
-			Name: event.Name,
+			Text: event.Name,
+			Tick: -1,
 		}
 
 		for _, attr := range event.Attributes {
@@ -46,6 +54,10 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
 
 			case tracing.MessageTextKey:
 				item.Text = attr.Value.AsString()
+			}
+
+			if attr.Key == tracing.StackTraceKey {
+				item.StackTrace = attr.Value.AsString()
 			}
 		}
 
