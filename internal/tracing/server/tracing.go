@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime"
-	"strings"
 
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
@@ -56,8 +54,8 @@ func Interceptor(
 // currently needed.  Others will be added as required.
 
 // Post a simple informational trace entry
-func Info(ctx context.Context, span trace.Span, tick int64, msg string) {
-	span.AddEvent(
+func Info(ctx context.Context, tick int64, msg string) {
+	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		tracing.MethodName(2),
 		kv.Int64(tracing.StepperTicksKey, tick),
@@ -67,8 +65,8 @@ func Info(ctx context.Context, span trace.Span, tick int64, msg string) {
 }
 
 // Post an informational trace entry with complex formatting
-func Infof(ctx context.Context, span trace.Span, tick int64, f string, a ...interface{}) {
-	span.AddEvent(
+func Infof(ctx context.Context, tick int64, f string, a ...interface{}) {
+	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		tracing.MethodName(2),
 		kv.Int64(tracing.StepperTicksKey, tick),
@@ -78,8 +76,8 @@ func Infof(ctx context.Context, span trace.Span, tick int64, f string, a ...inte
 }
 
 // Post a method arrival informational trace entry
-func OnEnter(ctx context.Context, span trace.Span, tick int64, msg string) {
-	span.AddEvent(
+func OnEnter(ctx context.Context, tick int64, msg string) {
+	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		fmt.Sprintf("On %q entry", tracing.MethodName(2)),
 		kv.Int64(tracing.StepperTicksKey, tick),
@@ -89,21 +87,21 @@ func OnEnter(ctx context.Context, span trace.Span, tick int64, msg string) {
 }
 
 // Post a simple error trace
-func Error(ctx context.Context, span trace.Span, tick int64, a interface{}) error {
+func Error(ctx context.Context, tick int64, a interface{}) error {
 	if msg, ok := a.(string); ok {
-		return logError(ctx, span, tick, errors.New(msg))
+		return logError(ctx, tick, errors.New(msg))
 	}
 
 	if err, ok := a.(error); ok {
-		return logError(ctx, span, tick, err)
+		return logError(ctx, tick, err)
 	}
 
 	panic("Invalid Error call - no valid arguments found")
 }
 
 // Post an error trace with a complex string formatting
-func Errorf(ctx context.Context, span trace.Span, tick int64, f string, a ...interface{}) error {
-	return logError(ctx, span, tick, fmt.Errorf(f, a...))
+func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
+	return logError(ctx, tick, fmt.Errorf(f, a...))
 }
 
 // --- Exported trace invocation methods
@@ -111,8 +109,8 @@ func Errorf(ctx context.Context, span trace.Span, tick int64, f string, a ...int
 // +++ Helper functions
 
 // Write a specific error entry
-func logError(ctx context.Context, span trace.Span, tick int64, err error) error {
-	span.AddEvent(
+func logError(ctx context.Context, tick int64, err error) error {
+	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		fmt.Sprintf("Error from %q", tracing.MethodName(3)),
 		kv.Int64(tracing.StepperTicksKey, tick),
@@ -121,33 +119,6 @@ func logError(ctx context.Context, span trace.Span, tick int64, err error) error
 		kv.String(tracing.MessageTextKey, err.Error()))
 
 	return err
-}
-
-// Return the caller's fully qualified method name
-func MethodName(skip int) string {
-	fpcs := make([]uintptr, 1)
-
-	// Get the information up the stack (i.e. the caller of this method, or beyond)
-	if runtime.Callers(skip + 1, fpcs) == 0 {
-		return "?"
-	}
-
-	caller := runtime.FuncForPC(fpcs[0] - 1)
-	if caller == nil {
-		return "?"
-	}
-
-	// ... and return the name
-	return simpleName(caller.Name())
-}
-
-func simpleName(name string) string {
-	idx := strings.LastIndex(name, "/")
-	if idx >= 0 {
-		name = name[idx + 1:]
-	}
-
-	return name
 }
 
 // --- Helper functions
