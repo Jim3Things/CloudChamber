@@ -116,7 +116,7 @@ Get Top of Racks details .
 GET - /api/racks/{rack-id}/PDU
 Gets Power distribution Unit details.
 
-GET - /api/racks/rack-id/blades/{blade-id}
+GET - /api/racks/{rack-id}/blades/{blade-id}
 
 Returns a record details of a single blade.
 
