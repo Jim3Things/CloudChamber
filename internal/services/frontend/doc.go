@@ -11,7 +11,7 @@ File Layout
 ===========
 
 frontend.go
-Base file comtaining the global defitnion for the package and the main() entry point
+Base file containing the global defitnion for the package and the main() entry point
 
 files.go
 Implements the service handler to serve files back to user that comprise the primary
