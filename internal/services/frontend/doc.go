@@ -107,13 +107,13 @@ Get the list of all known racks.
 GET - /api/racks/{rackid}
 Returns a single rack ID record.
 
-GET - /api/racks/rack-id/{blades}
+GET - /api/racks/{rack-id}/blades
 Get list of known blades in a rack.
 
-GET - /api/racks/rack-id/{TOR}
+GET - /api/racks/{rack-id}/TOR
 Get Top of Racks details .
 
-GET - /api/racks/rack-id/{PDU}
+GET - /api/racks/{rack-id}/PDU
 Gets Power distribution Unit details.
 
 GET - /api/racks/rack-id/blades/{blade-id}
