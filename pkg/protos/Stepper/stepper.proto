@@ -33,6 +33,8 @@ service Stepper {
     // Do not return until that new time is current.
     rpc Delay (DelayRequest) returns (common.Timestamp);
 
+    // Forcibly reset the stepper's internal state back to its starting
+    // point.
     rpc Reset (ResetRequest) returns (google.protobuf.Empty);
 }
 
@@ -67,11 +69,11 @@ message PolicyRequest {
     google.protobuf.Duration measuredDelay = 2;
 }
 
+// Define the request associated with a Step operation
 message StepRequest { }
 
+// Define the request associated with a current time query
 message NowRequest { }
-
-message ResetRequest { }
 
 // Define the parameters when requesting a delay
 message DelayRequest {
@@ -85,6 +87,13 @@ message DelayRequest {
     int64 jitter = 2 [(validate.rules).int64.gte = 0];
 }
 
+// Define the request associated with a forcible reset
+message ResetRequest { }
+
+// Internally used message to cause a simulate time advance based on timer
+// expiry
 message AutoStepRequest {
+    // The epoch number associated with the repeating timer call.  Ignore
+    // this message if this value does not match the last timer's epoch.
     int64 epoch = 1;
 }

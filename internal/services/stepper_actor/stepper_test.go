@@ -2,27 +2,27 @@
 package stepper
 
 import (
-"context"
-"log"
-"net"
-"testing"
-"time"
+    "context"
+    "log"
+    "net"
+    "testing"
+    "time"
 
-"github.com/golang/protobuf/ptypes/duration"
-"github.com/stretchr/testify/assert"
-"google.golang.org/grpc/metadata"
+    "github.com/golang/protobuf/ptypes/duration"
+    "github.com/stretchr/testify/assert"
+    "google.golang.org/grpc/metadata"
 
-clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
-"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
-srvtrace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
-ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
+    srvtrace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+    ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 
-pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 
-"google.golang.org/grpc"
-"google.golang.org/grpc/test/bufconn"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/test/bufconn"
 )
 
 const bufSize = 1024 * 1024

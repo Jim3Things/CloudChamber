@@ -32,7 +32,10 @@ func init() {
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
-	stepper.Register(s)
+
+	if err := stepper.Register(s); err != nil {
+		log.Fatalf("Failed to register stepper actor: %v", err)
+	}
 
 	go func() {
 		if err := s.Serve(lis); err != nil {

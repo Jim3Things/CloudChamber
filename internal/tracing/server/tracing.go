@@ -19,9 +19,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
-const (
-	StackDepth = 5
-)
 // Interceptor intercepts and extracts incoming trace data
 func Interceptor(
 		ctx context.Context,
@@ -35,8 +32,6 @@ func Interceptor(
 	ctx = correlation.ContextWithMap(ctx, correlation.NewMap(correlation.MapUpdate{
 		MultiKV: entries,
 	}))
-
-	stackKey := key.New(tracing.StackTraceKey)
 
 	tr := global.TraceProvider().Tracer("server")
 
@@ -61,9 +56,7 @@ func Interceptor(
 // currently needed.  Others will be added as required.
 
 // Post a simple informational trace entry
-func Info(ctx context.Context, tick int64, msg string) {
-	span := trace.SpanFromContext(ctx)
-
+func Info(ctx context.Context, span trace.Span, tick int64, msg string) {
 	span.AddEvent(
 		ctx,
 		tracing.MethodName(2),
@@ -73,10 +66,19 @@ func Info(ctx context.Context, tick int64, msg string) {
 		kv.String(tracing.MessageTextKey, msg))
 }
 
-// Post a method arrival informational trace entry
-func OnEnter(ctx context.Context, tick int64, msg string) {
-	span := trace.SpanFromContext(ctx)
+// Post an informational trace entry with complex formatting
+func Infof(ctx context.Context, span trace.Span, tick int64, f string, a ...interface{}) {
+	span.AddEvent(
+		ctx,
+		tracing.MethodName(2),
+		kv.Int64(tracing.StepperTicksKey, tick),
+		kv.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
+		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
+		kv.String(tracing.MessageTextKey, fmt.Sprintf(f, a...)))
+}
 
+// Post a method arrival informational trace entry
+func OnEnter(ctx context.Context, span trace.Span, tick int64, msg string) {
 	span.AddEvent(
 		ctx,
 		fmt.Sprintf("On %q entry", tracing.MethodName(2)),
@@ -87,21 +89,21 @@ func OnEnter(ctx context.Context, tick int64, msg string) {
 }
 
 // Post a simple error trace
-func Error(ctx context.Context, tick int64, a interface{}) error {
+func Error(ctx context.Context, span trace.Span, tick int64, a interface{}) error {
 	if msg, ok := a.(string); ok {
-		return logError(ctx, tick, errors.New(msg))
+		return logError(ctx, span, tick, errors.New(msg))
 	}
 
 	if err, ok := a.(error); ok {
-		return logError(ctx, tick, err)
+		return logError(ctx, span, tick, err)
 	}
 
 	panic("Invalid Error call - no valid arguments found")
 }
 
 // Post an error trace with a complex string formatting
-func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
-	return logError(ctx, tick, fmt.Errorf(f, a...))
+func Errorf(ctx context.Context, span trace.Span, tick int64, f string, a ...interface{}) error {
+	return logError(ctx, span, tick, fmt.Errorf(f, a...))
 }
 
 // --- Exported trace invocation methods
@@ -109,9 +111,7 @@ func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
 // +++ Helper functions
 
 // Write a specific error entry
-func logError(ctx context.Context, tick int64, err error) error {
-	span := trace.SpanFromContext(ctx)
-
+func logError(ctx context.Context, span trace.Span, tick int64, err error) error {
 	span.AddEvent(
 		ctx,
 		fmt.Sprintf("Error from %q", tracing.MethodName(3)),
@@ -148,24 +148,6 @@ func simpleName(name string) string {
 	}
 
 	return name
-}
-
-func StackTrace() string {
-	res := ""
-
-	fpcs := make([]uintptr, StackDepth)
-	runtime.Callers(1, fpcs)
-	frames := runtime.CallersFrames(fpcs)
-
-	more := true
-	for more {
-		var frame runtime.Frame
-
-		frame, more = frames.Next()
-		res = fmt.Sprintf("%s\n%s:%d", res, frame.File, frame.Line)
-	}
-
-	return res
 }
 
 // --- Helper functions

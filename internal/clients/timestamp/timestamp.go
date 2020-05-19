@@ -29,6 +29,7 @@ type TimeData struct {
 // Store the information needed to be able to connect to the Stepper service.
 func InitTimestamp(name string, opts ...grpc.DialOption) {
 	dialName = name
+
 	dialOpts = append(dialOpts, opts...)
 }
 
@@ -109,6 +110,9 @@ func After(deadline *ct.Timestamp) (<-chan TimeData, error) {
 	return ch, nil
 }
 
+// Reset the simulated time back to its starting state, including reverting all
+// policies back to their default.  This is used by unit tests to ensure a well
+// known starting state for a test.
 func Reset() error {
 	ctx, conn, err := connect()
 	if err != nil {

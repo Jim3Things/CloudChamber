@@ -8,5 +8,5 @@ const (
 	SeverityKey     = "cc-severity"
 
 	// Header keys, used to add context on the way to the actor
-	LinkingSpanID   = "cc-link-to"
+	LinkingSpanID = "cc-link-to"
 )

@@ -7,7 +7,7 @@ import (
     "github.com/AsynkronIT/protoactor-go/actor"
     "github.com/golang/protobuf/ptypes/empty"
     "go.opentelemetry.io/otel/api/global"
-    "go.opentelemetry.io/otel/api/key"
+    "go.opentelemetry.io/otel/api/kv"
     trc "go.opentelemetry.io/otel/api/trace"
 
     "github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -15,47 +15,52 @@ import (
     "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
-// Logging interceptors
+// +++ Logging interceptors
+
+// Set up the logging context for an incoming message.  Establish the
+// surrounding span, and associate it with this actor instance.  The
+// span is terminated when the actor returns.
 func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
     return func(c actor.ReceiverContext, envelope *actor.MessageEnvelope) {
         tr := global.TraceProvider().Tracer("server")
-
-        stackKey := key.New(tracing.StackTraceKey)
 
         ctx, span := tr.Start(
             context.Background(),
             fmt.Sprintf("Actor %q/Receive", c.Self()),
             trc.WithSpanKind(trc.SpanKindServer),
-            trc.WithAttributes(stackKey.String(StackTrace())),
+            trc.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
         )
+
         defer func() {
             ClearSpan(c.Self())
             span.End()
         }()
 
         SetSpan(c.Self(), span)
+
         hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-        AddEvent(ctx, span, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)), -1, "")
+        Info(ctx, span, -1, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
 
         next(c, envelope)
-        return
     }
 }
 
+// Log a send operation from an actor, using the span associated with that
+// actor's instance
 func SendLogger(next actor.SenderFunc) actor.SenderFunc {
     return func (c actor.SenderContext, target *actor.PID, envelope *actor.MessageEnvelope) {
         hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-        AddEvent(context.Background(), GetSpan(c.Self()), fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)), -1, "")
+        Info(context.Background(), GetSpan(c.Self()), -1, fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
 
         next(c, target, envelope)
-        return
     }
 }
 
+// Simple trace formatting for each of the known message types.
 func dumpMessage(msg interface{}) string {
-    switch msg.(type) {
+    switch msg := msg.(type) {
     case *actor.Stopping:
         return "(System) actor.Stopping"
 
@@ -85,19 +90,14 @@ func dumpMessage(msg interface{}) string {
         return "(Infra) actor.Terminated"
 
     case *actor.Failure:
-        return fmt.Sprintf("(Infra) actor.Failure: %v", msg.(*actor.Failure))
+        return fmt.Sprintf("(Infra) actor.Failure: %v", msg)
 
     case *actor.Restart:
         return "(Infra) actor.Restart"
 
 
     case *common.Completion:
-        cmp := msg.(*common.Completion)
-        if cmp.IsError {
-            return fmt.Sprintf("common.Completion error: %q", cmp.Error)
-        }
-
-        return "common.Completion success"
+        return fmt.Sprintf("common.Completion error: %q", msg.Error)
 
     case *common.Timestamp:
         return "common.Timestamp"
@@ -106,8 +106,7 @@ func dumpMessage(msg interface{}) string {
         return "AutoStepRequest"
 
     case *pb.PolicyRequest:
-        pr := msg.(*pb.PolicyRequest)
-        return fmt.Sprintf("PolicyRequest: policy: %v, delay: %ds", pr.Policy, pr.MeasuredDelay.Seconds)
+        return fmt.Sprintf("PolicyRequest: policy: %v, delay: %ds", msg.Policy, msg.MeasuredDelay.Seconds)
 
     case *pb.ResetRequest:
         return "ResetRequest"
@@ -119,8 +118,7 @@ func dumpMessage(msg interface{}) string {
         return "StepRequest"
 
     case *pb.DelayRequest:
-        dr := msg.(*pb.DelayRequest)
-        return fmt.Sprintf("DelayRequest: atLeast to %d, jitter %d", dr.AtLeast.Ticks, dr.Jitter)
+        return fmt.Sprintf("DelayRequest: atLeast to %d, jitter %d", msg.AtLeast.Ticks, msg.Jitter)
 
     case *empty.Empty:
         return "<empty>"
@@ -129,8 +127,8 @@ func dumpMessage(msg interface{}) string {
         m, ok := msg.(actor.SystemMessage)
         if ok {
             return fmt.Sprintf("(System) %v", m)
-        } else {
-            return fmt.Sprintf("%v", m)
         }
+
+        return fmt.Sprintf("%v", m)
     }
 }

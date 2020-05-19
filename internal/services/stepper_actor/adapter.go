@@ -45,63 +45,78 @@ func (s *server) Attach(pid *actor.PID) {
 // converted into an error, if appropriate.  The final result is then
 // returned to the grpc caller.
 
-func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (res *empty.Empty, err error) {
-    c := actor.EmptyRootContext
-    _, err = msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result())
-    if err != nil {
+func (s *server) SetPolicy(_ context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
+    if err := in.Validate(); err != nil {
         return nil, err
     }
 
-    return &empty.Empty{}, nil
+    c := actor.EmptyRootContext
+    return asEmpty(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
 }
 
-func (s *server) Step(ctx context.Context, in *pb.StepRequest) (*empty.Empty, error) {
-    c := actor.EmptyRootContext
-    _, err := msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result())
-    if err != nil {
+func (s *server) Step(_ context.Context, in *pb.StepRequest) (*empty.Empty, error) {
+    if err := in.Validate(); err != nil {
         return nil, err
     }
 
-    return &empty.Empty{}, nil
+    c := actor.EmptyRootContext
+    return asEmpty(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
 }
 
-func (s *server) Now(ctx context.Context, in *pb.NowRequest) (*common.Timestamp, error) {
-    c := actor.EmptyRootContext
-    res, err := msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result())
-    if err != nil {
+func (s *server) Now(_ context.Context, in *pb.NowRequest) (*common.Timestamp, error) {
+    if err := in.Validate(); err != nil {
         return nil, err
     }
 
-    return res.(*common.Timestamp), nil
+    c := actor.EmptyRootContext
+    return asTimestamp(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
 }
 
-func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timestamp, error) {
-    c := actor.EmptyRootContext
-    res, err := msgToError(c.RequestFuture(s.pid, in, NoTimeout).Result())
-    if err != nil {
+func (s *server) Delay(_ context.Context, in *pb.DelayRequest) (*common.Timestamp, error) {
+    if err := in.Validate(); err != nil {
         return nil, err
     }
 
-    return res.(*common.Timestamp), nil
+    c := actor.EmptyRootContext
+    return asTimestamp(msgToError(c.RequestFuture(s.pid, in, NoTimeout).Result()))
 }
 
-func (s *server) Reset(ctx context.Context, in *pb.ResetRequest) (*empty.Empty, error) {
-    c := actor.EmptyRootContext
-    res, err := msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result())
-    if err != nil {
+func (s *server) Reset(_ context.Context, in *pb.ResetRequest) (*empty.Empty, error) {
+    if err := in.Validate(); err != nil {
         return nil, err
     }
 
-    return res.(*empty.Empty), nil
+    c := actor.EmptyRootContext
+    return asEmpty(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
 }
 
 // --- GRPC Methods
+
+// +++ Helper functions
+
+// Convert the return pair into (Timestamp, error) types
+func asTimestamp(res interface{}, err error) (*common.Timestamp, error) {
+    if err == nil {
+        return res.(*common.Timestamp), err
+    }
+
+    return nil, err
+}
+
+// Convert the return pair into (Empty, error) types
+func asEmpty(res interface{}, err error) (*empty.Empty, error) {
+    if err == nil {
+        return res.(*empty.Empty), err
+    }
+
+    return nil, err
+}
 
 // Convert a completion message body into an equivalent error, if needed.
 func msgToError(msg interface{}, err error) (interface{}, error) {
     if err == nil {
         v, ok := msg.(*common.Completion)
-        if ok && v.IsError {
+        if ok {
             return nil, fmt.Errorf("%s", v.Error)
         }
     }

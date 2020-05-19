@@ -22,6 +22,11 @@ go get -u go.opentelemetry.io/otel
 
 go get -u google.golang.org/grpc
 
+go get -u github.com/AsynkronIT/protoactor-go/...
+pushd github.com/AsynkronIT/protoactor-go
+make
+popd
+
 go get -u golang.org/x/crypto/...
 
 popd

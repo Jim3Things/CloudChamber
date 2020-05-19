@@ -49,11 +49,9 @@ func main() {
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-	if err = stepper.Register(s); err != nil {
-		log.Fatalf("failed to initialize: %v", err)
+	if err := stepper.Register(s); err != nil {
+		log.Fatalf("failed to register the stepper actor: %v", err)
 	}
-
-	// stepper.Register(s)
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

@@ -1,9 +1,10 @@
+// This module contains the top level function for the stepper actor.
+
 package stepper
 
 import (
     "context"
     "errors"
-    "fmt"
 
     "github.com/AsynkronIT/protoactor-go/actor"
     "github.com/AsynkronIT/protoactor-go/mailbox"
@@ -23,40 +24,27 @@ var (
 
 // Define the stepper actor
 type Actor struct {
-    actor.Actor
-    mgr *sm.SM
+    actor.Actor                 // Common actor definitions
+    mgr *sm.SM                  // .. with a state machine
+    adapter *server             // .. and a grpc adapter
 
-    policyToIndex map[pb.StepperPolicy]int
-
-    adapter *server
-
-    // Current tick time
-    latest int64
-
-    waiters *treemap.Map
+    latest int64                // current simulate time, in ticks
+    waiters *treemap.Map        // waiting delay operations
 }
 
+// Register the stepper actor with the supplied grpc server (via the adapter
+// functions)
 func Register(svc *grpc.Server) (err error) {
-    s := &Actor{
+    // Create the base actor object
+    act := &Actor{
         adapter: &server{},
         mgr: &sm.SM{ Behavior: actor.NewBehavior() },
         waiters: treemap.NewWith(utils.Int64Comparator),
     }
 
-    // Fill in the states
-    s.InitializeStates()
-
-    // Now set up the initial state
-    // c, span := getSpan()
-    // defer span.End()
-
-    if err := s.mgr.Initialize(context.Background(), nil, InvalidState); err != nil {
-        return err
-    }
-
-    // With the internals established, attach it as an actor
+    // .. then with the internals established, attach it as an actor
     ctx := actor.EmptyRootContext
-    props := actor.PropsFromFunc(s.Receive).
+    props := actor.PropsFromFunc(act.Receive).
         WithMailbox(mailbox.Unbounded()).
         WithReceiverMiddleware(log.ReceiveLogger).
         WithSenderMiddleware(log.SendLogger)
@@ -66,24 +54,47 @@ func Register(svc *grpc.Server) (err error) {
         return err
     }
 
-    // And finally, connect it to the incoming grpc messages
-    s.adapter.Attach(pid)
-    pb.RegisterStepperServer(svc, s.adapter)
+    // .. and finally, connect it to the incoming grpc messages
+    act.adapter.Attach(pid)
+    pb.RegisterStepperServer(svc, act.adapter)
 
     return nil
 }
 
-func (s *Actor) Receive(context actor.Context) {
-    s.mgr.States[s.mgr.Current].Receive(context)
+// Actor message receiver.  It handles setting up the per-actor state on
+// initialization, or forwards to the current state machine state, once
+// set up.
+func (act *Actor) Receive(ctx actor.Context) {
+    switch ctx.Message().(type) {
+    case *actor.Started:
+        // Fill in the states
+        act.InitializeStates()
+
+        if err := act.mgr.Initialize(context.Background(), nil, InvalidState); err != nil {
+            panic(err)
+        }
+
+    default:
+        act.mgr.States[act.mgr.Current].Receive(ctx)
+    }
 }
 
-func (s *Actor) getSpan(ca actor.Context) (context.Context, trc.Span) {
-    sn := s.mgr.GetStateName()
+// Get the active span for this actor.  It is used by the state machine
+// implementations to get the span context for their log entries.
+func (act *Actor) getSpan(ca actor.Context) (context.Context, trc.Span) {
+    sn := act.mgr.GetStateName()
     mn := log.MethodName(2)
     span := log.GetSpan(ca.Self())
     ctx := context.Background()
 
-    log.AddEvent(ctx, span, fmt.Sprintf("[In Stepper Actor/%s/%s]", sn, mn), s.latest, "")
+    log.Infof(ctx, span, act.latest, "[In Stepper Actor/%s/%s]", sn, mn)
 
     return ctx, span
+}
+
+// Determine if the current message is a 'system message' or not.
+func isSystemMessage(_ context.Context, _ trc.Span, ctx actor.Context) bool {
+    _, ok := ctx.Message().(actor.SystemMessage)
+
+    return ok
 }
