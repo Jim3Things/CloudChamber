@@ -32,7 +32,7 @@ type Inventory struct {
 //
 type DbInventory struct {
 	Mutex     sync.Mutex
-	Inventory map[string]Inventory 
+	Inventory map[string]Inventory
 }
 
 var (
@@ -90,14 +90,6 @@ func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
 //}
 
 //func handlerracksDelete(w http.ResponseWriter, r *http.Request) {
-
-
-
-
-
-
-
-
 
 //	racksDisplayArguments(w, r, "remove")
 //}
