@@ -40,7 +40,7 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 
         hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-        Info(ctx, span, -1, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
+        Info(ctx, -1, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
 
         next(c, envelope)
     }
@@ -52,7 +52,7 @@ func SendLogger(next actor.SenderFunc) actor.SenderFunc {
     return func (c actor.SenderContext, target *actor.PID, envelope *actor.MessageEnvelope) {
         hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-        Info(context.Background(), GetSpan(c.Self()), -1, fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
+        Info(context.Background(), -1, fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
 
         next(c, target, envelope)
     }

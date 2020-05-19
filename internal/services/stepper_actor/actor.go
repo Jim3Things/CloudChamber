@@ -10,10 +10,10 @@ import (
     "github.com/AsynkronIT/protoactor-go/mailbox"
     "github.com/emirpasic/gods/maps/treemap"
     "github.com/emirpasic/gods/utils"
-    trc "go.opentelemetry.io/otel/api/trace"
     "google.golang.org/grpc"
 
     "github.com/Jim3Things/CloudChamber/internal/sm"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
     log "github.com/Jim3Things/CloudChamber/internal/tracing/server"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 )
@@ -64,37 +64,34 @@ func Register(svc *grpc.Server) (err error) {
 // Actor message receiver.  It handles setting up the per-actor state on
 // initialization, or forwards to the current state machine state, once
 // set up.
-func (act *Actor) Receive(ctx actor.Context) {
-    switch ctx.Message().(type) {
+func (act *Actor) Receive(ca actor.Context) {
+    ctx := sm.DecorateContext(ca)
+
+    switch ca.Message().(type) {
     case *actor.Started:
         // Fill in the states
         act.InitializeStates()
 
-        if err := act.mgr.Initialize(context.Background(), nil, InvalidState); err != nil {
+        if err := act.mgr.Initialize(ctx, InvalidState); err != nil {
             panic(err)
         }
 
     default:
-        act.mgr.States[act.mgr.Current].Receive(ctx)
+        act.mgr.States[act.mgr.Current].Receive(ca)
     }
 }
 
-// Get the active span for this actor.  It is used by the state machine
-// implementations to get the span context for their log entries.
-func (act *Actor) getSpan(ca actor.Context) (context.Context, trc.Span) {
-    sn := act.mgr.GetStateName()
-    mn := log.MethodName(2)
-    span := log.GetSpan(ca.Self())
-    ctx := context.Background()
-
-    log.Infof(ctx, span, act.latest, "[In Stepper Actor/%s/%s]", sn, mn)
-
-    return ctx, span
-}
-
 // Determine if the current message is a 'system message' or not.
-func isSystemMessage(_ context.Context, _ trc.Span, ctx actor.Context) bool {
-    _, ok := ctx.Message().(actor.SystemMessage)
+func isSystemMessage(ctx context.Context) bool {
+    _, ok := sm.ActorContext(ctx).Message().(actor.SystemMessage)
 
     return ok
+}
+
+// Record entry into a message Receive operation
+func (act *Actor) TraceOnReceive(ctx context.Context) {
+    sn := act.mgr.GetStateName()
+    mn := tracing.MethodName(2)
+
+    log.Infof(ctx, act.latest, "[In Stepper Actor/%s/%s]", sn, mn)
 }

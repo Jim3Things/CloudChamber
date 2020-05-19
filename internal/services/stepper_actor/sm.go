@@ -10,7 +10,6 @@ import (
     "github.com/AsynkronIT/protoactor-go/scheduler"
     "github.com/golang/protobuf/ptypes"
     "github.com/golang/protobuf/ptypes/empty"
-    trc "go.opentelemetry.io/otel/api/trace"
 
     "github.com/Jim3Things/CloudChamber/internal/sm"
     trace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
@@ -60,22 +59,21 @@ type InvalidStateImpl struct {
     Holder *Actor
 }
 
-func (s *InvalidStateImpl) Receive(ctx actor.Context) {
+func (s *InvalidStateImpl) Receive(ca actor.Context) {
     holder := s.Holder
+    ctx := sm.DecorateContext(ca)
+    holder.TraceOnReceive(ctx)
 
-    c, span := holder.getSpan(ctx)
-    defer span.End()
-
-    switch msg := ctx.Message().(type) {
+    switch msg := ca.Message().(type) {
     case *pb.PolicyRequest:
-        holder.HandlePolicy(c, span, ctx, msg)
+        holder.HandlePolicy(ctx, msg)
 
     case *pb.ResetRequest:
-        holder.HandleReset(c, span, ctx)
+        holder.HandleReset(ctx)
 
     default:
-        if !isSystemMessage(c, span, ctx) {
-            holder.mgr.RespondWithError(c, span, ctx, ErrInvalidRequest)
+        if !isSystemMessage(ctx) {
+            holder.mgr.RespondWithError(ctx, ErrInvalidRequest)
         }
     }
 }
@@ -88,7 +86,7 @@ type NoWaitStateImpl struct {
     Holder *Actor
 }
 
-func (s *NoWaitStateImpl) Enter(ctx actor.Context, c context.Context, span trc.Span) error {
+func (s *NoWaitStateImpl) Enter(ctx context.Context) error {
     holder := s.Holder
 
     if err := holder.requireZeroDelay(ctx); err != nil {
@@ -99,30 +97,29 @@ func (s *NoWaitStateImpl) Enter(ctx actor.Context, c context.Context, span trc.S
     // to the first waiter, if there are any
     k, _ := holder.waiters.Min()
     if k != nil {
-        holder.advance(c, span, ctx, k.(int64))
+        holder.advance(ctx, k.(int64))
     }
 
     return nil
 }
 
-func (s *NoWaitStateImpl) Receive(ctx actor.Context) {
+func (s *NoWaitStateImpl) Receive(ca actor.Context) {
     holder := s.Holder
+    ctx := sm.DecorateContext(ca)
+    holder.TraceOnReceive(ctx)
 
-    c, span := holder.getSpan(ctx)
-    defer span.End()
-
-    switch msg := ctx.Message().(type) {
+    switch msg := ca.Message().(type) {
     case *pb.DelayRequest:
         // Set the delay, as normal, then advance time to the earliest delay point,
         // which should be this one
-        holder.HandleDelay(c, span, ctx, msg)
+        holder.HandleDelay(ctx, msg)
         k, _ := holder.waiters.Min()
         if k != nil {
-            holder.advance(c, span, ctx, k.(int64))
+            holder.advance(ctx, k.(int64))
         }
 
     default:
-        holder.ApplyDefaultActions(c, span, ctx)
+        holder.ApplyDefaultActions(ctx)
     }
 }
 
@@ -134,7 +131,7 @@ type ManualStateImpl struct {
     Holder *Actor
 }
 
-func (s *ManualStateImpl) Enter(ctx actor.Context, _ context.Context, _ trc.Span) error {
+func (s *ManualStateImpl) Enter(ctx context.Context) error {
     holder := s.Holder
 
     if err := holder.requireZeroDelay(ctx); err != nil {
@@ -144,11 +141,12 @@ func (s *ManualStateImpl) Enter(ctx actor.Context, _ context.Context, _ trc.Span
     return nil
 }
 
-func (s *ManualStateImpl) Receive(ctx actor.Context) {
-    c, span := s.Holder.getSpan(ctx)
-    defer span.End()
+func (s *ManualStateImpl) Receive(ca actor.Context) {
+    holder := s.Holder
+    ctx := sm.DecorateContext(ca)
+    holder.TraceOnReceive(ctx)
 
-    s.Holder.ApplyDefaultActions(c, span, ctx)
+    s.Holder.ApplyDefaultActions(ctx)
 }
 
 // Autostep policy state.  In this state time moves forward at a constant rate
@@ -167,11 +165,13 @@ type AutoStepStateImpl struct {
     epoch  int64                    // Epoch counter for the timer
 }
 
-func (s *AutoStepStateImpl) Enter(ctx actor.Context, c context.Context, span trc.Span) error {
+func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
     holder := s.Holder
 
+    ca := sm.ActorContext(ctx)
+
     // Set up the automatic timer
-    measuredDelay := ctx.Message().(*pb.PolicyRequest).MeasuredDelay
+    measuredDelay := ca.Message().(*pb.PolicyRequest).MeasuredDelay
     delay, err := ptypes.Duration(measuredDelay)
     if err != nil {
         s.delay = 0
@@ -179,35 +179,34 @@ func (s *AutoStepStateImpl) Enter(ctx actor.Context, c context.Context, span trc
     }
 
     if delay <= 0 {
-        return trace.Errorf(c, span, holder.latest, "delay must be greater than zero, but was %d", delay)
+        return trace.Errorf(ctx, holder.latest, "delay must be greater than zero, but was %d", delay)
     }
 
     s.delay = delay
     s.epoch++
     timer := scheduler.NewTimerScheduler()
-    s.cancel = timer.SendRepeatedly(s.delay, s.delay, ctx.Self(), &pb.AutoStepRequest{ Epoch: s.epoch })
+    s.cancel = timer.SendRepeatedly(s.delay, s.delay, ca.Self(), &pb.AutoStepRequest{ Epoch: s.epoch })
     return nil
 }
 
-func (s *AutoStepStateImpl) Receive(ctx actor.Context) {
+func (s *AutoStepStateImpl) Receive(ca actor.Context) {
     holder := s.Holder
+    ctx := sm.DecorateContext(ca)
+    holder.TraceOnReceive(ctx)
 
-    c, span := holder.getSpan(ctx)
-    defer span.End()
-
-    switch msg := ctx.Message().(type) {
+    switch msg := ca.Message().(type) {
 
     // Timer expired
     case *pb.AutoStepRequest:
         if msg.Epoch == s.epoch {
-            holder.advance(c, span, ctx, 1)
+            holder.advance(ctx, 1)
         }
 
     case *pb.StepRequest:
-        holder.mgr.RespondWithError(c, span, ctx, ErrInvalidRequest)
+        holder.mgr.RespondWithError(ctx, ErrInvalidRequest)
 
     default:
-        holder.ApplyDefaultActions(c, span, ctx)
+        holder.ApplyDefaultActions(ctx)
     }
 }
 
@@ -226,22 +225,23 @@ func (s *AutoStepStateImpl) Leave() {
 // Apply the default actions to the current message.  Most states have special
 // processing for a subset of the possible messages.  The pattern is to first
 // handle those, and then call this method to handle the rest.
-func (act *Actor) ApplyDefaultActions(c context.Context, span trc.Span, ctx actor.Context) {
-    trace.OnEnter(c, span, act.latest, "Applying Default Actions")
+func (act *Actor) ApplyDefaultActions(ctx context.Context) {
+    trace.OnEnter(ctx, act.latest, "Applying Default Actions")
+    ca := sm.ActorContext(ctx)
 
-    if !isSystemMessage(c, span, ctx) {
-        switch msg := ctx.Message().(type) {
+    if !isSystemMessage(ctx) {
+        switch msg := ca.Message().(type) {
         case *pb.NowRequest:
-            ctx.Respond(&common.Timestamp{Ticks: act.latest})
+            ca.Respond(&common.Timestamp{Ticks: act.latest})
 
         case *pb.DelayRequest:
-            act.HandleDelay(c, span, ctx, msg)
+            act.HandleDelay(ctx, msg)
 
         case *pb.StepRequest:
-            act.HandleStep(c, span, ctx)
+            act.HandleStep(ctx)
 
         case *pb.PolicyRequest:
-            act.HandlePolicy(c, span, ctx, msg)
+            act.HandlePolicy(ctx, msg)
 
         // Normally we ignore auto-step requests as likely stale
         // notifications from a previously canceled timer.
@@ -249,11 +249,11 @@ func (act *Actor) ApplyDefaultActions(c context.Context, span trc.Span, ctx acto
             break
 
         case *pb.ResetRequest:
-            act.HandleReset(c, span, ctx)
+            act.HandleReset(ctx)
 
         default:
             // The message was not one that we had a standard policy for
-            act.mgr.RespondWithError(c, span, ctx, ErrInvalidRequest)
+            act.mgr.RespondWithError(ctx, ErrInvalidRequest)
         }
     }
 }
@@ -261,29 +261,33 @@ func (act *Actor) ApplyDefaultActions(c context.Context, span trc.Span, ctx acto
 // Standard SetPolicy request handler.  Since each state reflects a distinct
 // policy option, this method just forces a state change and responds with
 // whether or not it worked.
-func (act *Actor) HandlePolicy(c context.Context, span trc.Span, ctx actor.Context, pr *pb.PolicyRequest) {
+func (act *Actor) HandlePolicy(ctx context.Context, pr *pb.PolicyRequest) {
+    ca := sm.ActorContext(ctx)
+
     index, ok := policyToIndex[pr.Policy]
     if !ok {
-        act.mgr.RespondWithError(c, span, ctx, ErrInvalidRequest)
+        act.mgr.RespondWithError(ctx, ErrInvalidRequest)
         return
     }
 
-    if err := act.mgr.ChangeState(c, span, ctx, act.latest, index); err != nil {
-        act.mgr.RespondWithError(c, span, ctx, err)
+    if err := act.mgr.ChangeState(ctx, act.latest, index); err != nil {
+        act.mgr.RespondWithError(ctx, err)
         return
     }
 
-    ctx.Respond(&empty.Empty{})
+    ca.Respond(&empty.Empty{})
 }
 
 // Standard single step request handler.  Advance the simulated time by 1 tick.
-func (act *Actor) HandleStep(c context.Context, span trc.Span, ctx actor.Context) {
-    act.advance(c, span, ctx, 1)
-    ctx.Respond(&empty.Empty{})
+func (act *Actor) HandleStep(ctx context.Context) {
+    act.advance(ctx, 1)
+    sm.ActorContext(ctx).Respond(&empty.Empty{})
 }
 
 // Standard Delay request handler.
-func (act *Actor) HandleDelay(c context.Context, span trc.Span, ctx actor.Context, dr *pb.DelayRequest) {
+func (act *Actor) HandleDelay(ctx context.Context, dr *pb.DelayRequest) {
+    ca := sm.ActorContext(ctx)
+
     due := dr.GetAtLeast().Ticks
     if dr.GetJitter() > 0 {
         due += rand.Int63n(dr.GetJitter())
@@ -293,25 +297,25 @@ func (act *Actor) HandleDelay(c context.Context, span trc.Span, ctx actor.Contex
     value, ok := act.waiters.Get(due)
     if !ok {
         // New due time entry
-        slot := []*actor.PID { ctx.Sender() }
+        slot := []*actor.PID { ca.Sender() }
         act.waiters.Put(due, slot)
     } else {
         // Existing entry, add this sender and update the map
         slot := value.([]*actor.PID)
-        slot = append(slot, ctx.Sender())
+        slot = append(slot, ca.Sender())
         act.waiters.Put(due, slot)
     }
 
     // Now, check for any waiters that have already expired (this handles the
     // case where the delay due time had already passed)
-    act.checkForExpiry(c, span, ctx)
+    act.checkForExpiry(ctx)
 }
 
 // Standard Reset request handler.  Force the state machine back to the
 // initial conditions.
-func (act *Actor) HandleReset(c context.Context, span trc.Span, ctx actor.Context) {
-    if err := act.mgr.ChangeState(c, span, ctx, act.latest, InvalidState); err != nil {
-        act.mgr.RespondWithError(c, span, ctx, err)
+func (act *Actor) HandleReset(ctx context.Context) {
+    if err := act.mgr.ChangeState(ctx, act.latest, InvalidState); err != nil {
+        act.mgr.RespondWithError(ctx, err)
     }
 
     // Clear the common fields.
@@ -321,15 +325,17 @@ func (act *Actor) HandleReset(c context.Context, span trc.Span, ctx actor.Contex
     // Note that the AutoStep timer's epoch counter is specifically not
     // cleared, so that any outstanding timer completions are not processed.
 
-    ctx.Respond(&empty.Empty{})
+    sm.ActorContext(ctx).Respond(&empty.Empty{})
 }
 
 // Determine if the due time for any waiters from delay operations have
 // expired.  Respond to all callers that have, waking them.
-func (act *Actor) checkForExpiry(c context.Context, span trc.Span, ctx actor.Context) {
+func (act *Actor) checkForExpiry(ctx context.Context) {
+    ca := sm.ActorContext(ctx)
+
     k, v := act.waiters.Min()
     if k == nil {
-        trace.Info(c, span, act.latest, "No waiters found")
+        trace.Info(ctx, act.latest, "No waiters found")
         return
     }
 
@@ -338,7 +344,7 @@ func (act *Actor) checkForExpiry(c context.Context, span trc.Span, ctx actor.Con
     for key <= act.latest {
         value := v.([]*actor.PID)
         for _, p := range value {
-            ctx.Send(p, &common.Timestamp{Ticks: act.latest })
+            ca.Send(p, &common.Timestamp{Ticks: act.latest })
         }
         act.waiters.Remove(k)
 
@@ -352,17 +358,17 @@ func (act *Actor) checkForExpiry(c context.Context, span trc.Span, ctx actor.Con
 }
 
 // Helper method that advances the simulated time by the specified amount.
-func (act *Actor) advance(c context.Context, span trc.Span, ctx actor.Context, amount int64) {
+func (act *Actor) advance(ctx context.Context, amount int64) {
     act.latest += amount
-    act.checkForExpiry(c, span, ctx)
+    act.checkForExpiry(ctx)
 }
 
 // Most policies require that the autostepping delay is zero.  The function
 // validates that this is so.
-func (act *Actor) requireZeroDelay(ctx actor.Context) error {
+func (act *Actor) requireZeroDelay(ctx context.Context) error {
 
     // Set up the automatic timer
-    measuredDelay := ctx.Message().(*pb.PolicyRequest).MeasuredDelay
+    measuredDelay := sm.ActorContext(ctx).Message().(*pb.PolicyRequest).MeasuredDelay
     delay, err := ptypes.Duration(measuredDelay)
     if err != nil {
         return err

@@ -20,7 +20,7 @@ import (
     "golang.org/x/crypto/bcrypt"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
-    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -215,7 +215,7 @@ func usersAddRoutes(routeBase *mux.Router) {
 // Process an http request for the list of users.  Response should contain a document of links to the
 // details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), st.MethodName(1), func(ctx context.Context) (err error) {
+    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         err = doSessionHeader(
             ctx, w, r,
             func(ctx context.Context, span trace.Span, session *sessions.Session) error {
@@ -253,7 +253,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), st.MethodName(1), func(ctx context.Context) (err error) {
+    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
@@ -293,7 +293,7 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), st.MethodName(1), func(ctx context.Context) (err error) {
+    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
@@ -334,7 +334,7 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 
 // Update the user entry
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), st.MethodName(1), func(ctx context.Context) (err error) {
+    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
@@ -402,7 +402,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 
 // Delete the user entry
 func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), st.MethodName(1), func(ctx context.Context) (err error) {
+    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
@@ -430,7 +430,7 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 
 // Perform an admin operation (login, logout, enable, disable) on an account
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), st.MethodName(1), func(ctx context.Context) (err error) {
+    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         var s string
 
         err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (err error) {
