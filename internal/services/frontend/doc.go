@@ -11,7 +11,7 @@ File Layout
 ===========
 
 frontend.go
-Base file comtaining the global defitnion for the package and the main() entry point
+Base file containing the global defitnion for the package and the main() entry point
 
 files.go
 Implements the service handler to serve files back to user that comprise the primary
@@ -101,12 +101,37 @@ Updates the workload record the for workload matching workloadname according to 
 operation, or returns and error if the supplied workloadname is not known, or the
 operation code is invalid in some way.
 
+GET - /api/racks
+Get the list of all known racks.
+
+GET - /api/racks/{rackid}
+Returns a single rack ID record.
+
+GET - /api/racks/rack-id/{blades}
+Get list of known blades in a rack.
+
+GET - /api/racks/rack-id/{TOR}
+Get Top of Racks details .
+
+GET - /api/racks/rack-id/{PDU}
+Gets Power distribution Unit details.
+
+GET - /api/racks/rack-id/blades/{blade-id}
+
+Returns a record details of a single blade.
+
+
+
 
 
 TODO
+
 /api/logs
+
 /api/stepper
 /api/injector
 /api/inventory
+will be a configuration file. you will be
+/point to cmd. Few of them per server.
 */
 package frontend
