@@ -713,97 +713,6 @@ func TestUsersReadNoPriv(t *testing.T) {
 
 // +++ User operation (?op=) tests
 
-func TestUserOperationsDisable(t *testing.T) {
-	unit_test.SetTesting(t)
-
-	response := doLogin(t, "Admin", adminPassword, nil)
-
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=disable", baseURI, alice), nil)
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
-
-	t.Logf("[?op=disable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
-
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t, "User \"Alice\" disabled\n", string(body), "Handler returned unexpected response body: %v", string(body))
-
-	doLogout(t, "admin", response.Cookies())
-}
-
-func TestUsersOperationEnable(t *testing.T) {
-	unit_test.SetTesting(t)
-
-	response := doLogin(t, "Admin", adminPassword, nil)
-
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=enable", baseURI, alice), nil)
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
-
-	t.Logf("[?op=enable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
-
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
-		"User \"Alice\" enabled\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
-
-	doLogout(t, "admin", response.Cookies())
-}
-
-func TestUsersOperationEnableNoUser(t *testing.T) {
-	unit_test.SetTesting(t)
-
-	response := doLogin(t, "Admin", adminPassword, nil)
-
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=enable", baseURI, alice+"Bogus"), nil)
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
-
-	t.Logf("[?op=enable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
-
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
-		"CloudChamber: user \"AliceBogus\" not found\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
-
-	doLogout(t, "admin", response.Cookies())
-}
-
-func TestUsersOperationNoPriv(t *testing.T) {
-	unit_test.SetTesting(t)
-
-	response := doLogin(t, "Admin", adminPassword, nil)
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	_, cookies = ensureAccount(t, "Bob", bobDef, cookies)
-	response = doLogout(t, "Admin", cookies)
-
-	response = doLogin(t, "Bob", bobPassword, response.Cookies())
-
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=enable", baseURI, alice), nil)
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
-
-	t.Logf("[?op=enable]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
-
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
-		"CloudChamber: permission denied\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
-
-	doLogout(t, "Bob", response.Cookies())
-}
-
 func TestUsersOperationIllegal(t *testing.T) {
 	unit_test.SetTesting(t)
 
@@ -826,7 +735,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t,
-		"invalid user operation requested (?op=)\n", string(body),
+		"CloudChamber: invalid user operation requested (?op=)\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// Case 2, check that an invalid op fails
@@ -842,7 +751,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t,
-		"invalid user operation requested (?op=testInvalid)\n", string(body),
+		"CloudChamber: invalid user operation requested (?op=testInvalid)\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 }
 

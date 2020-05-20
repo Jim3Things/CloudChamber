@@ -13,9 +13,8 @@ import (
     "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
-const (
-    actorContext = "ActorContext"
-)
+type actorContext struct {}
+var actorContextKey = actorContext{}
 
 // Define the common interface for a state in the state machine
 type State interface {
@@ -92,12 +91,12 @@ func (sm *SM) GetStateName() string {
 // Return a context that is decorated with the trace span and actor context
 func DecorateContext(ca actor.Context) context.Context {
     ctx := trc.ContextWithSpan(context.Background(), trace.GetSpan(ca.Self()))
-    ctx = context.WithValue(ctx, actorContext, ca)
+    ctx = context.WithValue(ctx, actorContextKey, ca)
 
     return ctx
 }
 
 // Get the actor context attached to the current execution context
 func ActorContext(ctx context.Context) actor.Context {
-    return ctx.Value(actorContext).(actor.Context)
+    return ctx.Value(actorContextKey).(actor.Context)
 }
