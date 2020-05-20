@@ -46,6 +46,16 @@ func Interceptor(
 
 // +++ Exported trace invocation methods
 
+// Execute the supplied function within a span that conforms to the expected
+// tracing pattern
+func WithSpan(ctx context.Context, spanName string, fn func(ctx context.Context) error) error {
+	tr := global.TraceProvider().Tracer("server")
+
+	return tr.WithSpan(ctx, spanName, fn,
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
+}
+
 // There should be an Xxx and Xxxf method for every severity level, plus some
 // specific scenario functions (such as OnEnter to log an information entry
 // about arrival at a specific method).

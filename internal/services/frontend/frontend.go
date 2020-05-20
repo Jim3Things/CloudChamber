@@ -30,6 +30,7 @@ import (
     "go.opentelemetry.io/otel/api/trace"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 // Computer is a representation an individual Computer
@@ -277,7 +278,7 @@ func handlerInjectorRoot(w http.ResponseWriter, r *http.Request) {
 }
 
 // Set an http error, and log it to the tracing system.
-func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, err error) {
+func httpError(ctx context.Context, w http.ResponseWriter, err error) {
     // We're hoping this is an HTTPError form of error, which would have the
     // preferred HTTP status code included.
     //
@@ -292,7 +293,7 @@ func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, err 
         }
     }
 
-    span.AddEvent(ctx, fmt.Sprintf("http error %v: %s", he.StatusCode(), he.Error()))
+    _ = st.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
     http.Error(w, he.Error(), he.StatusCode())
 }
 
@@ -302,12 +303,11 @@ func httpError(ctx context.Context, span trace.Span, w http.ResponseWriter, err 
 // The session object is passed out for reference use by any later body processing.
 func doSessionHeader(
     ctx context.Context, w http.ResponseWriter, r *http.Request,
-    action func(ctx context.Context, span trace.Span, session *sessions.Session) error) error {
+    action func(ctx context.Context, session *sessions.Session) error) error {
 
-    span := trace.SpanFromContext(ctx)
     session, _ := server.cookieStore.Get(r, SessionCookieName)
 
-    err := action(ctx, span, session)
+    err := action(ctx, session)
 
     if errx := session.Save(r, w); errx != nil {
         return &HTTPError{
