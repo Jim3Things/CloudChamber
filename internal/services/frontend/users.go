@@ -16,11 +16,11 @@ import (
     "github.com/golang/protobuf/jsonpb"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
-    "go.opentelemetry.io/otel/api/trace"
     "golang.org/x/crypto/bcrypt"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
     "github.com/Jim3Things/CloudChamber/internal/tracing"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -215,22 +215,21 @@ func usersAddRoutes(routeBase *mux.Router) {
 // Process an http request for the list of users.  Response should contain a document of links to the
 // details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         err = doSessionHeader(
             ctx, w, r,
-            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            func(ctx context.Context, session *sessions.Session) error {
                 return canManageAccounts(session, "")
             })
 
-        span := trace.SpanFromContext(ctx)
         if err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
         if _, err := fmt.Fprintln(w, "Users (List)"); err != nil {
-            httpError(ctx, span, w, err)
-           return err
+            httpError(ctx, w, err)
+            return err
         }
 
         b := r.URL.String()
@@ -241,10 +240,10 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
         return dbUsers.Scan(func(entry *pb.User) (err error) {
             target := fmt.Sprintf("%s%s", b, entry.Name)
 
-            span.AddEvent(ctx, fmt.Sprintf("   Listing user '%s' at '%s'", entry.Name, target))
+            st.Infof(ctx, -1, "   Listing user '%s' at '%s'", entry.Name, target)
 
             if _, err = fmt.Fprintln(w, target); err != nil {
-                httpError(ctx, span, w, err)
+                httpError(ctx, w, err)
             }
 
             return err
@@ -253,65 +252,63 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
         err = doSessionHeader(
             ctx, w, r,
-            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            func(ctx context.Context, session *sessions.Session) error {
                 return canManageAccounts(session, "")
             })
 
-        span := trace.SpanFromContext(ctx)
         if err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
-        span.AddEvent(ctx, fmt.Sprintf("Creating user %q", username))
+        st.Infof(ctx, -1, "Creating user %q", username)
 
         u := &pb.UserDefinition{}
         if err = jsonpb.Unmarshal(r.Body, u); err != nil {
-            httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
+            httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
             return err
         }
 
         var rev int64
 
         if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-        span.AddEvent(ctx, fmt.Sprintf("Created user %q, pwd: %q, enabled: %v, accountManager: %v", username, u.Password, u.Enabled, u.ManageAccounts))
+        st.Infof(ctx, -1, "Created user %q, pwd: %q, enabled: %v, accountManager: %v", username, u.Password, u.Enabled, u.ManageAccounts)
         _, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.ManageAccounts)
         return err
     })
 }
 
 func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
         err = doSessionHeader(
             ctx, w, r,
-            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            func(ctx context.Context, session *sessions.Session) error {
                 return canManageAccounts(session, username)
             })
 
-        span := trace.SpanFromContext(ctx)
         if err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
         u, rev, err := dbUsers.Get(username)
         if err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
@@ -319,11 +316,11 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         ext := &pb.UserPublic{
-            Enabled:              u.Enabled,
-            AccountManager:       u.AccountManager,
+            Enabled:        u.Enabled,
+            AccountManager: u.AccountManager,
         }
 
-        span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, u))
+        st.Infof(ctx, -1, "Returning details for user %q: %v", username, u)
 
         // Get the user entry, and serialize it to json
         // (export userPublic to json and return that as the body)
@@ -334,19 +331,18 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 
 // Update the user entry
 func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
         err = doSessionHeader(
             ctx, w, r,
-            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            func(ctx context.Context, session *sessions.Session) error {
                 return canManageAccounts(session, username)
             })
 
-        span := trace.SpanFromContext(ctx)
         if err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
@@ -359,29 +355,23 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         matchString := r.Header.Get("If-Match")
         match, err = strconv.ParseInt(matchString, 10, 64)
         if err != nil {
-            httpError(ctx, span, w, NewErrBadMatchType(matchString))
+            httpError(ctx, w, NewErrBadMatchType(matchString))
             return err
         }
 
         // Next, get the new definition values, and make sure that they are valid.
         upd := &pb.UserDefinition{}
         if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-            httpError(ctx, span, w, &HTTPError{ SC: http.StatusBadRequest, Base: err })
-            return err
-        }
-
-        // Now with the input in hand, get the user (if it exists).
-        _, rev, err := dbUsers.Get(username)
-        if err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
             return err
         }
 
         // All the prep is done.  Proceed with the update.  This may get a version
         // mismatch, or the user may have been deleted.  Given the check above, these
         // can all be considered version conflicts.
+        var rev int64
         if rev, err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
@@ -389,11 +379,11 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         ext := &pb.UserPublic{
-            Enabled:              upd.Enabled,
-            AccountManager:       upd.ManageAccounts,
+            Enabled:        upd.Enabled,
+            AccountManager: upd.ManageAccounts,
         }
 
-        span.AddEvent(ctx, fmt.Sprintf("Returning details for user %q: %v", username, upd))
+        st.Infof(ctx, -1, "Returning details for user %q: %v", username, upd)
 
         p := jsonpb.Marshaler{}
         return p.Marshal(w, ext)
@@ -402,24 +392,23 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 
 // Delete the user entry
 func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         vars := mux.Vars(r)
         username := vars["username"]
 
         err = doSessionHeader(
             ctx, w, r,
-            func(ctx context.Context, span trace.Span, session *sessions.Session) error {
+            func(ctx context.Context, session *sessions.Session) error {
                 return canManageAccounts(session, username)
             })
 
-        span := trace.SpanFromContext(ctx)
         if err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
         if err = userRemove(username); err != nil {
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
             return err
         }
 
@@ -430,15 +419,15 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 
 // Perform an admin operation (login, logout, enable, disable) on an account
 func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
-    _ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         var s string
 
-        err = doSessionHeader(ctx, w, r, func(ctx context.Context, span trace.Span, session *sessions.Session) (err error) {
+        err = doSessionHeader(ctx, w, r, func(ctx context.Context, session *sessions.Session) (err error) {
             op := r.FormValue("op")
             vars := mux.Vars(r)
             username := vars["username"]
 
-            span.AddEvent(ctx, fmt.Sprintf("Operation %q, user %q, session %v", op, username, session))
+            st.Infof(ctx, -1, "Operation %q, user %q, session %v", op, username, session)
 
             switch op {
             case Enable:
@@ -464,8 +453,7 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
         })
 
         if err != nil {
-            span := trace.SpanFromContext(ctx)
-            httpError(ctx, span, w, err)
+            httpError(ctx, w, err)
         } else {
             _, err = fmt.Fprintln(w, s)
         }
