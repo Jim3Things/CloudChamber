@@ -366,13 +366,6 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
             return err
         }
 
-        // Now with the input in hand, get the user (if it exists).
-        _, _, err = dbUsers.Get(username)
-        if err != nil {
-            httpError(ctx, w, err)
-            return err
-        }
-
         // All the prep is done.  Proceed with the update.  This may get a version
         // mismatch, or the user may have been deleted.  Given the check above, these
         // can all be considered version conflicts.
