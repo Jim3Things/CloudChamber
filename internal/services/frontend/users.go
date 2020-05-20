@@ -11,14 +11,12 @@ import (
     "net/http"
     "strconv"
     "strings"
-    "sync"
 
     "github.com/golang/protobuf/jsonpb"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
     "golang.org/x/crypto/bcrypt"
 
-    "github.com/Jim3Things/CloudChamber/internal/config"
     "github.com/Jim3Things/CloudChamber/internal/tracing"
     st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -28,8 +26,6 @@ const (
     // Value that can never be a valid version number
     InvalidRev = -1
 
-    Enable = "enable"
-    Disable = "disable"
     Login = "login"
     Logout = "logout"
 
@@ -37,144 +33,6 @@ const (
     AuthStateKey      = "authenticated"
     UserNameKey       = "username"
 )
-
-// +++ User collection access mechanism
-// This section encapsulates storage and retrieval of known users
-
-// The full user entry contains attributes about what it can do, the password
-// hash, and a revision number.  The password hash is never exposed outside of
-// this module.  The revision number is returned, and used as a precondition
-// on any update requests.
-
-// Each user entry has an associated key which is the lowercased form of the
-// username.  The supplied name is retained as an attribute in order to present
-// the form that the caller originally used for display purposes.
-
-// DBUsers is a container used to established synchronized access to
-// the in-memory set of user records.
-//
-type DBUsers struct {
-    Mutex sync.Mutex
-    Users map[string]pb.UserInternal
-}
-
-// Initialize the users store.  For now this is only a map in memory.
-func InitDBUsers(cfg *config.GlobalConfig) error {
-    if dbUsers == nil {
-        dbUsers = &DBUsers{
-            Mutex: sync.Mutex{},
-            Users: make(map[string]pb.UserInternal),
-        }
-    }
-
-    _, err := UserAdd(cfg.WebServer.SystemAccount, cfg.WebServer.SystemAccountPassword, true, true)
-    return err
-}
-
-// Create a new user entry in the store.
-func (m *DBUsers) Create(u *pb.User) (int64, error) {
-    m.Mutex.Lock()
-    defer m.Mutex.Unlock()
-
-    key := strings.ToLower(u.Name)
-
-    if _, ok := m.Users[key]; ok {
-        return InvalidRev, NewErrUserAlreadyCreated(u.Name)
-    }
-
-    entry := &pb.UserInternal{
-        User:                 &pb.User{
-            Name:                 u.Name,
-            PasswordHash:         u.PasswordHash,
-            UserId:               u.UserId,
-            Enabled:              u.Enabled,
-            AccountManager:       u.AccountManager,
-        },
-        Revision:             1,
-    }
-    m.Users[key] = *entry
-
-    return 1, nil
-}
-
-// Get the specified user from the store.
-func (m *DBUsers) Get(name string) (*pb.User, int64, error) {
-    m.Mutex.Lock()
-    defer m.Mutex.Unlock()
-
-    key := strings.ToLower(name)
-
-    entry, ok := m.Users[key]
-    if !ok {
-        return nil, InvalidRev, NewErrUserNotFound(name)
-    }
-
-    return entry.User, entry.Revision, nil
-}
-
-// Scan the set of known users in the store, invoking the supplied
-// function with each entry.
-func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
-    m.Mutex.Lock()
-    defer m.Mutex.Unlock()
-
-    for _, user := range dbUsers.Users {
-        if err := action(user.User); err != nil {
-            return err
-        }
-    }
-
-    return nil
-}
-
-
-func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
-    m.Mutex.Lock()
-    defer m.Mutex.Unlock()
-
-    key := strings.ToLower(u.Name)
-
-    old, ok := m.Users[key]
-    if !ok {
-        return InvalidRev, NewErrUserNotFound(u.Name)
-    }
-
-    if old.Revision != match {
-        return InvalidRev, NewErrUserStaleVersion(u.Name)
-    }
-
-    entry := &pb.UserInternal{
-        User:                 &pb.User{
-            Name:                 u.Name,
-            PasswordHash:         u.PasswordHash,
-            UserId:               u.UserId,
-            Enabled:              u.Enabled,
-            AccountManager:       u.AccountManager,
-        },
-        Revision:             match + 1,
-    }
-    m.Users[key] = *entry
-
-    return entry.Revision, nil
-}
-
-func (m *DBUsers) Remove(name string) error {
-    m.Mutex.Lock()
-    defer m.Mutex.Unlock()
-
-    key := strings.ToLower(name)
-
-    _, ok := m.Users[key]
-    if !ok {
-        return NewErrUserNotFound(name)
-    }
-
-    delete(m.Users, key)
-    return nil
-}
-
-// --- End User collection access mechanism
-
 
 var (
     dbUsers *DBUsers
@@ -430,12 +288,6 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
             st.Infof(ctx, -1, "Operation %q, user %q, session %v", op, username, session)
 
             switch op {
-            case Enable:
-                s, err = enableDisable(session, r, true, "enable")
-
-            case Disable:
-                s, err = enableDisable(session, r, false, "disable")
-
             case Login:
                 s, err = login(session, r)
 
@@ -443,10 +295,7 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
                 s, err = logout(session, r)
 
             default:
-                err = &HTTPError{
-                    SC:   http.StatusBadRequest,
-                    Base: fmt.Errorf("invalid user operation requested (?op=%s)", op),
-                }
+                err = NewErrUserInvalidOperation(op)
             }
 
             return err
@@ -470,22 +319,6 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 // while handling the header, and may cause updates to that header.  Therefore,
 // these methods return both an error status and a string that can be later
 // applied to the response body.
-
-// Process a request to enable (?op=enable), or disable (?op=disable) an account
-func enableDisable(session *sessions.Session, r *http.Request, v bool, s string) (string, error) {
-    vars := mux.Vars(r)
-    username := vars["username"]
-
-    if err := canManageAccounts(session, username); err != nil {
-        return "", err
-    }
-
-    if err := userEnable(username, v); err != nil {
-        return "", err
-    }
-
-    return fmt.Sprintf("User %q %sd", username, s), nil
-}
 
 // Process a login request (?op=login)
 func login(session *sessions.Session, r *http.Request) (_ string, err error) {
@@ -611,18 +444,6 @@ func userVerifyPassword(name string, password []byte) error {
     }
 
     return bcrypt.CompareHashAndPassword(entry.PasswordHash, password)
-}
-
-func userEnable(name string, enable bool) error {
-
-    entry, rev, err := dbUsers.Get(name)
-    if err != nil {
-        return err
-    }
-
-    entry.Enabled = enable
-    _, err = dbUsers.Update(entry, rev)
-    return err
 }
 
 // --- Mid-level support methods
