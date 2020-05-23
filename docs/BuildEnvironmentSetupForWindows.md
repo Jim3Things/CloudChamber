@@ -265,6 +265,95 @@ using
 or you can change the persistent environment PATH variable (recommended)
 using any of the previously described methods.
 
+# Setting up the Cygwin Utility Environment
+
+The Cygwin environment provides a comprehensive suite of UNIX derived
+utilities which are readily available on UNIX and UNIX like machines,
+e.g. Linux, but which are not typically present on most Windows
+machines.
+
+At present, CloudChamber is only using the “make.exe” utility and then
+only during package update and build. Later, more utilities may well be
+needed.
+
+## Installing the Base Toolset
+
+The Cygwin installer “setup-x86\_64.exe” can be downloaded from
+<https://www.cygwin.com>. Run the installer and respond to the prompts,
+typically by accepting the defaults, e.g.
+
+> Choose a Download Source:
+> 
+> Install from Internet
+> 
+> Select Root Install Directory:
+> 
+> Root Directory: c:\\cygwin64 (use supplied default unless override
+> preferred)
+> 
+> Install For: All Users
+> 
+> Select Local Package Directory:
+> 
+> Local Package Directory: C:\\Users\\\<username\>\\Downloads (use
+> supplied default unless override preferred)
+> 
+> Select Your Internet Connection:
+> 
+> Use System Proxy Settings
+> 
+> Choose a Download Site:
+> 
+> \<download site\>
+
+This download site should be one that is geographically close to the
+machine where the installation is taking place. For example, in the
+Pacific NW, <http://mirrors.kernel.org> is convenient as that is located
+in Portland, OR. For NZ, you might choose
+<http://ucmirror.canterbury.ac.nz>
+
+This will then present a new page "Cygwin Setup - Select Packages". With
+the "View" drop-down menu set to full, in the search box, type "make".
+This should cause a bunch of possible packages to be displayed.
+
+Search down the list for the "make" package, and then in the "New"
+column (probably the third column) select the highest available version
+to be installed. Currently this is 4.3-1.
+
+Click on the "Next" button and keep on selecting Ok, until the utility
+starts the installation.
+
+When the installation is complete, the utility will display the "Create
+Icons" page. Ensure the options "Create Icon on Desktop" and "Add icon
+to Start Menu" are both selected (unless otherwise preferred) and click
+on the "Finish" button.
+
+The utility should now create the icons and exit.
+
+## 
+
+## Getting Utilities to Run from the Windows Command Line
+
+By default, the Cygwin installed tools are only active in the Cygwin
+environment, e.g. in the "Cygwin64 Terminal". To use the make utility
+from within a standard Windows Command line, the default Cygwin path
+needs to be added to the Windows PATH environment variable. To verify,
+start a Windows Command line and then, assuming Cygwin was installed to
+"C:\\cygwin64" type
+
+> set PATH=c:\\cygwin64;%PATH%
+
+to temporarily modify the environment and then
+
+> make --version
+
+where the version is preceded by a double ‘-‘ character, should cause
+the make utility to display its version number.
+
+If this is working correctly, either use this method to modify the PATH
+environment variable each time a Windows Command line is going to be
+used, or modify the System or User environment variable if desired.
+
 # Setting up the Initial CloudChamber Repository
 
 ## Fetch CloudChamber Itself
