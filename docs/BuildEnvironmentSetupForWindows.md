@@ -330,8 +330,6 @@ on the "Finish" button.
 
 The utility should now create the icons and exit.
 
-## 
-
 ## Getting Utilities to Run from the Windows Command Line
 
 By default, the Cygwin installed tools are only active in the Cygwin
@@ -341,7 +339,7 @@ needs to be added to the Windows PATH environment variable. To verify,
 start a Windows Command line and then, assuming Cygwin was installed to
 "C:\\cygwin64" type
 
-> set PATH=c:\\cygwin64;%PATH%
+> set PATH=c:\\cygwin64\\bin;%PATH%
 
 to temporarily modify the environment and then
 
@@ -352,7 +350,7 @@ the make utility to display its version number.
 
 If this is working correctly, either use this method to modify the PATH
 environment variable each time a Windows Command line is going to be
-used, or modify the System or User environment variable if desired.
+used or modify the System or User environment variable if desired.
 
 # Setting up the Initial CloudChamber Repository
 
