@@ -7,7 +7,6 @@ package frontend
 import (
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -26,18 +25,6 @@ type Inventory struct {
 	StepCount       uint64
 	Enabled         bool
 }
-
-// DbInventory is a container used to established synchronized access to
-// the in-memory set of Inventory records.
-//
-type DbInventory struct {
-	Mutex     sync.Mutex
-	Inventory map[string]Inventory
-}
-
-var (
-	dbInventory DbInventory
-)
 
 func inventoryAddRoutes(routeBase *mux.Router) {
 
