@@ -69,7 +69,7 @@ func racksDisplayArguments(w http.ResponseWriter, r *http.Request, command strin
 	fmt.Fprintf(w, "racks: %v command: %v", racks, command)
 }
 
-func handlerracksList(w http.ResponseWriter, r *http.Request) {
+func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	fmt.Fprintf(w, "racks (List)")
 }

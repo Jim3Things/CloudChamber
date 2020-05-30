@@ -10,7 +10,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Jim3Things/CloudChamber/internal/services/stepper"
+	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
@@ -32,7 +32,10 @@ func init() {
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
-	stepper.Register(s)
+
+	if err := stepper.Register(s); err != nil {
+		log.Fatalf("Failed to register stepper actor: %v", err)
+	}
 
 	go func() {
 		if err := s.Serve(lis); err != nil {
@@ -46,13 +49,15 @@ func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 }
 
 func commonSetup(t *testing.T) {
-	stepper.Reset()
 	unit_test.SetTesting(t)
 
 	InitTimestamp("bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ctrc.Interceptor))
+
+	err := Reset()
+	assert.Nilf(t, err, "Reset failed")
 }
 
 func TestNow(t *testing.T) {

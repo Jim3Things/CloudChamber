@@ -108,10 +108,18 @@ GET - /api/racks/{rackid}/
 Returns a single rack ID record.
 
 GET - /api/racks/{rack-id}/blades
-To get the list of blades associated with that rack
+
+Get list of known blades in a rack.
+
+GET - /api/racks/{rack-id}/TOR
+Get Top of Racks details .
+
+GET - /api/racks/{rack-id}/PDU
+Gets Power distribution Unit details.
 
 GET - /api/racks/{rack-id}/blades/{blade-id}
-To get details about a specific blade in a specific rack
+
+Returns a record details of a single blade.
 
 GET - /api/racks/{rack-id}/TOR
 To get details about a specific blade in a specific rack

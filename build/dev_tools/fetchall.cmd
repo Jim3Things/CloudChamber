@@ -41,6 +41,11 @@ go get google.golang.org/grpc
 
 go get golang.org/x/crypto/...
 
+go get github.com/AsynkronIT/protoactor-go/...
+pushd github.com\AsynkronIT\protoactor-go
+make
+popd
+
 go get github.com/Jim3Things/CloudChamber
 
 popd

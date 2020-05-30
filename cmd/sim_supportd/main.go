@@ -10,18 +10,27 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	"github.com/Jim3Things/CloudChamber/internal/services/stepper"
+	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+	"github.com/Jim3Things/CloudChamber/pkg/version"
 )
 
 func main() {
-	setup.Init(exporters.StdOut)
-
 	cfgPath := flag.String("config", ".", "path to the configuration file")
 	showConfig := flag.Bool("showConfig", false, "display the current configuration settings")
+	showVersion := flag.Bool("version", false, "display the current version of the program")
 	flag.Parse()
+
+	if *showVersion {
+		version.Show()
+		os.Exit(0)
+	}
+
+	setup.Init(exporters.StdOut)
+
+	version.Trace()
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
@@ -40,7 +49,9 @@ func main() {
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-	stepper.Register(s)
+	if err := stepper.Register(s); err != nil {
+		log.Fatalf("failed to register the stepper actor: %v", err)
+	}
 
 	if err := s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)

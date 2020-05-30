@@ -66,6 +66,12 @@ func etcdStart() {
 	etcdConfig.APUrls = []url.URL{*apurl}
 	etcdConfig.ACUrls = []url.URL{*acurl}
 
+	// Force a new derivation of the initial cluster name from the just initialized A*Urls.
+	// This is particularly relevant when using an embedded setup for test as a non-default
+	// IP port is being used to avoid collisions with a standard ETCD installation.
+	//
+	etcdConfig.InitialCluster = etcdConfig.InitialClusterFromName("")
+
 	// Override the default log level "info" which is very noisy
 	//
 	etcdConfig.LogLevel = "warn"

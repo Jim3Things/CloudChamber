@@ -24,14 +24,18 @@ service Stepper {
 
     // When the stepper policy is for manual single-stepping, this
     // function forces a single step forward in simulated time.
-    rpc Step(google.protobuf.Empty) returns (google.protobuf.Empty);
+    rpc Step(StepRequest) returns (google.protobuf.Empty);
 
     // Get the current simulated time.
-    rpc Now(google.protobuf.Empty) returns (common.Timestamp);
+    rpc Now(NowRequest) returns (common.Timestamp);
 
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
     rpc Delay (DelayRequest) returns (common.Timestamp);
+
+    // Forcibly reset the stepper's internal state back to its starting
+    // point.
+    rpc Reset (ResetRequest) returns (google.protobuf.Empty);
 }
 
 // Define the various simulated time stepping policies
@@ -65,6 +69,12 @@ message PolicyRequest {
     google.protobuf.Duration measuredDelay = 2;
 }
 
+// Define the request associated with a Step operation
+message StepRequest { }
+
+// Define the request associated with a current time query
+message NowRequest { }
+
 // Define the parameters when requesting a delay
 message DelayRequest {
     // The minimum simulated time before the delay is completed.
@@ -75,4 +85,15 @@ message DelayRequest {
     // is to simulate the random delays seen in, e.g., disk I/O or network
     // communications.
     int64 jitter = 2 [(validate.rules).int64.gte = 0];
+}
+
+// Define the request associated with a forcible reset
+message ResetRequest { }
+
+// Internally used message to cause a simulate time advance based on timer
+// expiry
+message AutoStepRequest {
+    // The epoch number associated with the repeating timer call.  Ignore
+    // this message if this value does not match the last timer's epoch.
+    int64 epoch = 1;
 }
