@@ -192,15 +192,59 @@ reviews will add any comments they think appropriate, and then they can
 either send the comments as is, request further changes or approve the
 PR.
 
-If further edits to the change are needed, the updates are made to the
-\<new-branch\> branch in the local repository, built, tested and
-verified as before and then committed to the local branch. Then these
-further updates are added to the current PR by publishing them to the
-main repository using the same process as for the initial publish, and
-providing the branch names match i.e. from \<new-branch \> in the local
-repository to \<new-branch\> to \<new-branch\> in the main repository,
-the new updates will be added to the PR and the author can request a
-re-review (using the github.com site).
+# Replying to Code Review Comments
+
+Code Reviews frequently leads to comments on the change being
+considered. These can range from requests for clarification or questions
+on specific parts of the change. These result in a conversation between
+the reviewer and the author using the ability to “reply” to comments on
+the github.com site.
+
+Sometimes a reviewer may make requests and/or suggestions for updates to
+the change. Often, it is the author who choses to make further edits to
+the proposed change as a result of conversations on the review comments.
+
+Generally, a very similar sequence of actions is taken to those for the
+initial change, but rather than create a new branch, the further edits
+are made in the (still) existing \<new-branch\> in the local repository.
+
+  - git checkout \<new-branch\>
+
+will switch the current branch to \<new-branch\> and then the author
+updates the change using the same sequence as for the initial change,
+that is
+
+  - edit
+
+  - compile
+
+  - debug
+
+  - commit
+
+  - project wide compile
+
+  - project wide build
+
+  - project wide test
+
+and finally when the update is ready, the new “commits” are published to
+the main repository. If using the “Github Desktop” utility, it will
+offer an option to push the new changes to “origin” which will add the
+new set of edits to the existing change currently undergoing Code
+Review.
+
+Once the publish has been done, the author should visit the github.com
+web site and go to the page for the existing pull request. The page
+should list all the “commits” forming the change which should include
+the changes made during the initial pull request creation and also the
+additional commits which were subsequently added when updates were made
+to the change.
+
+When the author is happy, they should switch back to the “Conversation”
+tab where on the right side of the page the list of reviewers will
+provide an option to request a re-review. Clicking on this will send
+mail to the reviewers to notify them of the new update.
 
 # Merge
 
@@ -243,5 +287,5 @@ or possibly
 
   - git branch -D \<new-branch\>
 
-was not completely merged with the current master branch, a likely
-scenario.
+if \<new-branch\> was not completely merged with the current master
+branch, a likely scenario.
