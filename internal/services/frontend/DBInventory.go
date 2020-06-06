@@ -14,8 +14,10 @@ import (
 
 type Tor struct {
 }
+
 type Pdu struct {
 }
+
 type blade struct {
 }
 
@@ -53,8 +55,11 @@ func InitDBInventory() error {
 			pdu:    Pdu{},
 			blades: make(map[int64]*blade),
 		}
-		dbInventory.Racks["rack1"].blades[1] = &blade{} //First rack added.
-		dbInventory.Racks["rack2"].blades[1] = &blade{}
+		dbInventory.Racks["rack1"].blades[1] = &blade{} //First blade for rack 1.
+		dbInventory.Racks["rack1"].blades[2] = &blade{} //Second blade for rack 1.
+
+		dbInventory.Racks["rack2"].blades[1] = &blade{} //First blade for rack 2.
+		dbInventory.Racks["rack2"].blades[2] = &blade{} //Second blade for rack 2.
 
 	}
 
