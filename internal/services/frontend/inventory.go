@@ -7,7 +7,6 @@ package frontend
 import (
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -27,21 +26,9 @@ type Inventory struct {
 	Enabled         bool
 }
 
-// DbInventory is a container used to established synchronized access to
-// the in-memory set of Inventory records.
-//
-type DbInventory struct {
-	Mutex     sync.Mutex
-	Inventory map[string]Inventory
-}
-
-var (
-	dbInventory DbInventory
-)
-
 func inventoryAddRoutes(routeBase *mux.Router) {
 
-	routeRacks := routeBase.PathPrefix("/Racks").Subrouter() //api/rackid/ declared the path prefix
+	routeRacks := routeBase.PathPrefix("/racks").Subrouter() //api/racks/rackid/ declared the path prefix
 
 	routeRacks.HandleFunc("", handlerRacksList).Methods("GET") //handler rack list function is called for the Get method
 	routeRacks.HandleFunc("/", handlerRacksList).Methods("GET")
@@ -54,10 +41,10 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//	 PUT is idempotent so translates to UPDATE in the CRUD methodolgy
 	//   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
 	//
-	//routeRacks.HandleFunc("/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
-	routeRacks.HandleFunc("/{rackid}", handlerRacksRead).Methods("GET")
-	//routeRacks.HandleFunc("/{rackid}", handlerRacksUpdate).Methods("PUT", "GET")
-	//routeRacks.HandleFunc("/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
+	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
+	routeRacks.HandleFunc("/racks/{rackid}", handlerRacksRead).Methods("GET")
+	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksUpdate).Methods("PUT", "GET")
+	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
 }
 
 func racksDisplayArguments(w http.ResponseWriter, r *http.Request, command string) {
