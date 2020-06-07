@@ -50,7 +50,7 @@ func TestMain(m *testing.M) {
     os.Exit(m.Run())
 }
 
-// Estalish the test environment, including starting a test frontend service
+// Establish the test environment, including starting a test frontend service
 // over a faked http connection.
 func commonSetup() {
 
