@@ -20,6 +20,7 @@ import (
 
     "github.com/golang/protobuf/jsonpb"
     "github.com/golang/protobuf/proto"
+    "github.com/stretchr/testify/assert"
 
     "github.com/Jim3Things/CloudChamber/internal/config"
     "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
@@ -146,3 +147,35 @@ func randomCase(val string) string {
 }
 
 // --- Helper functions
+
+// Log the specified user into CloudChamber
+func doLogin(t *testing.T, user string, password string, cookies []*http.Cookie) *http.Response {
+    path := fmt.Sprintf("%s%s%s?op=login", baseURI, userURI, user)
+    t.Logf("[login as %q (%q)]", user, path)
+
+    request := httptest.NewRequest("PUT", path, strings.NewReader(password))
+    response := doHTTP(request, cookies)
+    _, err := getBody(response)
+
+    assert.Nilf(t, err, "Failed to read body returned from call to handler for route %q: %v", path, err)
+    assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+    assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+    return response
+}
+
+// Log the specified user out of CloudChamber
+func doLogout(t *testing.T, user string, cookies []*http.Cookie) *http.Response {
+    path := fmt.Sprintf("%s%s%s?op=logout", baseURI, userURI, user)
+    t.Logf("[logout from %q (%q)]", user, path)
+
+    request := httptest.NewRequest("PUT", path, nil)
+    response := doHTTP(request, cookies)
+    _, err := getBody(response)
+
+    assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+    assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+    return response
+}
+
