@@ -8,40 +8,29 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"io"
-	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Jim3Things/CloudChamber/internal/config"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 const (
 	userURI       = "/api/users/"
+	admin         = userURI + adminAccountName
 	alice         = userURI + "Alice"
-	admin         = userURI + "Admin"
 	bob           = userURI + "Bob"
-	adminPassword = "AdminPassword"
 	alicePassword = "test"
 	bobPassword   = "test2"
 )
 
 var (
-	baseURI     string
-	initialized bool
 	aliceDef    = &pb.UserDefinition{
 		Password:       alicePassword,
 		Enabled:        true,
@@ -53,115 +42,6 @@ var (
 		ManageAccounts: false,
 	}
 )
-
-// commonSetup bears more than a passing resemblance to the primary package
-// entry point StartService()
-//
-func commonSetup() {
-
-	if initialized {
-		log.Fatalf("Error initializing service for second or subsequent time")
-	}
-
-	setup.Init(exporters.UnitTest)
-
-	if err := initService(&config.GlobalConfig{
-		Controller: config.ControllerType{},
-		Inventory:  config.InventoryType{},
-		SimSupport: config.SimSupportType{},
-		WebServer: config.WebServerType{
-			RootFilePath:          "C:\\CloudChamber",
-			SystemAccount:         "Admin",
-			SystemAccountPassword: adminPassword,
-			FE: config.Endpoint{
-				Hostname: "localhost",
-				Port:     8080,
-			},
-			BE: config.Endpoint{},
-		},
-	}); err != nil {
-		log.Fatalf("Error initializing service: %v", err)
-	}
-
-	baseURI = fmt.Sprintf("http://localhost:%d", server.port)
-
-	initialized = true
-}
-
-// +++ Helper functions
-
-// Convert a proto message into a reader with json-formatted contents
-func toJsonReader(v proto.Message) (io.Reader, error) {
-	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
-	p := jsonpb.Marshaler{}
-
-	if err := p.Marshal(w, v); err != nil {
-		return nil, err
-	}
-
-	if err := w.Flush(); err != nil {
-		return nil, err
-	}
-
-	return bufio.NewReader(&buf), nil
-}
-
-// Execute an http request/response sequence
-func doHTTP(req *http.Request, cookies []*http.Cookie) *http.Response {
-	for _, c := range cookies {
-		req.AddCookie(c)
-	}
-
-	w := httptest.NewRecorder()
-
-	server.handler.ServeHTTP(w, req)
-
-	return w.Result()
-}
-
-// Get the body of a response, and close it
-func getBody(resp *http.Response) ([]byte, error) {
-	defer func() { _ = resp.Body.Close() }()
-	return ioutil.ReadAll(resp.Body)
-}
-
-// Get the body of a response, unmarshaled into the supplied message structure
-func getJsonBody(resp *http.Response, v proto.Message) error {
-	defer func() { _ = resp.Body.Close() }()
-	return jsonpb.Unmarshal(resp.Body, v)
-}
-
-// Log the specified user into CloudChamber
-func doLogin(t *testing.T, user string, password string, cookies []*http.Cookie) *http.Response {
-	path := fmt.Sprintf("%s%s%s?op=login", baseURI, userURI, user)
-	t.Logf("[login as %q (%q)]", user, path)
-
-	request := httptest.NewRequest("PUT", path, strings.NewReader(password))
-	response := doHTTP(request, cookies)
-	_, err := getBody(response)
-
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %q: %v", path, err)
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-
-	return response
-}
-
-// Log the specified user out of CloudChamber
-func doLogout(t *testing.T, user string, cookies []*http.Cookie) *http.Response {
-	path := fmt.Sprintf("%s%s%s?op=logout", baseURI, userURI, user)
-	t.Logf("[logout from %q (%q)]", user, path)
-
-	request := httptest.NewRequest("PUT", path, nil)
-	response := doHTTP(request, cookies)
-	_, err := getBody(response)
-
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-
-	return response
-}
 
 // Ensure that the specified account exists.  This function first checks if it
 // is already known, returning that account's current revision if it is.  If it
@@ -217,13 +97,6 @@ func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*h
 
 // --- Helper functions
 
-func TestMain(m *testing.M) {
-
-	commonSetup()
-
-	os.Exit(m.Run())
-}
-
 // The individual unit tests follow here.  They are grouped by the operation
 // they are testing, starting with a simple happy path case, followed by
 // repeating sequences (optionally), and then by failure cases.
@@ -248,8 +121,9 @@ func TestLoginSessionSimple(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
+	//     (note that this also checks that the username match is case insensitive)
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, admin), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, userURI + strings.ToUpper(adminAccountName)), nil)
 	response = doHTTP(request, response.Cookies())
 	body, err = getBody(response)
 
@@ -266,27 +140,27 @@ func TestLoginSessionRepeat(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
-	response = doLogout(t, "admin", response.Cookies())
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// login for the second iteration, should succeed
-	response = doLogin(t, "Admin", adminPassword, response.Cookies())
+	response = doLogin(t, randomCase(adminAccountName), adminPassword, response.Cookies())
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
-	response = doLogout(t, "Admin", response.Cookies())
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -296,7 +170,7 @@ func TestLoginDupLogins(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -333,7 +207,7 @@ func TestLoginDupLogins(t *testing.T) {
 
 	// ... and logout, which should succeed
 	//
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 }
@@ -342,7 +216,7 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	response := doLogin(t, "admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -366,7 +240,7 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 
 	// ... and logout, which should succeed
 	//
-	response = doLogout(t, "admin", response.Cookies())
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 }
@@ -375,14 +249,14 @@ func TestDoubleLogout(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... logout, which should succeed
 	//
-	response = doLogout(t, "admin", response.Cookies())
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -419,9 +293,9 @@ func TestLoginSessionBadPassword(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now just validate that there really isn't an active session here.
-	response = doLogin(t, "Admin", adminPassword, response.Cookies())
+	response = doLogin(t, randomCase(adminAccountName), adminPassword, response.Cookies())
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestLoginSessionNoUser(t *testing.T) {
@@ -441,9 +315,9 @@ func TestLoginSessionNoUser(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now just validate that there really isn't an active session here.
-	response = doLogin(t, "Admin", adminPassword, response.Cookies())
+	response = doLogin(t, randomCase(adminAccountName), adminPassword, response.Cookies())
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 // --- Login tests
@@ -458,7 +332,7 @@ func TestUsersCreate(t *testing.T) {
 	r, err := toJsonReader(aliceDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	request := httptest.NewRequest("POST", path, r)
 	request.Header.Set("Content-Type", "application/json")
@@ -476,7 +350,7 @@ func TestUsersCreate(t *testing.T) {
 		"User \"Alice2\" created.  enabled: true, can manage accounts: false", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersCreateDup(t *testing.T) {
@@ -485,7 +359,7 @@ func TestUsersCreateDup(t *testing.T) {
 	r, err := toJsonReader(aliceDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
 
@@ -505,13 +379,13 @@ func TestUsersCreateDup(t *testing.T) {
 		"CloudChamber: user \"Alice\" already exists\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersCreateBadData(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	request := httptest.NewRequest(
 		"POST",
@@ -532,7 +406,7 @@ func TestUsersCreateBadData(t *testing.T) {
 		"json: cannot unmarshal number into Go value of type bool\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersCreateNoPriv(t *testing.T) {
@@ -594,7 +468,7 @@ func TestUsersCreateNoSession(t *testing.T) {
 func TestUsersList(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
 
@@ -610,15 +484,15 @@ func TestUsersList(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersListNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	response = doLogout(t, "Admin", cookies)
+	response = doLogout(t, randomCase(adminAccountName), cookies)
 
 	response = doLogin(t, "Alice", alicePassword, response.Cookies())
 
@@ -644,9 +518,9 @@ func TestUsersListNoPriv(t *testing.T) {
 func TestUsersRead(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "admin"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, randomCase(adminAccountName)), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())
@@ -662,13 +536,13 @@ func TestUsersRead(t *testing.T) {
 	assert.Equal(t, true, user.Enabled)
 	assert.Equal(t, true, user.AccountManager)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersReadUnknownUser(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "BadUser"), nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -682,15 +556,15 @@ func TestUsersReadUnknownUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersReadNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	response = doLogout(t, "Admin", cookies)
+	response = doLogout(t, randomCase(adminAccountName), cookies)
 
 	response = doLogin(t, "Alice", alicePassword, response.Cookies())
 
@@ -768,7 +642,7 @@ func TestUsersUpdate(t *testing.T) {
 
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	r, err := toJsonReader(aliceUpd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -791,13 +665,13 @@ func TestUsersUpdate(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersUpdateBadData(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
 
@@ -821,7 +695,7 @@ func TestUsersUpdateBadData(t *testing.T) {
 		"json: cannot unmarshal number into Go value of type bool\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersUpdateBadMatch(t *testing.T) {
@@ -833,7 +707,7 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	r, err := toJsonReader(aliceUpd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -855,7 +729,7 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 
 	assert.Equal(t, http.StatusConflict, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersUpdateBadMatchSyntax(t *testing.T) {
@@ -867,7 +741,7 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	r, err := toJsonReader(aliceUpd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -886,7 +760,7 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersUpdateNoUser(t *testing.T) {
@@ -898,7 +772,7 @@ func TestUsersUpdateNoUser(t *testing.T) {
 
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	r, err := toJsonReader(upd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -914,7 +788,7 @@ func TestUsersUpdateNoUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersUpdateNoPriv(t *testing.T) {
@@ -926,10 +800,10 @@ func TestUsersUpdateNoPriv(t *testing.T) {
 
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
 	rev, cookies := ensureAccount(t, "Bob", bobDef, cookies)
-	response = doLogout(t, "Admin", cookies)
+	response = doLogout(t, randomCase(adminAccountName), cookies)
 
 	response = doLogin(t, "Bob", bobPassword, response.Cookies())
 
@@ -959,7 +833,7 @@ func TestUsersDelete(t *testing.T) {
 
 	path := fmt.Sprintf("%s%s", baseURI, alice)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
 	request := httptest.NewRequest("DELETE", path, nil)
@@ -985,7 +859,7 @@ func TestUsersDelete(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Found deleted user %q", path)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersDeleteNoUser(t *testing.T) {
@@ -993,7 +867,7 @@ func TestUsersDeleteNoUser(t *testing.T) {
 
 	path := fmt.Sprintf("%s%s", baseURI, alice+"Bogus")
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	request := httptest.NewRequest("DELETE", path, nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -1006,16 +880,16 @@ func TestUsersDeleteNoUser(t *testing.T) {
 
 	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Found deleted user %q", path)
 
-	doLogout(t, "admin", response.Cookies())
+	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
 func TestUsersDeleteNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
 
-	response := doLogin(t, "Admin", adminPassword, nil)
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
 	_, cookies = ensureAccount(t, "Bob", bobDef, cookies)
-	response = doLogout(t, "Admin", cookies)
+	response = doLogout(t, randomCase(adminAccountName), cookies)
 
 	response = doLogin(t, "Bob", bobPassword, response.Cookies())
 
