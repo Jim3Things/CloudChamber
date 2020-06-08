@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/gorilla/mux"
@@ -59,7 +60,7 @@ type Server struct {
 	port         int
 	rootFilePath string
 
-	handler     *mux.Router
+	handler     http.Handler
 	cookieStore *sessions.CookieStore
 }
 
@@ -73,15 +74,49 @@ var (
 	server Server
 )
 
+// normalize the URLs we process before handing them off to the normal route
+// processing.
+//
+// The rules for processing URLs are:
+//	a) any POST operation is lowercased, except for the last segment.  That
+//	   segment has the case retained.
+//
+//	b) any other operation is lowercased fully.
+//
+// This allows user casing choice for values they determine, such as user
+// names, while also allowing for case insensitive processing for all
+// internal Cloud Chamber components, as well as case insensitive lookup
+// for the user values.
+//
+func normalizeURL(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" {
+			// A logical create operation. Retain the case of the last segment,
+			// such as the user name.  Lowercase everything else.
+			//
+			path := r.URL.Path
+			toLower := path[:strings.LastIndex(path, "/")]
+			r.URL.Path = strings.ToLower(toLower) + path[strings.LastIndex(path, "/"):]
+		} else {
+			// An action against an existing object, so lowercase everything.
+			//
+			r.URL.Path = strings.ToLower(r.URL.Path)
+		}
+
+		// Now invoke the actual handler with the modified URL.
+		next.ServeHTTP(w, r)
+	})
+}
+
 func initHandlers() error {
 
-	server.handler = mux.NewRouter()
+	handler := mux.NewRouter()
 
-	routeAPI := server.handler.PathPrefix("/api").Subrouter()
+	routeAPI := handler.PathPrefix("/api").Subrouter()
 
 	// Now add the routes for the API
 	//
-	filesAddRoutes(server.rootFilePath, server.handler)
+	filesAddRoutes(server.rootFilePath, handler)
 	usersAddRoutes(routeAPI)
 	workloadsAddRoutes(routeAPI)
 	inventoryAddRoutes(routeAPI)
@@ -94,6 +129,8 @@ func initHandlers() error {
 	routeAPI.HandleFunc("/logs", handlerLogsRoot).Methods("GET")
 	routeAPI.HandleFunc("/stepper", handlerStepperRoot).Methods("GET")
 	routeAPI.HandleFunc("/injector", handlerInjectorRoot).Methods("GET")
+
+	server.handler = normalizeURL(handler)
 
 	return nil
 }
@@ -125,7 +162,11 @@ func initService(cfg *config.GlobalConfig) error {
 	if err := initHandlers(); err != nil {
 		return err
 	}
-	InitDBInventory()
+
+	if err := InitDBInventory(); err != nil {
+		return err
+	}
+
 	// Finally, initialize the user store
 	return InitDBUsers(cfg)
 }
@@ -137,7 +178,9 @@ func StartService(cfg *config.GlobalConfig) error {
 		log.Fatalf("Error initializing service: %v", err)
 	}
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", server.port), server.handler)
+	return http.ListenAndServe(
+		fmt.Sprintf(":%d", server.port),
+		server.handler)
 }
 
 // func handlerRoot(w http.ResponseWriter, r *http.Request) {
