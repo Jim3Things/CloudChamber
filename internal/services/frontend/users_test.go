@@ -123,7 +123,7 @@ func TestLoginSessionSimple(t *testing.T) {
 	// ... and logout, which should succeed
 	//     (note that this also checks that the username match is case insensitive)
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, userURI + strings.ToUpper(adminAccountName)), nil)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, strings.ToUpper(admin)), nil)
 	response = doHTTP(request, response.Cookies())
 	body, err = getBody(response)
 
