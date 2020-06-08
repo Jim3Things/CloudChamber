@@ -65,3 +65,18 @@ func InitDBInventory() error {
 
 	return nil
 }
+
+// Scan the set of known users in the store, invoking the supplied
+// function with each entry.
+func (m *DBInventory) Scan(action func(entry string) error) error {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	for name := range dbInventory.Racks {
+		if err := action(name); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

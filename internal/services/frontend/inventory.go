@@ -5,10 +5,14 @@
 package frontend
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/gorilla/mux"
 )
 
@@ -57,8 +61,31 @@ func racksDisplayArguments(w http.ResponseWriter, r *http.Request, command strin
 }
 
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
-	fmt.Fprintf(w, "racks (List)")
+		if _, err := fmt.Fprintln(w, "Racks (List)"); err != nil {
+			httpError(ctx, w, err)
+			return err
+		}
+
+		b := r.URL.String()
+		if !strings.HasSuffix(b, "/") {
+			b += "/"
+		}
+
+		return dbInventory.Scan(func(name string) (err error) {
+			target := fmt.Sprintf("%s%s", b, name)
+
+			st.Infof(ctx, -1, "   Listing rack '%s' at '%s'", name, target)
+
+			if _, err = fmt.Fprintln(w, target); err != nil {
+				httpError(ctx, w, err)
+			}
+
+			return err
+		})
+	})
+
 }
 
 //func handlerracksCreate(w http.ResponseWriter, r *http.Request) {
