@@ -28,7 +28,9 @@ func TestListRacks(t *testing.T) {
 	s := string(body)
 	var splits = strings.Split(s, "\n")
 	fmt.Println(splits)
-	assert.Equal(t, splits, "[Racks (List) /api/rasks/rack1 /api/racks/rack2 ]", "Error found")
+	found1 := splits[1] == "/api/racks/rack1" || splits[2] == "/api/racks/rack1"
+
+	assert.Equal(t, found1, "rack 1 was not found")
 
 	// func Split(s, )  {
 

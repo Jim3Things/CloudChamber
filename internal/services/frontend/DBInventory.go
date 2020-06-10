@@ -66,7 +66,7 @@ func InitDBInventory() error {
 	return nil
 }
 
-// Scan the set of known users in the store, invoking the supplied
+// Scan the set of known blades the store, invoking the supplied
 // function with each entry.
 func (m *DBInventory) Scan(action func(entry string) error) error {
 	m.Mutex.Lock()
