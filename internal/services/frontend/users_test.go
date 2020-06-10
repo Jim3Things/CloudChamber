@@ -41,6 +41,10 @@ var (
 		Enabled:        true,
 		ManageAccounts: false,
 	}
+
+	// The user URLs that have been added and not deleted during the test run.
+	// Note that this does not include any predefined users, such as Admin.
+	knownNames []string
 )
 
 // Ensure that the specified account exists.  This function first checks if it
@@ -75,7 +79,6 @@ func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*h
 	var buf bytes.Buffer
 	w := bufio.NewWriter(&buf)
 
-	req = httptest.NewRequest("POST", path, nil)
 	p := jsonpb.Marshaler{}
 	err := p.Marshal(w, u)
 	assert.Nilf(t, err, fmt.Sprintf("Error formatting the new user definition. err = %v", err))
@@ -87,6 +90,8 @@ func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*h
 
 	response = doHTTP(req, response.Cookies())
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	knownNames = append(knownNames, path)
 
 	tagString := response.Header.Get("ETag")
 	tag, err := strconv.ParseInt(tagString, 10, 64)
@@ -350,6 +355,7 @@ func TestUsersCreate(t *testing.T) {
 		"User \"Alice2\" created.  enabled: true, can manage accounts: false", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
+	knownNames = append(knownNames, path)
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
@@ -476,13 +482,20 @@ func TestUsersList(t *testing.T) {
 	body, err := getBody(response)
 
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
-
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
-	s := string(body)
-
-	t.Log(s)
-
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	// Now verify that the list of names matches our expectations.
+	// First, split the return string into an array of lines, removing the possible trailing newline
+	s := strings.TrimSuffix(string(body), "\n")
+	names := strings.Split(s, "\n")
+
+	// Next, verify the initial title line
+	assert.Equal(t, "Users (List)", names[0])
+
+	// .. and then verify that all following lines correctly consist of all the expected names
+	match := append(knownNames,  baseURI + admin )
+	found, msg := matchUnordered(match, names[1:])
+	assert.True(t, found, "%s\nReturned Value: %s\nMatch Values: %v", msg, s, match)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
@@ -499,13 +512,9 @@ func TestUsersListNoPriv(t *testing.T) {
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
 
 	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	_, err := getBody(response)
 
 	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
-
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
-
 	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	doLogout(t, "alice", response.Cookies())
@@ -846,6 +855,7 @@ func TestUsersDelete(t *testing.T) {
 	t.Log(string(body))
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	knownNames = removeEntry(knownNames, "Alice")
 
 	// Now verify the deletion by trying to get the user
 
