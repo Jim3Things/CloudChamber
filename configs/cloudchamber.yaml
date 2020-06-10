@@ -21,7 +21,42 @@ simSupport:
     port: 8083
     hostname: localhost
 
-# TODO: etcd settings
+# store interactions and etcd instance connection parameters
+store:
+  # trace level to use for insteractions with the store and
+  # etcd
+  traceLevel: 1
+
+  # timeout in seconds to allow when attempting to establish
+  # a connection to the etcd instance
+  connectTimeout: 5
+
+  # timeout in seconds to allow when sending a request to
+  # etcd instance
+  requestTimeout: 5
+
+  # Client and peer endpoint addresses and ports for an external
+  # instance of etcd.
+  #
+  # Currently the use of an etcd cluster is not supported. When
+  # they are, this will become a list/array of endpoints.
+  etcdService:
+    hostname: localhost
+    port: 2379
+
+  # Client and peer ports for the etcd instance to be created
+  # when running the local tests. These values are ignored
+  # for production use.
+  #
+  # If testEmbedded is set to 0, the standard Etcd instance will
+  # be used for tests rather than a local embedded instance.
+  Test:
+    EmbeddedInstance: 0
+    EmbeddedHostname: localhost
+    EmbeddedHostAddr: 127.0.0.1
+    EmbeddedPortClient: 9379
+    EmbeddedPortPeer: 9380
+    EmbeddedPath: C:\CloudChamber\EtcdStore
 
 # front end service, client web server
 webServer:
@@ -36,7 +71,7 @@ webServer:
     hostname: localhost
 
   # file system path to the static files and scripts
-  rootFilePath: c:\CloudChamber
+  rootFilePath: c:\CloudChamber\Files
 
   # pre-defined account
   systemAccount: admin
