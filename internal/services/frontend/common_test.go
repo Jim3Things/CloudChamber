@@ -182,37 +182,32 @@ func doLogout(t *testing.T, user string, cookies []*http.Cookie) *http.Response 
 // Determine if two arrays contain the same entries, assuming the array is
 // unordered.  Note that the match array is assumed to have only unique entries
 // so this also indicates which entries occur more than once.
-func matchUnordered(expected []string, test []string) (bool, string) {
+func matchUnordered(expected map[string]string, test []string) (bool, string) {
     msg := ""
 
     if len(expected) != len(test) {
         return false, fmt.Sprintf("len(expected) should match len(test), but %d != %d", len(expected), len(test))
     }
 
-    count := 0
-    for _, match := range expected {
-        for _, t := range test {
-            if match == t {
-                count++
-                break
-            }
-        }
-        if count == 0 {
+    testMap := make(map[string]string)
+    for _, item := range test {
+        testMap[item] = item
+    }
+
+    if len(test) != len(testMap) {
+        return false, fmt.Sprintf("len(test) should match len(test_map), but %d != %d", len(test), len(testMap))
+    }
+
+    for match := range expected {
+        v := testMap[match]
+        if v != match {
             if len(test) > 0 {
                 msg += "\n"
             }
 
             msg += fmt.Sprintf("value %q not found", match)
-        }
 
-        if count > 1 {
-            if len(test) > 0 {
-                msg += "\n"
-            }
-
-            msg += fmt.Sprintf("value %q found %d times", match, count)
         }
-        count = 0
     }
 
     if len(msg) > 0 {
@@ -220,17 +215,4 @@ func matchUnordered(expected []string, test []string) (bool, string) {
     }
 
     return true, ""
-}
-
-// Remove a matching entry from an array, returning the modified array
-func removeEntry(orig []string, match string) []string {
-    var res []string
-
-    for _, item := range orig {
-        if item != match {
-            res = append(res, item)
-        }
-    }
-
-    return res
 }
