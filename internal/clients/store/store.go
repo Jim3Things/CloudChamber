@@ -71,8 +71,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/Jim3Things/CloudChamber/internal/config"
 
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/namespace"
@@ -81,15 +84,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// All CloudChamber key-value pairs are stored under a common namespace root.
+// This is fixed and cannot be changed programatically. However, to help
+// certain situations, such as test, an additional suffix to the namespace
+// can be added, changed, removed etc.
+//
+// At no time can the root namespace be removed.
+//
 const (
-	defaultEndpointNode = string("localhost")
-	defaultEndpointPort = string("2379")
-	namespacePrefix     = string("/CloudChamber/v0.1")
-	defaultEndpoint     = defaultEndpointNode + ":" + defaultEndpointPort
-
-	defaultTimeoutConnect = 5 * time.Second
-	defaultTimeoutRequest = 5 * time.Second
-	defaultTraceFlags     = traceFlagEnabled /*| traceFlagExpandResults */
+	cloudChamberNamespace = string("/CloudChamber/v0.1")
 )
 
 // TraceFlags is the type used when setting of fetching the relevant flags
@@ -105,13 +108,14 @@ type global struct {
 	Stores     map[string]Store
 	StoreMutex sync.Mutex
 
-	DefaultTimeoutConnect time.Duration
-	DefaultTimeoutRequest time.Duration
-	DefaultEndpoints      []string
-	DefaultTraceFlags     TraceFlags
+	DefaultTimeoutConnect  time.Duration
+	DefaultTimeoutRequest  time.Duration
+	DefaultEndpoints       []string
+	DefaultTraceFlags      TraceFlags
+	DefaultNamespaceSuffix string
 }
 
-// Store is a struct used to collect al the interesting state value associated with
+// Store is a struct used to collect all the interesting state values associated with
 // communicating with an instance of the store
 //
 type Store struct {
@@ -123,6 +127,7 @@ type Store struct {
 	UnprefixedKV      clientv3.KV
 	UnprefixedWatcher clientv3.Watcher
 	UnprefixedLease   clientv3.Lease
+	NamespaceSuffix   string
 	TraceFlags        TraceFlags
 }
 
@@ -145,8 +150,6 @@ type KeyValueResponse struct {
 
 var (
 	storeRoot global
-
-	defaultEndpoints = []string{defaultEndpoint}
 
 	// ErrStoreUnableToCreateClient indicates that it is not currently possible
 	// to create a client.
@@ -217,12 +220,21 @@ func getDefaultEndpoints() []string {
 func getDefaultTimeoutConnect() time.Duration {
 	return storeRoot.DefaultTimeoutConnect
 }
+
 func getDefaultTimeoutRequest() time.Duration {
 	return storeRoot.DefaultTimeoutRequest
 }
 
 func getDefaultTraceFlags() TraceFlags {
 	return storeRoot.DefaultTraceFlags
+}
+
+func getDefaultNamespaceSuffix() string {
+	return storeRoot.DefaultNamespaceSuffix
+}
+
+func setDefaultNamespaceSuffix(suffix string) {
+	storeRoot.DefaultNamespaceSuffix = suffix
 }
 
 func (store *Store) connected(op string) error {
@@ -250,27 +262,32 @@ func (store *Store) disconnected(op string) error {
 // Initialize is a method used to initialise the basic global state used to access
 // the back-end db service.
 //
-func Initialize() {
-	storeRoot.DefaultEndpoints = defaultEndpoints
-	storeRoot.DefaultTimeoutConnect = defaultTimeoutConnect
-	storeRoot.DefaultTimeoutRequest = defaultTimeoutRequest
-	storeRoot.DefaultTraceFlags = defaultTraceFlags
+func Initialize(cfg *config.GlobalConfig) {
+
+	storeRoot.DefaultEndpoints = []string{fmt.Sprintf("%s:%v", cfg.Store.EtcdService.Hostname, cfg.Store.EtcdService.Port)}
+	storeRoot.DefaultTimeoutConnect = time.Duration(cfg.Store.ConnectTimeout) * time.Second
+	storeRoot.DefaultTimeoutRequest = time.Duration(cfg.Store.RequestTimeout) * time.Second
+	storeRoot.DefaultTraceFlags = TraceFlags(cfg.Store.TraceLevel)
+	storeRoot.DefaultNamespaceSuffix = ""
 }
 
-// NewWithDefaults is a method to allocate a new Store struct using the defaults which can later be overridden with
+// NewStore is a method to allocate a new Store struct using the
+// defaults which can later be overridden with
 //
 //    SetAddress()
 //    SetTimeoutConnection()
 //    SetTimeoutResponse()
 //
-// providing the store has not yet connect3d to the back-end db service.
+// providing the store has not yet connected to the back-end db service.
 //
-func NewWithDefaults() *Store {
+func NewStore() *Store {
 	return New(
-		storeRoot.DefaultEndpoints,
-		storeRoot.DefaultTimeoutConnect,
-		storeRoot.DefaultTimeoutRequest,
-		storeRoot.DefaultTraceFlags)
+		getDefaultEndpoints(),
+		getDefaultTimeoutConnect(),
+		getDefaultTimeoutRequest(),
+		getDefaultTraceFlags(),
+		getDefaultNamespaceSuffix(),
+	)
 }
 
 // New is a method supplied values. These values can later be overridden with
@@ -279,15 +296,16 @@ func NewWithDefaults() *Store {
 //    SetTimeoutConnection()
 //    SetTimeoutResponse()
 //
-// providing the store has not yet connect3d to the back-end db service.
+// providing the store has not yet connected to the back-end db service.
 //
-func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags) *Store {
+func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags, namespace string) *Store {
 
 	store := Store{
-		Endpoints:      endpoints,
-		TimeoutConnect: timeoutConnect,
-		TimeoutRequest: timeoutRequest,
-		TraceFlags:     traceFlags,
+		Endpoints:       endpoints,
+		TimeoutConnect:  timeoutConnect,
+		TimeoutRequest:  timeoutRequest,
+		TraceFlags:      traceFlags,
+		NamespaceSuffix: namespace,
 	}
 
 	return &store
@@ -295,7 +313,7 @@ func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.D
 
 // Initialize is a method used to initialize a specific instance of a Store struct.
 //
-func (store *Store) Initialize(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags) error {
+func (store *Store) Initialize(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags, namespaceSuffix string) error {
 
 	if err := store.connected("Initialize"); err != nil {
 		return err
@@ -305,6 +323,7 @@ func (store *Store) Initialize(endpoints []string, timeoutConnect time.Duration,
 	store.SetTimeoutConnect(timeoutConnect)
 	store.SetTimeoutRequest(timeoutRequest)
 	store.SetTraceFlags(traceFlags)
+	store.SetNamespaceSuffix(namespaceSuffix)
 
 	store.Client = nil
 
@@ -411,6 +430,37 @@ func (store *Store) SetTimeoutRequest(timeout time.Duration) (err error) {
 //
 func (store *Store) GetTimeoutRequest() time.Duration { return store.TimeoutRequest }
 
+// SetNamespaceSuffix is a method that can be used to update the namespace prefix being
+// used for all read and write operations. For production use this will typically be the
+// default namespace but for test usage this is set to a specific test namespace to both
+// avoid interfering with production data and to allow simpler cleanup and removal of
+// old temporary test data.
+//
+func (store *Store) SetNamespaceSuffix(suffix string) error {
+
+	const slash = "/"
+
+	if err := store.connected("Set(namespaceSuffix)"); err != nil {
+		return err
+	}
+
+	// remove any leading, or trailing "/" characters regardless of how many there might be.
+	//
+	suffix = strings.Trim(suffix, slash)
+
+	if suffix == "" {
+		store.NamespaceSuffix = ""
+	} else {
+		store.NamespaceSuffix = slash + suffix
+	}
+	return nil
+}
+
+// GetNamespaceSuffix is a method which can be used to query the current namespace prefix
+// being used for individual requests to the underlying store service.
+//
+func (store *Store) GetNamespaceSuffix() string { return store.NamespaceSuffix }
+
 // Connect is a method that will establish a connection between the store object and the
 // backend etcd database. A connection is required before any IO to the database can be
 // attempted.
@@ -422,8 +472,8 @@ func (store *Store) Connect() (err error) {
 	}
 
 	cli, err := clientv3.New(clientv3.Config{
-		Endpoints:   store.Endpoints,
-		DialTimeout: store.TimeoutConnect,
+		Endpoints:   store.GetAddress(),
+		DialTimeout: store.GetTimeoutConnect(),
 	})
 
 	if err != nil {
@@ -438,9 +488,11 @@ func (store *Store) Connect() (err error) {
 	store.UnprefixedLease = cli.Lease
 	store.UnprefixedWatcher = cli.Watcher
 
-	cli.KV = namespace.NewKV(cli.KV, namespacePrefix)
-	cli.Watcher = namespace.NewWatcher(cli.Watcher, namespacePrefix)
-	cli.Lease = namespace.NewLease(cli.Lease, namespacePrefix)
+	name := cloudChamberNamespace + store.GetNamespaceSuffix()
+
+	cli.KV = namespace.NewKV(cli.KV, name)
+	cli.Watcher = namespace.NewWatcher(cli.Watcher, name)
+	cli.Lease = namespace.NewLease(cli.Lease, name)
 
 	return nil
 }
@@ -464,6 +516,88 @@ func (store *Store) Disconnect() {
 	store.UnprefixedWatcher = nil
 
 	return
+}
+
+// Cluster is a structure which describes aspects of a cluster and the members of that cluster.
+//
+type Cluster struct {
+	ID      uint64
+	Members []ClusterMember
+}
+
+// ClusterMember is a structure which describes aspecs of a single member within a cluster
+//
+type ClusterMember struct {
+	ID         uint64
+	Name       string
+	PeerURLs   []string
+	ClientURLs []string
+}
+
+// GetClusterMembers is a method to fetch a description of the cluster to which the store
+// object is currently connected.
+//
+func (store *Store) GetClusterMembers() (result *Cluster, err error) {
+
+	if err := store.disconnected("GetClusterMembers"); err != nil {
+		return result, err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+	response, err := store.Client.MemberList(ctx)
+	cancel()
+
+	if err != nil {
+		store.logEtcdResponseError(err)
+	} else {
+		result = &Cluster{
+			ID:      response.Header.GetClusterId(),
+			Members: make([]ClusterMember, len(response.Members))}
+
+		for i, member := range response.Members {
+			result.Members[i] = ClusterMember{
+				Name:       member.GetName(),
+				ID:         member.GetID(),
+				PeerURLs:   member.GetPeerURLs(),
+				ClientURLs: member.GetClientURLs()}
+		}
+
+		if store.trace(traceFlagExpandResults) {
+			for i, node := range result.Members {
+				log.Printf("node [%v] Id: %v Name: %v\n", i, node.ID, node.Name)
+				for i, url := range node.ClientURLs {
+					log.Printf("  client [%v] URL: %v\n", i, url)
+				}
+				for i, url := range node.PeerURLs {
+					log.Printf("  peer [%v] URL: %v\n", i, url)
+				}
+			}
+		}
+
+		log.Printf("Processed %v items", len(result.Members))
+	}
+
+	return result, err
+}
+
+// UpdateClusterConnections is a method which updates the current set of connections
+// to the connected underlying store according to the currently available connections
+//
+func (store *Store) UpdateClusterConnections() error {
+
+	if err := store.disconnected("UpdateClusterConnections"); err != nil {
+		return err
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+	err := store.Client.Sync(ctx)
+	cancel()
+
+	if err != nil {
+		store.logEtcdResponseError(err)
+	}
+
+	return err
 }
 
 // Write is a method to write a new value into the store or update an existing
