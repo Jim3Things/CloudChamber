@@ -111,7 +111,7 @@ func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*h
 
 // +++ Login tests
 
-func TestLoginSessionSimple(t *testing.T) {
+func TestUsersLoginSessionSimple(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
@@ -141,7 +141,7 @@ func TestLoginSessionSimple(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
-func TestLoginSessionRepeat(t *testing.T) {
+func TestUsersLoginSessionRepeat(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
@@ -171,7 +171,7 @@ func TestLoginSessionRepeat(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
-func TestLoginDupLogins(t *testing.T) {
+func TestUsersLoginDupLogins(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
@@ -217,7 +217,7 @@ func TestLoginDupLogins(t *testing.T) {
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 }
 
-func TestLoginLogoutDiffAccounts(t *testing.T) {
+func TestUsersLoginLogoutDiffAccounts(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
@@ -250,7 +250,7 @@ func TestLoginLogoutDiffAccounts(t *testing.T) {
 	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
 }
 
-func TestDoubleLogout(t *testing.T) {
+func TestUsersDoubleLogout(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
@@ -281,7 +281,7 @@ func TestDoubleLogout(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
-func TestLoginSessionBadPassword(t *testing.T) {
+func TestUsersLoginSessionBadPassword(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
@@ -303,7 +303,7 @@ func TestLoginSessionBadPassword(t *testing.T) {
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
-func TestLoginSessionNoUser(t *testing.T) {
+func TestUsersLoginSessionNoUser(t *testing.T) {
 	unit_test.SetTesting(t)
 
 	// login for the first time, should succeed
@@ -495,8 +495,14 @@ func TestUsersList(t *testing.T) {
 	// .. and then verify that all following lines correctly consist of all the expected names
 	match := knownNames
 	match[baseURI + admin] = baseURI + admin
-	found, msg := matchUnordered(match, names[1:])
-	assert.True(t, found, "%s\nReturned Value: %s\nMatch Values: %v", msg, s, match)
+
+	// .. this involves converting the set of keys to an array for matching
+	keys := make([]string, 0, len(match))
+	for k := range match {
+		keys = append(keys, k)
+	}
+
+	assert.ElementsMatchf(t, keys, names[1:], "elements did not match\nReturned Value: %s\nMatch Values: %v", s, keys)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
@@ -543,8 +549,9 @@ func TestUsersRead(t *testing.T) {
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(t, "1", response.Header.Get("ETag"))
-	assert.Equal(t, true, user.Enabled)
-	assert.Equal(t, true, user.AccountManager)
+	assert.True(t, user.Enabled)
+	assert.True(t, user.AccountManager)
+	assert.True(t, user.NeverDelete)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
@@ -670,8 +677,9 @@ func TestUsersUpdate(t *testing.T) {
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, fmt.Sprintf("%v", rev+1), response.Header.Get("ETag"))
-	assert.Equal(t, true, user.Enabled)
-	assert.Equal(t, true, user.AccountManager)
+	assert.True(t, user.Enabled)
+	assert.True(t, user.AccountManager)
+	assert.False(t, user.NeverDelete)
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
@@ -917,4 +925,20 @@ func TestUsersDeleteNoPriv(t *testing.T) {
 	doLogout(t, "bob", response.Cookies())
 }
 
+func TestUsersDeleteProtected(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+
+	request := httptest.NewRequest("DELETE", fmt.Sprintf("%s%s", baseURI, admin), nil)
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+
+	assert.Nilf(t, err, "Unable to retrieve response body, err = %v", err)
+	assert.Equal(t, "CloudChamber: user \"admin\" is protected and cannot be deleted\n", string(body))
+	assert.Equalf(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	doLogout(t, adminAccountName, response.Cookies())
+}
 // --- Delete user tests

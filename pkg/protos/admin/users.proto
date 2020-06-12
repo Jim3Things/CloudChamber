@@ -21,6 +21,9 @@ message user {
 
   // The rights this user has
   bool account_manager = 5;
+
+  // True, if this user entry can never be deleted.
+  bool never_delete = 6;
 }
 
 // Extend the base user definition with the revision number.  This is
@@ -38,6 +41,9 @@ message user_public {
 
   // The rights this user has
   bool account_manager = 2;
+
+  // True, if this user entry can never be deleted.
+  bool never_delete = 3;
 }
 
 // Public definition for a user, sent by a remote client to the Cloud Chamber
