@@ -123,9 +123,9 @@ func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
     // immutable
     entry := &pb.UserInternal{
         User:                 &pb.User{
-            Name:                 u.Name,
+            Name:                 old.User.Name,
             PasswordHash:         u.PasswordHash,
-            UserId:               u.UserId,
+            UserId:               old.User.UserId,
             Enabled:              u.Enabled,
             AccountManager:       u.AccountManager,
             NeverDelete:          old.User.NeverDelete,
