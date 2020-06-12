@@ -6,14 +6,12 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"testing"
 	"time"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/embed"
 )
 
 type testEmbedConfig struct {
@@ -25,17 +23,15 @@ type testEmbedConfig struct {
 }
 
 var (
-	baseURI         string
-	initialized     bool
-	useEmbeddedEtcd bool
+	baseURI     string
+	initialized bool
 
-	etcdConfig  *embed.Config
-	etcdService *embed.Etcd
-
-	testNamespaceSuffix = "/Test"
+	testNamespaceSuffixRoot = "/Test"
 )
 
 func commonSetup() {
+
+	var testNamespace string
 
 	cfgPath := flag.String("config", ".", "path to the configuration file")
 	flag.Parse()
@@ -47,110 +43,59 @@ func commonSetup() {
 
 	Initialize(cfg)
 
-	// For test purposes, need to set an alternate namespace rather than
-	// rely on the standard.
+	// It is meaningless to have both a unique per-instance test namespace
+	// and to clean the store before the tests are run
 	//
-	setDefaultNamespaceSuffix(testNamespaceSuffix)
-
-	useEmbeddedEtcd = cfg.Store.Test.EmbeddedInstance
-
-	if useEmbeddedEtcd {
-
-		// Override the normal default endpoint list following package
-		// Initialize() when using and ebmbedded Etcd store.
-		//
-		storeRoot.DefaultEndpoints = []string{fmt.Sprintf("%s:%v", cfg.Store.Test.EmbeddedHostname, cfg.Store.Test.EmbeddedPortClient)}
-
-		embedConfig := testEmbedConfig{
-			Node:       fmt.Sprintf("%s", cfg.Store.Test.EmbeddedHostname),
-			Addr:       fmt.Sprintf("%s", cfg.Store.Test.EmbeddedHostname),
-			PortClient: fmt.Sprintf("%v", cfg.Store.Test.EmbeddedPortClient),
-			PortPeer:   fmt.Sprintf("%v", cfg.Store.Test.EmbeddedPortPeer),
-			Path:       fmt.Sprintf("%s", cfg.Store.Test.EmbeddedPath),
-		}
-
-		etcdStart(&embedConfig)
+	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
+		log.Fatalf("invalid configuration: both UseUniqueInstance and PreCleanStore are enabled: %v", err)
 	}
 
+	// For test purposes, need to set an alternate namespace rather than
+	// rely on the standard. From the configuration, we can either use the
+	// standard, fixed, well-known prefix, or we can use a per-instance
+	// unique prefix derived from the current time
+	//
+	if cfg.Store.Test.UseUniqueInstance {
+		testNamespace = fmt.Sprintf("%s/%s/", testNamespaceSuffixRoot, time.Now().Format(time.RFC3339Nano))
+	} else {
+		testNamespace = testNamespaceSuffixRoot + "/Standard/"
+	}
+
+	if cfg.Store.Test.PreCleanStore {
+		if err := cleanNamespace(testNamespace); err != nil {
+			log.Fatalf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
+		}
+	}
+
+	setDefaultNamespaceSuffix(testNamespace)
 	return
 }
 
 func commonCleanup() {
-	if useEmbeddedEtcd {
-
-		etcdStop()
-	}
-}
-
-func etcdStart(embedConfig *testEmbedConfig) {
-
-	var err error
-	var hostList = make(map[string]struct{})
-	var urlPeer = fmt.Sprintf("http://%s:%v", embedConfig.Node, embedConfig.PortPeer)
-	var urlClient = fmt.Sprintf("http://%s:%v", embedConfig.Node, embedConfig.PortClient)
-
-	hostList[embedConfig.Node] = struct{}{}
-	hostList[embedConfig.Addr] = struct{}{}
-
-	etcdConfig = embed.NewConfig()
-
-	// Set a location to place the underlying files for the store
-	//
-	etcdConfig.Dir = embedConfig.Path
-
-	// Only allow calls from clients on the current node
-	//
-	etcdConfig.HostWhitelist = hostList
-
-	// Override the default listening and advertising endpoints for both clients and peers.
-	//
-	lpurl, _ := url.Parse(urlPeer)
-	lcurl, _ := url.Parse(urlClient)
-	apurl, _ := url.Parse(urlPeer)
-	acurl, _ := url.Parse(urlClient)
-
-	etcdConfig.LPUrls = []url.URL{*lpurl}
-	etcdConfig.LCUrls = []url.URL{*lcurl}
-	etcdConfig.APUrls = []url.URL{*apurl}
-	etcdConfig.ACUrls = []url.URL{*acurl}
-
-	// Force a new derivation of the initial cluster name from the just initialized A*Urls.
-	// This is particularly relevant when using an embedded setup for test as a non-default
-	// IP port is being used to avoid collisions with a standard ETCD installation.
-	//
-	etcdConfig.InitialCluster = etcdConfig.InitialClusterFromName("")
-
-	// Override the default log level "info" which is very noisy
-	//
-	etcdConfig.LogLevel = "warn"
-
-	etcdService, err = embed.StartEtcd(etcdConfig)
-	if err != nil {
-		log.Fatalf("Failed to start Etcd instance - error: %v", err)
-	}
-
-	select {
-	case <-etcdService.Server.ReadyNotify():
-		log.Printf("Server is ready!")
-
-	case <-time.After(60 * time.Second):
-		etcdService.Server.Stop() // trigger a shutdown
-		log.Fatalf("Server took too long to start! - error: %v", <-etcdService.Err())
-	}
-
 	return
 }
 
-func etcdStop() {
+func cleanNamespace(testNamespace string) error {
 
-	log.Printf("Server is stopping...")
+	store := NewStore()
 
-	etcdService.Close()
+	if store == nil {
+		log.Fatalf("unable to allocate store context for pre-cleanup")
+	}
 
-	etcdService = nil
-	etcdConfig = nil
+	if err := store.SetNamespaceSuffix(""); err != nil {
+		return err
+	}
+	if err := store.Connect(); err != nil {
+		return err
+	}
+	if err := store.DeleteWithPrefix(testNamespace); err != nil {
+		return err
+	}
 
-	log.Printf("Server is stopped!")
+	store.Disconnect()
+
+	return nil
 }
 
 func TestMain(m *testing.M) {

@@ -32,12 +32,8 @@ const (
 	StoreDefaultEtcdSvcHostname = "localhost"
 	StoreDefaultEtcdSvcPort     = 2379
 
-	StoreDefaultTestEmbeddedInstance   = true
-	StoreDefaultTestEmbeddedHostname   = "localhost"
-	StoreDefaultTestEmbeddedHostAddr   = "127.0.0.1"
-	StoreDefaultTestEmbeddedPortClient = 9379
-	StoreDefaultTestEmbeddedPortPeer   = 9380
-	StoreDefaultTestEmbeddedPath       = "store"
+	StoreDefaultTestUseUniqueInstance = false
+	StoreDefaultTestPreCleanStore     = false
 )
 
 // GlobalConfig defines the global configuration structure produced from reading
@@ -94,16 +90,12 @@ type WebServerType struct {
 	BE Endpoint
 }
 
-// StoreTypeTestEmbedded describes the specific configured elements for
-// an embedded store InstanceType
+// StoreTypeTest describes the specific configured elements for
+// a store test
 //
-type StoreTypeTestEmbedded struct {
-	EmbeddedInstance   bool
-	EmbeddedHostname   string
-	EmbeddedHostAddr   string
-	EmbeddedPortClient uint16
-	EmbeddedPortPeer   uint16
-	EmbeddedPath       string
+type StoreTypeTest struct {
+	UseUniqueInstance bool
+	PreCleanStore     bool
 }
 
 // StoreType is a structure used to return the configurable elements
@@ -114,7 +106,7 @@ type StoreType struct {
 	RequestTimeout int
 	TraceLevel     int
 	EtcdService    Endpoint
-	Test           StoreTypeTestEmbedded
+	Test           StoreTypeTest
 }
 
 // Create a new global configuration object, preset with defaults
@@ -155,13 +147,9 @@ func newGlobalConfig() *GlobalConfig {
 				Hostname: StoreDefaultEtcdSvcHostname,
 				Port:     StoreDefaultEtcdSvcPort,
 			},
-			Test: StoreTypeTestEmbedded{
-				EmbeddedInstance:   StoreDefaultTestEmbeddedInstance,
-				EmbeddedHostname:   StoreDefaultTestEmbeddedHostname,
-				EmbeddedHostAddr:   StoreDefaultTestEmbeddedHostAddr,
-				EmbeddedPortClient: StoreDefaultTestEmbeddedPortClient,
-				EmbeddedPortPeer:   StoreDefaultTestEmbeddedPortPeer,
-				EmbeddedPath:       StoreDefaultTestEmbeddedPath,
+			Test: StoreTypeTest{
+				UseUniqueInstance: StoreDefaultTestUseUniqueInstance,
+				PreCleanStore:     StoreDefaultTestPreCleanStore,
 			},
 		},
 	}
@@ -217,30 +205,7 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 
 // ToString is a function to format the configuration data as a returned string.
 func ToString(data *GlobalConfig) string {
-	var storeInstanceConfig string
 
-	switch data.Store.Test.EmbeddedInstance {
-	case true:
-		storeInstanceConfig = fmt.Sprintf(
-			"  Embed: Embedded\n"+
-				"    Hostname: %v\n"+
-				"    HostAddr: %v\n"+
-				"    ClientPort: %v\n"+
-				"    PeerPort: %v\n"+
-				"    Path: %v\n",
-			data.Store.Test.EmbeddedHostname,
-			data.Store.Test.EmbeddedHostAddr,
-			data.Store.Test.EmbeddedPortClient,
-			data.Store.Test.EmbeddedPortPeer,
-			data.Store.Test.EmbeddedPath)
-	case false:
-		storeInstanceConfig = fmt.Sprintf(
-			"  Embed: External\n"+
-				"    Hostname: %v\n"+
-				"    Port: %v\n",
-			data.Store.EtcdService.Hostname,
-			data.Store.EtcdService.Port)
-	}
 	return fmt.Sprintf(
 		"Controller:\n"+
 			"  EP:\n"+
@@ -263,7 +228,10 @@ func ToString(data *GlobalConfig) string {
 			"  ConnectTimeout: %v\n"+
 			"  RequestTimeout: %v\n"+
 			"  TraceLevel: %v\n"+
-			"%s\n",
+			"  Test:\n"+
+			"    UseUniqueInstance: %v\n"+
+			"    PreCleanStore: %v\n"+
+			"",
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
 		data.Inventory.EP.Port, data.Inventory.EP.Hostname,
 		data.SimSupport.EP.Port, data.SimSupport.EP.Hostname,
@@ -275,5 +243,6 @@ func ToString(data *GlobalConfig) string {
 		data.Store.ConnectTimeout,
 		data.Store.RequestTimeout,
 		data.Store.TraceLevel,
-		storeInstanceConfig)
+		data.Store.Test.UseUniqueInstance,
+		data.Store.Test.PreCleanStore)
 }

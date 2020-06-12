@@ -58,7 +58,7 @@ store:
   #
   Test:
     UseUniqueInstance: 0
-    PreCleanStore: 0
+    PreCleanStore: 1
 
 # front end service, client web server
 webServer:
