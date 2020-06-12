@@ -178,4 +178,3 @@ func doLogout(t *testing.T, user string, cookies []*http.Cookie) *http.Response 
 
     return response
 }
-
