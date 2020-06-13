@@ -9,15 +9,18 @@ import (
 // legal
 func (x *PolicyRequest) Validate() error {
     // The policy must be within the valid range for the enum
-    p := int64(x.Policy)
-    if p > 0 && p < 4 {
-        // All ok
+    switch x.Policy {
+    case StepperPolicy_NoWait,
+         StepperPolicy_Measured,
+         StepperPolicy_Manual:
         return nil
-    }
 
-    return common.ErrInvalidEnum{
-        Field:  "Policy",
-        Actual: p,
+    default:
+        // Not a valid policy choice
+        return common.ErrInvalidEnum{
+            Field:  "Policy",
+            Actual: int64(x.Policy),
+        }
     }
 }
 

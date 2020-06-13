@@ -11,7 +11,7 @@ import (
 // error correctly
 func (x *BladeCapacity) Validate(prefix string) error {
     // A blade must have at least one core
-    if x.Cores <= 0 {
+    if x.Cores < 1 {
         return ErrMustBeGTE{
             Field:    fmt.Sprintf("%sCores", prefix),
             Actual:   x.Cores,
@@ -20,7 +20,7 @@ func (x *BladeCapacity) Validate(prefix string) error {
     }
 
     // .. and it must have some memory
-    if x.MemoryInMb <= 0 {
+    if x.MemoryInMb < 1 {
         return ErrMustBeGTE{
             Field:    fmt.Sprintf("%sMemoryInMb", prefix),
             Actual:   x.MemoryInMb,
@@ -29,7 +29,7 @@ func (x *BladeCapacity) Validate(prefix string) error {
     }
 
     // .. and some disk space
-    if x.DiskInGb <= 0 {
+    if x.DiskInGb < 1 {
         return ErrMustBeGTE{
             Field:    fmt.Sprintf("%sDiskInGb", prefix),
             Actual:   x.DiskInGb,
@@ -38,7 +38,7 @@ func (x *BladeCapacity) Validate(prefix string) error {
     }
 
     // .. and a network bandwidth allowance
-    if x.NetworkBandwidthInMbps <= 0 {
+    if x.NetworkBandwidthInMbps < 1 {
         return ErrMustBeGTE{
             Field:    fmt.Sprintf("%sNetworkBandwidthInMbps", prefix),
             Actual:   x.NetworkBandwidthInMbps,
