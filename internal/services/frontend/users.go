@@ -135,7 +135,7 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 
         var rev int64
 
-        if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
+        if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled, false); err != nil {
             httpError(ctx, w, err)
             return err
         }
@@ -176,6 +176,7 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
         ext := &pb.UserPublic{
             Enabled:        u.Enabled,
             AccountManager: u.AccountManager,
+            NeverDelete:    u.NeverDelete,
         }
 
         st.Infof(ctx, -1, "Returning details for user %q: %v", username, u)
@@ -402,7 +403,7 @@ func logout(session *sessions.Session, r *http.Request) (_ string, err error) {
 // attributes that are understood by the route handlers to the internal user
 // attributes understood by the storage system.
 
-func UserAdd(name string, password string, accountManager bool, enabled bool) (int64, error) {
+func UserAdd(name string, password string, accountManager bool, enabled bool, neverDelete bool) (int64, error) {
     passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
     if err != nil {
@@ -413,7 +414,8 @@ func UserAdd(name string, password string, accountManager bool, enabled bool) (i
         Name: name,
         PasswordHash: passwordHash,
         Enabled: enabled,
-        AccountManager: accountManager})
+        AccountManager: accountManager,
+        NeverDelete: neverDelete})
 }
 
 func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) (int64, error) {

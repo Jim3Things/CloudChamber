@@ -3,125 +3,99 @@
 package store
 
 import (
+	"flag"
 	"fmt"
 	"log"
-	"net/url"
 	"os"
 	"testing"
 	"time"
 
+	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/stretchr/testify/assert"
-	"go.etcd.io/etcd/embed"
 )
 
-const (
-	defaultEmbeddedEtcdAddr       = string("127.0.0.1")
-	defaultEmbeddedEtcdNode       = string("localhost")
-	defaultEmbeddedEtcdPortClient = string("9379")
-	defaultEmbeddedEtcdPortPeer   = string("9380")
-
-	defaultEmbeddedEtcdPeer   = defaultEmbeddedEtcdNode + ":" + defaultEmbeddedEtcdPortPeer
-	defaultEmbeddedEtcdClient = defaultEmbeddedEtcdNode + ":" + defaultEmbeddedEtcdPortClient
-
-	useEmbeddedEtcd = true
-)
+type testEmbedConfig struct {
+	Node       string
+	Addr       string
+	PortClient string
+	PortPeer   string
+	Path       string
+}
 
 var (
 	baseURI     string
 	initialized bool
 
-	etcdConfig  *embed.Config
-	etcdService *embed.Etcd
+	testNamespaceSuffixRoot = "/Test"
 )
-
-func etcdStart() {
-
-	var err error
-	var hostList = make(map[string]struct{})
-	var urlPeer = "http://" + defaultEmbeddedEtcdPeer
-	var urlClient = "http://" + defaultEmbeddedEtcdClient
-
-	hostList[defaultEmbeddedEtcdNode] = struct{}{}
-	hostList[defaultEmbeddedEtcdAddr] = struct{}{}
-
-	etcdConfig = embed.NewConfig()
-
-	// Set a location to place the underlying files for the store
-	//
-	etcdConfig.Dir = "c:\\temp\\CloudChamber\\default.etcd"
-
-	// Only allow calls from clients on the current node
-	//
-	etcdConfig.HostWhitelist = hostList
-
-	// Override the default listening and advertising endpoints for both clients and peers.
-	//
-	lpurl, _ := url.Parse(urlPeer)
-	lcurl, _ := url.Parse(urlClient)
-	apurl, _ := url.Parse(urlPeer)
-	acurl, _ := url.Parse(urlClient)
-
-	etcdConfig.LPUrls = []url.URL{*lpurl}
-	etcdConfig.LCUrls = []url.URL{*lcurl}
-	etcdConfig.APUrls = []url.URL{*apurl}
-	etcdConfig.ACUrls = []url.URL{*acurl}
-
-	// Force a new derivation of the initial cluster name from the just initialized A*Urls.
-	// This is particularly relevant when using an embedded setup for test as a non-default
-	// IP port is being used to avoid collisions with a standard ETCD installation.
-	//
-	etcdConfig.InitialCluster = etcdConfig.InitialClusterFromName("")
-
-	// Override the default log level "info" which is very noisy
-	//
-	etcdConfig.LogLevel = "warn"
-
-	etcdService, err = embed.StartEtcd(etcdConfig)
-	if err != nil {
-		log.Fatalf("Failed to start Etcd instance - error: %v", err)
-	}
-
-	select {
-	case <-etcdService.Server.ReadyNotify():
-		log.Printf("Server is ready!")
-
-	case <-time.After(60 * time.Second):
-		etcdService.Server.Stop() // trigger a shutdown
-		log.Fatalf("Server took too long to start! - error: %v", <-etcdService.Err())
-	}
-
-	return
-}
-
-func etcdStop() {
-
-	log.Printf("Server is stopping...")
-
-	etcdService.Close()
-
-	etcdService = nil
-	etcdConfig = nil
-
-	log.Printf("Server is stopped!")
-}
 
 func commonSetup() {
 
-	Initialize()
+	var testNamespace string
 
-	if useEmbeddedEtcd {
+	cfgPath := flag.String("config", ".", "path to the configuration file")
+	flag.Parse()
 
-		// Override the normal default endpoint list.
-		//
-		storeRoot.DefaultEndpoints = []string{defaultEmbeddedEtcdClient}
+	cfg, err := config.ReadGlobalConfig(*cfgPath)
+	if err != nil {
+		log.Fatalf("failed to process the global configuration: %v", err)
 	}
 
-	etcdStart()
+	Initialize(cfg)
+
+	// It is meaningless to have both a unique per-instance test namespace
+	// and to clean the store before the tests are run
+	//
+	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
+		log.Fatalf("invalid configuration: both UseUniqueInstance and PreCleanStore are enabled: %v", err)
+	}
+
+	// For test purposes, need to set an alternate namespace rather than
+	// rely on the standard. From the configuration, we can either use the
+	// standard, fixed, well-known prefix, or we can use a per-instance
+	// unique prefix derived from the current time
+	//
+	if cfg.Store.Test.UseUniqueInstance {
+		testNamespace = fmt.Sprintf("%s/%s/", testNamespaceSuffixRoot, time.Now().Format(time.RFC3339Nano))
+	} else {
+		testNamespace = testNamespaceSuffixRoot + "/Standard/"
+	}
+
+	if cfg.Store.Test.PreCleanStore {
+		if err := cleanNamespace(testNamespace); err != nil {
+			log.Fatalf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
+		}
+	}
+
+	setDefaultNamespaceSuffix(testNamespace)
 	return
 }
 
 func commonCleanup() {
-	etcdStop()
+	return
+}
+
+func cleanNamespace(testNamespace string) error {
+
+	store := NewStore()
+
+	if store == nil {
+		log.Fatalf("unable to allocate store context for pre-cleanup")
+	}
+
+	if err := store.SetNamespaceSuffix(""); err != nil {
+		return err
+	}
+	if err := store.Connect(); err != nil {
+		return err
+	}
+	if err := store.DeleteWithPrefix(testNamespace); err != nil {
+		return err
+	}
+
+	store.Disconnect()
+
+	return nil
 }
 
 func TestMain(m *testing.M) {
@@ -137,7 +111,7 @@ func TestMain(m *testing.M) {
 
 func TestNew(t *testing.T) {
 
-	store := NewWithDefaults()
+	store := NewStore()
 
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
@@ -148,26 +122,29 @@ func TestNew(t *testing.T) {
 
 func TestInitialize(t *testing.T) {
 
-	store := NewWithDefaults()
+	store := NewStore()
 
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 	assert.Equal(t, getDefaultEndpoints(), store.Endpoints, "Mismatch in initialization of endpoints")
 	assert.Equal(t, getDefaultTimeoutConnect(), store.TimeoutConnect, "Mismatch in initialization of connection timeout")
 	assert.Equal(t, getDefaultTimeoutRequest(), store.TimeoutRequest, "Mismatch in initialization of request timeout")
 	assert.Equal(t, getDefaultTraceFlags(), store.TraceFlags, "Mismatch in initialization of trace flags")
+	assert.Equal(t, getDefaultNamespaceSuffix(), store.NamespaceSuffix, "Mismatch in initialization of namespace suffix")
 
 	endpoints := []string{"localhost:8080", "localhost:8181"}
 	timeoutConnect := getDefaultTimeoutConnect() * 2
 	timeoutRequest := getDefaultTimeoutRequest() * 3
 	traceFlags := traceFlagEnabled
+	namespaceSuffix := getDefaultNamespaceSuffix() + "/Suffix"
 
-	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags, namespaceSuffix)
 
 	assert.Nilf(t, err, "Failed to initialize new store - error: %v", err)
 	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints")
 	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout")
 	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout")
 	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags")
+	assert.Equal(t, namespaceSuffix, store.NamespaceSuffix, "Mismatch in initialization of namespace suffix")
 
 	store = nil
 
@@ -182,14 +159,16 @@ func TestNewWithArgs(t *testing.T) {
 	timeoutConnect := getDefaultTimeoutConnect() * 4
 	timeoutRequest := getDefaultTimeoutRequest() * 5
 	traceFlags := traceFlagExpandResults
+	namespaceSuffix := getDefaultNamespaceSuffix()
 
-	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags, namespaceSuffix)
 
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in initialization of endpoints")
 	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in initialization of connection timeout")
 	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in initialization of request timeout")
 	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in initialization of trace flags")
+	assert.Equal(t, namespaceSuffix, store.NamespaceSuffix, "Mismatch in initialization of namespace suffix")
 
 	store = nil
 
@@ -198,13 +177,14 @@ func TestNewWithArgs(t *testing.T) {
 
 func TestStoreSetAndGet(t *testing.T) {
 
-	store := NewWithDefaults()
+	store := NewStore()
 
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 	assert.Equal(t, getDefaultEndpoints(), store.Endpoints, "Mismatch in initialization of endpoints")
 	assert.Equal(t, getDefaultTimeoutConnect(), store.TimeoutConnect, "Mismatch in initialization of connection timeout")
 	assert.Equal(t, getDefaultTimeoutRequest(), store.TimeoutRequest, "Mismatch in initialization of request timeout")
 	assert.Equal(t, getDefaultTraceFlags(), store.TraceFlags, "Mismatch in initialization of trace flags")
+	assert.Equal(t, getDefaultNamespaceSuffix(), store.NamespaceSuffix, "Mismatch in initialization of namespace suffix")
 
 	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in fetch of endpoints")
 	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in fetch of connection timeout")
@@ -215,29 +195,27 @@ func TestStoreSetAndGet(t *testing.T) {
 	timeoutConnect := getDefaultTimeoutConnect() * 6
 	timeoutRequest := getDefaultTimeoutRequest() * 7
 	traceFlags := traceFlagExpandResults
+	namespaceSuffix := getDefaultNamespaceSuffix() + "/Suffix2"
 
-	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags, namespaceSuffix)
 
 	assert.Nilf(t, err, "Failed to update new store - error: %v", err)
 	assert.Equal(t, endpoints, store.Endpoints, "Mismatch in update of endpoints")
 	assert.Equal(t, timeoutConnect, store.TimeoutConnect, "Mismatch in update of connection timeout")
 	assert.Equal(t, timeoutRequest, store.TimeoutRequest, "Mismatch in update of request timeout")
 	assert.Equal(t, traceFlags, store.TraceFlags, "Mismatch in update of trace flags")
+	assert.Equal(t, namespaceSuffix, store.NamespaceSuffix, "Mismatch in update of namespace suffix")
 
 	assert.Equal(t, store.Endpoints, store.GetAddress(), "Mismatch in re-fetch of endpoints")
 	assert.Equal(t, store.TimeoutConnect, store.GetTimeoutConnect(), "Mismatch in re-fetch of connection timeout")
 	assert.Equal(t, store.TimeoutRequest, store.GetTimeoutRequest(), "Mismatch in re-fetch of request timeout")
 	assert.Equal(t, store.TraceFlags, store.GetTraceFlags(), "Mismatch in re-fetch of trace flags")
+	assert.Equal(t, store.NamespaceSuffix, store.GetNamespaceSuffix(), "Mismatch in re-fetch of namespace suffix")
 }
 
 func TestStoreConnectDisconnect(t *testing.T) {
 
-	endpoints := getDefaultEndpoints()
-	timeoutConnect := getDefaultTimeoutConnect()
-	timeoutRequest := getDefaultTimeoutRequest()
-	traceFlags := getDefaultTraceFlags()
-
-	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -261,21 +239,26 @@ func TestStoreConnectDisconnect(t *testing.T) {
 
 func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 
-	endpoints := getDefaultEndpoints()
-	timeoutConnect := getDefaultTimeoutConnect()
-	timeoutRequest := getDefaultTimeoutRequest()
-	traceFlags := getDefaultTraceFlags()
-
-	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err := store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	err := store.Initialize(
+		getDefaultEndpoints(),
+		getDefaultTimeoutConnect(),
+		getDefaultTimeoutRequest(),
+		getDefaultTraceFlags(),
+		getDefaultNamespaceSuffix())
 	assert.Nilf(t, err, "Failed to re-initialize store - error: %v", err)
 
 	err = store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.Initialize(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	err = store.Initialize(
+		getDefaultEndpoints(),
+		getDefaultTimeoutConnect(),
+		getDefaultTimeoutRequest(),
+		getDefaultTraceFlags(),
+		getDefaultNamespaceSuffix())
 	assert.NotNilf(t, err, "Unexpectedly re-initialized store after connect - error: %v", err)
 	assert.Equal(t, ErrStoreConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected, err)
 
@@ -297,8 +280,9 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 	timeoutConnect := getDefaultTimeoutConnect()
 	timeoutRequest := getDefaultTimeoutRequest()
 	traceFlags := getDefaultTraceFlags()
+	namespaceSuffix := getDefaultNamespaceSuffix()
 
-	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags)
+	store := New(endpoints, timeoutConnect, timeoutRequest, traceFlags, namespaceSuffix)
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.SetAddress(endpoints)
@@ -309,6 +293,9 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 
 	err = store.SetTimeoutRequest(timeoutRequest)
 	assert.Nilf(t, err, "Failed to update the request timeout - error: %v", err)
+
+	err = store.SetNamespaceSuffix(namespaceSuffix)
+	assert.Nilf(t, err, "Failed to update the namespace suffix - error: %v", err)
 
 	store.SetTraceFlags(0)
 	store.SetTraceFlags(traceFlagEnabled)
@@ -323,11 +310,15 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 	assert.Equal(t, ErrStoreConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected, err)
 
 	err = store.SetTimeoutConnect(timeoutConnect)
-	assert.NotNilf(t, err, "Unexpectedly succeeded to  to update the connect timeout - error: %v", err)
+	assert.NotNilf(t, err, "Unexpectedly succeeded to update the connect timeout - error: %v", err)
 	assert.Equal(t, ErrStoreConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected, err)
 
 	err = store.SetTimeoutRequest(timeoutRequest)
 	assert.Nilf(t, err, "Failed to update the request timeout - error: %v", err)
+
+	err = store.SetNamespaceSuffix(namespaceSuffix)
+	assert.NotNilf(t, err, "Unexpectedly succeeded to update the namespace suffix - error: %v", err)
+	assert.Equal(t, ErrStoreConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected, err)
 
 	err = store.Connect()
 	assert.NotNilf(t, err, "Unexpectedly connected to store again - error: %v", err)
@@ -350,7 +341,7 @@ func TestStoreWriteRead(t *testing.T) {
 	key := "TestStoreWriteRead/Key"
 	value := "TestStoreWriteRead/Value"
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -400,7 +391,7 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
 	}
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -449,7 +440,7 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 		keyValueMap[kv.key] = kv.value
 	}
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -502,7 +493,7 @@ func TestStoreWriteDelete(t *testing.T) {
 	key := "TestStoreWriteDelete/Key"
 	value := "TestStoreWriteDelete/Value"
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -555,7 +546,7 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
 	}
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -594,7 +585,7 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 		keyValueMap[kv.key] = kv.value
 	}
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -628,7 +619,7 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 	keyValueSet[0].key = key
 	keyValueSet[0].value = value
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Write(key, value)
@@ -672,7 +663,7 @@ func TestStoreSetWatch(t *testing.T) {
 
 	key := "TestStoreSetWatch/Key"
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -693,7 +684,7 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 
 	keySet := []string{"TestStoreSetWatchMultiple/Key"}
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -714,7 +705,7 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 
 	key := "TestStoreSetWatchPrefix/Key"
 
-	store := NewWithDefaults()
+	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
@@ -723,6 +714,54 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 	err = store.SetWatchWithPrefix(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
 	assert.Equal(t, ErrStoreNotImplemented("SetWatchWithPrefix"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented("SetWatchWithPrefix"), err)
+
+	store.Disconnect()
+
+	store = nil
+
+	return
+}
+
+func TestStoreGetMemberList(t *testing.T) {
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	response, err := store.GetClusterMembers()
+	assert.Nilf(t, err, "Failed to fetch member list from store - error: %v", err)
+	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
+	assert.GreaterOrEqual(t, 1, len(response.Members), "Failed to get the minimum number of response values")
+
+	for i, node := range response.Members {
+		log.Printf("node [%v] Id: %v Name: %v\n", i, node.ID, node.Name)
+		for i, url := range node.ClientURLs {
+			log.Printf("  client [%v] URL: %v\n", i, url)
+		}
+		for i, url := range node.PeerURLs {
+			log.Printf("  peer [%v] URL: %v\n", i, url)
+		}
+	}
+
+	store.Disconnect()
+
+	store = nil
+
+	return
+}
+
+func TestStoreSyncClusterConnections(t *testing.T) {
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	err = store.UpdateClusterConnections()
+	assert.Nilf(t, err, "Failed to update cluster connections - error: %v", err)
 
 	store.Disconnect()
 

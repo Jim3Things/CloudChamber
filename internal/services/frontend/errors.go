@@ -125,4 +125,11 @@ func NewErrUserInvalidOperation(op string) *HTTPError {
     }
 }
 
+func NewErrUserProtected(name string) *HTTPError {
+    return &HTTPError{
+        SC: http.StatusForbidden,
+        Base: fmt.Errorf("CloudChamber: user %q is protected and cannot be deleted", name),
+    }
+}
+
 // --- HTTPError specializations
