@@ -3,7 +3,6 @@
 
 syntax = "proto3";
 
-import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 
@@ -56,7 +55,7 @@ message actual {
         string name = 1;
 
         message base_status {
-            health health = 1 [(validate.rules).enum.defined_only = true];
+            health health = 1;
             common.Timestamp last_start = 2;
         }
 
@@ -74,19 +73,19 @@ message actual {
             base_status status = 1;
 
             bool tor_cable = 2;
-            map<int64, bool> cables = 3 [(validate.rules).map.min_pairs = 1];
+            map<int64, bool> cables = 3;
         }
 
         message tor_details {
             base_status status = 1;
 
-            map<int64, bool> cables = 2 [(validate.rules).map.min_pairs = 1];
+            map<int64, bool> cables = 2;
         }
 
         pdu_details pdu = 2;
         tor_details tor = 3;
 
-        map<int64, blade_details> blades = 4 [(validate.rules).map.min_pairs = 1];
+        map<int64, blade_details> blades = 4;
     }
 
     repeated rack racks = 1;
@@ -112,7 +111,7 @@ message desired {
         string name = 1;
 
         message base_status {
-            health health = 1 [(validate.rules).enum.defined_only = true];
+            health health = 1;
             common.Timestamp last_start = 2;
         }
 
@@ -124,19 +123,19 @@ message desired {
             base_status status = 1;
 
             bool tor_cable = 2;
-            map<int64, bool> cables = 3 [(validate.rules).map.min_pairs = 1];
+            map<int64, bool> cables = 3;
         }
 
         message tor_details {
             base_status status = 1;
 
-            map<int64, bool> cables = 2 [(validate.rules).map.min_pairs = 1];
+            map<int64, bool> cables = 2;
         }
 
         pdu_details pdu = 2;
         tor_details tor = 3;
 
-        map<int64, blade_details> blades = 4 [(validate.rules).map.min_pairs = 1];
+        map<int64, blade_details> blades = 4;
     }
 
     repeated rack racks = 1;

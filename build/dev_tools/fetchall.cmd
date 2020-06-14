@@ -15,15 +15,6 @@ pushd %GOPATH%\src\github.com\golang\protobuf\protoc-gen-go
 go install .
 popd
 
-
-rem fetch & install the protobuf validation plugin
-rem
-go get -d github.com/envoyproxy/protoc-gen-validate
-pushd %GOPATH%\src\github.com\envoyproxy\protoc-gen-validate
-go install .
-popd
-
-
 go get github.com/gorilla/mux
 go get github.com/gorilla/securecookie
 go get github.com/gorilla/sessions

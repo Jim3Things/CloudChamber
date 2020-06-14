@@ -7,15 +7,13 @@ The procedures are:
 \deployments directory.
 - cleanall.cmd: deletes the results from buildall.cmd, effectively clearing 
 the \deployements directory.
-- run_all_uts.cmd: runs all unit tests that have been determined to be stable.
-At the limit, this should the same coverage as running 'go test .\...' from the
-CloudChamber directory
+- test.cmd: runs unit tests.  Invoke with a test name, or with * to run all
+known stable tests.  '-v' can be added as a trailing qualifier to get the
+trace output when it runs.
 
 Future work:
 - We should use a better build/make system than a simple command procedure.
 - It should work for both building and cleaning.
-- We should have UTs use some form of tagging so that we can just use the
-'go test .\...' with some filter from the CloudChamber directory
 
 # Build environment setup
 

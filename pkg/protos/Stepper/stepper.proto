@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package stepper;
 
-import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 
 import "google/protobuf/empty.proto";
@@ -63,7 +62,7 @@ enum StepperPolicy {
 // Define the parameters to a stepper policy request parameters
 message PolicyRequest {
     // Required policy (cannot be Invalid)
-    StepperPolicy policy = 1 [(validate.rules).enum = {in: [1, 2, 3]}];
+    StepperPolicy policy = 1;
 
     // Number of seconds between ticks.  Only valid for the "Measured" policy.
     google.protobuf.Duration measuredDelay = 2;
@@ -84,7 +83,7 @@ message DelayRequest {
     // A random number of ticks [0-jitter) are added to the delay time.  This
     // is to simulate the random delays seen in, e.g., disk I/O or network
     // communications.
-    int64 jitter = 2 [(validate.rules).int64.gte = 0];
+    int64 jitter = 2;
 }
 
 // Define the request associated with a forcible reset

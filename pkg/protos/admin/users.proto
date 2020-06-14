@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package admin;
 
-import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
-
 option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/admin";
 
 // User is a representation of an individual user
@@ -13,7 +11,7 @@ option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/admin";
 //
 message user {
   // The username, held so as to preserve the original case
-  string name = 1 [(validate.rules).string.min_len = 1];
+  string name = 1;
 
   bytes password_hash = 2;
   int64 user_id = 3;
@@ -49,7 +47,7 @@ message user_public {
 // Public definition for a user, sent by a remote client to the Cloud Chamber
 // controller.
 message user_definition {
-  string password = 1 [(validate.rules).string.min_len = 1];
+  string password = 1;
   bool enabled = 2;
 
   // The rights this user has
