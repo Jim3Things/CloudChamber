@@ -11,8 +11,6 @@ syntax = "proto3";
 
 package common;
 
-import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
-
 option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/common";
 
 // Describe the capabilities of a physical blade
@@ -23,8 +21,6 @@ message accelerator {
     message NVIDIA_V100 { }
 
     oneof accelerator_type {
-        option (validate.required) = true;
-
         NVIDIA_V100 v100 = 1;
     }
 }
@@ -32,20 +28,20 @@ message accelerator {
 // Defines the capacity dimensions and values for a blade
 message blade_capacity {
     // The number of cores on the blade.
-    int64 cores = 1 [(validate.rules).int64.gt = 0];
+    int64 cores = 1;
 
     // The amount of memory, in megabytes
-    int64 memory_in_mb = 2 [(validate.rules).int64.gt = 0];
+    int64 memory_in_mb = 2;
 
     // The amount of local disk space, in gigabytes.  Note that this assumes either one disk, or that the disks are
     // mounted collectively as a single volume
-    int64 disk_in_gb = 3 [(validate.rules).int64.gt = 0];
+    int64 disk_in_gb = 3;
 
     // The network bandwidth from the host in megabits per second
-    int64 network_bandwidth_in_mbps = 4 [(validate.rules).int64.gt = 0];
+    int64 network_bandwidth_in_mbps = 4;
 
     // The processor architecture
-    string arch = 5 [(validate.rules).string.min_len = 1];
+    string arch = 5;
 
     // Supply the set of accelerators for this blade, including none.
     repeated accelerator accelerators = 6;
@@ -53,16 +49,16 @@ message blade_capacity {
 
 message instance_requirements {
     // The number of (potentially fractional) cores used by the instance.
-    float cores = 1 [(validate.rules).float.gt = 0];
+    float cores = 1;
 
     // The amount of memory, in megabytes
-    int64 memory_in_mb = 2 [(validate.rules).int64.gt = 0];
+    int64 memory_in_mb = 2;
 
     // The network bandwidth required in megabits per second
-    int64 network_bandwidth_in_mbps = 4 [(validate.rules).int64.gt = 0];
+    int64 network_bandwidth_in_mbps = 4;
 
     // The processor architecture
-    string arch = 5 [(validate.rules).string.min_len = 1];
+    string arch = 5;
 
     // Supply the set of accelerators required by this instance, including none.
     repeated accelerator accelerators = 6;

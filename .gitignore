@@ -1,7 +1,7 @@
 .exe
 .vscode
 /deployments/
-/pkg/protos/**/*.go
+/pkg/protos/**/*pb.go
 /.idea/
 *~
 /**/#*#

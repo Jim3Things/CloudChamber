@@ -6,7 +6,6 @@
 
 syntax = "proto3";
 
-import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
 
 package inventory;
@@ -38,11 +37,11 @@ message external {
 
         // specify the blades in the rack.  Each blade is defined by an integer index within that rack, which is used
         // here as the key.
-        map<int64, common.blade_capacity> blades = 3 [(validate.rules).map.min_pairs = 1];
+        map<int64, common.blade_capacity> blades = 3;
     }
 
     // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in the map below.
     message zone {
-        map<string, rack> racks = 1 [(validate.rules).map.min_pairs = 1];
+        map<string, rack> racks = 1;
     }
 }

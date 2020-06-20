@@ -4,7 +4,6 @@ pushd $GOPATH/src
 
 go get github.com/golang/protobuf
 go get github.com/golang/protobuf/protoc-gen-go
-go get github.com/envoyproxy/protoc-gen-validate
 
 go get github.com/gorilla/mux
 go get github.com/gorilla/securecookie
