@@ -11,67 +11,73 @@ import (
 	"time"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	"github.com/stretchr/testify/assert"
 )
-
-type testEmbedConfig struct {
-	Node       string
-	Addr       string
-	PortClient string
-	PortPeer   string
-	Path       string
-}
 
 var (
 	baseURI     string
 	initialized bool
 
 	testNamespaceSuffixRoot = "/Test"
+
+	configPath *string
 )
 
 func commonSetup() {
 
-	var testNamespace string
+	setup.Init(exporters.UnitTest)
 
-	cfgPath := flag.String("config", ".", "path to the configuration file")
+	configPath = flag.String("config", ".", "path to the configuration file")
 	flag.Parse()
 
-	cfg, err := config.ReadGlobalConfig(*cfgPath)
-	if err != nil {
-		log.Fatalf("failed to process the global configuration: %v", err)
-	}
-
-	Initialize(cfg)
-
-	// It is meaningless to have both a unique per-instance test namespace
-	// and to clean the store before the tests are run
-	//
-	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
-		log.Fatalf("invalid configuration: both UseUniqueInstance and PreCleanStore are enabled: %v", err)
-	}
-
-	// For test purposes, need to set an alternate namespace rather than
-	// rely on the standard. From the configuration, we can either use the
-	// standard, fixed, well-known prefix, or we can use a per-instance
-	// unique prefix derived from the current time
-	//
-	if cfg.Store.Test.UseUniqueInstance {
-		testNamespace = fmt.Sprintf("%s/%s/", testNamespaceSuffixRoot, time.Now().Format(time.RFC3339Nano))
-	} else {
-		testNamespace = testNamespaceSuffixRoot + "/Standard/"
-	}
-
-	if cfg.Store.Test.PreCleanStore {
-		if err := cleanNamespace(testNamespace); err != nil {
-			log.Fatalf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
-		}
-	}
-
-	setDefaultNamespaceSuffix(testNamespace)
 	return
 }
 
-func commonCleanup() {
+func commonSetupPerTest(t *testing.T) {
+
+	var testNamespace string
+
+	if !initialized {
+		unit_test.SetTesting(t)
+
+		cfg, err := config.ReadGlobalConfig(*configPath)
+		if err != nil {
+			log.Fatalf("failed to process the global configuration: %v", err)
+		}
+
+		Initialize(cfg)
+
+		// It is meaningless to have both a unique per-instance test namespace
+		// and to clean the store before the tests are run
+		//
+		if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
+			log.Fatalf("invalid configuration: both UseUniqueInstance and PreCleanStore are enabled: %v", err)
+		}
+
+		// For test purposes, need to set an alternate namespace rather than
+		// rely on the standard. From the configuration, we can either use the
+		// standard, fixed, well-known prefix, or we can use a per-instance
+		// unique prefix derived from the current time
+		//
+		if cfg.Store.Test.UseUniqueInstance {
+			testNamespace = fmt.Sprintf("%s/%s/", testNamespaceSuffixRoot, time.Now().Format(time.RFC3339Nano))
+		} else {
+			testNamespace = testNamespaceSuffixRoot + "/Standard/"
+		}
+
+		if cfg.Store.Test.PreCleanStore {
+			if err := cleanNamespace(testNamespace); err != nil {
+				log.Fatalf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
+			}
+		}
+
+		setDefaultNamespaceSuffix(testNamespace)
+		initialized = true
+	}
+
 	return
 }
 
@@ -99,17 +105,13 @@ func cleanNamespace(testNamespace string) error {
 }
 
 func TestMain(m *testing.M) {
-
 	commonSetup()
 
-	result := m.Run()
-
-	commonCleanup()
-
-	os.Exit(result)
+	os.Exit(m.Run())
 }
 
 func TestNew(t *testing.T) {
+	commonSetupPerTest(t)
 
 	store := NewStore()
 
@@ -121,6 +123,7 @@ func TestNew(t *testing.T) {
 }
 
 func TestInitialize(t *testing.T) {
+	commonSetupPerTest(t)
 
 	store := NewStore()
 
@@ -152,6 +155,7 @@ func TestInitialize(t *testing.T) {
 }
 
 func TestNewWithArgs(t *testing.T) {
+	commonSetupPerTest(t)
 
 	// Use non-default values to ensure we get what we asked for and not the defaults.
 	//
@@ -176,6 +180,7 @@ func TestNewWithArgs(t *testing.T) {
 }
 
 func TestStoreSetAndGet(t *testing.T) {
+	commonSetupPerTest(t)
 
 	store := NewStore()
 
@@ -214,6 +219,7 @@ func TestStoreSetAndGet(t *testing.T) {
 }
 
 func TestStoreConnectDisconnect(t *testing.T) {
+	commonSetupPerTest(t)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -238,6 +244,7 @@ func TestStoreConnectDisconnect(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
+	commonSetupPerTest(t)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -275,6 +282,7 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithSet(t *testing.T) {
+	commonSetupPerTest(t)
 
 	endpoints := getDefaultEndpoints()
 	timeoutConnect := getDefaultTimeoutConnect()
@@ -337,6 +345,7 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 }
 
 func TestStoreWriteRead(t *testing.T) {
+	commonSetupPerTest(t)
 
 	key := "TestStoreWriteRead/Key"
 	value := "TestStoreWriteRead/Value"
@@ -373,6 +382,7 @@ func TestStoreWriteRead(t *testing.T) {
 }
 
 func TestStoreWriteReadMultiple(t *testing.T) {
+	commonSetupPerTest(t)
 
 	keyValueSetSize := 100
 
@@ -421,6 +431,7 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 }
 
 func TestStoreWriteReadWithPrefix(t *testing.T) {
+	commonSetupPerTest(t)
 
 	keyValueSetSize := 100
 
@@ -489,6 +500,7 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 }
 
 func TestStoreWriteDelete(t *testing.T) {
+	commonSetupPerTest(t)
 
 	key := "TestStoreWriteDelete/Key"
 	value := "TestStoreWriteDelete/Value"
@@ -528,6 +540,7 @@ func TestStoreWriteDelete(t *testing.T) {
 }
 
 func TestStoreWriteDeleteMultiple(t *testing.T) {
+	commonSetupPerTest(t)
 
 	keyValueSetSize := 100
 
@@ -566,6 +579,7 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 }
 
 func TestStoreWriteDeleteWithPrefix(t *testing.T) {
+	commonSetupPerTest(t)
 
 	keyValueSetSize := 100
 
@@ -608,6 +622,7 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 }
 
 func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
+	commonSetupPerTest(t)
 
 	key := "TestStoreWriteReadDeleteWithoutConnect/Key"
 	value := "TestStoreWriteReadDeleteWithoutConnect/Value"
@@ -660,6 +675,7 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 }
 
 func TestStoreSetWatch(t *testing.T) {
+	commonSetupPerTest(t)
 
 	key := "TestStoreSetWatch/Key"
 
@@ -681,6 +697,7 @@ func TestStoreSetWatch(t *testing.T) {
 }
 
 func TestStoreSetWatchMultiple(t *testing.T) {
+	commonSetupPerTest(t)
 
 	keySet := []string{"TestStoreSetWatchMultiple/Key"}
 
@@ -702,6 +719,7 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 }
 
 func TestStoreSetWatchPrefix(t *testing.T) {
+	commonSetupPerTest(t)
 
 	key := "TestStoreSetWatchPrefix/Key"
 
@@ -723,6 +741,7 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 }
 
 func TestStoreGetMemberList(t *testing.T) {
+	commonSetupPerTest(t)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -736,12 +755,12 @@ func TestStoreGetMemberList(t *testing.T) {
 	assert.GreaterOrEqual(t, 1, len(response.Members), "Failed to get the minimum number of response values")
 
 	for i, node := range response.Members {
-		log.Printf("node [%v] Id: %v Name: %v\n", i, node.ID, node.Name)
+		t.Logf("node [%v] Id: %v Name: %v\n", i, node.ID, node.Name)
 		for i, url := range node.ClientURLs {
-			log.Printf("  client [%v] URL: %v\n", i, url)
+			t.Logf("  client [%v] URL: %v\n", i, url)
 		}
 		for i, url := range node.PeerURLs {
-			log.Printf("  peer [%v] URL: %v\n", i, url)
+			t.Logf("  peer [%v] URL: %v\n", i, url)
 		}
 	}
 
@@ -753,6 +772,7 @@ func TestStoreGetMemberList(t *testing.T) {
 }
 
 func TestStoreSyncClusterConnections(t *testing.T) {
+	commonSetupPerTest(t)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
