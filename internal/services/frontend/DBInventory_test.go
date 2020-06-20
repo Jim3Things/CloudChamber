@@ -6,7 +6,6 @@ package frontend
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -25,17 +24,17 @@ func TestInventoryListRacks(t *testing.T) {
 	response := doHTTP(request, nil)
 	body, err := getBody(response)
 
-	log.Printf("ListRacks: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(t, "text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
 	s := string(body)                   // Converted into a string
 	var splits = strings.Split(s, "\n") // Created an array per line
-	fmt.Println(splits)                 // just a print statement
+
 	expected := []string{"/api/racks/rack1", "/api/racks/rack2", ""}
 
 	assert.Equal(t, splits[0], "Racks (List)")
 	assert.ElementsMatch(t, expected, splits[1:])
 
-	log.Printf("error: %v", err)
+	assert.Nil(t, err)
 }
 
 func TestInventoryListRead(t *testing.T) {
