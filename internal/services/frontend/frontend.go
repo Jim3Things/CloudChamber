@@ -29,6 +29,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 // Computer is a representation an individual Computer
@@ -120,6 +121,7 @@ func initHandlers() error {
 	usersAddRoutes(routeAPI)
 	workloadsAddRoutes(routeAPI)
 	inventoryAddRoutes(routeAPI)
+	stepperAddRoutes(routeAPI)
 
 	// TODO the following handler definitions are just temporary placeholders and
 	// should at some point be converted to follow the same pattern as for files,
@@ -127,7 +129,6 @@ func initHandlers() error {
 	// there.
 	//
 	routeAPI.HandleFunc("/logs", handlerLogsRoot).Methods("GET")
-	routeAPI.HandleFunc("/stepper", handlerStepperRoot).Methods("GET")
 	routeAPI.HandleFunc("/injector", handlerInjectorRoot).Methods("GET")
 
 	server.handler = normalizeURL(handler)
@@ -243,4 +244,18 @@ func doSessionHeader(
 	}
 
 	return err
+}
+
+
+func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
+	key, ok := session.Values[UserNameKey].(string)
+	if !ok {
+		return nil, &HTTPError{
+			SC:   http.StatusBadRequest,
+			Base: http.ErrNoCookie,
+		}
+	}
+
+	user, _, err := dbUsers.Get(key)
+	return user, err
 }
