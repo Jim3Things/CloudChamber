@@ -63,3 +63,17 @@ func TestInventoryListRead(t *testing.T) {
 
 	// doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
+func TestInventoryUnknownRack(t *testing.T) {
+	unit_test.SetTesting(t)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/Rack3"), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response := doHTTP(request, nil)
+	// body, err := getBody(response)
+	// t.Log(string(body))
+
+	// assert.Nil(t, err)
+	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+
+}
