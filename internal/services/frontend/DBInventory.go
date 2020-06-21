@@ -9,7 +9,6 @@
 package frontend
 
 import (
-	"errors"
 	"sync"
 
 	common "github.com/Jim3Things/CloudChamber/pkg/protos/common"
@@ -77,7 +76,7 @@ func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
 
 	r, ok := m.Racks[rackid]
 	if !ok {
-		return nil, errors.New("Rack not found")
+		return nil, NewErrRackNotFound("Rack3")
 	}
 	return r, nil
 

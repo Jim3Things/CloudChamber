@@ -211,8 +211,8 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) {
 	// If it isn't, then the error originated in some support or library logic,
 	// rather than the web server's business logic.  In that case we assume a
 	// status code of internal server error as the most likely correct value.
-	he := err.(*HTTPError)
-	if he == nil {
+	he, ok := err.(*HTTPError)
+	if !ok {
 		he = &HTTPError{
 			SC:   http.StatusInternalServerError,
 			Base: err,
