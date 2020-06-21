@@ -18,6 +18,7 @@ import (
 // // First DBInventory unit test
 func TestInventoryListRacks(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	request := httptest.NewRequest("GET", "/api/racks/", nil)
 	response := doHTTP(request, nil)

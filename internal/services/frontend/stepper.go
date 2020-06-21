@@ -4,8 +4,10 @@ import (
     "context"
     "net/http"
 
+    "github.com/golang/protobuf/jsonpb"
     "github.com/gorilla/mux"
 
+    clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
     "github.com/Jim3Things/CloudChamber/internal/tracing"
     st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
@@ -39,8 +41,15 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
     })
 }
 
-func handleGetNow(w http.ResponseWriter, r *http.Request) {
+func handleGetNow(w http.ResponseWriter, _ *http.Request) {
     _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        return nil
+        now, err := clients.Now()
+        if err != nil {
+            httpError(ctx, w, err)
+            return err
+        }
+
+        p := jsonpb.Marshaler{}
+        return p.Marshal(w, now)
     })
 }

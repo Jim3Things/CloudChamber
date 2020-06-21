@@ -49,8 +49,11 @@ func main() {
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-	if err := stepper.Register(s); err != nil {
-		log.Fatalf("failed to register the stepper actor: %v", err)
+	if err := stepper.Register(s, cfg.SimSupport.GetPolicyType()); err != nil {
+		log.Fatalf(
+			"failed to register the stepper actor.  default policy: %v, err: %v",
+			cfg.SimSupport.GetPolicyType(),
+			err)
 	}
 
 	if err := s.Serve(lis); err != nil {

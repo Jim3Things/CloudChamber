@@ -113,6 +113,7 @@ func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*h
 
 func TestUsersLoginSessionSimple(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword))
@@ -143,6 +144,7 @@ func TestUsersLoginSessionSimple(t *testing.T) {
 
 func TestUsersLoginSessionRepeat(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -173,6 +175,7 @@ func TestUsersLoginSessionRepeat(t *testing.T) {
 
 func TestUsersLoginDupLogins(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -219,6 +222,7 @@ func TestUsersLoginDupLogins(t *testing.T) {
 
 func TestUsersLoginLogoutDiffAccounts(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -252,6 +256,7 @@ func TestUsersLoginLogoutDiffAccounts(t *testing.T) {
 
 func TestUsersDoubleLogout(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -283,6 +288,7 @@ func TestUsersDoubleLogout(t *testing.T) {
 
 func TestUsersLoginSessionBadPassword(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword+"rubbish"))
@@ -305,6 +311,7 @@ func TestUsersLoginSessionBadPassword(t *testing.T) {
 
 func TestUsersLoginSessionNoUser(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin+"Bogus"), strings.NewReader(adminPassword))
@@ -331,6 +338,7 @@ func TestUsersLoginSessionNoUser(t *testing.T) {
 
 func TestUsersCreate(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	path := baseURI + alice + "2"
 
@@ -361,6 +369,7 @@ func TestUsersCreate(t *testing.T) {
 
 func TestUsersCreateDup(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	r, err := toJsonReader(aliceDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -390,6 +399,7 @@ func TestUsersCreateDup(t *testing.T) {
 
 func TestUsersCreateBadData(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -417,6 +427,7 @@ func TestUsersCreateBadData(t *testing.T) {
 
 func TestUsersCreateNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	r, err := toJsonReader(bobDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -444,6 +455,7 @@ func TestUsersCreateNoPriv(t *testing.T) {
 
 func TestUsersCreateNoSession(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	path := baseURI + alice + "2"
 
@@ -461,9 +473,9 @@ func TestUsersCreateNoSession(t *testing.T) {
 	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t,
-		"http: named cookie not present\n", string(body),
+		"CloudChamber: permission denied\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 }
 
@@ -473,6 +485,7 @@ func TestUsersCreateNoSession(t *testing.T) {
 
 func TestUsersList(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -509,6 +522,7 @@ func TestUsersList(t *testing.T) {
 
 func TestUsersListNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -533,6 +547,7 @@ func TestUsersListNoPriv(t *testing.T) {
 
 func TestUsersRead(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -558,6 +573,7 @@ func TestUsersRead(t *testing.T) {
 
 func TestUsersReadUnknownUser(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -578,6 +594,7 @@ func TestUsersReadUnknownUser(t *testing.T) {
 
 func TestUsersReadNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -606,6 +623,7 @@ func TestUsersReadNoPriv(t *testing.T) {
 
 func TestUsersOperationIllegal(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// Verify a bunch of failure cases. Specifically,
 	// - that a naked op fails
@@ -658,6 +676,7 @@ func TestUsersUpdate(t *testing.T) {
 	}
 
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -688,6 +707,7 @@ func TestUsersUpdate(t *testing.T) {
 
 func TestUsersUpdateBadData(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -724,6 +744,7 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 	}
 
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -758,6 +779,7 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 	}
 
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -789,6 +811,7 @@ func TestUsersUpdateNoUser(t *testing.T) {
 	}
 
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -817,6 +840,7 @@ func TestUsersUpdateNoPriv(t *testing.T) {
 	}
 
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -848,6 +872,7 @@ func TestUsersUpdateNoPriv(t *testing.T) {
 
 func TestUsersDelete(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	path := fmt.Sprintf("%s%s", baseURI, alice)
 
@@ -883,6 +908,7 @@ func TestUsersDelete(t *testing.T) {
 
 func TestUsersDeleteNoUser(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	path := fmt.Sprintf("%s%s", baseURI, alice+"Bogus")
 
@@ -904,6 +930,7 @@ func TestUsersDeleteNoUser(t *testing.T) {
 
 func TestUsersDeleteNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -927,6 +954,7 @@ func TestUsersDeleteNoPriv(t *testing.T) {
 
 func TestUsersDeleteProtected(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 

@@ -21,9 +21,14 @@ simSupport:
     port: 8083
     hostname: localhost
 
+  # Starting Stepper Policy Mode
+  # valid strings are 'manual' or 'automatic'.  The latter
+  # is preset to 1 tick / second
+  stepperPolicy: manual
+
 # store interactions and etcd instance connection parameters
 store:
-  # trace level to use for insteractions with the store and
+  # trace level to use for interactions with the store and
   # etcd
   traceLevel: 1
 
