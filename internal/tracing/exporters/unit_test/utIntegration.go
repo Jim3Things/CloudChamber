@@ -20,18 +20,51 @@ type Exporter struct {
 
 var testContext *testing.T
 
+// Since the actor system can produce async activity that occurs outside of an
+// active test context, we have to be able to handle these events.  When they
+// happen we save them into this array and process them as soon as we see an
+// active test context.
+var savedEntries []*log.Entry
+
 func NewExporter(_ Options) (*Exporter, error) {
 	return &Exporter{}, nil
 }
 
+// Set the testing context hook, or clear it, if the reference is nil.
 func SetTesting(item *testing.T) {
 	testContext = item
+
+	if testContext != nil {
+		flushSaved()
+	}
 }
 
+// Export a span to the output channel
 func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
-	entry := common.ExtractEntry(ctx, data)
+	if testContext != nil {
+		flushSaved()
+		processOneEntry(common.ExtractEntry(ctx, data), false)
+	} else {
+		savedEntries = append(savedEntries, common.ExtractEntry(ctx, data))
+	}
+}
 
-	testContext.Logf("[%s:%s] %s %s:\n%s", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName(), entry.GetStackTrace())
+// Flush all saved (out of band) entries into the trace log
+func flushSaved() {
+	for _, item := range savedEntries {
+		processOneEntry(item, true)
+	}
+
+	savedEntries = []*log.Entry{}
+}
+
+// Send one entry to the output channel
+func processOneEntry(entry *log.Entry, deferred bool) {
+	if deferred {
+		testContext.Logf("[%s:%s] %s (deferred) %s:\n%s", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName(), entry.GetStackTrace())
+	} else {
+		testContext.Logf("[%s:%s] %s %s:\n%s", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName(), entry.GetStackTrace())
+	}
 
 	for _, event := range entry.Event {
 		if event.GetTick() < 0 {

@@ -455,15 +455,7 @@ func userVerifyPassword(name string, password []byte) error {
 // Determine if this session's active login has permission to change or
 // manage the targeted account.  Note that any account may manage itself.
 func canManageAccounts(session *sessions.Session, username string) error {
-    key, ok := session.Values[UserNameKey].(string)
-    if !ok {
-        return &HTTPError{
-            SC:   http.StatusBadRequest,
-            Base: http.ErrNoCookie,
-        }
-    }
-
-    user, _, err := dbUsers.Get(key)
+    user, err := getLoggedInUser(session)
     if err != nil {
         return NewErrUserPermissionDenied()
     }
