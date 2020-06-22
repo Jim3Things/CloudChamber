@@ -26,7 +26,7 @@ import (
 	"github.com/gorilla/sessions"
 	"google.golang.org/grpc"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 )
@@ -136,7 +136,7 @@ func initService(cfg *config.GlobalConfig) error {
 	server.cookieStore.Options.HttpOnly = false
 
 	// Initialize the simulated time (stepper) service client
-	clients.InitTimestamp(
+	ts.InitTimestamp(
 		fmt.Sprintf(
 			"%s:%d",
 			cfg.SimSupport.EP.Hostname,

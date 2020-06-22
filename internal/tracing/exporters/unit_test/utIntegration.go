@@ -43,7 +43,7 @@ func SetTesting(item *testing.T) {
 func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 	if testContext != nil {
 		flushSaved()
-		processOneEntry(common.ExtractEntry(ctx, data))
+		processOneEntry(common.ExtractEntry(ctx, data), false)
 	} else {
 		savedEntries = append(savedEntries, common.ExtractEntry(ctx, data))
 	}
@@ -52,15 +52,19 @@ func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 // Flush all saved (out of band) entries into the trace log
 func flushSaved() {
 	for _, item := range savedEntries {
-		processOneEntry(item)
+		processOneEntry(item, true)
 	}
 
 	savedEntries = []*log.Entry{}
 }
 
 // Send one entry to the output channel
-func processOneEntry(entry *log.Entry) {
-	testContext.Logf("[%s:%s] %s %s:\n%s", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName(), entry.GetStackTrace())
+func processOneEntry(entry *log.Entry, deferred bool) {
+	if deferred {
+		testContext.Logf("[%s:%s] %s (deferred) %s:\n%s", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName(), entry.GetStackTrace())
+	} else {
+		testContext.Logf("[%s:%s] %s %s:\n%s", entry.GetSpanID(), entry.GetParentID(), entry.GetStatus(), entry.GetName(), entry.GetStackTrace())
+	}
 
 	for _, event := range entry.Event {
 		if event.GetTick() < 0 {
