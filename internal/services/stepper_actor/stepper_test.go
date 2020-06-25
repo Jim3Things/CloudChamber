@@ -35,7 +35,7 @@ func init() {
 
     lis = bufconn.Listen(bufSize)
     s := grpc.NewServer(grpc.UnaryInterceptor(srvtrace.Interceptor))
-    if err := Register(s); err != nil {
+    if err := Register(s, pb.StepperPolicy_Invalid); err != nil {
         log.Fatalf("Failed to register wither error: %v", err)
     }
 
@@ -122,8 +122,6 @@ func testDelay(t *testing.T, ctx context.Context, atLeast int64, jitter int64) {
 }
 
 func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
-    unit_test.SetTesting(t)
-
     conn, err := grpc.Dial(
         "bufnet",
         grpc.WithContextDialer(bufDialer),
@@ -146,6 +144,9 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 }
 
 func TestInvalidSetPolicyType(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 
@@ -156,6 +157,9 @@ func TestInvalidSetPolicyType(t *testing.T) {
 }
 
 func TestInvalidSetPolicyManual(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 
@@ -172,6 +176,9 @@ func TestInvalidSetPolicyManual(t *testing.T) {
 }
 
 func TestInvalidSetPolicyMeasured(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 
@@ -190,6 +197,9 @@ func TestInvalidSetPolicyMeasured(t *testing.T) {
 }
 
 func TestInvalidSetPolicyNoWait(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 
@@ -206,6 +216,9 @@ func TestInvalidSetPolicyNoWait(t *testing.T) {
 }
 
 func TestInvalidDelay(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 
@@ -222,6 +235,9 @@ func TestInvalidDelay(t *testing.T) {
 }
 
 func TestStepper_NoWait(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 
@@ -238,6 +254,9 @@ func TestStepper_NoWait(t *testing.T) {
 }
 
 func TestStepper_Measured(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 
@@ -259,6 +278,9 @@ func TestStepper_Measured(t *testing.T) {
 }
 
 func TestStepper_Manual(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
     ctx, conn := commonSetup(t)
     defer func() { _ = conn.Close() }()
 

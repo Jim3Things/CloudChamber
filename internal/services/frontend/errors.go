@@ -4,9 +4,12 @@
 package frontend
 
 import (
-	"errors"
-	"fmt"
-	"net/http"
+    "context"
+    "errors"
+    "fmt"
+    "net/http"
+
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 var (
@@ -54,6 +57,26 @@ func (he *HTTPError) StatusCode() int {
 
 func (he *HTTPError) Error() string {
 	return he.Base.Error()
+}
+
+// Set an http error, and log it to the tracing system.
+func httpError(ctx context.Context, w http.ResponseWriter, err error) {
+    // We're hoping this is an HTTPError form of error, which would have the
+    // preferred HTTP status code included.
+    //
+    // If it isn't, then the error originated in some support or library logic,
+    // rather than the web server's business logic.  In that case we assume a
+    // status code of internal server error as the most likely correct value.
+    he, ok := err.(*HTTPError)
+    if !ok {
+        he = &HTTPError{
+            SC:   http.StatusInternalServerError,
+            Base: err,
+        }
+    }
+
+    _ = st.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
+    http.Error(w, he.Error(), he.StatusCode())
 }
 
 // +++ HTTPError specializations

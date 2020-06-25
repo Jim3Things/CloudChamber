@@ -9,9 +9,12 @@ package config
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/api/global"
+
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 )
 
 const (
@@ -23,6 +26,7 @@ const (
 	WebServerDefaultPort        = 8084
 	WebServerFEDefaultPort      = 8080
 	DefaultHost                 = ""
+	DefaultStepperPolicy		= ""
 	DefaultRootFilePath         = "."
 	DefaultSystemAccount        = "Admin"
 	DefaultSystemPassword       = "SystemPassword"
@@ -70,6 +74,23 @@ type InventoryType struct {
 type SimSupportType struct {
 	// Exposed GRPC endpoint
 	EP Endpoint
+
+	// Name of the initial stepper policy to apply
+	StepperPolicy string
+}
+
+// GetPolicyType is a function that returns the configured default policy as
+// the protobuf-defined enum value.
+func (sst SimSupportType) GetPolicyType() pb.StepperPolicy {
+	policyName := strings.ToLower(sst.StepperPolicy)
+	switch policyName {
+	case "manual":
+		return pb.StepperPolicy_Manual
+	case "automatic":
+		return pb.StepperPolicy_Measured
+	default:
+		return pb.StepperPolicy_Invalid
+	}
 }
 
 // WebServerType is a helper type that describes the web_server configuration settings
@@ -126,7 +147,8 @@ func newGlobalConfig() *GlobalConfig {
 			EP: Endpoint{
 				Hostname: DefaultHost,
 				Port:     SimSupportDefaultPort,
-			}},
+			},
+			StepperPolicy: DefaultStepperPolicy},
 		WebServer: WebServerType{
 			RootFilePath:          DefaultRootFilePath,
 			SystemAccount:         DefaultSystemAccount,
@@ -216,6 +238,7 @@ func ToString(data *GlobalConfig) string {
 			"SimSupport:\n"+
 			"  EP:\n"+
 			"    port: %v\n    hostname: %v\n"+
+			"  StepperPolicy: %v\n" +
 			"Webserver:\n"+
 			"  FE:\n"+
 			"    port: %v\n    hostname: %v\n"+
@@ -235,6 +258,7 @@ func ToString(data *GlobalConfig) string {
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
 		data.Inventory.EP.Port, data.Inventory.EP.Hostname,
 		data.SimSupport.EP.Port, data.SimSupport.EP.Hostname,
+		data.SimSupport.StepperPolicy,
 		data.WebServer.FE.Port, data.WebServer.FE.Hostname,
 		data.WebServer.BE.Port, data.WebServer.BE.Hostname,
 		data.WebServer.RootFilePath,

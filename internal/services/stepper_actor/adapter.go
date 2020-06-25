@@ -6,6 +6,7 @@ import (
     "time"
 
     "github.com/AsynkronIT/protoactor-go/actor"
+    "github.com/golang/protobuf/ptypes/duration"
     "github.com/golang/protobuf/ptypes/empty"
 
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
@@ -35,6 +36,25 @@ type server struct {
 // Attach an actor to this grpc adapter
 func (s *server) Attach(pid *actor.PID) {
     s.pid = pid
+}
+
+// Set the default policy.  Note that this is a direct call, not one that
+// passes through the grpc listener.
+func (s *server) SetDefaultPolicy(p pb.StepperPolicy) error {
+    delay := &duration.Duration{Seconds: 1}
+    if p != pb.StepperPolicy_Measured {
+        delay = &duration.Duration{Seconds: 0}
+    }
+
+    in := &pb.PolicyRequest{
+        Policy:        p,
+        MeasuredDelay: delay,
+    }
+
+    c := actor.EmptyRootContext
+    _, err := msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result())
+
+    return err
 }
 
 // +++ GRPC Methods
