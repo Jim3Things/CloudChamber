@@ -30,11 +30,11 @@ service Stepper {
 
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
-    rpc Delay (DelayRequest) returns (common.Timestamp);
+    rpc Delay(DelayRequest) returns (common.Timestamp);
 
     // Forcibly reset the stepper's internal state back to its starting
     // point.
-    rpc Reset (ResetRequest) returns (google.protobuf.Empty);
+    rpc Reset(ResetRequest) returns (google.protobuf.Empty);
 }
 
 // Define the various simulated time stepping policies

@@ -7,11 +7,13 @@ package frontend
 import (
     "bufio"
     "bytes"
+    "context"
     "fmt"
     "io"
     "io/ioutil"
     "log"
     "math/rand"
+    "net"
     "net/http"
     "net/http/httptest"
     "os"
@@ -21,10 +23,17 @@ import (
     "github.com/golang/protobuf/jsonpb"
     "github.com/golang/protobuf/proto"
     "github.com/stretchr/testify/assert"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/test/bufconn"
 
+    ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
     "github.com/Jim3Things/CloudChamber/internal/config"
+    stepper "github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
+    ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
     "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+    strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
     "github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -35,12 +44,15 @@ import (
 const (
     adminAccountName = "Admin"
     adminPassword = "AdminPassword"
+    bufSize = 1024 * 1024
 )
 
 var (
     baseURI     string
     initialized bool
+    lis *bufconn.Listener
 )
+
 
 // Common test startup method.  This is the _only_ Test* function in this
 // file.
@@ -60,10 +72,37 @@ func commonSetup() {
 
     setup.Init(exporters.UnitTest)
 
+    // Set up the internal test deployment of the stepper service, in order to
+    // support the stepper frontend unit tests
+    lis = bufconn.Listen(bufSize)
+    s := grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
+
+    if err := stepper.Register(s, pb.StepperPolicy_Manual); err != nil {
+        log.Fatalf("Failed to register stepper actor: %v", err)
+    }
+
+    go func() {
+        if err := s.Serve(lis); err != nil {
+            log.Fatalf("Server exited with error: %v", err)
+        }
+    }()
+
+    ts.InitTimestamp("bufnet",
+        grpc.WithContextDialer(bufDialer),
+        grpc.WithInsecure(),
+        grpc.WithUnaryInterceptor(ctrc.Interceptor))
+
+    // Finally, start the test web service, which all tests will use
     if err := initService(&config.GlobalConfig{
         Controller: config.ControllerType{},
         Inventory:  config.InventoryType{},
-        SimSupport: config.SimSupportType{},
+        SimSupport: config.SimSupportType{
+            EP: config.Endpoint{
+                Hostname: "localhost",
+                Port:     8083,
+            },
+            StepperPolicy: "manual",
+        },
         WebServer: config.WebServerType{
             RootFilePath:          "C:\\CloudChamber",
             SystemAccount:         adminAccountName,
@@ -84,6 +123,11 @@ func commonSetup() {
 }
 
 // +++ Helper functions
+
+// Simple dialer for the test in-memory message grpc transport
+func bufDialer(_ context.Context, _ string) (net.Conn, error) {
+    return lis.Dial()
+}
 
 // Convert a proto message into a reader with json-formatted contents
 func toJsonReader(v proto.Message) (io.Reader, error) {

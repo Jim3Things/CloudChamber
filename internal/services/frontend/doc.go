@@ -118,6 +118,21 @@ GET - /api/racks/{rack-id}/TOR //To get details about a specific blade in a spec
 GET - /api/racks/rack-id/PDU //Gets Power distribution Unit details.
 
 
+/api/stepper
+
+GET - /api/stepper
+Returns the current simulated time, mode and advance rate
+
+GET - /api/stepper/now
+Returns the current simulated time
+
+PUT - /api/stepper?advance
+Moves simulated time forward, so long as the mode is manual
+This relies on an ETag returned by either of the two preceding GET operations
+
+PUT - /api/stepper?mode={manual|automatic[=rate]}
+Sets the new mode and advance rate
+This relies on an ETag returned by the first GET operation above
 
 TODO
 
