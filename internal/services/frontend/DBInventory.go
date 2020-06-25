@@ -76,7 +76,7 @@ func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
 
 	r, ok := m.Racks[rackid]
 	if !ok {
-		return nil, NewErrRackNotFound("Rack3")
+		return nil, NewErrRackNotFound(rackid)
 	}
 	return r, nil
 
