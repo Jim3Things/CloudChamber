@@ -62,3 +62,7 @@ func (x *DelayRequest) Validate() error {
 func (x *ResetRequest) Validate() error {
     return nil
 }
+
+func (x *GetStatusRequest) Validate() error {
+    return nil
+}

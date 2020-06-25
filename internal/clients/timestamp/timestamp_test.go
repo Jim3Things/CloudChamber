@@ -63,7 +63,7 @@ func TestNow(t *testing.T) {
 	defer unit_test.SetTesting(nil)
 
 	commonSetup(t)
-	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}))
+	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
 
 	now, err := Now()
 	assert.Nil(t, err)
@@ -88,7 +88,7 @@ func TestTimestamp_After(t *testing.T) {
 	defer unit_test.SetTesting(nil)
 
 	commonSetup(t)
-	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}))
+	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
 
 	now, err := Now()
 	assert.Nil(t, err)

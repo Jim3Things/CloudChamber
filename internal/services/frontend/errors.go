@@ -155,4 +155,32 @@ func NewErrUserProtected(name string) *HTTPError {
     }
 }
 
+func NewErrInvalidStepperMode(mode string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: mode %q is invalid.  Supported modes are 'manual' and 'automatic'", mode),
+    }
+}
+
+func NewErrInvalidRateRequest() *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: errors.New("CloudChamber: manual mode does not accept additional arguments"),
+    }
+}
+
+func NewErrInvalidStepperRate(rate string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: requested rate %q could not be parsed as a positive decimal number", rate),
+    }
+}
+
+func NewErrStepperFailedToSetPolicy() *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: errors.New("CloudChamber: Set simulated time policy operation failed"),
+    }
+}
+
 // --- HTTPError specializations
