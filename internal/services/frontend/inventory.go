@@ -65,8 +65,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
 		if _, err := fmt.Fprintln(w, "Racks (List)"); err != nil {
-			httpError(ctx, w, err)
-			return err
+			return httpError(ctx, w, err)
 		}
 
 		b := r.URL.String()
@@ -80,7 +79,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 			st.Infof(ctx, -1, "   Listing rack '%s' at '%s'", name, target)
 
 			if _, err = fmt.Fprintln(w, target); err != nil {
-				httpError(ctx, w, err)
+				return httpError(ctx, w, err)
 			}
 
 			return err
@@ -101,9 +100,9 @@ func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
 
 		u, err := dbInventory.Get(rackid)
 		if err != nil {
-			httpError(ctx, w, err)
-			return err
+			return httpError(ctx, w, err)
 		}
+
 		w.Header().Set("Content-Type", "application/json")
 
 		st.Infof(ctx, -1, "Returning details for rack %q: %v", rackid, u)
