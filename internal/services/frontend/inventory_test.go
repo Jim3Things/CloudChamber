@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// // First DBInventory unit test
+// First DBInventory unit test
 func TestInventoryListRacks(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -27,7 +27,7 @@ func TestInventoryListRacks(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t, "text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
-	s := string(body)                   // Converted into a string
+	s := string(body)                        // Converted into a string
 	var splits = strings.Split(s, "\n") // Created an array per line
 
 	expected := []string{"/api/racks/rack1", "/api/racks/rack2", ""}

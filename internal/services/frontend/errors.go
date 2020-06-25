@@ -155,8 +155,9 @@ func NewErrUserProtected(name string) *HTTPError {
 	}
 }
 
-// ErrRackNotFound indicates the specified rack do not exist and the http request (http.statusNotFound) determines to be
-// the request was made against a non-existing rack.
+// ErrRackNotFound indicates the specified rack do not exist and the http
+// request (http.statusNotFound) determines to be the request was made against
+// a non-existing rack.
 func NewErrRackNotFound(name string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusNotFound,
