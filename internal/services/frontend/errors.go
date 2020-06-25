@@ -60,6 +60,9 @@ func (he *HTTPError) Error() string {
 }
 
 // Set an http error, and log it to the tracing system.
+//
+// Note that this returns the original error in case there is later processing
+// to be done with it.
 func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
     // We're hoping this is an HTTPError form of error, which would have the
     // preferred HTTP status code included.
