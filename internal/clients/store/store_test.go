@@ -27,57 +27,45 @@ var (
 )
 
 func commonSetup() {
+	var testNamespace string
 
 	setup.Init(exporters.UnitTest)
 
 	configPath = flag.String("config", ".", "path to the configuration file")
 	flag.Parse()
 
-	return
-}
-
-func commonSetupPerTest(t *testing.T) {
-
-	var testNamespace string
-
-	if !initialized {
-		unit_test.SetTesting(t)
-
-		cfg, err := config.ReadGlobalConfig(*configPath)
-		if err != nil {
-			log.Fatalf("failed to process the global configuration: %v", err)
-		}
-
-		Initialize(cfg)
-
-		// It is meaningless to have both a unique per-instance test namespace
-		// and to clean the store before the tests are run
-		//
-		if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
-			log.Fatalf("invalid configuration: both UseUniqueInstance and PreCleanStore are enabled: %v", err)
-		}
-
-		// For test purposes, need to set an alternate namespace rather than
-		// rely on the standard. From the configuration, we can either use the
-		// standard, fixed, well-known prefix, or we can use a per-instance
-		// unique prefix derived from the current time
-		//
-		if cfg.Store.Test.UseUniqueInstance {
-			testNamespace = fmt.Sprintf("%s/%s/", testNamespaceSuffixRoot, time.Now().Format(time.RFC3339Nano))
-		} else {
-			testNamespace = testNamespaceSuffixRoot + "/Standard/"
-		}
-
-		if cfg.Store.Test.PreCleanStore {
-			if err := cleanNamespace(testNamespace); err != nil {
-				log.Fatalf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
-			}
-		}
-
-		setDefaultNamespaceSuffix(testNamespace)
-		initialized = true
+	cfg, err := config.ReadGlobalConfig(*configPath)
+	if err != nil {
+		log.Fatalf("failed to process the global configuration: %v", err)
 	}
 
+	Initialize(cfg)
+
+	// It is meaningless to have both a unique per-instance test namespace
+	// and to clean the store before the tests are run
+	//
+	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
+		log.Fatalf("invalid configuration: both UseUniqueInstance and PreCleanStore are enabled: %v", err)
+	}
+
+	// For test purposes, need to set an alternate namespace rather than
+	// rely on the standard. From the configuration, we can either use the
+	// standard, fixed, well-known prefix, or we can use a per-instance
+	// unique prefix derived from the current time
+	//
+	if cfg.Store.Test.UseUniqueInstance {
+		testNamespace = fmt.Sprintf("%s/%s/", testNamespaceSuffixRoot, time.Now().Format(time.RFC3339Nano))
+	} else {
+		testNamespace = testNamespaceSuffixRoot + "/Standard/"
+	}
+
+	if cfg.Store.Test.PreCleanStore {
+		if err := cleanNamespace(testNamespace); err != nil {
+			log.Fatalf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
+		}
+	}
+
+	setDefaultNamespaceSuffix(testNamespace)
 	return
 }
 
@@ -106,12 +94,12 @@ func cleanNamespace(testNamespace string) error {
 
 func TestMain(m *testing.M) {
 	commonSetup()
-
 	os.Exit(m.Run())
 }
 
 func TestNew(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	store := NewStore()
 
@@ -123,7 +111,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestInitialize(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	store := NewStore()
 
@@ -155,7 +144,8 @@ func TestInitialize(t *testing.T) {
 }
 
 func TestNewWithArgs(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	// Use non-default values to ensure we get what we asked for and not the defaults.
 	//
@@ -180,7 +170,8 @@ func TestNewWithArgs(t *testing.T) {
 }
 
 func TestStoreSetAndGet(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	store := NewStore()
 
@@ -219,7 +210,8 @@ func TestStoreSetAndGet(t *testing.T) {
 }
 
 func TestStoreConnectDisconnect(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -244,7 +236,8 @@ func TestStoreConnectDisconnect(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -282,7 +275,8 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithSet(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	endpoints := getDefaultEndpoints()
 	timeoutConnect := getDefaultTimeoutConnect()
@@ -345,7 +339,8 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 }
 
 func TestStoreWriteRead(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	key := "TestStoreWriteRead/Key"
 	value := "TestStoreWriteRead/Value"
@@ -382,7 +377,8 @@ func TestStoreWriteRead(t *testing.T) {
 }
 
 func TestStoreWriteReadMultiple(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	keyValueSetSize := 100
 
@@ -416,8 +412,8 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 
 	for i, kv := range response {
 		kvValue := string(kv.value)
-		if store.trace(traceFlagExpandResults) {
-			fmt.Printf("[%v/%v] %v: %v\n", i, len(response), kv.key, kvValue)
+		if store.trace(traceFlagExpandResultsInTest) {
+			t.Logf("[%v/%v] %v: %v", i, len(response), kv.key, kvValue)
 		}
 		assert.Equal(t, keyValueSet[i].key, kv.key, "Unexpected key - expected: %s received: %s", keyValueSet[i].key, kv.key)
 		assert.Equal(t, keyValueSet[i].value, kvValue, "Unexpected value - expected: %s received: %s", keyValueSet[i].value, kvValue)
@@ -431,7 +427,8 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 }
 
 func TestStoreWriteReadWithPrefix(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	keyValueSetSize := 100
 
@@ -466,13 +463,13 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 	//
 	invalidKey := prefixKey + "invalidname"
 	response, err := store.ReadWithPrefix(invalidKey)
-	assert.Nilf(t, err, "Succeeded to read non-existing prefix key from store - error: %v prefixKey: %v ", err, invalidKey)
+	assert.Nilf(t, err, "Succeeded to read non-existing prefix key from store - error: %v prefixKey: %v", err, invalidKey)
 	assert.NotNilf(t, response, "Failed to get a non-nil response as expected - error: %v prefixKey: %v", err, invalidKey)
 	assert.Equal(t, 0, len(response), "Got more results than expected")
 
 	if nil != response && len(response) > 0 {
 		for i, kv := range response {
-			fmt.Printf("Unexpected key/value pair [%v/%v] key: %v value: %v\n", i, len(response), kv.key, string(kv.value))
+			t.Logf("Unexpected key/value pair [%v/%v] key: %v value: %v", i, len(response), kv.key, string(kv.value))
 		}
 	}
 
@@ -485,8 +482,8 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 
 	for i, kv := range response {
 		kvValue := string(kv.value)
-		if store.trace(traceFlagExpandResults) {
-			fmt.Printf("[%v/%v] %v: %v\n", i, len(response), kv.key, kvValue)
+		if store.trace(traceFlagExpandResultsInTest) {
+			t.Logf("[%v/%v] %v: %v", i, len(response), kv.key, kvValue)
 		}
 		assert.Equal(t, keyValueSet[i].key, kv.key, "Unexpected key - expected: %s received: %s", keyValueSet[i].key, kv.key)
 		assert.Equal(t, keyValueMap[kv.key], kvValue, "Unexpected value - expected: %s received: %s", keyValueMap[kv.key], kvValue)
@@ -500,7 +497,8 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 }
 
 func TestStoreWriteDelete(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	key := "TestStoreWriteDelete/Key"
 	value := "TestStoreWriteDelete/Value"
@@ -540,7 +538,8 @@ func TestStoreWriteDelete(t *testing.T) {
 }
 
 func TestStoreWriteDeleteMultiple(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	keyValueSetSize := 100
 
@@ -579,7 +578,8 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 }
 
 func TestStoreWriteDeleteWithPrefix(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	keyValueSetSize := 100
 
@@ -622,7 +622,8 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 }
 
 func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	key := "TestStoreWriteReadDeleteWithoutConnect/Key"
 	value := "TestStoreWriteReadDeleteWithoutConnect/Value"
@@ -675,7 +676,8 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 }
 
 func TestStoreSetWatch(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	key := "TestStoreSetWatch/Key"
 
@@ -697,7 +699,8 @@ func TestStoreSetWatch(t *testing.T) {
 }
 
 func TestStoreSetWatchMultiple(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	keySet := []string{"TestStoreSetWatchMultiple/Key"}
 
@@ -719,7 +722,8 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 }
 
 func TestStoreSetWatchPrefix(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	key := "TestStoreSetWatchPrefix/Key"
 
@@ -741,7 +745,8 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 }
 
 func TestStoreGetMemberList(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -755,12 +760,12 @@ func TestStoreGetMemberList(t *testing.T) {
 	assert.GreaterOrEqual(t, 1, len(response.Members), "Failed to get the minimum number of response values")
 
 	for i, node := range response.Members {
-		t.Logf("node [%v] Id: %v Name: %v\n", i, node.ID, node.Name)
+		t.Logf("node [%v] Id: %v Name: %v", i, node.ID, node.Name)
 		for i, url := range node.ClientURLs {
-			t.Logf("  client [%v] URL: %v\n", i, url)
+			t.Logf("  client [%v] URL: %v", i, url)
 		}
 		for i, url := range node.PeerURLs {
-			t.Logf("  peer [%v] URL: %v\n", i, url)
+			t.Logf("  peer [%v] URL: %v", i, url)
 		}
 	}
 
@@ -772,7 +777,8 @@ func TestStoreGetMemberList(t *testing.T) {
 }
 
 func TestStoreSyncClusterConnections(t *testing.T) {
-	commonSetupPerTest(t)
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")

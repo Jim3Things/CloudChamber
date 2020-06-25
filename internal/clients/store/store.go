@@ -102,6 +102,9 @@ type TraceFlags uint
 const (
 	traceFlagEnabled TraceFlags = 1 << iota
 	traceFlagExpandResults
+	traceFlagTraceKey
+	traceFlagTraceKeyAndValue
+	traceFlagExpandResultsInTest
 )
 
 type global struct {
@@ -309,7 +312,7 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 			st.Infof(ctx, -1, "ctx is attached with a deadline is exceeded: %v", err)
 
 		case rpctypes.ErrEmptyKey:
-			st.Infof(ctx, -1, "client-side error: %v\n", err)
+			st.Infof(ctx, -1, "client-side error: %v", err)
 
 		default:
 			if ev, ok := status.FromError(err); ok {
@@ -560,12 +563,12 @@ func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 
 			if store.trace(traceFlagExpandResults) {
 				for i, node := range result.Members {
-					st.Infof(ctx, -1, "node [%v] Id: %v Name: %v\n", i, node.ID, node.Name)
+					st.Infof(ctx, -1, "node [%v] Id: %v Name: %v", i, node.ID, node.Name)
 					for i, url := range node.ClientURLs {
-						st.Infof(ctx, -1, "  client [%v] URL: %v\n", i, url)
+						st.Infof(ctx, -1, "  client [%v] URL: %v", i, url)
 					}
 					for i, url := range node.PeerURLs {
-						st.Infof(ctx, -1, "  peer [%v] URL: %v\n", i, url)
+						st.Infof(ctx, -1, "  peer [%v] URL: %v", i, url)
 					}
 				}
 			}
@@ -694,13 +697,17 @@ func (store *Store) Read(key string) (result []byte, err error) {
 			store.logEtcdResponseError(ctx, err)
 		} else if 0 == len(response.Kvs) {
 			err = ErrStoreKeyNotFound(key)
-			st.Infof(ctx, -1, "unable to read the requested key/value pair - error: %v\n", err)
+			st.Infof(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
 		} else if 1 != len(response.Kvs) {
 			err = ErrStoreBadResultSize{1, len(response.Kvs)}
-			st.Infof(ctx, -1, "expected a single result and instead received something else - error: %v\n", err)
+			st.Infof(ctx, -1, "expected a single result and instead received something else - error: %v", err)
 		} else {
 			result = response.Kvs[0].Value
-			st.Infof(ctx, -1, "read key: %v value: %v", key, result)
+			if store.trace(traceFlagTraceKeyAndValue) {
+				st.Infof(ctx, -1, "read key: %v value: %v", string(key), string(result))
+			} else if store.trace(traceFlagTraceKey) {
+				st.Infof(ctx, -1, "read key: %v", string(key))
+			}
 		}
 
 		return err
@@ -749,7 +756,7 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 			for i := 0; i < processedCount; i++ {
 				if 1 != len(responses[i].Kvs) {
 					err = ErrStoreBadResultSize{processedCount, len(responses[i].Kvs)}
-					st.Infof(ctx, -1, "number of responses did not match expectations - error: %v\n", err)
+					st.Infof(ctx, -1, "number of responses did not match expectations - error: %v", err)
 				} else {
 					results[i].key = string(responses[i].Kvs[0].Key)
 					results[i].value = responses[i].Kvs[0].Value
@@ -759,7 +766,11 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 
 		if store.trace(traceFlagExpandResults) {
 			for i := 0; i < processedCount; i++ {
-				st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, processedCount, string(results[i].key), string(results[i].value))
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, processedCount, string(results[i].key), string(results[i].value))
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, processedCount, string(results[i].key))
+				}
 			}
 		}
 
@@ -802,7 +813,11 @@ func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse,
 
 			if store.trace(traceFlagExpandResults) {
 				for i, kv := range result {
-					st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, len(result), string(kv.key), string(kv.value))
+					if store.trace(traceFlagTraceKeyAndValue) {
+						st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, len(result), string(kv.key), string(kv.value))
+					} else if store.trace(traceFlagTraceKey) {
+						st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(result), string(kv.key))
+					}
 				}
 			}
 
@@ -831,10 +846,10 @@ func (store *Store) Delete(key string) (err error) {
 			store.logEtcdResponseError(ctx, err)
 		} else if 0 == response.Deleted {
 			err = ErrStoreKeyNotFound(key)
-			st.Infof(ctx, -1, "failed to delete the requested key/value pair - error: %v\n", err)
+			st.Infof(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
 		} else if 1 != response.Deleted {
 			err = ErrStoreBadResultSize{1, int(response.Deleted)}
-			st.Infof(ctx, -1, "expected a single deletion and instead received something else - error: %v\n", err)
+			st.Infof(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
 		} else {
 			st.Infof(ctx, -1, "deleted key: %v", key)
 		}
