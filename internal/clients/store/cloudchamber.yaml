@@ -25,7 +25,7 @@ simSupport:
 store:
   # trace level to use for insteractions with the store and
   # etcd
-  traceLevel: 1
+  traceLevel: 15
 
   # timeout in seconds to allow when attempting to establish
   # a connection to the etcd instance
