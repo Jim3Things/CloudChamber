@@ -2,6 +2,7 @@ package unit_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	export "go.opentelemetry.io/otel/sdk/export/trace"
@@ -20,6 +21,8 @@ type Exporter struct {
 
 var testContext *testing.T
 
+var mutex sync.Mutex
+
 // Since the actor system can produce async activity that occurs outside of an
 // active test context, we have to be able to handle these events.  When they
 // happen we save them into this array and process them as soon as we see an
@@ -27,11 +30,15 @@ var testContext *testing.T
 var savedEntries []*log.Entry
 
 func NewExporter(_ Options) (*Exporter, error) {
+	mutex = sync.Mutex{}
 	return &Exporter{}, nil
 }
 
 // Set the testing context hook, or clear it, if the reference is nil.
 func SetTesting(item *testing.T) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	testContext = item
 
 	if testContext != nil {
@@ -41,6 +48,9 @@ func SetTesting(item *testing.T) {
 
 // Export a span to the output channel
 func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
 	if testContext != nil {
 		flushSaved()
 		processOneEntry(common.ExtractEntry(ctx, data), false)
@@ -76,13 +86,13 @@ func processOneEntry(entry *log.Entry, deferred bool) {
 }
 
 func severityFlag(severity log.Severity) string {
-	var severityToText = map[log.Severity]string {
-		log.Severity_Debug: "D",
-		log.Severity_Reason: "R",
-		log.Severity_Info: "I",
+	var severityToText = map[log.Severity]string{
+		log.Severity_Debug:   "D",
+		log.Severity_Reason:  "R",
+		log.Severity_Info:    "I",
 		log.Severity_Warning: "W",
-		log.Severity_Error: "E",
-		log.Severity_Fatal: "F",
+		log.Severity_Error:   "E",
+		log.Severity_Fatal:   "F",
 	}
 
 	t, ok := severityToText[severity]
