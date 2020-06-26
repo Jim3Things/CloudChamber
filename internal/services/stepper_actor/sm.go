@@ -2,6 +2,7 @@ package stepper
 
 import (
     "context"
+    "errors"
     "fmt"
     "math/rand"
     "time"
@@ -9,6 +10,7 @@ import (
     "github.com/AsynkronIT/protoactor-go/actor"
     "github.com/AsynkronIT/protoactor-go/scheduler"
     "github.com/golang/protobuf/ptypes"
+    "github.com/golang/protobuf/ptypes/duration"
     "github.com/golang/protobuf/ptypes/empty"
 
     "github.com/Jim3Things/CloudChamber/internal/sm"
@@ -31,6 +33,15 @@ var (
         pb.StepperPolicy_Measured : AutoStepState,
         pb.StepperPolicy_Manual   : ManualState,
     }
+
+    indexToPolicy = map[int]pb.StepperPolicy{
+        InvalidState: pb.StepperPolicy_Invalid,
+        NoWaitState: pb.StepperPolicy_NoWait,
+        AutoStepState: pb.StepperPolicy_Measured,
+        ManualState: pb.StepperPolicy_Manual,
+    }
+
+    ErrStepperStaleVersion = errors.New("CloudChamber: simulated time state has a newer version than expected")
 )
 
 func (act *Actor) InitializeStates() {
@@ -70,6 +81,9 @@ func (s *InvalidStateImpl) Receive(ca actor.Context) {
 
     case *pb.ResetRequest:
         holder.HandleReset(ctx)
+
+    case *pb.GetStatusRequest:
+        holder.HandleGetStatus(ctx)
 
     default:
         if !isSystemMessage(ctx) {
@@ -162,7 +176,6 @@ type AutoStepStateImpl struct {
 
     delay  time.Duration            // Automatic step delay
     cancel scheduler.CancelFunc     // Timer state
-    epoch  int64                    // Epoch counter for the timer
 }
 
 func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
@@ -183,9 +196,8 @@ func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
     }
 
     s.delay = delay
-    s.epoch++
     timer := scheduler.NewTimerScheduler()
-    s.cancel = timer.SendRepeatedly(s.delay, s.delay, ca.Self(), &pb.AutoStepRequest{ Epoch: s.epoch })
+    s.cancel = timer.SendRepeatedly(s.delay, s.delay, ca.Self(), &pb.AutoStepRequest{ Epoch: holder.epoch + 1 })
     return nil
 }
 
@@ -198,12 +210,25 @@ func (s *AutoStepStateImpl) Receive(ca actor.Context) {
 
     // Timer expired
     case *pb.AutoStepRequest:
-        if msg.Epoch == s.epoch {
+        if msg.Epoch == holder.epoch {
             holder.advance(ctx, 1)
         }
 
     case *pb.StepRequest:
         holder.mgr.RespondWithError(ctx, ErrInvalidRequest)
+
+    // Return the current status, including the measured delay
+    case *pb.GetStatusRequest:
+        rsp := &pb.StatusResponse{
+            Policy:        indexToPolicy[holder.mgr.Current],
+            MeasuredDelay: ptypes.DurationProto(s.delay),
+            Now:           &common.Timestamp{Ticks: holder.latest},
+            WaiterCount:   int64(holder.waiters.Size()),
+            Epoch:         holder.epoch,
+        }
+
+        sm.ActorContext(ctx).Respond(rsp)
+
 
     default:
         holder.ApplyDefaultActions(ctx)
@@ -251,6 +276,9 @@ func (act *Actor) ApplyDefaultActions(ctx context.Context) {
         case *pb.ResetRequest:
             act.HandleReset(ctx)
 
+        case *pb.GetStatusRequest:
+            act.HandleGetStatus(ctx)
+
         default:
             // The message was not one that we had a standard policy for
             act.mgr.RespondWithError(ctx, ErrInvalidRequest)
@@ -270,10 +298,17 @@ func (act *Actor) HandlePolicy(ctx context.Context, pr *pb.PolicyRequest) {
         return
     }
 
+    if pr.MatchEpoch >= 0 && pr.MatchEpoch != act.epoch {
+        act.mgr.RespondWithError(ctx, ErrStepperStaleVersion)
+        return
+    }
+
     if err := act.mgr.ChangeState(ctx, act.latest, index); err != nil {
         act.mgr.RespondWithError(ctx, err)
         return
     }
+
+    act.epoch++
 
     ca.Respond(&empty.Empty{})
 }
@@ -326,6 +361,20 @@ func (act *Actor) HandleReset(ctx context.Context) {
     // cleared, so that any outstanding timer completions are not processed.
 
     sm.ActorContext(ctx).Respond(&empty.Empty{})
+}
+
+// Standard Get Status request handler.  Returns the normal information, and
+// assumes that the measured delay is zero.
+func (act *Actor) HandleGetStatus(ctx context.Context) {
+    rsp := &pb.StatusResponse{
+        Policy:        indexToPolicy[act.mgr.Current],
+        MeasuredDelay: &duration.Duration{Seconds: 0},
+        Now:           &common.Timestamp{Ticks: act.latest},
+        WaiterCount:   int64(act.waiters.Size()),
+        Epoch:         act.epoch,
+    }
+
+    sm.ActorContext(ctx).Respond(rsp)
 }
 
 // Determine if the due time for any waiters from delay operations have

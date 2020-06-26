@@ -110,6 +110,15 @@ func (s *server) Reset(_ context.Context, in *pb.ResetRequest) (*empty.Empty, er
     return asEmpty(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
 }
 
+func (s *server) GetStatus(_ context.Context, in *pb.GetStatusRequest) (*pb.StatusResponse, error) {
+    if err := in.Validate(); err != nil {
+        return nil, err
+    }
+
+    c := actor.EmptyRootContext
+    return asStatusResponse(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
+}
+
 // --- GRPC Methods
 
 // +++ Helper functions
@@ -127,6 +136,15 @@ func asTimestamp(res interface{}, err error) (*common.Timestamp, error) {
 func asEmpty(res interface{}, err error) (*empty.Empty, error) {
     if err == nil {
         return res.(*empty.Empty), err
+    }
+
+    return nil, err
+}
+
+// Convert the return pair into (StatusResposne, error) types
+func asStatusResponse(res interface{}, err error) (*pb.StatusResponse, error) {
+    if err == nil {
+        return res.(*pb.StatusResponse), err
     }
 
     return nil, err

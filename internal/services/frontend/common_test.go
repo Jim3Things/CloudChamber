@@ -65,7 +65,6 @@ func TestMain(m *testing.M) {
 // Establish the test environment, including starting a test frontend service
 // over a faked http connection.
 func commonSetup() {
-
     if initialized {
         log.Fatalf("Error initializing service for second or subsequent time")
     }

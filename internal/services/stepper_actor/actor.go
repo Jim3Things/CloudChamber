@@ -30,6 +30,8 @@ type Actor struct {
 
     latest int64                // current simulate time, in ticks
     waiters *treemap.Map        // waiting delay operations
+
+    epoch  int64                // Epoch counter (policy changes)
 }
 
 // Register the stepper actor with the supplied grpc server (via the adapter

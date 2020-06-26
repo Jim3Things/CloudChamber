@@ -101,13 +101,15 @@ func dumpMessage(msg interface{}) string {
         return fmt.Sprintf("common.Completion error: %q", msg.Error)
 
     case *common.Timestamp:
-        return "common.Timestamp"
+        return fmt.Sprintf("common.Timestamp: Ticks: %d", msg.Ticks)
 
     case *pb.AutoStepRequest:
         return "AutoStepRequest"
 
     case *pb.PolicyRequest:
-        return fmt.Sprintf("PolicyRequest: policy: %v, delay: %ds", msg.Policy, msg.MeasuredDelay.Seconds)
+        return fmt.Sprintf(
+            "PolicyRequest: policy: %v, delay: %ds.%dn, match: %d",
+            msg.Policy, msg.MeasuredDelay.Seconds, msg.MeasuredDelay.Nanos, msg.MatchEpoch)
 
     case *pb.ResetRequest:
         return "ResetRequest"
@@ -120,6 +122,14 @@ func dumpMessage(msg interface{}) string {
 
     case *pb.DelayRequest:
         return fmt.Sprintf("DelayRequest: atLeast to %d, jitter %d", msg.AtLeast.Ticks, msg.Jitter)
+
+    case *pb.GetStatusRequest:
+        return "GetStatusRequest"
+
+    case *pb.StatusResponse:
+        return fmt.Sprintf(
+            "StatusResponse: mode: %v, measured delay: %ds.%dn, current time: %d, number of waiters: %d, epoch: %d",
+            msg.Policy, msg.MeasuredDelay.Seconds, msg.MeasuredDelay.Nanos, msg.Now.Ticks, msg.WaiterCount, msg.Epoch)
 
     case *empty.Empty:
         return "<empty>"

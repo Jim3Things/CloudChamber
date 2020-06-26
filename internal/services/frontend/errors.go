@@ -60,7 +60,10 @@ func (he *HTTPError) Error() string {
 }
 
 // Set an http error, and log it to the tracing system.
-func httpError(ctx context.Context, w http.ResponseWriter, err error) {
+//
+// Note that this returns the original error in case there is later processing
+// to be done with it.
+func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
     // We're hoping this is an HTTPError form of error, which would have the
     // preferred HTTP status code included.
     //
@@ -77,6 +80,8 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) {
 
     _ = st.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
     http.Error(w, he.Error(), he.StatusCode())
+
+    return err
 }
 
 // +++ HTTPError specializations
@@ -148,6 +153,7 @@ func NewErrUserInvalidOperation(op string) *HTTPError {
 	}
 }
 
+// ErrUserProected indicates that the user entry may not be deleted.
 func NewErrUserProtected(name string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusForbidden,
@@ -155,13 +161,50 @@ func NewErrUserProtected(name string) *HTTPError {
 	}
 }
 
-// ErrRackNotFound indicates the specified rack do not exist and the http request (http.statusNotFound) determines to be
-// the request was made against a non-existing rack.
+// ErrRackNotFound indicates the specified rack do not exist and the http
+// request (http.statusNotFound) determines to be the request was made against
+// a non-existing rack.
 func NewErrRackNotFound(name string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusNotFound,
 		Base: fmt.Errorf("CloudChamber: rack %q not found", name),
 	}
+}
+
+// ErrInvalidStepperMode indicates that an unrecognized simulated policy mode
+// was requested.
+func NewErrInvalidStepperMode(mode string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: mode %q is invalid.  Supported modes are 'manual' and 'automatic'", mode),
+    }
+}
+
+// ErrInvalidRateRequest indicates that the automatic ticks-per-second rate was
+// present, but the selected policy mode was not 'automatic'.
+func NewErrInvalidRateRequest() *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: errors.New("CloudChamber: manual mode does not accept additional arguments"),
+    }
+}
+
+// ErrInvalidStepperRate indicates that the supplied ticks-per-second rate was
+// not recognized as a valid number.
+func NewErrInvalidStepperRate(rate string) *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: fmt.Errorf("CloudChamber: requested rate %q could not be parsed as a positive decimal number", rate),
+    }
+}
+
+// ErrStepperFailedToSetPolicy indicates that an error occurred while setting
+// the new policy.  This most likely is due to an ETag mismatch.
+func NewErrStepperFailedToSetPolicy() *HTTPError {
+    return &HTTPError{
+        SC:   http.StatusBadRequest,
+        Base: errors.New("CloudChamber: Set simulated time policy operation failed"),
+    }
 }
 
 // --- HTTPError specializations

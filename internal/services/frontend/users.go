@@ -81,13 +81,11 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         if _, err := fmt.Fprintln(w, "Users (List)"); err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         b := r.URL.String()
@@ -101,7 +99,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
             st.Infof(ctx, -1, "   Listing user '%s' at '%s'", entry.Name, target)
 
             if _, err = fmt.Fprintln(w, target); err != nil {
-                httpError(ctx, w, err)
+                return httpError(ctx, w, err)
             }
 
             return err
@@ -121,23 +119,20 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         st.Infof(ctx, -1, "Creating user %q", username)
 
         u := &pb.UserDefinition{}
         if err = jsonpb.Unmarshal(r.Body, u); err != nil {
-            httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
-            return err
+            return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
         }
 
         var rev int64
 
         if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled, false); err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
@@ -160,14 +155,12 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         u, rev, err := dbUsers.Get(username)
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         w.Header().Set("Content-Type", "application/json")
@@ -201,8 +194,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         // All updates are qualified by an ETag match.  The ETag comes from the database
@@ -214,15 +206,13 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         matchString := r.Header.Get("If-Match")
         match, err = strconv.ParseInt(matchString, 10, 64)
         if err != nil {
-            httpError(ctx, w, NewErrBadMatchType(matchString))
-            return err
+            return httpError(ctx, w, NewErrBadMatchType(matchString))
         }
 
         // Next, get the new definition values, and make sure that they are valid.
         upd := &pb.UserDefinition{}
         if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-            httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
-            return err
+            return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
         }
 
         // All the prep is done.  Proceed with the update.  This may get a version
@@ -230,8 +220,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         // can all be considered version conflicts.
         var rev int64
         if rev, err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         w.Header().Set("Content-Type", "application/json")
@@ -262,13 +251,11 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         if err = userRemove(username); err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         _, err = fmt.Fprintf(w, "User %q deleted.", username)
@@ -303,10 +290,10 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
         })
 
         if err != nil {
-            httpError(ctx, w, err)
-        } else {
-            _, err = fmt.Fprintln(w, s)
+            return httpError(ctx, w, err)
         }
+
+        _, err = fmt.Fprintln(w, s)
 
         return err
     })
