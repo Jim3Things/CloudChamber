@@ -194,22 +194,22 @@ func setDefaultNamespaceSuffix(suffix string) {
 	storeRoot.DefaultNamespaceSuffix = suffix
 }
 
-func (store *Store) connected(ctx context.Context, op string) error {
+func (store *Store) connected(ctx context.Context) error {
 
 	if nil != store.Client {
 		err := ErrStoreConnected
-		st.Infof(ctx, -1, "Unable to %v - store is connected - error: %v", op, err)
+		st.Errorf(ctx, -1, "unable to perform operation - store is connected - error: %v", err)
 		return err
 	}
 
 	return nil
 }
 
-func (store *Store) disconnected(ctx context.Context, op string) error {
+func (store *Store) disconnected(ctx context.Context) error {
 
 	if nil == store.Client {
 		err := ErrStoreNotConnected
-		st.Infof(ctx, -1, "Failed to %v - no current connection - error: %v", op, err)
+		st.Errorf(ctx, -1, "unable to perform operation - no current connection - error: %v", err)
 		return err
 	}
 
@@ -231,7 +231,7 @@ func Initialize(cfg *config.GlobalConfig) {
 		st.Infof(
 			ctx,
 			-1,
-			"    EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v",
+			"EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v",
 			storeRoot.DefaultEndpoints,
 			storeRoot.DefaultTimeoutConnect,
 			storeRoot.DefaultTimeoutRequest,
@@ -287,7 +287,7 @@ func (store *Store) Initialize(endpoints []string, timeoutConnect time.Duration,
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
-		if err := store.connected(ctx, "Initialize"); err != nil {
+		if err := store.connected(ctx); err != nil {
 			return err
 		}
 
@@ -306,13 +306,13 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 	if store.traceEnabled() {
 		switch err {
 		case context.Canceled:
-			st.Infof(ctx, -1, "ctx is canceled by another routine: %v", err)
+			st.Errorf(ctx, -1, "ctx is canceled by another routine: %v", err)
 
 		case context.DeadlineExceeded:
-			st.Infof(ctx, -1, "ctx is attached with a deadline is exceeded: %v", err)
+			st.Errorf(ctx, -1, "ctx is attached with a deadline is exceeded: %v", err)
 
 		case rpctypes.ErrEmptyKey:
-			st.Infof(ctx, -1, "client-side error: %v", err)
+			st.Errorf(ctx, -1, "client-side error: %v", err)
 
 		default:
 			if ev, ok := status.FromError(err); ok {
@@ -321,10 +321,10 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 					// server-side context might have timed-out first (due to clock skew)
 					// while original client-side context is not timed-out yet
 					//
-					st.Infof(ctx, -1, "server-side deadline is exceeded: %v", code)
+					st.Errorf(ctx, -1, "server-side deadline is exceeded: %v", code)
 				}
 			} else {
-				st.Infof(ctx, -1, "bad cluster endpoints, which are not etcd servers: %v", err)
+				st.Errorf(ctx, -1, "bad cluster endpoints, which are not etcd servers: %v", err)
 			}
 		}
 	}
@@ -356,7 +356,7 @@ func (store *Store) GetTraceFlags() TraceFlags { return store.TraceFlags }
 func (store *Store) SetAddress(endpoints []string) (err error) {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err := store.connected(ctx, "SetAddress"); err != nil {
+		if err := store.connected(ctx); err != nil {
 			return err
 		}
 
@@ -380,7 +380,7 @@ func (store *Store) GetAddress() []string { return store.Endpoints }
 func (store *Store) SetTimeoutConnect(timeout time.Duration) (err error) {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err := store.connected(ctx, "SetTimeoutConnect"); err != nil {
+		if err := store.connected(ctx); err != nil {
 			return err
 		}
 
@@ -428,7 +428,7 @@ func (store *Store) SetNamespaceSuffix(suffix string) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		const slash = "/"
 
-		if err := store.connected(ctx, "SetNamespaceSuffix)"); err != nil {
+		if err := store.connected(ctx); err != nil {
 			return err
 		}
 
@@ -459,7 +459,7 @@ func (store *Store) GetNamespaceSuffix() string { return store.NamespaceSuffix }
 func (store *Store) Connect() (err error) {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err := store.connected(ctx, "CONNECT"); err != nil {
+		if err := store.connected(ctx); err != nil {
 			return err
 		}
 
@@ -469,7 +469,7 @@ func (store *Store) Connect() (err error) {
 		})
 
 		if err != nil {
-			st.Infof(ctx, -1, "Failed to establish connection to store - error: %v", err)
+			st.Errorf(ctx, -1, "Failed to establish connection to store - error: %v", err)
 			return err
 		}
 
@@ -535,7 +535,7 @@ type ClusterMember struct {
 func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 
 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err := store.disconnected(ctx, "GetClusterMembers"); err != nil {
+		if err := store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -588,7 +588,7 @@ func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 func (store *Store) UpdateClusterConnections() error {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx, "UpdateClusterConnections"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -613,7 +613,7 @@ func (store *Store) UpdateClusterConnections() error {
 func (store *Store) Write(key string, value string) error {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx, "WRITE"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -642,7 +642,7 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) (err error) {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		var processedCount int
 
-		if err = store.disconnected(ctx, "WRITE(Multiple)"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -662,12 +662,16 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) (err error) {
 
 		if err != nil {
 			store.logEtcdResponseError(ctx, err)
-			st.Infof(ctx, -1, "Unable to write all the key/value pairs - requested: %v achieved: %v", len(keyValueSet), processedCount)
+			st.Errorf(ctx, -1, "Unable to write all the key/value pairs - requested: %v achieved: %v", len(keyValueSet), processedCount)
 		}
 
 		if store.trace(traceFlagExpandResults) {
 			for i := 0; i < processedCount; i++ {
-				st.Infof(ctx, -1, "wrote/updated [%v/%v] key: %v value: %v", i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "wrote/updated [%v/%v] key: %v value: %v", i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "wrote/updated [%v/%v] key: %v", i, processedCount, keyValueSet[i].key)
+				}
 			}
 		}
 
@@ -685,7 +689,7 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) (err error) {
 func (store *Store) Read(key string) (result []byte, err error) {
 
 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx, "READ"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -697,10 +701,10 @@ func (store *Store) Read(key string) (result []byte, err error) {
 			store.logEtcdResponseError(ctx, err)
 		} else if 0 == len(response.Kvs) {
 			err = ErrStoreKeyNotFound(key)
-			st.Infof(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
+			st.Errorf(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
 		} else if 1 != len(response.Kvs) {
 			err = ErrStoreBadResultSize{1, len(response.Kvs)}
-			st.Infof(ctx, -1, "expected a single result and instead received something else - error: %v", err)
+			st.Errorf(ctx, -1, "expected a single result and instead received something else - error: %v", err)
 		} else {
 			result = response.Kvs[0].Value
 			if store.trace(traceFlagTraceKeyAndValue) {
@@ -727,7 +731,7 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		var processedCount int
 
-		if err = store.disconnected(ctx, "READ(Multiple)"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -749,14 +753,14 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 
 		if err != nil {
 			store.logEtcdResponseError(ctx, err)
-			st.Infof(ctx, -1, "Unable to read all the key/value pairs - requested: %v achieved: %v", len(keySet), processedCount)
+			st.Errorf(ctx, -1, "Unable to read all the key/value pairs - requested: %v achieved: %v", len(keySet), processedCount)
 		} else {
 			results = make([]KeyValueResponse, processedCount)
 
 			for i := 0; i < processedCount; i++ {
 				if 1 != len(responses[i].Kvs) {
 					err = ErrStoreBadResultSize{processedCount, len(responses[i].Kvs)}
-					st.Infof(ctx, -1, "number of responses did not match expectations - error: %v", err)
+					st.Errorf(ctx, -1, "number of responses did not match expectations - error: %v", err)
 				} else {
 					results[i].key = string(responses[i].Kvs[0].Key)
 					results[i].value = responses[i].Kvs[0].Value
@@ -794,7 +798,7 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse, err error) {
 
 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx, "READ(Prefix)"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -834,7 +838,7 @@ func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse,
 func (store *Store) Delete(key string) (err error) {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx, "DELETE"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -846,10 +850,10 @@ func (store *Store) Delete(key string) (err error) {
 			store.logEtcdResponseError(ctx, err)
 		} else if 0 == response.Deleted {
 			err = ErrStoreKeyNotFound(key)
-			st.Infof(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
+			st.Errorf(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
 		} else if 1 != response.Deleted {
 			err = ErrStoreBadResultSize{1, int(response.Deleted)}
-			st.Infof(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
+			st.Errorf(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
 		} else {
 			st.Infof(ctx, -1, "deleted key: %v", key)
 		}
@@ -860,7 +864,7 @@ func (store *Store) Delete(key string) (err error) {
 
 // DeleteMultiple is a method that can be used to remove a set of key/value pairs.
 //
-// This is essentially a convenience method to allow multiuple values to be fetched
+// This is essentially a convenience method to allow multiuple values to be removed
 // in a single call rather than repeating individual calls to the Delete() method.
 //
 func (store *Store) DeleteMultiple(keySet []string) (err error) {
@@ -868,7 +872,7 @@ func (store *Store) DeleteMultiple(keySet []string) (err error) {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		var processedCount int
 
-		if err = store.disconnected(ctx, "DELETE(Multiple)"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -888,7 +892,7 @@ func (store *Store) DeleteMultiple(keySet []string) (err error) {
 
 		if err != nil {
 			store.logEtcdResponseError(ctx, err)
-			st.Infof(ctx, -1, "Unable to delete all the keys - requested: %v achieved: %v", len(keySet), processedCount)
+			st.Errorf(ctx, -1, "Unable to delete all the keys - requested: %v achieved: %v", len(keySet), processedCount)
 		}
 
 		if store.trace(traceFlagExpandResults) {
@@ -909,7 +913,7 @@ func (store *Store) DeleteMultiple(keySet []string) (err error) {
 func (store *Store) DeleteWithPrefix(keyPrefix string) (err error) {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx, "DELETE(Prefix)"); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
