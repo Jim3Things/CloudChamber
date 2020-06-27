@@ -81,3 +81,39 @@ func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
 	return r, nil
 
 }
+
+func (m *DBInventory) ScanBladesinRack(rackid string, action func(bladeid int64) error) error {
+
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	r, ok := m.Racks[rackid]
+	if !ok {
+		return NewErrRackNotFound(rackid)
+	}
+	for name := range r.Blades {
+
+		if err := action(name); err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+//Scan
+// GET api/racks/{rackid}/blades
+
+// GET api/racks/{rackid}/blades/{bladeid}
+
+// GET api/racks/rack1/blades  ## 91 and 93 as 1st check in
+
+//Get blade list from rack 1 <-- uris for blade1 & blade2 in rack1
+
+// GET api/racks/rack1/blades/1  ## 95 and 97 as second checkin
+
+// <-- details for blade 1 in rack1
+
+// RAck 2 as well
+
+// Rack2 blade 3 is the negative test
