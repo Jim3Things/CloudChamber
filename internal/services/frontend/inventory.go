@@ -5,10 +5,15 @@
 package frontend
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
 )
 
@@ -42,7 +47,7 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
 	//
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
-	routeRacks.HandleFunc("/racks/{rackid}", handlerRacksRead).Methods("GET")
+	routeRacks.HandleFunc("/{rackid}", handlerRacksRead).Methods("GET")
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksUpdate).Methods("PUT", "GET")
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
 }
@@ -57,8 +62,30 @@ func racksDisplayArguments(w http.ResponseWriter, r *http.Request, command strin
 }
 
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
-	fmt.Fprintf(w, "racks (List)")
+		if _, err := fmt.Fprintln(w, "Racks (List)"); err != nil {
+			return httpError(ctx, w, err)
+		}
+
+		b := r.URL.String()
+		if !strings.HasSuffix(b, "/") {
+			b += "/"
+		}
+
+		return dbInventory.Scan(func(name string) (err error) {
+			target := fmt.Sprintf("%s%s", b, name)
+
+			st.Infof(ctx, -1, "   Listing rack '%s' at '%s'", name, target)
+
+			if _, err = fmt.Fprintln(w, target); err != nil {
+				return httpError(ctx, w, err)
+			}
+
+			return err
+		})
+	})
+
 }
 
 //func handlerracksCreate(w http.ResponseWriter, r *http.Request) {
@@ -67,8 +94,25 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 //}
 
 func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		vars := mux.Vars(r)
+		rackid := vars["rackid"]
 
-	racksDisplayArguments(w, r, "fetch")
+		u, err := dbInventory.Get(rackid)
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+
+		st.Infof(ctx, -1, "Returning details for rack %q: %v", rackid, u)
+
+		// Get the user entry, and serialize it to json
+		// (export userPublic to json and return that as the body)
+		p := jsonpb.Marshaler{}
+		return p.Marshal(w, u)
+
+	})
 }
 
 //func handlerracksUpdate(w http.ResponseWriter, r *http.Request) {

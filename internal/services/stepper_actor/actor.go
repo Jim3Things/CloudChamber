@@ -30,11 +30,13 @@ type Actor struct {
 
     latest int64                // current simulate time, in ticks
     waiters *treemap.Map        // waiting delay operations
+
+    epoch  int64                // Epoch counter (policy changes)
 }
 
 // Register the stepper actor with the supplied grpc server (via the adapter
 // functions)
-func Register(svc *grpc.Server) (err error) {
+func Register(svc *grpc.Server, p pb.StepperPolicy) (err error) {
     // Create the base actor object
     act := &Actor{
         adapter: &server{},
@@ -54,9 +56,16 @@ func Register(svc *grpc.Server) (err error) {
         return err
     }
 
-    // .. and finally, connect it to the incoming grpc messages
+    // .. and then, connect it to the incoming grpc messages
     act.adapter.Attach(pid)
     pb.RegisterStepperServer(svc, act.adapter)
+
+    // Finally, if there is a default policy provided, set it now.
+    if p != pb.StepperPolicy_Invalid {
+        if err := act.adapter.SetDefaultPolicy(p); err != nil {
+            return err
+        }
+    }
 
     return nil
 }

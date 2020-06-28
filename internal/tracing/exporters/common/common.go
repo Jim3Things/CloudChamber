@@ -10,22 +10,16 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
-func ExtractEntry(_ context.Context, data *trace.SpanData) log.Entry {
+func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 	spanID := data.SpanContext.SpanID.String()
 	parentID := data.ParentSpanID.String()
 
-	entry := log.Entry{
+	entry := &log.Entry{
 		Name:     data.Name,
 		SpanID:   spanID,
 		ParentID: parentID,
 		Status:   fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
 		StackTrace: "",
-	}
-
-	for _, attr := range data.Attributes {
-		if attr.Key == tracing.StackTraceKey {
-			entry.StackTrace = attr.Value.AsString()
-		}
 	}
 
 	for _, attr := range data.Attributes {

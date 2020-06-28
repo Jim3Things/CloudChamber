@@ -81,13 +81,11 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         if _, err := fmt.Fprintln(w, "Users (List)"); err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         b := r.URL.String()
@@ -101,7 +99,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
             st.Infof(ctx, -1, "   Listing user '%s' at '%s'", entry.Name, target)
 
             if _, err = fmt.Fprintln(w, target); err != nil {
-                httpError(ctx, w, err)
+                return httpError(ctx, w, err)
             }
 
             return err
@@ -121,23 +119,20 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         st.Infof(ctx, -1, "Creating user %q", username)
 
         u := &pb.UserDefinition{}
         if err = jsonpb.Unmarshal(r.Body, u); err != nil {
-            httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
-            return err
+            return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
         }
 
         var rev int64
 
-        if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled); err != nil {
-            httpError(ctx, w, err)
-            return err
+        if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled, false); err != nil {
+            return httpError(ctx, w, err)
         }
 
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
@@ -160,14 +155,12 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         u, rev, err := dbUsers.Get(username)
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         w.Header().Set("Content-Type", "application/json")
@@ -176,6 +169,7 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
         ext := &pb.UserPublic{
             Enabled:        u.Enabled,
             AccountManager: u.AccountManager,
+            NeverDelete:    u.NeverDelete,
         }
 
         st.Infof(ctx, -1, "Returning details for user %q: %v", username, u)
@@ -200,8 +194,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         // All updates are qualified by an ETag match.  The ETag comes from the database
@@ -213,15 +206,13 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         matchString := r.Header.Get("If-Match")
         match, err = strconv.ParseInt(matchString, 10, 64)
         if err != nil {
-            httpError(ctx, w, NewErrBadMatchType(matchString))
-            return err
+            return httpError(ctx, w, NewErrBadMatchType(matchString))
         }
 
         // Next, get the new definition values, and make sure that they are valid.
         upd := &pb.UserDefinition{}
         if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-            httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
-            return err
+            return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
         }
 
         // All the prep is done.  Proceed with the update.  This may get a version
@@ -229,8 +220,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         // can all be considered version conflicts.
         var rev int64
         if rev, err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         w.Header().Set("Content-Type", "application/json")
@@ -261,13 +251,11 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
             })
 
         if err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         if err = userRemove(username); err != nil {
-            httpError(ctx, w, err)
-            return err
+            return httpError(ctx, w, err)
         }
 
         _, err = fmt.Fprintf(w, "User %q deleted.", username)
@@ -302,10 +290,10 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
         })
 
         if err != nil {
-            httpError(ctx, w, err)
-        } else {
-            _, err = fmt.Fprintln(w, s)
+            return httpError(ctx, w, err)
         }
+
+        _, err = fmt.Fprintln(w, s)
 
         return err
     })
@@ -402,7 +390,7 @@ func logout(session *sessions.Session, r *http.Request) (_ string, err error) {
 // attributes that are understood by the route handlers to the internal user
 // attributes understood by the storage system.
 
-func UserAdd(name string, password string, accountManager bool, enabled bool) (int64, error) {
+func UserAdd(name string, password string, accountManager bool, enabled bool, neverDelete bool) (int64, error) {
     passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
     if err != nil {
@@ -413,7 +401,8 @@ func UserAdd(name string, password string, accountManager bool, enabled bool) (i
         Name: name,
         PasswordHash: passwordHash,
         Enabled: enabled,
-        AccountManager: accountManager})
+        AccountManager: accountManager,
+        NeverDelete: neverDelete})
 }
 
 func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) (int64, error) {
@@ -453,15 +442,7 @@ func userVerifyPassword(name string, password []byte) error {
 // Determine if this session's active login has permission to change or
 // manage the targeted account.  Note that any account may manage itself.
 func canManageAccounts(session *sessions.Session, username string) error {
-    key, ok := session.Values[UserNameKey].(string)
-    if !ok {
-        return &HTTPError{
-            SC:   http.StatusBadRequest,
-            Base: http.ErrNoCookie,
-        }
-    }
-
-    user, _, err := dbUsers.Get(key)
+    user, err := getLoggedInUser(session)
     if err != nil {
         return NewErrUserPermissionDenied()
     }

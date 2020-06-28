@@ -33,7 +33,7 @@ func init() {
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
 
-	if err := stepper.Register(s); err != nil {
+	if err := stepper.Register(s, pb.StepperPolicy_Invalid); err != nil {
 		log.Fatalf("Failed to register stepper actor: %v", err)
 	}
 
@@ -49,8 +49,6 @@ func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 }
 
 func commonSetup(t *testing.T) {
-	unit_test.SetTesting(t)
-
 	InitTimestamp("bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
@@ -61,8 +59,11 @@ func commonSetup(t *testing.T) {
 }
 
 func TestNow(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
 	commonSetup(t)
-	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}))
+	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
 
 	now, err := Now()
 	assert.Nil(t, err)
@@ -83,8 +84,11 @@ func TestNow(t *testing.T) {
 }
 
 func TestTimestamp_After(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
 	commonSetup(t)
-	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}))
+	assert.Nil(t, SetPolicy(pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
 
 	now, err := Now()
 	assert.Nil(t, err)

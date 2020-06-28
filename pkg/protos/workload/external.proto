@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package workload;
 
-import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
 
 option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/workload";
@@ -24,13 +23,13 @@ message external {
         }
 
         // Volume size in gigabytes
-        int64 size_in_gb = 1 [(validate.rules).int64.gt = 0];
+        int64 size_in_gb = 1;
 
         // Constraint on the volume type.
-        attr attribute = 2 [(validate.rules).enum.defined_only = true];
+        attr attribute = 2;
 
         // Address where the volume is located
-        string uri = 3 [(validate.rules).string.min_len = 1];
+        string uri = 3;
     }
 
     // Define a single instance
@@ -42,10 +41,10 @@ message external {
         common.instance_requirements required_capacity = 2;
 
         // Boot volume name
-        string system_name = 3 [(validate.rules).string.min_len = 1];
+        string system_name = 3;
 
         // all volumes, must include the boot volume
-        map<string, volume> volumes = 4 [(validate.rules).map.min_pairs = 1];
+        map<string, volume> volumes = 4;
 
         // configuration / metadata to pass to the instance
         string config = 5;
@@ -73,13 +72,13 @@ message external {
     // Define a workload.  This is a logical service made up of one or more instances
     message workload {
         // Specify the workload's name
-        string name = 1 [(validate.rules).string.min_len = 1];
+        string name = 1;
 
         // Specify the affinity policy to apply to the instances
-        affinity_type affinity = 2 [(validate.rules).enum.defined_only = true];
+        affinity_type affinity = 2;
 
         // Define the set of instances in this workload.  Each instance has a name that is unique within
         // the workload.  That name is used as the key in the instance map.
-        map<string, instance> instances = 3 [(validate.rules).map.min_pairs = 1];
+        map<string, instance> instances = 3;
     }
 }

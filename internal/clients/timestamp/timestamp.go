@@ -26,6 +26,13 @@ type TimeData struct {
 	err  error
 }
 
+type TimeStatus struct {
+	policy pb.StepperPolicy
+	delay *duration.Duration
+	now *ct.Timestamp
+	waiters int64
+}
+
 // Store the information needed to be able to connect to the Stepper service.
 func InitTimestamp(name string, opts ...grpc.DialOption) {
 	dialName = name
@@ -34,7 +41,7 @@ func InitTimestamp(name string, opts ...grpc.DialOption) {
 }
 
 // Set the stepper policy
-func SetPolicy(policy pb.StepperPolicy, delay *duration.Duration) error {
+func SetPolicy(policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
 	ctx, conn, err := connect()
 	if err != nil {
 		return err
@@ -44,7 +51,13 @@ func SetPolicy(policy pb.StepperPolicy, delay *duration.Duration) error {
 
 	client := pb.NewStepperClient(conn)
 
-	_, err = client.SetPolicy(ctx, &pb.PolicyRequest{Policy: policy, MeasuredDelay: delay})
+	_, err = client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy: policy,
+			MeasuredDelay: delay,
+			MatchEpoch: match,
+		})
 
 	return err
 }
@@ -108,6 +121,19 @@ func After(deadline *ct.Timestamp) (<-chan TimeData, error) {
 	}(ch)
 
 	return ch, nil
+}
+
+func Status() (*pb.StatusResponse, error) {
+	ctx, conn, err := connect()
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() { _ = conn.Close() }()
+
+	client := pb.NewStepperClient(conn)
+
+	return client.GetStatus(ctx, &pb.GetStatusRequest{})
 }
 
 // Reset the simulated time back to its starting state, including reverting all

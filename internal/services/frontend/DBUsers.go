@@ -36,7 +36,12 @@ func InitDBUsers(cfg *config.GlobalConfig) error {
         }
     }
 
-    _, err := UserAdd(cfg.WebServer.SystemAccount, cfg.WebServer.SystemAccountPassword, true, true)
+    _, err := UserAdd(
+        cfg.WebServer.SystemAccount,
+        cfg.WebServer.SystemAccountPassword,
+        true,
+        true,
+        true)
     return err
 }
 
@@ -58,6 +63,7 @@ func (m *DBUsers) Create(u *pb.User) (int64, error) {
             UserId:               u.UserId,
             Enabled:              u.Enabled,
             AccountManager:       u.AccountManager,
+            NeverDelete:          u.NeverDelete,
         },
         Revision:             1,
     }
@@ -113,13 +119,16 @@ func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
         return InvalidRev, NewErrUserStaleVersion(u.Name)
     }
 
+    // Update the entry, retaining the fields from the old version that are
+    // immutable
     entry := &pb.UserInternal{
         User:                 &pb.User{
-            Name:                 u.Name,
+            Name:                 old.User.Name,
             PasswordHash:         u.PasswordHash,
-            UserId:               u.UserId,
+            UserId:               old.User.UserId,
             Enabled:              u.Enabled,
             AccountManager:       u.AccountManager,
+            NeverDelete:          old.User.NeverDelete,
         },
         Revision:             match + 1,
     }
@@ -134,11 +143,15 @@ func (m *DBUsers) Remove(name string) error {
 
     key := strings.ToLower(name)
 
-    _, ok := m.Users[key]
+    old, ok := m.Users[key]
     if !ok {
         return NewErrUserNotFound(name)
     }
 
-    delete(m.Users, key)
-    return nil
+    if !old.User.NeverDelete {
+        delete(m.Users, key)
+        return nil
+    }
+
+    return NewErrUserProtected(name)
 }

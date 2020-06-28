@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package stepper;
 
-import "github.com/envoyproxy/protoc-gen-validate/validate/validate.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 
 import "google/protobuf/empty.proto";
@@ -31,11 +30,14 @@ service Stepper {
 
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
-    rpc Delay (DelayRequest) returns (common.Timestamp);
+    rpc Delay(DelayRequest) returns (common.Timestamp);
 
     // Forcibly reset the stepper's internal state back to its starting
     // point.
-    rpc Reset (ResetRequest) returns (google.protobuf.Empty);
+    rpc Reset(ResetRequest) returns (google.protobuf.Empty);
+
+    // Get the current status for the stepper service
+    rpc GetStatus(GetStatusRequest) returns (StatusResponse);
 }
 
 // Define the various simulated time stepping policies
@@ -63,10 +65,15 @@ enum StepperPolicy {
 // Define the parameters to a stepper policy request parameters
 message PolicyRequest {
     // Required policy (cannot be Invalid)
-    StepperPolicy policy = 1 [(validate.rules).enum = {in: [1, 2, 3]}];
+    StepperPolicy policy = 1;
 
     // Number of seconds between ticks.  Only valid for the "Measured" policy.
     google.protobuf.Duration measuredDelay = 2;
+
+    // If non-negative, require that the current policy revision number match
+    // Negative values do not require a match, and force an unconditional
+    // application of the new policy
+    int64 matchEpoch = 3;
 }
 
 // Define the request associated with a Step operation
@@ -84,11 +91,14 @@ message DelayRequest {
     // A random number of ticks [0-jitter) are added to the delay time.  This
     // is to simulate the random delays seen in, e.g., disk I/O or network
     // communications.
-    int64 jitter = 2 [(validate.rules).int64.gte = 0];
+    int64 jitter = 2;
 }
 
 // Define the request associated with a forcible reset
 message ResetRequest { }
+
+// Define the request associated with a status request
+message GetStatusRequest { }
 
 // Internally used message to cause a simulate time advance based on timer
 // expiry
@@ -96,4 +106,22 @@ message AutoStepRequest {
     // The epoch number associated with the repeating timer call.  Ignore
     // this message if this value does not match the last timer's epoch.
     int64 epoch = 1;
+}
+
+// Define the current status response message
+message StatusResponse {
+    // Current stepper policy
+    StepperPolicy policy = 1;
+
+    // Current measured delay - should be zero if the policy is not "Measured"
+    google.protobuf.Duration measuredDelay = 2;
+
+    // Current simulated time
+    common.Timestamp now = 3;
+
+    // Number of active waiters (number of outstanding delay calls)
+    int64 waiter_count = 4;
+
+    // Current policy version number
+    int64 epoch = 5;
 }

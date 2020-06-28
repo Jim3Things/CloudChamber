@@ -6,6 +6,7 @@ import (
     "time"
 
     "github.com/AsynkronIT/protoactor-go/actor"
+    "github.com/golang/protobuf/ptypes/duration"
     "github.com/golang/protobuf/ptypes/empty"
 
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
@@ -35,6 +36,25 @@ type server struct {
 // Attach an actor to this grpc adapter
 func (s *server) Attach(pid *actor.PID) {
     s.pid = pid
+}
+
+// Set the default policy.  Note that this is a direct call, not one that
+// passes through the grpc listener.
+func (s *server) SetDefaultPolicy(p pb.StepperPolicy) error {
+    delay := &duration.Duration{Seconds: 1}
+    if p != pb.StepperPolicy_Measured {
+        delay = &duration.Duration{Seconds: 0}
+    }
+
+    in := &pb.PolicyRequest{
+        Policy:        p,
+        MeasuredDelay: delay,
+    }
+
+    c := actor.EmptyRootContext
+    _, err := msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result())
+
+    return err
 }
 
 // +++ GRPC Methods
@@ -90,6 +110,15 @@ func (s *server) Reset(_ context.Context, in *pb.ResetRequest) (*empty.Empty, er
     return asEmpty(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
 }
 
+func (s *server) GetStatus(_ context.Context, in *pb.GetStatusRequest) (*pb.StatusResponse, error) {
+    if err := in.Validate(); err != nil {
+        return nil, err
+    }
+
+    c := actor.EmptyRootContext
+    return asStatusResponse(msgToError(c.RequestFuture(s.pid, in, ActorTimeout).Result()))
+}
+
 // --- GRPC Methods
 
 // +++ Helper functions
@@ -107,6 +136,15 @@ func asTimestamp(res interface{}, err error) (*common.Timestamp, error) {
 func asEmpty(res interface{}, err error) (*empty.Empty, error) {
     if err == nil {
         return res.(*empty.Empty), err
+    }
+
+    return nil, err
+}
+
+// Convert the return pair into (StatusResposne, error) types
+func asStatusResponse(res interface{}, err error) (*pb.StatusResponse, error) {
+    if err == nil {
+        return res.(*pb.StatusResponse), err
     }
 
     return nil, err
