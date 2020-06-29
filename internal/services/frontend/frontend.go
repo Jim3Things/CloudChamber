@@ -87,12 +87,10 @@ func normalizeURL(next http.Handler) http.Handler {
 func initHandlers() error {
 
 	handler := mux.NewRouter()
-	filesAddRoutes(server.rootFilePath, handler)
 
-	routeAPI := handler.PathPrefix("/api").Subrouter()
-
-	// Now add the routes for the API
+	// Add the routes for the API
 	//
+	routeAPI := handler.PathPrefix("/api").Subrouter()
 	usersAddRoutes(routeAPI)
 	workloadsAddRoutes(routeAPI)
 	inventoryAddRoutes(routeAPI)
@@ -105,6 +103,10 @@ func initHandlers() error {
 	//
 	routeAPI.HandleFunc("/logs", handlerLogsRoot).Methods("GET")
 	routeAPI.HandleFunc("/injector", handlerInjectorRoot).Methods("GET")
+
+	// Add the file handling for any other paths.
+	handler.PathPrefix("/").
+		Handler(http.StripPrefix("/", http.FileServer(http.Dir(server.rootFilePath))))
 
 	server.handler = normalizeURL(handler)
 
