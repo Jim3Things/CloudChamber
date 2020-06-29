@@ -11,11 +11,7 @@ File Layout
 ===========
 
 frontend.go
-Base file containing the global defitnion for the package and the main() entry point
-
-files.go
-Implements the service handler to serve files back to user that comprise the primary
-UI to the client browser
+Base file containing the global definition for the package and the main() entry point
 
 users.go
 Implements the service handler to provide the API to manage user records. Generally
@@ -25,7 +21,9 @@ workloads.go
 Implements the service handler to provide the API to manage workload records. Generally
 invoked by the UI files and scripts executing on the client browser.
 
-
+stepper.go
+Implements the service handler to provide the API to query and change the simulated
+time.
 
 Service Syntax
 ==============
@@ -33,14 +31,14 @@ Service Syntax
 In the below definitions, the "{" and "}" characters surround an object name/key and are not included
 in the URI. For example, to read the record of the user with the name "Bob", the URI would be
 
+First, note that /api is a reserved subtree for all REST operations.  Any URI that is outside
+of that subtree is assumed to be a static file that needs to be served.
+
+
 GET - /api/users/Bob
 
 
 The syntax of the commands to the web servers are
-
-/
-returns the root pages for the service which provide the primary interaction with
-the user. Any subsequent pages rereuied will also be served under this root path.
 
 GET - /api/users
 list all the user records. At some point we may need to add a filter to restrict
@@ -57,7 +55,7 @@ document is invalid in some way, or if the supplied username is not known.
 POST - /api/users/{username}
 Creates a record for the user matching username, or an error if the supplied
 document is invalid in some way. If the user record is successfully created,
-the reponse will be an HTTP 201 (Created) status.
+the response will be an HTTP 201 (Created) status.
 
 If the supplied username is already known, and the supplied document excatly
 matches the existing record, this will be interpreted as a duplicate request
@@ -69,7 +67,7 @@ DELETE - /api/users/{username}
 Deletes the record for the user matching username, or an error is the supplied
 username is not known.
 
-PUT /api/users/{username}?op=[login|logout|enable|disable]
+PUT /api/users/{username}?op=[login|logout]
 Updates the user record the for user matching username according to the supplied
 operation, or returns and error if the supplied username is not known, or the
 operation code is invalid in some way.
