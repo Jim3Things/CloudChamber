@@ -5,6 +5,7 @@ import (
     "net/http"
     "net/http/httptest"
     "testing"
+    "time"
 
     "github.com/stretchr/testify/assert"
 
@@ -56,6 +57,33 @@ func testStepperGetStatus(t *testing.T) *pb.StatusResponse {
     assert.Equal(t, http.StatusOK, response.StatusCode)
 
     res := &pb.StatusResponse{}
+    err := getJsonBody(response, res)
+
+    assert.Nilf(t, err, "Unexpected error, err: %v", err)
+
+    return res
+}
+
+func testStepperAdvance(t *testing.T) *common.Timestamp {
+    request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?advance"), nil)
+    response := doHTTP(request, nil)
+    assert.Equal(t, http.StatusOK, response.StatusCode)
+
+    res := &common.Timestamp{}
+    err := getJsonBody(response, res)
+
+    assert.Nilf(t, err, "Unexpected error, err: %v", err)
+
+    return res
+}
+
+func testStepperAfter(t *testing.T, after int64) *common.Timestamp  {
+    request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=%d", testStepperPath(), after), nil)
+    response := doHTTP(request, nil)
+
+    assert.Equal(t, http.StatusOK, response.StatusCode)
+
+    res := &common.Timestamp{}
     err := getJsonBody(response, res)
 
     assert.Nilf(t, err, "Unexpected error, err: %v", err)
@@ -154,14 +182,7 @@ func TestStepperAdvanceOne(t *testing.T) {
     res := testStepperGetNow(t)
     assert.Equal(t, int64(0), res.Ticks, "Time expected to be reset, was %d", res.Ticks)
 
-    request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?advance"), nil)
-    response := doHTTP(request, nil)
-    assert.Equal(t, http.StatusOK, response.StatusCode)
-
-    res2 := &common.Timestamp{}
-    err := getJsonBody(response, res2)
-
-    assert.Nilf(t, err, "Unexpected error, err: %v", err)
+    res2 := testStepperAdvance(t)
 
     assert.Equal(t, int64(1), res2.Ticks - res.Ticks, "time expected to advance by 1, old: %d, new: %d", res.Ticks, res2.Ticks)
 }
@@ -222,6 +243,55 @@ func TestStepperSetManualBadRate(t *testing.T) {
     defer unit_test.SetTesting(nil)
 
     request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?mode=manual=10"), nil)
+    response := doHTTP(request, nil)
+
+    assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+}
+
+func TestStepperAfter(t *testing.T) {
+    var afterHit = false
+
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
+    stat := testStepperGetStatus(t)
+    testStepperSetManual(t, stat.Epoch)
+
+    res := testStepperGetNow(t)
+    go func(after int64) {
+        res := testStepperAfter(t, after)
+
+        assert.Less(t, after, res.Ticks)
+        afterHit = true
+    }(res.Ticks)
+
+    _ = testStepperAdvance(t)
+    time.Sleep(time.Duration(2) * time.Second)
+    assert.True(t, afterHit)
+}
+
+func TestStepperAfterBadPastTick(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
+    stat := testStepperGetStatus(t)
+    testStepperSetManual(t, stat.Epoch)
+
+    res := testStepperGetNow(t)
+    _ = testStepperAdvance(t)
+
+    res2 := testStepperAfter(t, res.Ticks)
+    assert.Less(t, res.Ticks, res2.Ticks)
+}
+
+func TestStepperAfterBadTick(t *testing.T) {
+    unit_test.SetTesting(t)
+    defer unit_test.SetTesting(nil)
+
+    stat := testStepperGetStatus(t)
+    testStepperSetManual(t, stat.Epoch)
+
+    request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=-1", testStepperPath()), nil)
     response := doHTTP(request, nil)
 
     assert.Equal(t, http.StatusBadRequest, response.StatusCode)

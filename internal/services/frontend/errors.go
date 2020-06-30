@@ -207,4 +207,13 @@ func NewErrStepperFailedToSetPolicy() *HTTPError {
     }
 }
 
+// ErrInvalidStepperRate indicates that the supplied ticks-per-second rate was
+// not recognized as a valid number.
+func NewErrInvalidStepperAfter(after string) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusBadRequest,
+		Base: fmt.Errorf("CloudChamber: requested 'after' tick value %q could not be parsed as a positive decimal number", after),
+	}
+}
+
 // --- HTTPError specializations
