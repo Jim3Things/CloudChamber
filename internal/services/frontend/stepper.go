@@ -15,6 +15,7 @@ import (
     "github.com/Jim3Things/CloudChamber/internal/tracing"
     st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+    ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
 func stepperAddRoutes(routeBase *mux.Router) {
@@ -26,6 +27,7 @@ func stepperAddRoutes(routeBase *mux.Router) {
     routeStepper.HandleFunc("", handleAdvance).Queries("advance", "{num}").Methods("PUT")
     routeStepper.HandleFunc("", handleSetMode).Queries("mode", "{type}").Methods("PUT")
 
+    routeStepper.HandleFunc("/now", handleWaitFor).Queries("after", "{after}").Methods("GET")
     routeStepper.HandleFunc("/now", handleGetNow).Methods("GET")
 }
 
@@ -88,17 +90,15 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 // request, or it may advance at some number of ticks per second.  If the
 // latter, the default rate is 1 tick per second.
 func handleSetMode(w http.ResponseWriter, r *http.Request) {
-    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
         vars := mux.Vars(r)
         args := strings.Split(strings.Replace(vars["type"], "=", ":", 1), ":")
 
         var delay *duration.Duration
         var policy pb.StepperPolicy
 
-        var match int64
-
         matchString := r.Header.Get("If-Match")
-        match, err = strconv.ParseInt(matchString, 10, 64)
+        match, err := strconv.ParseInt(matchString, 10, 64)
         if err != nil {
             return httpError(ctx, w, NewErrBadMatchType(matchString))
         }
@@ -139,6 +139,36 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("ETag", fmt.Sprintf("%v", match + 1))
 
         return nil
+    })
+}
+
+// Process an http request to wait for the first tick after the one specified.
+// This can be used to be notified of time changes when the simulated time is
+// in the 'automatic' state.
+func handleWaitFor(w http.ResponseWriter, r *http.Request) {
+    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+        vars := mux.Vars(r)
+        after := vars["after"]
+
+        afterTick, err := strconv.ParseInt(after, 10, 64)
+        if err != nil || afterTick < 0 {
+            return httpError(ctx, w, NewErrInvalidStepperAfter(after))
+        }
+
+        ch, err := clients.After(&ct.Timestamp{Ticks: afterTick + 1})
+        if err != nil {
+            return httpError(ctx, w, err)
+        }
+
+        data := <-ch
+        if data.Err != nil {
+            return httpError(ctx, w, err)
+        }
+
+        w.Header().Set("Content-Type", "application/json")
+
+        p := jsonpb.Marshaler{}
+        return p.Marshal(w, data.Time)
     })
 }
 

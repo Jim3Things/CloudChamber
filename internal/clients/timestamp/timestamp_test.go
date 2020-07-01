@@ -102,8 +102,8 @@ func TestTimestamp_After(t *testing.T) {
 		data := <-ch
 		afterHit = true
 
-		assert.Nil(t, data.err)
-		assert.GreaterOrEqual(t, deadline, data.time.Ticks)
+		assert.Nil(t, data.Err)
+		assert.GreaterOrEqual(t, deadline, data.Time.Ticks)
 	}(3)
 
 	assert.Nil(t, Advance())
