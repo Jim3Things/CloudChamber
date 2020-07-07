@@ -77,7 +77,10 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 
+	//	"github.com/golang/protobuf/jsonpb"
+
 	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3/concurrency"
 	"go.etcd.io/etcd/clientv3/namespace"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"google.golang.org/grpc/codes"
@@ -958,4 +961,302 @@ func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		return ErrStoreNotImplemented("SetWatchWithPrefix")
 	})
+}
+
+// RecordType is used to describe the type of the record value associated with a specific record key
+//
+type RecordType int64
+
+const (
+	RecordTypeInvalid RecordType = iota
+	RecordTypeUser
+	RecordTypeWorkload
+	RecordTypeRack
+	RecordTypeBlade
+	RecordTypeTOR
+	RecordTypePDU
+)
+
+const (
+	RevisionInvalid       int64 = -1
+	RevisionUnconditional int64 = 0
+)
+
+type RevisionCompare int64
+
+const (
+	RevisionCompareUnconditional RevisionCompare = iota
+	RevisionCompareNotEqual
+	RevisionCompareLess
+	RevisionCompareLessOrEqual
+	RevisionCompareEqual
+	RevisionCompareEqualOrGreater
+	RevisionCompareGreater
+)
+
+/*
+type record struct {
+	checksum       int64      `json:"Checksum"`
+	recordType     RecordType `json:"Type"`
+	timeLastUpdate time.Time  `json:"LastUpdate"`
+	timeCreation   time.Time  `json:"Creation"`
+
+	etag  int64  `json:"ETag"`
+	value []byte `json:"Value"`
+}
+
+type readResult struct {
+	key string
+}
+
+type readResponse struct {
+	key   string
+	value []byte
+	err   error
+}
+*/
+
+/*
+// RecordKey is a
+//
+type RecordKey2 struct {
+	Key string
+}
+*/
+
+// RecordKeySet is a struct defining the set of keys to be read along with an arbitrary
+// label to tag the transaction.
+//
+type RecordKeySet struct {
+	Label string
+	Keys  []string
+}
+
+// Record is a struct defining a single value and the associated revision describing
+// the store revision when the value was last updated.
+//
+type Record struct {
+	Revision int64
+	Value    string
+}
+
+// RecordSet is a struct defining a set of k,v pairs along with the revision of the
+// store at the time the values were retrieved.
+//
+type RecordSet struct {
+	Revision int64
+	Records  map[string]Record
+}
+
+// RecordUpdate is a struct defining a single value and it's revision along with
+// a condition based upon that revision which will permit an update to be attempted.
+//
+type RecordUpdate struct {
+	Compare RevisionCompare
+	Record  Record
+}
+
+// RecordUpdateSet is a struct defining the set of key value pairs to be updated
+// within a transaction along with conditions for a successful update based upon
+// the current revision of the k,v pair
+//
+type RecordUpdateSet struct {
+	Label   string
+	Records map[string]RecordUpdate
+}
+
+// WriteMultipleTxn is a method to write/update a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) {
+
+	revision := RevisionInvalid
+
+	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		prefetchKeys := make([]string, len(recordSet.Records))
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		// Build an array of keys to supply as the arg to prefetch
+		// on the WithPrefetch() option below
+		//
+		for k, ru := range recordSet.Records {
+			if ru.Record.Revision == RevisionInvalid {
+				return ErrStoreBadArgRevision(k)
+			} else if ru.Record.Revision != RevisionUnconditional {
+
+				switch ru.Compare {
+				case RevisionCompareLess:
+					fallthrough
+
+				case RevisionCompareLessOrEqual:
+					fallthrough
+
+				case RevisionCompareEqual:
+					fallthrough
+
+				case RevisionCompareEqualOrGreater:
+					fallthrough
+
+				case RevisionCompareGreater:
+					prefetchKeys[len(prefetchKeys)] = k
+
+				default:
+					return ErrStoreBadArgCompare(k)
+				}
+			}
+		}
+
+		actionWriteRecords := func(stm concurrency.STM) error {
+			for k, ru := range recordSet.Records {
+				if ru.Record.Revision != RevisionUnconditional {
+
+					rev := stm.Rev(k)
+
+					switch ru.Compare {
+					case RevisionCompareLess:
+						if rev >= ru.Record.Revision {
+							return ErrStoreRevisionMismatch(k)
+						}
+
+					case RevisionCompareLessOrEqual:
+						if rev > ru.Record.Revision {
+							return ErrStoreRevisionMismatch(k)
+						}
+
+					case RevisionCompareEqual:
+						if rev != ru.Record.Revision {
+							return ErrStoreRevisionMismatch(k)
+						}
+
+					case RevisionCompareNotEqual:
+						if rev == ru.Record.Revision {
+							return ErrStoreRevisionMismatch(k)
+						}
+
+					case RevisionCompareEqualOrGreater:
+						if rev < ru.Record.Revision {
+							return ErrStoreRevisionMismatch(k)
+						}
+
+					case RevisionCompareGreater:
+						if rev <= ru.Record.Revision {
+							return ErrStoreRevisionMismatch(k)
+						}
+					}
+				}
+			}
+
+			// it is only now that we know all the conditions have been met
+			// that we take the time to process all the updates.
+			//
+			for k, ru := range recordSet.Records {
+				stm.Put(k, string(ru.Record.Value))
+			}
+
+			return nil
+		}
+
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionWriteRecords,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !response.Succeeded {
+			err := ErrStoreKeyFetchFailure(recordSet.Label)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+
+			return err
+		}
+
+		revision = response.Header.Revision
+
+		return nil
+	})
+
+	if err != nil {
+		return RevisionInvalid, err
+	}
+
+	return revision, nil
+}
+
+// ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
+
+	resultSet := RecordSet{0, make(map[string]Record)}
+
+	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		actionReadRecords := func(stm concurrency.STM) error {
+			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
+
+			for _, k := range keySet.Keys {
+				//				val := stm.Get(k)
+				//				rev := stm.Rev(k)
+
+				// TODO - do we attempt to decode/unmarshall the implicit value here?
+				//
+				//				rec := Record{Revision: rev, Value: val}
+				//				resultSet.Records[k] = rec
+				//				resultSet.Records[k] = Record{Revision: rev, Value: val}
+				resultSet.Records[k] = Record{Revision: stm.Rev(k), Value: stm.Get(k)}
+			}
+
+			return nil
+		}
+
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionReadRecords,
+			concurrency.WithIsolation(concurrency.ReadCommitted),
+			concurrency.WithPrefetch(keySet.Keys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !response.Succeeded {
+			err := ErrStoreKeyFetchFailure(keySet.Label)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resultSet.Revision = response.Header.Revision
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &resultSet, nil
+}
+
+func (store *Store) decode(ctx context.Context, value []byte) (*Record, error) {
+	return nil, nil
+}
+
+func (store *Store) update(ctx context.Context, key string, value []byte) error {
+	return nil
 }

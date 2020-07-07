@@ -47,6 +47,15 @@ func (esknf ErrStoreKeyNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: key %q not found", string(esknf))
 }
 
+// ErrStoreKeyTypeMismatch indicates the request key was not found when the store
+// lookup/fetch was attempted.
+//
+type ErrStoreKeyTypeMismatch string
+
+func (esktm ErrStoreKeyTypeMismatch) Error() string {
+	return fmt.Sprintf("CloudChamber: key %q not the requested type", string(esktm))
+}
+
 // ErrStoreNotImplemented indicated the called method does not yet have an
 // implementation
 //
@@ -54,4 +63,36 @@ type ErrStoreNotImplemented string
 
 func (esni ErrStoreNotImplemented) Error() string {
 	return fmt.Sprintf("CloudChamber: method %v not currently implemented", string(esni))
+}
+
+// ErrStoreKeyFetchFailure indicates the read transaction failed.
+//
+type ErrStoreKeyFetchFailure string
+
+func (eskff ErrStoreKeyFetchFailure) Error() string {
+	return fmt.Sprintf("CloudChamber: fetch txn failed reading keys %q", string(eskff))
+}
+
+// ErrStoreRevisionMismatch indicates the update transaction failed due to a revision mismatch.
+//
+type ErrStoreRevisionMismatch string
+
+func (esrm ErrStoreRevisionMismatch) Error() string {
+	return fmt.Sprintf("CloudChamber: revision mismatch on update for key %q", string(esrm))
+}
+
+// ErrStoreBadArgRevision indicates the supplied revision argument was invalid.
+//
+type ErrStoreBadArgRevision string
+
+func (esbar ErrStoreBadArgRevision) Error() string {
+	return fmt.Sprintf("CloudChamber: invalid revision argument supplied on update for key %q", string(esbar))
+}
+
+// ErrStoreBadArgCompare indicates the compare argument for the update was not valid.
+//
+type ErrStoreBadArgCompare string
+
+func (esbac ErrStoreBadArgCompare) Error() string {
+	return fmt.Sprintf("CloudChamber: compare operator not valid for key %q", string(esbac))
 }

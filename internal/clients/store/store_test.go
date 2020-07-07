@@ -15,7 +15,16 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	"github.com/stretchr/testify/assert"
+	//	"go.opentelemetry.io/otel/api/kv"
 )
+
+// A number of tests use a pre-computed set of keys for the purposes of
+// the test. This constant determines the standard size of these sets.
+// The value chosen is largely arbitrary. Selecting a value that is too
+// large may lead to problems with values to /from the underlying store,
+// so be reasonable.
+//
+const keySetSize = 100
 
 var (
 	baseURI     string
@@ -90,6 +99,40 @@ func cleanNamespace(testNamespace string) error {
 	store.Disconnect()
 
 	return nil
+}
+
+func testGenerateKeyValueSet(setSize int, setName string) []KeyValueArg {
+
+	keyValueSet := make([]KeyValueArg, setSize)
+
+	for i := range keyValueSet {
+		keyValueSet[i].key = fmt.Sprintf("%s/Key%04d", setName, i)
+		keyValueSet[i].value = fmt.Sprintf("%s/Val%04d", setName, i)
+	}
+
+	return keyValueSet
+}
+
+func testGenerateKeyValueMapFromKeyValueSet(keyValueSet []KeyValueArg) map[string]string {
+
+	keyValueMap := make(map[string]string, len(keyValueSet))
+
+	for _, kv := range keyValueSet {
+		keyValueMap[kv.key] = kv.value
+	}
+
+	return keyValueMap
+}
+
+func testGenerateKeySetFromKeyValueSet(keyValueSet []KeyValueArg) []string {
+
+	keySet := make([]string, len(keyValueSet))
+
+	for i, kv := range keyValueSet {
+		keySet[i] = kv.key
+	}
+
+	return keySet
 }
 
 func TestMain(m *testing.M) {
@@ -380,22 +423,8 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	keyValueSetSize := 100
-
-	prefixKey := "TestStoreWriteReadMultiple/Key"
-	prefixVal := "TestStoreWriteReadMultiple/Value"
-
-	keySet := make([]string, keyValueSetSize)
-	keyValueSet := make([]KeyValueArg, keyValueSetSize)
-
-	for i := range keySet {
-		keySet[i] = fmt.Sprintf("%s%04d", prefixKey, i)
-	}
-
-	for i := range keyValueSet {
-		keyValueSet[i].key = fmt.Sprintf("%s%04d", prefixKey, i)
-		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
-	}
+	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultiple")
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -430,23 +459,11 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	keyValueSetSize := 100
+	prefix := "TestStoreWriteReadWithPrefix"
+	prefixKey := prefix + "/Key"
 
-	prefixKey := "TestStoreWriteReadWithPrefix/Key"
-	prefixVal := "TestStoreWriteReadWithPrefix/Value"
-
-	keyValueSet := make([]KeyValueArg, keyValueSetSize)
-
-	for i := range keyValueSet {
-		keyValueSet[i].key = fmt.Sprintf("%s%04d", prefixKey, i)
-		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
-	}
-
-	keyValueMap := make(map[string]string, len(keyValueSet))
-
-	for _, kv := range keyValueSet {
-		keyValueMap[kv.key] = kv.value
-	}
+	keyValueSet := testGenerateKeyValueSet(keySetSize, prefix)
+	keyValueMap := testGenerateKeyValueMapFromKeyValueSet(keyValueSet)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -461,7 +478,7 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 	//
 	// We expect success with a non-nil but empty set.
 	//
-	invalidKey := prefixKey + "invalidname"
+	invalidKey := prefixKey + "Invalidname"
 	response, err := store.ReadWithPrefix(invalidKey)
 	assert.Nilf(t, err, "Succeeded to read non-existing prefix key from store - error: %v prefixKey: %v", err, invalidKey)
 	assert.NotNilf(t, response, "Failed to get a non-nil response as expected - error: %v prefixKey: %v", err, invalidKey)
@@ -541,22 +558,8 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	keyValueSetSize := 100
-
-	prefixKey := "TestStoreWriteDeleteMultiple/Key"
-	prefixVal := "TestStoreWriteDeleteMultiple/Value"
-
-	keySet := make([]string, keyValueSetSize)
-	keyValueSet := make([]KeyValueArg, keyValueSetSize)
-
-	for i := range keySet {
-		keySet[i] = fmt.Sprintf("%s%04d", prefixKey, i)
-	}
-
-	for i := range keyValueSet {
-		keyValueSet[i].key = fmt.Sprintf("%s%04d", prefixKey, i)
-		keyValueSet[i].value = fmt.Sprintf("%s%04d", prefixVal, i)
-	}
+	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultipleTxn")
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -581,7 +584,7 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	keyValueSetSize := 100
+	keyValueSetSize := keySetSize
 
 	prefixKey := "TestStoreWriteDeleteWithPrefix/Key"
 	prefixVal := "TestStoreWriteDeleteWithPrefix/Value"
@@ -788,6 +791,155 @@ func TestStoreSyncClusterConnections(t *testing.T) {
 
 	err = store.UpdateClusterConnections()
 	assert.Nilf(t, err, "Failed to update cluster connections - error: %v", err)
+
+	store.Disconnect()
+
+	store = nil
+
+	return
+}
+
+func TestStoreWriteReadMultipleTxn(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultipleTxn")
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	err = store.WriteMultiple(keyValueSet)
+	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+
+	recordKeySet := RecordKeySet{"TestStoreWriteReadMultipleTxn", keySet}
+
+	response, err := store.ReadMultipleTxn(recordKeySet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, len(recordKeySet.Keys), len(response.Records), "Unexpected numbers of records returned")
+
+	for _, kv := range keyValueSet {
+		record := response.Records[kv.key]
+		assert.NotNilf(t, record, "Failed to retrieve record for key %q", kv.key)
+		assert.Equalf(t, kv.value, response.Records[kv.key].Value, "Unexpected value for record %q retrieved for key %q", record, kv.key)
+	}
+
+	store.Disconnect()
+
+	store = nil
+
+	return
+}
+
+func TestStoreWriteMultipleTxn(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultipleTxn")
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
+
+	recordUpdateSet := RecordUpdateSet{Label: "TestStoreWriteMultipleTxn", Records: make(map[string]RecordUpdate)}
+
+	// Build a set of key,value pairs to be unconditionally written to the store.
+	//
+	for _, kv := range keyValueSet {
+		recordUpdateSet.Records[kv.key] =
+			RecordUpdate{
+				Compare: RevisionCompareUnconditional,
+				Record: Record{
+					Revision: RevisionUnconditional,
+					Value:    kv.value,
+				},
+			}
+	}
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	revStoreWrite, err := store.WriteMultipleTxn(&recordUpdateSet)
+	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+	assert.NotEqualf(t, 0, revStoreWrite, "Unexpected value for store revision on transaction completion")
+
+	// Fetch the set of key,value pairs that we just wrote, along
+	// with the revisions of the writes.
+	//
+	recordKeySet := RecordKeySet{Label: "TestStoreWriteReadMultipleTxn", Keys: keySet}
+
+	readResponse, err := store.ReadMultipleTxn(recordKeySet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, len(recordKeySet.Keys), len(readResponse.Records), "Unexpected numbers of records returned")
+	assert.Equalf(t, revStoreWrite, readResponse.Revision, "Unexpected value for store revision given no updates")
+
+	for _, kv := range keyValueSet {
+		record := readResponse.Records[kv.key]
+		assert.NotNilf(t, record, "Failed to retrieve record for key %q", kv.key)
+		assert.Equalf(t, kv.value, readResponse.Records[kv.key].Value, "Unexpected value for record %q retrieved for key %q", record, kv.key)
+	}
+
+	// We verified the write worked, so try some conditional updates.
+	//
+	revStoreCurrent := readResponse.Revision
+
+	key := keyValueSet[0].key
+	val := keyValueSet[0].value
+
+	keySetUpdate := []string{key}
+	recordKeySetUpdate := RecordKeySet{Label: "TestStoreWriteReadMultipleTxn", Keys: keySetUpdate}
+	recordConditionalUpdate := RecordUpdateSet{Label: "TestStoreWriteMultipleTxn", Records: make(map[string]RecordUpdate)}
+
+	// Verify condition "unconditional"
+	//
+	recordConditionalUpdate.Records[key] = RecordUpdate{
+		Compare: RevisionCompareUnconditional,
+		Record: Record{
+			Revision: RevisionUnconditional,
+			Value:    val + "Update-Unconditional",
+		},
+	}
+
+	revStoreNew, err := store.WriteMultipleTxn(&recordConditionalUpdate)
+	assert.Nilf(t, err, "Failed to write unconditional update to store - error: %v", err)
+	assert.Lessf(t, revStoreCurrent, revStoreNew, "Expected new store revision to be greater than the earlier store revision")
+
+	revStoreCurrent = revStoreNew
+
+	readResponseUpdate, err := store.ReadMultipleTxn(recordKeySetUpdate)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, len(recordKeySet.Keys), len(readResponseUpdate.Records), "Unexpected numbers of records returned")
+	assert.Equalf(t, revStoreCurrent, readResponseUpdate.Revision, "Unexpected value for store revision given no updates")
+
+	assert.Lessf(t, readResponse.Records[key].Revision, recordConditionalUpdate.Records[key].Record.Revision, "Unexpected revision for unconditional update")
+	assert.Equalf(t, recordConditionalUpdate.Records[key].Record.Value, readResponseUpdate.Records[key].Value, "Unexpected value for unconditional update")
+
+	// Verify condition "less than"
+	//
+	recordConditionalUpdate.Records[key] = RecordUpdate{
+		Compare: RevisionCompareLess,
+		Record: Record{
+			Revision: readResponseUpdate.Records[key].Revision,
+			Value:    val + "Update-ConditionalLess",
+		},
+	}
+
+	revStoreNew, err = store.WriteMultipleTxn(&recordConditionalUpdate)
+	assert.Nilf(t, err, "Failed to write condition less-than update to store - error: %v", err)
+	assert.Lessf(t, revStoreCurrent, revStoreNew, "Expected new store revision to be greater than the earlier store revision")
+
+	revStoreCurrent = revStoreNew
+
+	readResponseUpdate, err := store.ReadMultipleTxn(recordKeySetUpdate)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, len(recordKeySet.Keys), len(readResponseUpdate.Records), "Unexpected numbers of records returned")
+	assert.Equalf(t, revStoreCurrent, readResponseUpdate.Revision, "Unexpected value for store revision given no updates")
+
+	assert.Lessf(t, readResponse.Records[key].Revision, recordConditionalUpdate.Records[key].Record.Revision, "Unexpected revision for less-than update")
+	assert.Equalf(t, recordConditionalUpdate.Records[key].Record.Value, readResponseUpdate.Records[key].Value, "Unexpected value for less-than update")
 
 	store.Disconnect()
 
