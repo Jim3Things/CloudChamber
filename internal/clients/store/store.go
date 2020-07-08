@@ -77,8 +77,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 
-	//	"github.com/golang/protobuf/jsonpb"
-
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
 	"go.etcd.io/etcd/clientv3/namespace"
@@ -1089,6 +1087,9 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 			} else if ru.Record.Revision != RevisionUnconditional {
 
 				switch ru.Compare {
+				case RevisionCompareNotEqual:
+					fallthrough
+
 				case RevisionCompareLess:
 					fallthrough
 
