@@ -82,8 +82,7 @@ func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
 
 }
 
-func (m *DBInventory) ScanBladesinRack(rackid string, action func(bladeid int64) error) error {
-
+func (m *DBInventory) ScanBladesInRack(rackid string, action func(bladeid int64) error) error {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
@@ -92,11 +91,9 @@ func (m *DBInventory) ScanBladesinRack(rackid string, action func(bladeid int64)
 		return NewErrRackNotFound(rackid)
 	}
 	for name := range r.Blades {
-
 		if err := action(name); err != nil {
 			return err
 		}
-
 	}
 	return nil
 }

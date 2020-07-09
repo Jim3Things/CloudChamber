@@ -48,7 +48,7 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
 	routeRacks.HandleFunc("/{rackid}", handlerRacksRead).Methods("GET")
-	routeRacks.HandleFunc("/{rackid}/blades")
+	routeRacks.HandleFunc("/{rackid}/blades",)
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksUpdate).Methods("PUT", "GET")
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
 }
@@ -121,7 +121,7 @@ func handlerBladeList(w http.ResponseWriter, r http.Request) {
 		vars := mux.Vars(r)
 		rackid := vars["rackid"] // captured the key value in rackid variable
 	
-		if _, err := fmt.Fprintln(w, "Racks (List)"); err != nil { // Why printing the rack list in here?
+		if _, err := fmt.Fprintf(w, "Blades in %s (List)\n", rackid); err != nil { // Why printing the rack list in here?
 			return httpError(ctx, w, err)
 		}
 
@@ -130,20 +130,45 @@ func handlerBladeList(w http.ResponseWriter, r http.Request) {
 			b += "/"
 		}
 
-		return dbInventory.ScanBladesinRack(rackid, func(bladeid int64) (err error) ) {
+		return dbInventory.ScanBladesInRack(rackid, func(bladeid int64) (err error) ) {
 
-			target := fmt.Sprintf("%s%s", b, bladeid)
-
-			st.Infof(ctx, -1, " Listing blades '%s' at '%s'", bladeid, target)
+			target := fmt.Sprintf("%s%d", b, bladeid)
+						st.Infof(ctx, -1, " Listing blades '%d' at '%s'", bladeid, target)
+			
 			if _, err = fmt.Fprintln(w, target); err != nil {
 				return httpError(ctx, w, err)
 			}
-			return nil
-		})  
+			return
+		}  
 
 	})
 }
 
+func handlerBladeRead(w http.ResponseWriter, r http.Request){
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error){
+		vars := mux.Vars(r)
+		rackid := vars["rackid"] // captured the key value in rackid variable
+	
+		if _, err := fmt.Fprintf(w, "Blades in %s (List)\n", rackid); err != nil { // Why printing the rack list in here?
+			return httpError(ctx, w, err)
+		}
+
+		b := r.URL.String()
+		if !strings.HasSuffix(b, "/") {
+			b += "/"
+		}
+		return dbInventory.ScanBladesInRack(rackid, func(bladeid int64) (err error) ) {
+		w.Header().Set("Content-Type", "application/json")
+
+		st.Infof(ctx, -1, "Returning details for blade %d: %v", bladeid, u)
+
+		// Get the user entry, and serialize it to json
+		// (export userPublic to json and return that as the body)
+		p := jsonpb.Marshaler{}
+		return p.Marshal(w, u)
+	}
+	return
+}
 
 //func handlerracksUpdate(w http.ResponseWriter, r *http.Request) {
 
