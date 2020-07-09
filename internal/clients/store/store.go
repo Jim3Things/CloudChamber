@@ -995,7 +995,7 @@ type WriteCondition int64
 //
 const (
 	WriteConditionCreate WriteCondition = iota
-	WriteConditionOverwrite
+	WriteConditionUnconditional
 	WriteConditionRevisionNotEqual
 	WriteConditionRevisionLess
 	WriteConditionRevisionLessOrEqual
@@ -1075,6 +1075,74 @@ type RecordUpdateSet struct {
 	Records map[string]RecordUpdate
 }
 
+// ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
+
+	resultSet := RecordSet{0, make(map[string]Record)}
+
+	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		actionReadRecords := func(stm concurrency.STM) error {
+			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
+
+			for _, k := range keySet.Keys {
+
+				rev := stm.Rev(k)
+
+				// If the revision is zero, we take that to mean the key
+				// does not actually exist.
+				//
+				// Note that a key might well exist even if the value is
+				// an empty string. At least I believe it can. We choose
+				// to use the revision instead as a more reliable
+				// indicator of existence.
+				//
+				if rev != 0 {
+					resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+				}
+			}
+
+			return nil
+		}
+
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionReadRecords,
+			concurrency.WithIsolation(concurrency.ReadCommitted),
+			concurrency.WithPrefetch(keySet.Keys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !response.Succeeded {
+			err := ErrStoreKeyFetchFailure(keySet.Label)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resultSet.Revision = response.Header.Revision
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &resultSet, nil
+}
+
 // WriteMultipleTxn is a method to write/update a set of arbitrary keys within a
 // single txn so they form a (self-)consistent set.
 //
@@ -1095,7 +1163,7 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 		//
 		for k, ru := range recordSet.Records {
 			switch ru.Condition {
-			case WriteConditionOverwrite:
+			case WriteConditionUnconditional:
 				// No need to prefetch if not comparing anything
 				break
 
@@ -1135,7 +1203,7 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 					if stm.Get(k) != "" {
 						return ErrStoreWriteConditionFail(k)
 					}
-				} else if ru.Condition != WriteConditionOverwrite {
+				} else if ru.Condition != WriteConditionUnconditional {
 					rev := stm.Rev(k)
 
 					switch ru.Condition {
@@ -1209,37 +1277,109 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 	return revision, err
 }
 
-// ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
-// single txn so they form a (self-)consistent set.
+// DeleteMultipleTxn is a method to delete a set of arbitrary keys within a
+// single txn so they form a (self-)consistent operation.
 //
-func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
+func (store *Store) DeleteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) {
 
-	resultSet := RecordSet{0, make(map[string]Record)}
+	revision := RevisionInvalid
 
 	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		prefetchKeys := make([]string, 0, len(recordSet.Records))
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
 		}
 
-		actionReadRecords := func(stm concurrency.STM) error {
-			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
+		// Build an array of keys to supply as the arg to prefetch
+		// on the WithPrefetch() option below
+		//
+		for k, ru := range recordSet.Records {
+			switch ru.Condition {
+			case WriteConditionUnconditional:
+				// No need to prefetch if not comparing anything
+				break
 
-			for _, k := range keySet.Keys {
+			case WriteConditionRevisionNotEqual:
+				fallthrough
 
-				rev := stm.Rev(k)
+			case WriteConditionRevisionLess:
+				fallthrough
 
-				// If the revision is zero, we take that to mean the key
-				// does not actually exist.
-				//
-				// Note that a key might well exist even if the value is
-				// an empty string. At least I believe it can. We choose
-				// to use the revision instead as a more reliable
-				// indicator of existence.
-				//
-				if rev != 0 {
-					resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+			case WriteConditionRevisionLessOrEqual:
+				fallthrough
+
+			case WriteConditionRevisionEqual:
+				fallthrough
+
+			case WriteConditionRevisionEqualOrGreater:
+				fallthrough
+
+			case WriteConditionRevisionGreater:
+				if ru.Record.Revision == RevisionInvalid {
+					return ErrStoreBadArgRevision(k)
 				}
+
+				fallthrough
+
+			case WriteConditionCreate:
+				prefetchKeys = append(prefetchKeys, k)
+
+			default:
+				return ErrStoreBadArgCompare(k)
+			}
+		}
+
+		actionWriteRecords := func(stm concurrency.STM) error {
+			for k, ru := range recordSet.Records {
+				if ru.Condition == WriteConditionCreate {
+					if stm.Get(k) != "" {
+						return ErrStoreWriteConditionFail(k)
+					}
+				} else if ru.Condition != WriteConditionUnconditional {
+					rev := stm.Rev(k)
+
+					switch ru.Condition {
+					case WriteConditionRevisionLess:
+						if rev >= ru.Record.Revision {
+							return ErrStoreWriteConditionFail(k)
+						}
+
+					case WriteConditionRevisionLessOrEqual:
+						if rev > ru.Record.Revision {
+							return ErrStoreWriteConditionFail(k)
+						}
+
+					case WriteConditionRevisionEqual:
+						if rev != ru.Record.Revision {
+							return ErrStoreWriteConditionFail(k)
+						}
+
+					case WriteConditionRevisionNotEqual:
+						if rev == ru.Record.Revision {
+							return ErrStoreWriteConditionFail(k)
+						}
+
+					case WriteConditionRevisionEqualOrGreater:
+						if rev < ru.Record.Revision {
+							return ErrStoreWriteConditionFail(k)
+						}
+
+					case WriteConditionRevisionGreater:
+						if rev <= ru.Record.Revision {
+							return ErrStoreWriteConditionFail(k)
+						}
+					}
+				}
+			}
+
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k := range recordSet.Records {
+				stm.Del(k)
 			}
 
 			return nil
@@ -1247,9 +1387,9 @@ func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
 
 		response, err := concurrency.NewSTM(
 			store.Client,
-			actionReadRecords,
-			concurrency.WithIsolation(concurrency.ReadCommitted),
-			concurrency.WithPrefetch(keySet.Keys...),
+			actionWriteRecords,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(prefetchKeys...),
 		)
 
 		if err != nil {
@@ -1257,30 +1397,16 @@ func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
 		}
 
 		if !response.Succeeded {
-			err := ErrStoreKeyFetchFailure(keySet.Label)
+			err := ErrStoreKeyDeleteFailure(recordSet.Label)
 			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
 
 			return err
 		}
 
-		// And finally, the revision for the store as a whole.
-		//
-		resultSet.Revision = response.Header.Revision
+		revision = response.Header.Revision
 
 		return nil
 	})
 
-	if err != nil {
-		return nil, err
-	}
-
-	return &resultSet, nil
-}
-
-func (store *Store) decode(ctx context.Context, value []byte) (*Record, error) {
-	return nil, nil
-}
-
-func (store *Store) update(ctx context.Context, key string, value []byte) error {
-	return nil
+	return revision, err
 }

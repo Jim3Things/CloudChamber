@@ -716,7 +716,7 @@ func TestStoreWriteMultipleTxn(t *testing.T) {
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
-	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionOverwrite)
+	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionUnconditional)
 	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
 
 	store := NewStore()
@@ -868,7 +868,7 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 
 	for k, r := range recordCreateSet.Records {
 		recordUpdateSet.Records[k] = RecordUpdate{
-			Condition: WriteConditionOverwrite,
+			Condition: WriteConditionUnconditional,
 			Record: Record{
 				Revision: RevisionInvalid,
 				Value:    r.Record.Value + "+ConditionOverwrite",

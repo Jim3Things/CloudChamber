@@ -16,6 +16,8 @@ const (
 	adminUpdate          = "AdminUpdate"
 	adminUpdatePassword  = "AdminUpdatePassword"
 	adminUpdatePassword2 = "AdminUpdatePasswordUpdated"
+	adminDelete          = "AdminDelete"
+	adminDeletePassword  = "AdminDeletePassword"
 	alice                = "Alice"
 	bob                  = "Bob"
 	alicePassword        = "AlicePassowrd"
@@ -128,6 +130,61 @@ func TestUserUpdate(t *testing.T) {
 	readRevUpdate, err = store.UserUpdate(userUpdate, readRev)
 	assert.NotNilf(t, err, "Unecpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, readRevUpdate, "Expected update revision to be greater than create revision")
+
+	store.Disconnect()
+
+	store = nil
+	return
+}
+
+func TestUserDelete(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	userName := adminDelete
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminDeletePassword), bcrypt.DefaultCost)
+
+	user := &pb.User{
+		Name:           userName,
+		PasswordHash:   passwordHash,
+		UserId:         1,
+		Enabled:        true,
+		AccountManager: true,
+		NeverDelete:    true,
+	}
+
+	revCreate, err := store.UserCreate(user)
+	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
+	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+
+	userRead, revRead, err := store.UserRead(userName)
+	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
+	assert.Equalf(t, revCreate, revRead, "Unexpected difference in update revision vs read revision")
+	assert.Equalf(t, user, userRead, "Unexpected difference in updated user record and read user record")
+
+	revDelete, err := store.UserDelete(user, revRead-1)
+	assert.NotNilf(t, err, "Unecpected success trying to update with wrong revision for user %q - error: %v", userName, err)
+	assert.Equalf(t, RevisionInvalid, revDelete, "Expected post-delete revision to be greater than read revision")
+
+	revDelete, err = store.UserDelete(user, revRead)
+	assert.Nilf(t, err, "Failed to delete user %q - error: %v", userName, err)
+	assert.Lessf(t, revRead, revDelete, "Expected post-delete revision to be greater than read revision")
+
+	userReread, revReread, err := store.UserRead(userName)
+	assert.NotNilf(t, err, "Unexpected success reading user %q after deletion - error: %v", userName, err)
+	assert.Equalf(t, RevisionInvalid, revReread, "Unexpected difference in update revision vs read revision")
+	assert.Nilf(t, userReread, "Unexpected success in reading user %q after delete", userName)
+
+	revDeleteAgain, err := store.UserDelete(user, revRead)
+	assert.NotNilf(t, err, "Unecpected success trying to update with wrong revision for user %q - error: %v", userName, err)
+	assert.Equalf(t, RevisionInvalid, revDeleteAgain, "Expected post-re-delete revision invalid")
 
 	store.Disconnect()
 

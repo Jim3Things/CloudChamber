@@ -70,15 +70,23 @@ func (esni ErrStoreNotImplemented) Error() string {
 type ErrStoreKeyFetchFailure string
 
 func (eskff ErrStoreKeyFetchFailure) Error() string {
-	return fmt.Sprintf("CloudChamber: fetch txn failed reading keys %q", string(eskff))
+	return fmt.Sprintf("CloudChamber: fetch txn failed reading key %q", string(eskff))
+}
+
+// ErrStoreKeyDeleteFailure indicates the read transaction failed.
+//
+type ErrStoreKeyDeleteFailure string
+
+func (eskdf ErrStoreKeyDeleteFailure) Error() string {
+	return fmt.Sprintf("CloudChamber: fetch txn failed deleting key %q", string(eskdf))
 }
 
 // ErrStoreWriteConditionFail indicates the update transaction failed due to a revision mismatch.
 //
 type ErrStoreWriteConditionFail string
 
-func (esrm ErrStoreWriteConditionFail) Error() string {
-	return fmt.Sprintf("CloudChamber: condition fail/mismatch on update for key %q", string(esrm))
+func (eswcf ErrStoreWriteConditionFail) Error() string {
+	return fmt.Sprintf("CloudChamber: condition fail/mismatch on update for key %q", string(eswcf))
 }
 
 // ErrStoreBadArgRevision indicates the supplied revision argument was invalid.
@@ -95,4 +103,12 @@ type ErrStoreBadArgCompare string
 
 func (esbac ErrStoreBadArgCompare) Error() string {
 	return fmt.Sprintf("CloudChamber: compare operator not valid for key %q", string(esbac))
+}
+
+// ErrStoreBadRecordCount indicates the record count for the update was not valid.
+//
+type ErrStoreBadRecordCount string
+
+func (esbrc ErrStoreBadRecordCount) Error() string {
+	return fmt.Sprintf("CloudChamber: did not get the number of records expected %q", string(esbrc))
 }

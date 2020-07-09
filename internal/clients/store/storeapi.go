@@ -138,6 +138,12 @@ func (store *Store) UserRead(name string) (user *pb.User, rev int64, err error) 
 			return err
 		}
 
+		recordCount := len(readResponse.Records)
+
+		if recordCount != 1 {
+			return ErrStoreBadRecordCount(recordCount)
+		}
+
 		u := &pb.User{}
 
 		err = jsonpb.Unmarshal(strings.NewReader(readResponse.Records[name].Value), u)
@@ -159,9 +165,39 @@ func (store *Store) UserRead(name string) (user *pb.User, rev int64, err error) 
 
 // UserDelete is a method
 //
-func (store *Store) UserDelete() error {
+func (store *Store) UserDelete(u *pb.User, revision int64) (rev int64, err error) {
+
 	methodName := tracing.MethodName(1)
-	return st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
-		return ErrStoreNotImplemented(methodName)
+
+	err = st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		recordSet := RecordUpdateSet{Label: methodName, Records: make(map[string]RecordUpdate)}
+
+		recordSet.Records[u.Name] =
+			RecordUpdate{
+				Condition: WriteConditionRevisionEqual,
+				Record: Record{
+					Revision: revision,
+					Value:    "",
+				},
+			}
+
+		revStore, err := store.DeleteMultipleTxn(&recordSet)
+
+		if err != nil {
+			return err
+		}
+
+		rev = revStore
+
+		st.Infof(ctx, -1, "Deleted user %q with revision %v", u.Name, rev)
+
+		return nil
 	})
+
+	return rev, err
 }
