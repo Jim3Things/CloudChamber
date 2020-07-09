@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const revStoreInitial = int64(0)
+
 func TestNew(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -687,14 +689,16 @@ func TestStoreWriteReadMultipleTxn(t *testing.T) {
 
 	recordKeySet := RecordKeySet{"TestStoreWriteReadMultipleTxn", keySet}
 
-	response, err := store.ReadMultipleTxn(recordKeySet)
+	readResponse, err := store.ReadMultipleTxn(recordKeySet)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
-	assert.Equalf(t, len(recordKeySet.Keys), len(response.Records), "Unexpected numbers of records returned")
+	assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on transaction completion")
+	assert.Equalf(t, len(recordKeySet.Keys), len(readResponse.Records), "Unexpected numbers of records returned")
 
 	for _, kv := range keyValueSet {
-		record := response.Records[kv.key]
+		record := readResponse.Records[kv.key]
 		assert.NotNilf(t, record, "Failed to retrieve record for key %q", kv.key)
-		assert.Equalf(t, kv.value, response.Records[kv.key].Value, "Unexpected value for record %q retrieved for key %q", record, kv.key)
+		assert.Lessf(t, revStoreInitial, readResponse.Records[kv.key].Revision, "Unexpected revision for record %q retrieved for key %q", record, kv.key)
+		assert.Equalf(t, kv.value, readResponse.Records[kv.key].Value, "Unexpected value for record %q retrieved for key %q", record, kv.key)
 	}
 
 	store.Disconnect()
@@ -708,23 +712,12 @@ func TestStoreWriteMultipleTxn(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultipleTxn")
+	testName := "TestStoreWriteMultipleTxn"
+
+	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
-
-	recordUpdateSet := RecordUpdateSet{Label: "TestStoreWriteMultipleTxn", Records: make(map[string]RecordUpdate)}
-
-	// Build a set of key,value pairs to be unconditionally written to the store.
-	//
-	for _, kv := range keyValueSet {
-		recordUpdateSet.Records[kv.key] =
-			RecordUpdate{
-				Compare: RevisionCompareUnconditional,
-				Record: Record{
-					Revision: RevisionUnconditional,
-					Value:    kv.value,
-				},
-			}
-	}
+	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionOverwrite)
+	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -734,82 +727,247 @@ func TestStoreWriteMultipleTxn(t *testing.T) {
 
 	revStoreWrite, err := store.WriteMultipleTxn(&recordUpdateSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
-	assert.NotEqualf(t, 0, revStoreWrite, "Unexpected value for store revision on transaction completion")
+	assert.Lessf(t, revStoreInitial, revStoreWrite, "Unexpected value for store revision on transaction completion")
 
 	// Fetch the set of key,value pairs that we just wrote, along
 	// with the revisions of the writes.
 	//
-	recordKeySet := RecordKeySet{Label: "TestStoreWriteReadMultipleTxn", Keys: keySet}
-
-	readResponse, err := store.ReadMultipleTxn(recordKeySet)
+	readResponse, err := store.ReadMultipleTxn(recordReadSet)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
-	assert.Equalf(t, len(recordKeySet.Keys), len(readResponse.Records), "Unexpected numbers of records returned")
 	assert.Equalf(t, revStoreWrite, readResponse.Revision, "Unexpected value for store revision given no updates")
+	assert.Equalf(t, len(recordReadSet.Keys), len(readResponse.Records), "Unexpected numbers of records returned")
 
+	// Verify all the keys in the update set were actually written
+	//
 	for _, kv := range keyValueSet {
 		record := readResponse.Records[kv.key]
 		assert.NotNilf(t, record, "Failed to retrieve record for key %q", kv.key)
+		assert.Equalf(t, revStoreWrite, readResponse.Records[kv.key].Revision, "Unexpected revision for record %q retrieved for key %q", record, kv.key)
 		assert.Equalf(t, kv.value, readResponse.Records[kv.key].Value, "Unexpected value for record %q retrieved for key %q", record, kv.key)
 	}
 
-	// We verified the write worked, so try some conditional updates.
+	store.Disconnect()
+
+	store = nil
+
+	return
+}
+
+func TestStoreWriteMultipleTxnCreate(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	testName := "TestStoreWriteMultipleTxnCreate"
+	keySetSize := 1
+
+	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
+	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionCreate)
+	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	// Verify that none of the keys we care about exist in the store
 	//
-	revStoreCurrent := readResponse.Revision
+	readResponse, err := store.ReadMultipleTxn(recordReadSet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Lessf(t, RevisionInvalid, readResponse.Revision, "Unexpected value for store revision given expected failure")
+	assert.Equalf(t, 0, len(readResponse.Records), "Unexpected numbers of records returned")
 
-	key := keyValueSet[0].key
-	val := keyValueSet[0].value
+	revStoreCreate, err := store.WriteMultipleTxn(&recordUpdateSet)
+	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+	assert.Lessf(t, revStoreInitial, revStoreCreate, "Unexpected value for store revision on write(crerate) completion")
 
-	keySetUpdate := []string{key}
-	recordKeySetUpdate := RecordKeySet{Label: "TestStoreWriteReadMultipleTxn", Keys: keySetUpdate}
-	recordConditionalUpdate := RecordUpdateSet{Label: "TestStoreWriteMultipleTxn", Records: make(map[string]RecordUpdate)}
-
-	// Verify condition "unconditional"
+	// The write claimed to succeed, now go fetch the record(s) and verify
+	// the revision(s) and value(s) are as expected
 	//
-	recordConditionalUpdate.Records[key] = RecordUpdate{
-		Compare: RevisionCompareUnconditional,
-		Record: Record{
-			Revision: RevisionUnconditional,
-			Value:    val + "Update-Unconditional",
-		},
+	readResponse, err = store.ReadMultipleTxn(recordReadSet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, revStoreCreate, readResponse.Revision, "Unexpected value for store revision given no updates")
+	assert.Equalf(t, len(recordReadSet.Keys), len(readResponse.Records), "Unexpected numbers of records returned")
+
+	for k, r := range readResponse.Records {
+		assert.Equalf(t, revStoreCreate, r.Revision, "read revision does not match earlier write revision")
+		assert.Equalf(t, recordUpdateSet.Records[k].Record.Value, r.Value, "read value does not match earlier write value")
 	}
 
-	revStoreNew, err := store.WriteMultipleTxn(&recordConditionalUpdate)
+	// Try to re-create the same keys. These should fail and the original values and revisions should survive.
+	//
+	revStoreRecreate, err := store.WriteMultipleTxn(&recordUpdateSet)
+	assert.NotNilf(t, err, "Succeeded where we expected to get a failed to write to store - error: %v", err)
+	// assert.Equalf(t, ErrStoreWriteConditionFail(keyFail), err, "Failed to get the expected error value")
+	assert.Equalf(t, RevisionInvalid, revStoreRecreate, "Unexpected value for store revision on write(re-create) completion")
+
+	readResponseRecreate, err := store.ReadMultipleTxn(recordReadSet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, len(recordReadSet.Keys), len(readResponseRecreate.Records), "Unexpected numbers of records returned")
+	assert.Equalf(t, revStoreCreate, readResponseRecreate.Revision, "Unexpected value for store revision given no updates")
+
+	for k, r := range readResponseRecreate.Records {
+		assert.Equalf(t, revStoreCreate, r.Revision, "read revision does not match earlier write revision")
+		assert.Equalf(t, recordUpdateSet.Records[k].Record.Value, r.Value, "read value does not match earlier write value")
+	}
+
+	store.Disconnect()
+
+	store = nil
+
+	return
+}
+
+func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	testName := "TestStoreWriteMultipleTxnOverwrite"
+	keySetSize := 1
+
+	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
+	recordCreateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionCreate)
+	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	// Verify that none of the keys we care about exist in the store
+	//
+	readResponse, err := store.ReadMultipleTxn(recordReadSet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Lessf(t, RevisionInvalid, readResponse.Revision, "Unexpected value for store revision given expected failure")
+	assert.Equalf(t, 0, len(readResponse.Records), "Unexpected numbers of records returned")
+
+	revStoreCreate, err := store.WriteMultipleTxn(&recordCreateSet)
+	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+	assert.Lessf(t, revStoreInitial, revStoreCreate, "Unexpected value for store revision on write(create) completion")
+
+	// The write claimed to succeed, now go fetch the record(s) and verify
+	// the revision(s) and value(s) are as expected
+	//
+	readResponse, err = store.ReadMultipleTxn(recordReadSet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, revStoreCreate, readResponse.Revision, "Unexpected value for store revision given no updates")
+	assert.Equalf(t, len(recordReadSet.Keys), len(readResponse.Records), "Unexpected numbers of records returned")
+
+	for k, r := range readResponse.Records {
+		assert.Equalf(t, revStoreCreate, r.Revision, "read revision does not match earlier write revision")
+		assert.Equalf(t, recordCreateSet.Records[k].Record.Value, r.Value, "read value does not match earlier write value")
+	}
+
+	// We verified the write worked, so try an unconditional overwrite. Set the
+	// required condition and change the value so we can verify after the update.
+	//
+	recordUpdateSet := RecordUpdateSet{Label: testName, Records: make(map[string]RecordUpdate)}
+
+	for k, r := range recordCreateSet.Records {
+		recordUpdateSet.Records[k] = RecordUpdate{
+			Condition: WriteConditionOverwrite,
+			Record: Record{
+				Revision: RevisionInvalid,
+				Value:    r.Record.Value + "+ConditionOverwrite",
+			},
+		}
+	}
+
+	revStoreUpdate, err := store.WriteMultipleTxn(&recordUpdateSet)
 	assert.Nilf(t, err, "Failed to write unconditional update to store - error: %v", err)
-	assert.Lessf(t, revStoreCurrent, revStoreNew, "Expected new store revision to be greater than the earlier store revision")
+	assert.Lessf(t, revStoreCreate, revStoreUpdate, "Expected new store revision to be greater than the earlier store revision")
 
-	revStoreCurrent = revStoreNew
-
-	readResponseUpdate, err := store.ReadMultipleTxn(recordKeySetUpdate)
+	readResponseUpdate, err := store.ReadMultipleTxn(recordReadSet)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
-	assert.Equalf(t, len(recordKeySet.Keys), len(readResponseUpdate.Records), "Unexpected numbers of records returned")
-	assert.Equalf(t, revStoreCurrent, readResponseUpdate.Revision, "Unexpected value for store revision given no updates")
+	assert.Equalf(t, revStoreUpdate, readResponseUpdate.Revision, "Unexpected value for store revision given no updates")
+	assert.Equalf(t, len(recordReadSet.Keys), len(readResponseUpdate.Records), "Unexpected numbers of records returned")
 
-	assert.Lessf(t, readResponse.Records[key].Revision, recordConditionalUpdate.Records[key].Record.Revision, "Unexpected revision for unconditional update")
-	assert.Equalf(t, recordConditionalUpdate.Records[key].Record.Value, readResponseUpdate.Records[key].Value, "Unexpected value for unconditional update")
-
-	// Verify condition "less than"
-	//
-	recordConditionalUpdate.Records[key] = RecordUpdate{
-		Compare: RevisionCompareLess,
-		Record: Record{
-			Revision: readResponseUpdate.Records[key].Revision,
-			Value:    val + "Update-ConditionalLess",
-		},
+	for k, r := range readResponseUpdate.Records {
+		assert.Equalf(t, revStoreUpdate, r.Revision, "read revision does not match earlier write revision")
+		assert.Equalf(t, recordUpdateSet.Records[k].Record.Value, r.Value, "read value does not match earlier write value")
 	}
 
-	revStoreNew, err = store.WriteMultipleTxn(&recordConditionalUpdate)
-	assert.Nilf(t, err, "Failed to write condition less-than update to store - error: %v", err)
-	assert.Lessf(t, revStoreCurrent, revStoreNew, "Expected new store revision to be greater than the earlier store revision")
+	store.Disconnect()
 
-	revStoreCurrent = revStoreNew
+	store = nil
 
-	readResponseUpdate, err = store.ReadMultipleTxn(recordKeySetUpdate)
+	return
+}
+
+func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	testName := "TestStoreWriteMultipleTxnCompareEqual"
+	keySetSize := 1
+
+	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
+	recordCreateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionCreate)
+	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	// Verify that none of the keys we care about exist in the store
+	//
+	readResponse, err := store.ReadMultipleTxn(recordReadSet)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
-	assert.Equalf(t, len(recordKeySet.Keys), len(readResponseUpdate.Records), "Unexpected numbers of records returned")
-	assert.Equalf(t, revStoreCurrent, readResponseUpdate.Revision, "Unexpected value for store revision given no updates")
+	assert.Lessf(t, RevisionInvalid, readResponse.Revision, "Unexpected value for store revision given expected failure")
+	assert.Equalf(t, 0, len(readResponse.Records), "Unexpected numbers of records returned")
 
-	assert.Lessf(t, readResponse.Records[key].Revision, recordConditionalUpdate.Records[key].Record.Revision, "Unexpected revision for less-than update")
-	assert.Equalf(t, recordConditionalUpdate.Records[key].Record.Value, readResponseUpdate.Records[key].Value, "Unexpected value for less-than update")
+	revStoreCreate, err := store.WriteMultipleTxn(&recordCreateSet)
+	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+	assert.Lessf(t, revStoreInitial, revStoreCreate, "Unexpected value for store revision on write(create) completion")
+
+	// The write claimed to succeed, now go fetch the record(s) and verify
+	// the revision(s) and value(s) are as expected
+	//
+	readResponse, err = store.ReadMultipleTxn(recordReadSet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, revStoreCreate, readResponse.Revision, "Unexpected value for store revision given no updates")
+	assert.Equalf(t, len(recordReadSet.Keys), len(readResponse.Records), "Unexpected numbers of records returned")
+
+	for k, r := range readResponse.Records {
+		assert.Equalf(t, revStoreCreate, r.Revision, "read revision does not match earlier write revision")
+		assert.Equalf(t, recordCreateSet.Records[k].Record.Value, r.Value, "read value does not match earlier write value")
+	}
+
+	// We verified the write worked, so try an conditional update when the revisions
+	// are equal. Set the required condition and change the value so we can verify
+	// after the update.
+	//
+	recordUpdateSet := RecordUpdateSet{Label: testName, Records: make(map[string]RecordUpdate)}
+
+	for k, r := range readResponse.Records {
+		recordUpdateSet.Records[k] = RecordUpdate{
+			Condition: WriteConditionRevisionEqual,
+			Record: Record{
+				Revision: r.Revision,
+				Value:    r.Value + "+ConditionEqual",
+			},
+		}
+	}
+
+	revStoreUpdate, err := store.WriteMultipleTxn(&recordUpdateSet)
+	assert.Nilf(t, err, "Failed to write conditional(equal) update to store - error: %v", err)
+	assert.Lessf(t, revStoreCreate, revStoreUpdate, "Expected new store revision to be greater than the earlier store revision")
+
+	readResponseUpdate, err := store.ReadMultipleTxn(recordReadSet)
+	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+	assert.Equalf(t, revStoreUpdate, readResponseUpdate.Revision, "Unexpected value for store revision given no further updates")
+	assert.Equalf(t, len(recordReadSet.Keys), len(readResponseUpdate.Records), "Unexpected numbers of records returned")
+
+	for k, r := range readResponseUpdate.Records {
+		assert.Equalf(t, revStoreUpdate, r.Revision, "read revision does not match earlier write revision")
+		assert.Equalf(t, recordUpdateSet.Records[k].Record.Value, r.Value, "read value does not match earlier write value")
+	}
 
 	store.Disconnect()
 

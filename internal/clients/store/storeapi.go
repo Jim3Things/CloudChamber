@@ -32,9 +32,51 @@ func (store *Store) UserCreate(u *pb.User) (rev int64, err error) {
 			return err
 		}
 
-		// If we need to do the read to get the revision, we will need an array of the keys
-		//
-		users := []string{u.Name}
+		p := jsonpb.Marshaler{}
+		value, err := p.MarshalToString(u)
+
+		if err != nil {
+			return err
+		}
+
+		recordSet := RecordUpdateSet{Label: methodName, Records: make(map[string]RecordUpdate)}
+
+		recordSet.Records[u.Name] =
+			RecordUpdate{
+				Condition: WriteConditionCreate,
+				Record: Record{
+					Revision: RevisionInvalid,
+					Value:    value,
+				},
+			}
+
+		revStore, err := store.WriteMultipleTxn(&recordSet)
+
+		if err != nil {
+			return err
+		}
+
+		rev = revStore
+
+		st.Infof(ctx, -1, "Created user %q with revision %v", u.Name, rev)
+
+		return nil
+	})
+
+	return rev, err
+}
+
+// UserUpdate is a method
+//
+func (store *Store) UserUpdate(u *pb.User, revision int64) (rev int64, err error) {
+
+	methodName := tracing.MethodName(1)
+
+	err = st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
 
 		p := jsonpb.Marshaler{}
 		value, err := p.MarshalToString(u)
@@ -43,38 +85,26 @@ func (store *Store) UserCreate(u *pb.User) (rev int64, err error) {
 			return err
 		}
 
-		// We should probably add a "Create" condition
-		//
-		recordUpdateSet := RecordUpdateSet{Label: methodName, Records: make(map[string]RecordUpdate)}
+		recordSet := RecordUpdateSet{Label: methodName, Records: make(map[string]RecordUpdate)}
 
-		recordUpdateSet.Records[users[0]] =
+		recordSet.Records[u.Name] =
 			RecordUpdate{
-				Compare: RevisionCompareUnconditional,
+				Condition: WriteConditionRevisionEqual,
 				Record: Record{
-					Revision: RevisionUnconditional,
+					Revision: revision,
 					Value:    value,
 				},
 			}
 
-		revStore, err := store.WriteMultipleTxn(&recordUpdateSet)
+		revStore, err := store.WriteMultipleTxn(&recordSet)
 
 		if err != nil {
 			return err
 		}
 
-		recordKeySet := RecordKeySet{Label: methodName, Keys: users}
+		rev = revStore
 
-		readResponse, err := store.ReadMultipleTxn(recordKeySet)
-
-		if err != nil {
-			return err
-		}
-
-		rev = readResponse.Records[users[0]].Revision
-
-		st.Infof(ctx, -1, "Write user record with store revision %v and record revision %v", revStore, rev)
-
-		st.Infof(ctx, -1, "Created User %q with revision %v", users[0], rev)
+		st.Infof(ctx, -1, "Updated user %q with revision %v", u.Name, rev)
 
 		return nil
 	})
@@ -125,15 +155,6 @@ func (store *Store) UserRead(name string) (user *pb.User, rev int64, err error) 
 	})
 
 	return user, rev, err
-}
-
-// UserUpdate is a method
-//
-func (store *Store) UserUpdate() error {
-	methodName := tracing.MethodName(1)
-	return st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
-		return ErrStoreNotImplemented(methodName)
-	})
 }
 
 // UserDelete is a method

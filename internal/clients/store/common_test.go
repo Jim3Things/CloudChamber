@@ -130,6 +130,26 @@ func testGenerateKeySetFromKeyValueSet(keyValueSet []KeyValueArg) []string {
 	return keySet
 }
 
+// Build a set of key,value pairs to be created unconditionally in the store.
+//
+func testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet []KeyValueArg, label string, condition WriteCondition) RecordUpdateSet {
+
+	recordUpdateSet := RecordUpdateSet{Label: label, Records: make(map[string]RecordUpdate)}
+
+	for _, kv := range keyValueSet {
+		recordUpdateSet.Records[kv.key] =
+			RecordUpdate{
+				Condition: condition,
+				Record: Record{
+					Revision: RevisionInvalid,
+					Value:    kv.value,
+				},
+			}
+	}
+
+	return recordUpdateSet
+}
+
 // TestMain is the Common test startup method.  This is the _only_ Test* function in this
 // file.
 func TestMain(m *testing.M) {

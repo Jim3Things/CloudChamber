@@ -73,12 +73,12 @@ func (eskff ErrStoreKeyFetchFailure) Error() string {
 	return fmt.Sprintf("CloudChamber: fetch txn failed reading keys %q", string(eskff))
 }
 
-// ErrStoreRevisionMismatch indicates the update transaction failed due to a revision mismatch.
+// ErrStoreWriteConditionFail indicates the update transaction failed due to a revision mismatch.
 //
-type ErrStoreRevisionMismatch string
+type ErrStoreWriteConditionFail string
 
-func (esrm ErrStoreRevisionMismatch) Error() string {
-	return fmt.Sprintf("CloudChamber: revision mismatch on update for key %q", string(esrm))
+func (esrm ErrStoreWriteConditionFail) Error() string {
+	return fmt.Sprintf("CloudChamber: condition fail/mismatch on update for key %q", string(esrm))
 }
 
 // ErrStoreBadArgRevision indicates the supplied revision argument was invalid.

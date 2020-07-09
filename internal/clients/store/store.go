@@ -961,6 +961,7 @@ func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
 	})
 }
 
+/*
 // RecordType is used to describe the type of the record value associated with a specific record key
 //
 type RecordType int64
@@ -974,22 +975,33 @@ const (
 	RecordTypeTOR
 	RecordTypePDU
 )
+*/
 
+// RevisionInvalid is returned from certain operations if
+// failure cases and is also used when defining
+// unconditional write to the store.
+//
 const (
-	RevisionInvalid       int64 = -1
-	RevisionUnconditional int64 = 0
+	RevisionInvalid int64 = 0
 )
 
-type RevisionCompare int64
+// WriteCondition is a type used to define the test to be
+// applied when making a conditional write to the store
+//
+type WriteCondition int64
 
+// Set of specifiers for the type of condition in a
+// conditional write record update.
+//
 const (
-	RevisionCompareUnconditional RevisionCompare = iota
-	RevisionCompareNotEqual
-	RevisionCompareLess
-	RevisionCompareLessOrEqual
-	RevisionCompareEqual
-	RevisionCompareEqualOrGreater
-	RevisionCompareGreater
+	WriteConditionCreate WriteCondition = iota
+	WriteConditionOverwrite
+	WriteConditionRevisionNotEqual
+	WriteConditionRevisionLess
+	WriteConditionRevisionLessOrEqual
+	WriteConditionRevisionEqual
+	WriteConditionRevisionEqualOrGreater
+	WriteConditionRevisionGreater
 )
 
 /*
@@ -1050,8 +1062,8 @@ type RecordSet struct {
 // a condition based upon that revision which will permit an update to be attempted.
 //
 type RecordUpdate struct {
-	Compare RevisionCompare
-	Record  Record
+	Condition WriteCondition
+	Record    Record
 }
 
 // RecordUpdateSet is a struct defining the set of key value pairs to be updated
@@ -1072,7 +1084,7 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 
 	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
-		prefetchKeys := make([]string, len(recordSet.Records))
+		prefetchKeys := make([]string, 0, len(recordSet.Records))
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
@@ -1082,77 +1094,87 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 		// on the WithPrefetch() option below
 		//
 		for k, ru := range recordSet.Records {
-			if ru.Record.Revision == RevisionInvalid {
-				return ErrStoreBadArgRevision(k)
-			} else if ru.Record.Revision != RevisionUnconditional {
+			switch ru.Condition {
+			case WriteConditionOverwrite:
+				// No need to prefetch if not comparing anything
+				break
 
-				switch ru.Compare {
-				case RevisionCompareNotEqual:
-					fallthrough
+			case WriteConditionRevisionNotEqual:
+				fallthrough
 
-				case RevisionCompareLess:
-					fallthrough
+			case WriteConditionRevisionLess:
+				fallthrough
 
-				case RevisionCompareLessOrEqual:
-					fallthrough
+			case WriteConditionRevisionLessOrEqual:
+				fallthrough
 
-				case RevisionCompareEqual:
-					fallthrough
+			case WriteConditionRevisionEqual:
+				fallthrough
 
-				case RevisionCompareEqualOrGreater:
-					fallthrough
+			case WriteConditionRevisionEqualOrGreater:
+				fallthrough
 
-				case RevisionCompareGreater:
-					prefetchKeys[len(prefetchKeys)] = k
-
-				default:
-					return ErrStoreBadArgCompare(k)
+			case WriteConditionRevisionGreater:
+				if ru.Record.Revision == RevisionInvalid {
+					return ErrStoreBadArgRevision(k)
 				}
+
+				fallthrough
+
+			case WriteConditionCreate:
+				prefetchKeys = append(prefetchKeys, k)
+
+			default:
+				return ErrStoreBadArgCompare(k)
 			}
 		}
 
 		actionWriteRecords := func(stm concurrency.STM) error {
 			for k, ru := range recordSet.Records {
-				if ru.Record.Revision != RevisionUnconditional {
-
+				if ru.Condition == WriteConditionCreate {
+					if stm.Get(k) != "" {
+						return ErrStoreWriteConditionFail(k)
+					}
+				} else if ru.Condition != WriteConditionOverwrite {
 					rev := stm.Rev(k)
 
-					switch ru.Compare {
-					case RevisionCompareLess:
+					switch ru.Condition {
+					case WriteConditionRevisionLess:
 						if rev >= ru.Record.Revision {
-							return ErrStoreRevisionMismatch(k)
+							return ErrStoreWriteConditionFail(k)
 						}
 
-					case RevisionCompareLessOrEqual:
+					case WriteConditionRevisionLessOrEqual:
 						if rev > ru.Record.Revision {
-							return ErrStoreRevisionMismatch(k)
+							return ErrStoreWriteConditionFail(k)
 						}
 
-					case RevisionCompareEqual:
+					case WriteConditionRevisionEqual:
 						if rev != ru.Record.Revision {
-							return ErrStoreRevisionMismatch(k)
+							return ErrStoreWriteConditionFail(k)
 						}
 
-					case RevisionCompareNotEqual:
+					case WriteConditionRevisionNotEqual:
 						if rev == ru.Record.Revision {
-							return ErrStoreRevisionMismatch(k)
+							return ErrStoreWriteConditionFail(k)
 						}
 
-					case RevisionCompareEqualOrGreater:
+					case WriteConditionRevisionEqualOrGreater:
 						if rev < ru.Record.Revision {
-							return ErrStoreRevisionMismatch(k)
+							return ErrStoreWriteConditionFail(k)
 						}
 
-					case RevisionCompareGreater:
+					case WriteConditionRevisionGreater:
 						if rev <= ru.Record.Revision {
-							return ErrStoreRevisionMismatch(k)
+							return ErrStoreWriteConditionFail(k)
 						}
 					}
 				}
 			}
 
-			// it is only now that we know all the conditions have been met
-			// that we take the time to process all the updates.
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
 			//
 			for k, ru := range recordSet.Records {
 				stm.Put(k, string(ru.Record.Value))
@@ -1184,11 +1206,7 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 		return nil
 	})
 
-	if err != nil {
-		return RevisionInvalid, err
-	}
-
-	return revision, nil
+	return revision, err
 }
 
 // ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
@@ -1208,15 +1226,20 @@ func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
 			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
 
 			for _, k := range keySet.Keys {
-				//				val := stm.Get(k)
-				//				rev := stm.Rev(k)
 
-				// TODO - do we attempt to decode/unmarshall the implicit value here?
+				rev := stm.Rev(k)
+
+				// If the revision is zero, we take that to mean the key
+				// does not actually exist.
 				//
-				//				rec := Record{Revision: rev, Value: val}
-				//				resultSet.Records[k] = rec
-				//				resultSet.Records[k] = Record{Revision: rev, Value: val}
-				resultSet.Records[k] = Record{Revision: stm.Rev(k), Value: stm.Get(k)}
+				// Note that a key might well exist even if the value is
+				// an empty string. At least I believe it can. We choose
+				// to use the revision instead as a more reliable
+				// indicator of existence.
+				//
+				if rev != 0 {
+					resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+				}
 			}
 
 			return nil
