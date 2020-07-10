@@ -247,7 +247,7 @@ func TestUserList(t *testing.T) {
 
 	userList, err := store.UserList(context.Background())
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Equalf(t, RevisionInvalid, userList.StoreRevision, "Expected new store revision to be greater than initial revision")
+	assert.Lessf(t, RevisionInvalid, userList.StoreRevision, "Expected new store revision to be greater than initial revision")
 	assert.Equalf(t, len(recordSet.Records), len(userList.Records), "Unexpected difference in count of records returned from user list")
 
 	for n, ur := range recordSet.Records {

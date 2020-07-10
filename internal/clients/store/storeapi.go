@@ -1,7 +1,6 @@
 package store
 
 import (
-	"bytes"
 	"context"
 	"strings"
 
@@ -250,37 +249,37 @@ func (store *Store) UserList(ctx context.Context) (recordSet *UserRecordSet, err
 			return err
 		}
 
-		readResponse, err := store.ReadWithPrefix(storeRootUsers)
+		readResponse, err := store.ReadWithPrefix(ctx, storeRootUsers)
 
 		if err != nil {
 			return err
 		}
 
-		rs := &UserRecordSet{StoreRevision: RevisionInvalid, Records: make(map[string]UserRecord, len(readResponse))}
+		rs := &UserRecordSet{StoreRevision: readResponse.Revision, Records: make(map[string]UserRecord, len(readResponse.Records))}
 
-		for _, kv := range readResponse {
+		for k, r := range readResponse.Records {
 			u := &pb.User{}
 
-			err = jsonpb.Unmarshal(bytes.NewBuffer(kv.value), u)
+			err = jsonpb.Unmarshal(strings.NewReader(r.Value), u)
 
 			if err != nil {
 				return err
 			}
 
-			if !strings.HasPrefix(kv.key, storeRootUsers) {
-				return ErrStoreBadRecordKey(kv.key)
+			if !strings.HasPrefix(k, storeRootUsers) {
+				return ErrStoreBadRecordKey(k)
 			}
 
-			userName := strings.TrimPrefix(kv.key, storeRootUsers)
+			userName := strings.TrimPrefix(k, storeRootUsers)
 
 			if userName != u.Name {
-				return ErrStoreBadRecordContent(kv.key)
+				return ErrStoreBadRecordContent(k)
 			}
 
-			rs.Records[userName] = UserRecord{Revision: RevisionInvalid, User: u}
+			rs.Records[userName] = UserRecord{Revision: r.Revision, User: u}
 		}
 
-		rs.StoreRevision = RevisionInvalid
+		rs.StoreRevision = readResponse.Revision
 
 		recordSet = rs
 

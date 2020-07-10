@@ -352,31 +352,48 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 	// We expect success with a non-nil but empty set.
 	//
 	invalidKey := prefixKey + "Invalidname"
-	response, err := store.ReadWithPrefix(invalidKey)
+	response, err := store.ReadWithPrefix(context.Background(), invalidKey)
 	assert.Nilf(t, err, "Succeeded to read non-existing prefix key from store - error: %v prefixKey: %v", err, invalidKey)
 	assert.NotNilf(t, response, "Failed to get a non-nil response as expected - error: %v prefixKey: %v", err, invalidKey)
-	assert.Equal(t, 0, len(response), "Got more results than expected")
+	assert.Equal(t, 0, len(response.Records), "Got more results than expected")
 
-	if nil != response && len(response) > 0 {
-		for i, kv := range response {
-			t.Logf("Unexpected key/value pair [%v/%v] key: %v value: %v", i, len(response), kv.key, string(kv.value))
+	if nil != response && len(response.Records) > 0 {
+		for k, r := range response.Records {
+			t.Logf("Unexpected key/value pair key: %v value: %v", k, r.Value)
 		}
 	}
 
 	// Now look for a set of prefixed key/value pairs which we do expect to be present.
 	//
-	response, err = store.ReadWithPrefix(prefixKey)
+	response, err = store.ReadWithPrefix(context.Background(), prefixKey)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
-	assert.Equal(t, len(keyValueSet), len(response), "Failed to get the expected number of response values")
+	assert.Equal(t, len(keyValueSet), len(response.Records), "Failed to get the expected number of response values")
 
-	for i, kv := range response {
-		kvValue := string(kv.value)
+	// Check we got records for each key we asked for
+	//
+	for i, kv := range keyValueSet {
 		if store.trace(traceFlagExpandResultsInTest) {
-			t.Logf("[%v/%v] %v: %v", i, len(response), kv.key, kvValue)
+			t.Logf("[%v/%v] %v: Expected: %v Actual: %v", i, len(keyValueSet), kv.key, kv.value, response.Records[kv.key].Value)
 		}
-		assert.Equal(t, keyValueSet[i].key, kv.key, "Unexpected key - expected: %s received: %s", keyValueSet[i].key, kv.key)
-		assert.Equal(t, keyValueMap[kv.key], kvValue, "Unexpected value - expected: %s received: %s", keyValueMap[kv.key], kvValue)
+
+		rec, present := response.Records[kv.key]
+
+		assert.Truef(t, present, "Missing record for key - %v", kv.key)
+
+		if present {
+			assert.Equal(t, kv.value, rec.Value, "Unexpected value - expected: %q received: %q", kv.value, rec.Value)
+		}
+	}
+
+	// Check we ONLY got records for the keys we asked for
+	//
+	for k, r := range response.Records {
+		val, present := keyValueMap[k]
+		assert.Truef(t, present, "Extra key: %v record: %v", k, r)
+		if present {
+			assert.Equalf(t, val, r.Value, "key: %v Expected: %q Actual %q", val, r.Value)
+		}
 	}
 
 	store.Disconnect()
@@ -530,7 +547,7 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 	assert.NotNilf(t, err, "Unexpectedly succeeded to read from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected, err)
 
-	_, err = store.ReadWithPrefix(key)
+	_, err = store.ReadWithPrefix(context.Background(), key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to read from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected, err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected, err)
 

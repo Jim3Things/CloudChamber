@@ -796,9 +796,10 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 // return an empty set of key/value pairs if there are no matches for the supplied key
 // prefix.
 //
-func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse, err error) {
+func (store *Store) ReadWithPrefix(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
 
-	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -809,29 +810,37 @@ func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse,
 
 		if err != nil {
 			store.logEtcdResponseError(ctx, err)
-		} else {
-			result = make([]KeyValueResponse, len(response.Kvs))
+			return err
+		}
 
-			for i, kv := range response.Kvs {
-				result[i] = KeyValueResponse{string(kv.Key), kv.Value}
-			}
+		resultSet := &RecordSet{Revision: 0, Records: make(map[string]Record, len(response.Kvs))}
+
+		for i, kv := range response.Kvs {
+			key := string(kv.Key)
+			val := string(kv.Value)
+			rev := kv.ModRevision
+
+			resultSet.Records[key] = Record{Revision: rev, Value: val}
 
 			if store.trace(traceFlagExpandResults) {
-				for i, kv := range result {
-					if store.trace(traceFlagTraceKeyAndValue) {
-						st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, len(result), string(kv.key), string(kv.value))
-					} else if store.trace(traceFlagTraceKey) {
-						st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(result), string(kv.key))
-					}
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(response.Kvs), key, rev, val)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(response.Kvs), key)
 				}
 			}
-
-			st.Infof(ctx, -1, "Processed %v items", len(result))
 		}
-		return err
+
+		resultSet.Revision = response.Header.Revision
+
+		rs = resultSet
+
+		st.Infof(ctx, -1, "Processed %v items", len(resultSet.Records))
+
+		return nil
 	})
 
-	return result, err
+	return rs, err
 }
 
 // Delete is a method used to remove a single key/value pair using the supplied name.
@@ -1034,7 +1043,7 @@ type RecordUpdateSet struct {
 //
 func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*RecordSet, error) {
 
-	resultSet := RecordSet{0, make(map[string]Record)}
+	resultSet := RecordSet{Revision: 0, Records: make(map[string]Record)}
 
 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
