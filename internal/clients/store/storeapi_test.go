@@ -248,8 +248,15 @@ func TestUserList(t *testing.T) {
 	userList, err := store.UserList(context.Background())
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, RevisionInvalid, userList.StoreRevision, "Expected new store revision to be greater than initial revision")
-	assert.Equalf(t, len(recordSet.Records), len(userList.Records), "Unexpected difference in count of records returned from user list")
 
+	// Use "less than or equal" relationship to allow for the cases where all the
+	// file tests are being executed and there are potentially user records left over
+	// from tests running earlier in the set.
+	//
+	assert.LessOrEqualf(t, len(recordSet.Records), len(userList.Records), "Unexpected difference in count of records returned from user list")
+
+	// Check that the records this test created are present. There may be others.
+	//
 	for n, ur := range recordSet.Records {
 		assert.Equalf(t, ur.Revision, userList.Records[n].Revision, "Unexpected difference in revision from create for user %q", n)
 		assert.Equalf(t, ur.User, userList.Records[n].User, "Unexpected difference in record from create for user %q", n)

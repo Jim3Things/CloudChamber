@@ -1038,6 +1038,99 @@ type RecordUpdateSet struct {
 	Records map[string]RecordUpdate
 }
 
+func generatePrefetchKeys(recordSet *RecordUpdateSet) (*[]string, error) {
+
+	prefetchKeys := make([]string, 0, len(recordSet.Records))
+
+	// Build an array of keys to supply as the arg to prefetch
+	// on the WithPrefetch() option below
+	//
+	for k, ru := range recordSet.Records {
+		switch ru.Condition {
+		case WriteConditionUnconditional:
+			// No need to prefetch if not comparing anything
+			break
+
+		case WriteConditionRevisionNotEqual:
+			fallthrough
+
+		case WriteConditionRevisionLess:
+			fallthrough
+
+		case WriteConditionRevisionLessOrEqual:
+			fallthrough
+
+		case WriteConditionRevisionEqual:
+			fallthrough
+
+		case WriteConditionRevisionEqualOrGreater:
+			fallthrough
+
+		case WriteConditionRevisionGreater:
+			if ru.Record.Revision == RevisionInvalid {
+				return nil, ErrStoreBadArgRevision(k)
+			}
+
+			fallthrough
+
+		case WriteConditionCreate:
+			prefetchKeys = append(prefetchKeys, k)
+
+		default:
+			return nil, ErrStoreBadArgCompare(k)
+		}
+	}
+
+	return &prefetchKeys, nil
+}
+
+func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
+
+	for k, ru := range recordSet.Records {
+		if ru.Condition == WriteConditionCreate {
+			if stm.Get(k) != "" {
+				return ErrStoreWriteConditionFail(k)
+			}
+		} else if ru.Condition != WriteConditionUnconditional {
+			rev := stm.Rev(k)
+
+			switch ru.Condition {
+			case WriteConditionRevisionLess:
+				if rev >= ru.Record.Revision {
+					return ErrStoreWriteConditionFail(k)
+				}
+
+			case WriteConditionRevisionLessOrEqual:
+				if rev > ru.Record.Revision {
+					return ErrStoreWriteConditionFail(k)
+				}
+
+			case WriteConditionRevisionEqual:
+				if rev != ru.Record.Revision {
+					return ErrStoreWriteConditionFail(k)
+				}
+
+			case WriteConditionRevisionNotEqual:
+				if rev == ru.Record.Revision {
+					return ErrStoreWriteConditionFail(k)
+				}
+
+			case WriteConditionRevisionEqualOrGreater:
+				if rev < ru.Record.Revision {
+					return ErrStoreWriteConditionFail(k)
+				}
+
+			case WriteConditionRevisionGreater:
+				if rev <= ru.Record.Revision {
+					return ErrStoreWriteConditionFail(k)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
 // single txn so they form a (self-)consistent set.
 //
@@ -1083,12 +1176,9 @@ func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*
 
 		if err != nil {
 			return err
-		}
-
-		if !response.Succeeded {
-			err := ErrStoreKeyFetchFailure(keySet.Label)
+		} else if !response.Succeeded {
+			err = ErrStoreKeyFetchFailure(keySet.Label)
 			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-
 			return err
 		}
 
@@ -1115,92 +1205,20 @@ func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdat
 
 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
-		prefetchKeys := make([]string, 0, len(recordSet.Records))
-
 		if err := store.disconnected(ctx); err != nil {
 			return err
 		}
 
-		// Build an array of keys to supply as the arg to prefetch
-		// on the WithPrefetch() option below
-		//
-		for k, ru := range recordSet.Records {
-			switch ru.Condition {
-			case WriteConditionUnconditional:
-				// No need to prefetch if not comparing anything
-				break
+		var prefetchKeys *[]string
 
-			case WriteConditionRevisionNotEqual:
-				fallthrough
-
-			case WriteConditionRevisionLess:
-				fallthrough
-
-			case WriteConditionRevisionLessOrEqual:
-				fallthrough
-
-			case WriteConditionRevisionEqual:
-				fallthrough
-
-			case WriteConditionRevisionEqualOrGreater:
-				fallthrough
-
-			case WriteConditionRevisionGreater:
-				if ru.Record.Revision == RevisionInvalid {
-					return ErrStoreBadArgRevision(k)
-				}
-
-				fallthrough
-
-			case WriteConditionCreate:
-				prefetchKeys = append(prefetchKeys, k)
-
-			default:
-				return ErrStoreBadArgCompare(k)
-			}
+		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+			return err
 		}
 
 		actionWriteRecords := func(stm concurrency.STM) error {
-			for k, ru := range recordSet.Records {
-				if ru.Condition == WriteConditionCreate {
-					if stm.Get(k) != "" {
-						return ErrStoreWriteConditionFail(k)
-					}
-				} else if ru.Condition != WriteConditionUnconditional {
-					rev := stm.Rev(k)
 
-					switch ru.Condition {
-					case WriteConditionRevisionLess:
-						if rev >= ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionLessOrEqual:
-						if rev > ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionEqual:
-						if rev != ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionNotEqual:
-						if rev == ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionEqualOrGreater:
-						if rev < ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionGreater:
-						if rev <= ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-					}
-				}
+			if err = checkConditions(stm, recordSet); err != nil {
+				return err
 			}
 
 			// it is only now that we know the conditions have been
@@ -1218,17 +1236,14 @@ func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdat
 			store.Client,
 			actionWriteRecords,
 			concurrency.WithIsolation(concurrency.Serializable),
-			concurrency.WithPrefetch(prefetchKeys...),
+			concurrency.WithPrefetch(*prefetchKeys...),
 		)
 
 		if err != nil {
 			return err
-		}
-
-		if !response.Succeeded {
-			err := ErrStoreKeyFetchFailure(recordSet.Label)
+		} else if !response.Succeeded {
+			err := ErrStoreKeyWriteFailure(recordSet.Label)
 			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-
 			return err
 		}
 
@@ -1249,92 +1264,20 @@ func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpda
 
 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
-		prefetchKeys := make([]string, 0, len(recordSet.Records))
-
 		if err := store.disconnected(ctx); err != nil {
 			return err
 		}
 
-		// Build an array of keys to supply as the arg to prefetch
-		// on the WithPrefetch() option below
-		//
-		for k, ru := range recordSet.Records {
-			switch ru.Condition {
-			case WriteConditionUnconditional:
-				// No need to prefetch if not comparing anything
-				break
+		var prefetchKeys *[]string
 
-			case WriteConditionRevisionNotEqual:
-				fallthrough
-
-			case WriteConditionRevisionLess:
-				fallthrough
-
-			case WriteConditionRevisionLessOrEqual:
-				fallthrough
-
-			case WriteConditionRevisionEqual:
-				fallthrough
-
-			case WriteConditionRevisionEqualOrGreater:
-				fallthrough
-
-			case WriteConditionRevisionGreater:
-				if ru.Record.Revision == RevisionInvalid {
-					return ErrStoreBadArgRevision(k)
-				}
-
-				fallthrough
-
-			case WriteConditionCreate:
-				prefetchKeys = append(prefetchKeys, k)
-
-			default:
-				return ErrStoreBadArgCompare(k)
-			}
+		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+			return err
 		}
 
-		actionWriteRecords := func(stm concurrency.STM) error {
-			for k, ru := range recordSet.Records {
-				if ru.Condition == WriteConditionCreate {
-					if stm.Get(k) != "" {
-						return ErrStoreWriteConditionFail(k)
-					}
-				} else if ru.Condition != WriteConditionUnconditional {
-					rev := stm.Rev(k)
+		actionDeleteRecords := func(stm concurrency.STM) error {
 
-					switch ru.Condition {
-					case WriteConditionRevisionLess:
-						if rev >= ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionLessOrEqual:
-						if rev > ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionEqual:
-						if rev != ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionNotEqual:
-						if rev == ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionEqualOrGreater:
-						if rev < ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-
-					case WriteConditionRevisionGreater:
-						if rev <= ru.Record.Revision {
-							return ErrStoreWriteConditionFail(k)
-						}
-					}
-				}
+			if err = checkConditions(stm, recordSet); err != nil {
+				return err
 			}
 
 			// it is only now that we know the conditions have been
@@ -1350,19 +1293,16 @@ func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpda
 
 		response, err := concurrency.NewSTM(
 			store.Client,
-			actionWriteRecords,
+			actionDeleteRecords,
 			concurrency.WithIsolation(concurrency.Serializable),
-			concurrency.WithPrefetch(prefetchKeys...),
+			concurrency.WithPrefetch(*prefetchKeys...),
 		)
 
 		if err != nil {
 			return err
-		}
-
-		if !response.Succeeded {
+		} else if !response.Succeeded {
 			err := ErrStoreKeyDeleteFailure(recordSet.Label)
 			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-
 			return err
 		}
 

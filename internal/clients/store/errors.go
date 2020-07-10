@@ -73,6 +73,14 @@ func (eskff ErrStoreKeyFetchFailure) Error() string {
 	return fmt.Sprintf("CloudChamber: fetch txn failed reading key %q", string(eskff))
 }
 
+// ErrStoreKeyWriteFailure indicates the read transaction failed.
+//
+type ErrStoreKeyWriteFailure string
+
+func (eskwf ErrStoreKeyWriteFailure) Error() string {
+	return fmt.Sprintf("CloudChamber: fetch txn failed deleting key %q", string(eskwf))
+}
+
 // ErrStoreKeyDeleteFailure indicates the read transaction failed.
 //
 type ErrStoreKeyDeleteFailure string
@@ -105,7 +113,8 @@ func (esbac ErrStoreBadArgCompare) Error() string {
 	return fmt.Sprintf("CloudChamber: compare operator not valid for key %q", string(esbac))
 }
 
-// ErrStoreBadRecordCount indicates the record count for the update was not valid.
+// ErrStoreBadRecordCount indicates the record count for the operation was not valid.
+// This might mean that the store found more, or less, than the number of records expected.
 //
 type ErrStoreBadRecordCount string
 
@@ -113,7 +122,8 @@ func (esbrc ErrStoreBadRecordCount) Error() string {
 	return fmt.Sprintf("CloudChamber: did not get the number of records expected %q", string(esbrc))
 }
 
-// ErrStoreBadRecordKey indicates the store has found a record with an unrecognized format
+// ErrStoreBadRecordKey indicates the store has found a record with an unrecognized
+// format. This generally means the key itself is not properly constructed.
 //
 type ErrStoreBadRecordKey string
 
@@ -121,7 +131,14 @@ func (esbrk ErrStoreBadRecordKey) Error() string {
 	return fmt.Sprintf("CloudChamber: discovered key with an unrecognized format %q", string(esbrk))
 }
 
-// ErrStoreBadRecordContent indicates the store has found a record with some content that does not match the key
+// ErrStoreBadRecordContent indicates the store has found a record with some content
+// that does not match the key. An example might be that the user name used for a key
+// does not match the user name field in the record.
+//
+// There is little consistency checking of this nature in the store itself due to the
+// limited knowledge the store component has about the content of records. There
+// should be no expectation that the store is taking on the responsibility of any
+// consistency checking and any that does occur should be treated as advisory.
 //
 type ErrStoreBadRecordContent string
 

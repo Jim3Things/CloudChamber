@@ -17,14 +17,16 @@ const (
 	storeRootWorkloads = "workloads/"
 )
 
+func getKeyFromUsername(name string) string {
+	return storeRootUsers + name
+}
+
 // UserCreate is a method called by the user management routines to create
 // a persistent user record in the store.
 //
 // No consistency check is performed on the content of the user record itself
 //
-func (store *Store) UserCreate(ctx context.Context, u *pb.User) (rev int64, err error) {
-
-	key := storeRootUsers + u.Name
+func (store *Store) UserCreate(ctx context.Context, u *pb.User) (revision int64, err error) {
 
 	methodName := tracing.MethodName(1)
 
@@ -34,47 +36,47 @@ func (store *Store) UserCreate(ctx context.Context, u *pb.User) (rev int64, err 
 			return err
 		}
 
-		p := jsonpb.Marshaler{}
-		value, err := p.MarshalToString(u)
+		var (
+			rev int64
+			val string
+		)
 
-		if err != nil {
+		p := jsonpb.Marshaler{}
+
+		if val, err = p.MarshalToString(u); err != nil {
 			return err
 		}
 
 		recordSet := RecordUpdateSet{Label: methodName, Records: make(map[string]RecordUpdate)}
 
-		recordSet.Records[key] =
+		recordSet.Records[getKeyFromUsername(u.Name)] =
 			RecordUpdate{
 				Condition: WriteConditionCreate,
 				Record: Record{
 					Revision: RevisionInvalid,
-					Value:    value,
+					Value:    val,
 				},
 			}
 
-		revStore, err := store.WriteMultipleTxn(ctx, &recordSet)
-
-		if err != nil {
+		if rev, err = store.WriteMultipleTxn(ctx, &recordSet); err != nil {
 			return err
 		}
 
-		rev = revStore
-
 		st.Infof(ctx, -1, "Created user %q with revision %v", u.Name, rev)
+
+		revision = rev
 
 		return nil
 	})
 
-	return rev, err
+	return revision, err
 }
 
 // UserUpdate is a method used to update the user record for the sepcified user.
 //
 // No validation is performed on the content of the user record itself
 //
-func (store *Store) UserUpdate(ctx context.Context, u *pb.User, revision int64) (rev int64, err error) {
-
-	key := storeRootUsers + u.Name
+func (store *Store) UserUpdate(ctx context.Context, u *pb.User, revCond int64) (revision int64, err error) {
 
 	methodName := tracing.MethodName(1)
 
@@ -84,10 +86,25 @@ func (store *Store) UserUpdate(ctx context.Context, u *pb.User, revision int64) 
 			return err
 		}
 
-		p := jsonpb.Marshaler{}
-		value, err := p.MarshalToString(u)
+		var (
+			rev       int64
+			val       string
+			condition WriteCondition
+		)
 
-		if err != nil {
+		switch {
+		case revCond == RevisionInvalid:
+			condition = WriteConditionUnconditional
+
+		default:
+			condition = WriteConditionRevisionEqual
+		}
+
+		key := getKeyFromUsername(u.Name)
+
+		p := jsonpb.Marshaler{}
+
+		if val, err = p.MarshalToString(u); err != nil {
 			return err
 		}
 
@@ -95,27 +112,25 @@ func (store *Store) UserUpdate(ctx context.Context, u *pb.User, revision int64) 
 
 		recordSet.Records[key] =
 			RecordUpdate{
-				Condition: WriteConditionRevisionEqual,
+				Condition: condition,
 				Record: Record{
-					Revision: revision,
-					Value:    value,
+					Revision: revCond,
+					Value:    val,
 				},
 			}
 
-		revStore, err := store.WriteMultipleTxn(ctx, &recordSet)
-
-		if err != nil {
+		if rev, err = store.WriteMultipleTxn(ctx, &recordSet); err != nil {
 			return err
 		}
 
-		rev = revStore
+		st.Infof(ctx, -1, "Updated user %q using condition revision %v to revision %v using condition %v", u.Name, revCond, rev, condition)
 
-		st.Infof(ctx, -1, "Updated user %q with revision %v", u.Name, rev)
+		revision = rev
 
 		return nil
 	})
 
-	return rev, err
+	return revision, err
 }
 
 // UserDelete is a method used to delete the user record for the specified user
@@ -169,10 +184,9 @@ func (store *Store) UserDelete(ctx context.Context, u *pb.User, revision int64) 
 //       the keys used to persist the callers records but not have to worry
 //       about the encode/decode formats or indeed the target record itself.
 //
-func (store *Store) UserRead(ctx context.Context, name string) (user *pb.User, rev int64, err error) {
+func (store *Store) UserRead(ctx context.Context, name string) (user *pb.User, revision int64, err error) {
 
-	rev = RevisionInvalid
-	key := storeRootUsers + name
+	revision = RevisionInvalid
 
 	methodName := tracing.MethodName(1)
 
@@ -182,42 +196,55 @@ func (store *Store) UserRead(ctx context.Context, name string) (user *pb.User, r
 			return err
 		}
 
+		var (
+			rev          int64
+			val          string
+			readResponse *RecordSet
+		)
+
+		key := getKeyFromUsername(name)
+
 		// If we need to do the read to get the revision, we will need an array of the keys
 		//
 		recordKeySet := RecordKeySet{Label: methodName, Keys: []string{key}}
 
-		readResponse, err := store.ReadMultipleTxn(ctx, recordKeySet)
-
-		if err != nil {
+		if readResponse, err = store.ReadMultipleTxn(ctx, recordKeySet); err != nil {
 			return err
 		}
 
 		recordCount := len(readResponse.Records)
 
-		if recordCount != 1 {
-			return ErrStoreBadRecordCount(recordCount)
+		switch recordCount {
+		default:
+			st.Errorf(ctx, -1, "searching for user %q found %v records when expecting just one", name, recordCount)
+			return ErrStoreBadRecordCount(name)
+
+		case 0:
+			return ErrStoreKeyNotFound(name)
+
+		case 1:
+			rev = readResponse.Records[key].Revision
+			val = readResponse.Records[key].Value
+			st.Infof(ctx, -1, "found record for user %q with revision %v and value %q", name, rev, val)
+
+			u := &pb.User{}
+			if err = jsonpb.Unmarshal(strings.NewReader(val), u); err != nil {
+				return err
+			}
+
+			st.Infof(ctx, -1, "Read User %q with revision %v", name, rev)
+
+			user = u
+			revision = rev
+
+			return nil
 		}
-
-		u := &pb.User{}
-
-		err = jsonpb.Unmarshal(strings.NewReader(readResponse.Records[key].Value), u)
-
-		if err != nil {
-			return err
-		}
-
-		user = u
-		rev = readResponse.Records[key].Revision
-
-		st.Infof(ctx, -1, "Read User %q with revision %v", name, rev)
-
-		return nil
 	})
 
-	return user, rev, err
+	return user, revision, err
 }
 
-// UserRecord represents the revision, user struct pair for a given user
+// UserRecord represents the revision/user struct pair for a given user
 //
 type UserRecord struct {
 	Revision int64
@@ -234,6 +261,8 @@ type UserRecordSet struct {
 
 // UserList is a method to return all the user records using a single call.
 //
+// NOTE: The returned UserRecordSet may exist but contain no records.
+//
 // NOTE: This should only be used at present if the number of user records
 //       is limited as there is a limit to the number of records that can
 //       be fetched from the store in a single shot. Eventually this will
@@ -249,9 +278,9 @@ func (store *Store) UserList(ctx context.Context) (recordSet *UserRecordSet, err
 			return err
 		}
 
-		readResponse, err := store.ReadWithPrefix(ctx, storeRootUsers)
+		var readResponse *RecordSet
 
-		if err != nil {
+		if readResponse, err = store.ReadWithPrefix(ctx, storeRootUsers); err != nil {
 			return err
 		}
 
@@ -263,6 +292,7 @@ func (store *Store) UserList(ctx context.Context) (recordSet *UserRecordSet, err
 			err = jsonpb.Unmarshal(strings.NewReader(r.Value), u)
 
 			if err != nil {
+				st.Errorf(ctx, -1, "failure unmarshalling record - user: %q rev: %vvalue %q", k, r.Revision, r.Value)
 				return err
 			}
 
@@ -277,9 +307,13 @@ func (store *Store) UserList(ctx context.Context) (recordSet *UserRecordSet, err
 			}
 
 			rs.Records[userName] = UserRecord{Revision: r.Revision, User: u}
+
+			st.Infof(ctx, -1, "found record for user %q eith revision %v", u.Name, r.Revision)
 		}
 
 		rs.StoreRevision = readResponse.Revision
+
+		st.Infof(ctx, -1, "returned %v records at store revision %v", len(rs.Records), rs.StoreRevision)
 
 		recordSet = rs
 
