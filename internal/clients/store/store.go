@@ -961,22 +961,6 @@ func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
 	})
 }
 
-/*
-// RecordType is used to describe the type of the record value associated with a specific record key
-//
-type RecordType int64
-
-const (
-	RecordTypeInvalid RecordType = iota
-	RecordTypeUser
-	RecordTypeWorkload
-	RecordTypeRack
-	RecordTypeBlade
-	RecordTypeTOR
-	RecordTypePDU
-)
-*/
-
 // RevisionInvalid is returned from certain operations if
 // failure cases and is also used when defining
 // unconditional write to the store.
@@ -1003,36 +987,6 @@ const (
 	WriteConditionRevisionEqualOrGreater
 	WriteConditionRevisionGreater
 )
-
-/*
-type record struct {
-	checksum       int64      `json:"Checksum"`
-	recordType     RecordType `json:"Type"`
-	timeLastUpdate time.Time  `json:"LastUpdate"`
-	timeCreation   time.Time  `json:"Creation"`
-
-	etag  int64  `json:"ETag"`
-	value []byte `json:"Value"`
-}
-
-type readResult struct {
-	key string
-}
-
-type readResponse struct {
-	key   string
-	value []byte
-	err   error
-}
-*/
-
-/*
-// RecordKey is a
-//
-type RecordKey2 struct {
-	Key string
-}
-*/
 
 // RecordKeySet is a struct defining the set of keys to be read along with an arbitrary
 // label to tag the transaction.
@@ -1078,11 +1032,11 @@ type RecordUpdateSet struct {
 // ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
 // single txn so they form a (self-)consistent set.
 //
-func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
+func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*RecordSet, error) {
 
 	resultSet := RecordSet{0, make(map[string]Record)}
 
-	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
@@ -1146,11 +1100,11 @@ func (store *Store) ReadMultipleTxn(keySet RecordKeySet) (*RecordSet, error) {
 // WriteMultipleTxn is a method to write/update a set of arbitrary keys within a
 // single txn so they form a (self-)consistent set.
 //
-func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) {
+func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
 
 	revision := RevisionInvalid
 
-	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
 		prefetchKeys := make([]string, 0, len(recordSet.Records))
 
@@ -1280,11 +1234,11 @@ func (store *Store) WriteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) 
 // DeleteMultipleTxn is a method to delete a set of arbitrary keys within a
 // single txn so they form a (self-)consistent operation.
 //
-func (store *Store) DeleteMultipleTxn(recordSet *RecordUpdateSet) (int64, error) {
+func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
 
 	revision := RevisionInvalid
 
-	err := st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
 		prefetchKeys := make([]string, 0, len(recordSet.Records))
 

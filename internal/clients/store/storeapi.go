@@ -23,13 +23,13 @@ const (
 //
 // No consistency check is performed on the content of the user record itself
 //
-func (store *Store) UserCreate(u *pb.User) (rev int64, err error) {
+func (store *Store) UserCreate(ctx context.Context, u *pb.User) (rev int64, err error) {
 
 	key := storeRootUsers + u.Name
 
 	methodName := tracing.MethodName(1)
 
-	err = st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, methodName, func(ctx context.Context) (err error) {
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
@@ -53,7 +53,7 @@ func (store *Store) UserCreate(u *pb.User) (rev int64, err error) {
 				},
 			}
 
-		revStore, err := store.WriteMultipleTxn(&recordSet)
+		revStore, err := store.WriteMultipleTxn(ctx, &recordSet)
 
 		if err != nil {
 			return err
@@ -73,13 +73,13 @@ func (store *Store) UserCreate(u *pb.User) (rev int64, err error) {
 //
 // No validation is performed on the content of the user record itself
 //
-func (store *Store) UserUpdate(u *pb.User, revision int64) (rev int64, err error) {
+func (store *Store) UserUpdate(ctx context.Context, u *pb.User, revision int64) (rev int64, err error) {
 
 	key := storeRootUsers + u.Name
 
 	methodName := tracing.MethodName(1)
 
-	err = st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, methodName, func(ctx context.Context) (err error) {
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
@@ -103,7 +103,7 @@ func (store *Store) UserUpdate(u *pb.User, revision int64) (rev int64, err error
 				},
 			}
 
-		revStore, err := store.WriteMultipleTxn(&recordSet)
+		revStore, err := store.WriteMultipleTxn(ctx, &recordSet)
 
 		if err != nil {
 			return err
@@ -121,13 +121,13 @@ func (store *Store) UserUpdate(u *pb.User, revision int64) (rev int64, err error
 
 // UserDelete is a method used to delete the user record for the specified user
 //
-func (store *Store) UserDelete(u *pb.User, revision int64) (rev int64, err error) {
+func (store *Store) UserDelete(ctx context.Context, u *pb.User, revision int64) (rev int64, err error) {
 
 	key := storeRootUsers + u.Name
 
 	methodName := tracing.MethodName(1)
 
-	err = st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, methodName, func(ctx context.Context) (err error) {
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
@@ -144,7 +144,7 @@ func (store *Store) UserDelete(u *pb.User, revision int64) (rev int64, err error
 				},
 			}
 
-		revStore, err := store.DeleteMultipleTxn(&recordSet)
+		revStore, err := store.DeleteMultipleTxn(ctx, &recordSet)
 
 		if err != nil {
 			return err
@@ -170,14 +170,14 @@ func (store *Store) UserDelete(u *pb.User, revision int64) (rev int64, err error
 //       the keys used to persist the callers records but not have to worry
 //       about the encode/decode formats or indeed the target record itself.
 //
-func (store *Store) UserRead(name string) (user *pb.User, rev int64, err error) {
+func (store *Store) UserRead(ctx context.Context, name string) (user *pb.User, rev int64, err error) {
 
 	rev = RevisionInvalid
 	key := storeRootUsers + name
 
 	methodName := tracing.MethodName(1)
 
-	err = st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, methodName, func(ctx context.Context) (err error) {
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
@@ -187,7 +187,7 @@ func (store *Store) UserRead(name string) (user *pb.User, rev int64, err error) 
 		//
 		recordKeySet := RecordKeySet{Label: methodName, Keys: []string{key}}
 
-		readResponse, err := store.ReadMultipleTxn(recordKeySet)
+		readResponse, err := store.ReadMultipleTxn(ctx, recordKeySet)
 
 		if err != nil {
 			return err
@@ -241,10 +241,10 @@ type UserRecordSet struct {
 //       be updated to user an "interupted" enum style call to allow for
 //		 an essentially infinite number of records.
 //
-func (store *Store) UserList() (recordSet *UserRecordSet, err error) {
+func (store *Store) UserList(ctx context.Context) (recordSet *UserRecordSet, err error) {
 	methodName := tracing.MethodName(1)
 
-	err = st.WithSpan(context.Background(), methodName, func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, methodName, func(ctx context.Context) (err error) {
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
