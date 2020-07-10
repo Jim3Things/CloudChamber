@@ -10,6 +10,7 @@ import (
     "github.com/golang/protobuf/jsonpb"
     "github.com/golang/protobuf/ptypes/duration"
     "github.com/gorilla/mux"
+    "github.com/gorilla/sessions"
 
     clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
     "github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -32,8 +33,17 @@ func stepperAddRoutes(routeBase *mux.Router) {
 }
 
 // Process an http request for the current Stepper service status.
-func handleGetStatus(w http.ResponseWriter, _ *http.Request) {
+func handleGetStatus(w http.ResponseWriter, r *http.Request) {
     _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+
+        err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
+            return nil
+        })
+        if err != nil {
+            return httpError(ctx, w, err)
+        }
+
         stat, err := clients.Status()
         if err != nil {
             return httpError(ctx, w, err)
@@ -52,6 +62,14 @@ func handleGetStatus(w http.ResponseWriter, _ *http.Request) {
 func handleAdvance(w http.ResponseWriter, r *http.Request) {
     _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
         var count int
+
+        err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
+            return nil
+        })
+        if err != nil {
+            return httpError(ctx, w, err)
+        }
 
         // Get the optional count of ticks to advance, and validate it
         vars := mux.Vars(r)
@@ -96,6 +114,14 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 
         var delay *duration.Duration
         var policy pb.StepperPolicy
+
+        err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
+            return nil
+        })
+        if err != nil {
+            return httpError(ctx, w, err)
+        }
 
         matchString := r.Header.Get("If-Match")
         match, err := strconv.ParseInt(matchString, 10, 64)
@@ -150,6 +176,14 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
         vars := mux.Vars(r)
         after := vars["after"]
 
+        err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
+            return nil
+        })
+        if err != nil {
+            return httpError(ctx, w, err)
+        }
+
         afterTick, err := strconv.ParseInt(after, 10, 64)
         if err != nil || afterTick < 0 {
             return httpError(ctx, w, NewErrInvalidStepperAfter(after))
@@ -173,8 +207,16 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 }
 
 // Process an http request to get the current simulated time.
-func handleGetNow(w http.ResponseWriter, _ *http.Request) {
+func handleGetNow(w http.ResponseWriter, r *http.Request) {
     _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+        err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
+            return nil
+        })
+        if err != nil {
+            return httpError(ctx, w, err)
+        }
+
         now, err := clients.Now()
         if err != nil {
             return httpError(ctx, w, err)

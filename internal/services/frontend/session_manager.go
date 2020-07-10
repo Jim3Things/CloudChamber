@@ -3,17 +3,169 @@ package frontend
 
 import (
     "context"
+    "fmt"
     "net/http"
+    "sync"
+    "time"
 
     "github.com/gorilla/sessions"
 
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
+const (
+    sessionCookieName = "CC-Session"
+
+    sessionIdKey = "session-id"
+
+    expirationTimeout = time.Duration(1) * time.Hour
+)
+
+type SessionState struct {
+    name string
+    timeout time.Time
+}
+
+var mutex = sync.Mutex{}
+
+// activeSessions is the set of currently active logged in sessions, indexed
+// by an id.  timeouts holds the mapping from expiration time to the active
+// session id, and is used for purging stale sessions from the server.
+var activeSessions = map[int64]SessionState{}
+var timeouts = map[time.Time]int64{}
+
+// lastId contains the last session ID used by this server
+var lastId int64 = 0
+
+// newSession is a function that creates a new login session, so long as
+// one is not currently active
+func newSession(session *sessions.Session, state SessionState) error {
+    mutex.Lock()
+    defer mutex.Unlock()
+
+    purgeStaleSessions()
+
+    // Fail if there is already a valid active session
+    if id, ok := session.Values[sessionIdKey].(int64); ok {
+        if _, ok = activeSessions[id]; ok {
+            return ErrUserAlreadyLoggedIn
+        }
+    }
+
+    // Create the new session
+    lastId++
+    state.timeout = time.Now().Add(expirationTimeout)
+
+    activeSessions[lastId] = state
+    timeouts[state.timeout] = lastId
+    session.Values[sessionIdKey] = lastId
+
+    return nil
+}
+
+// removeSession is a function to remove the designated session, or
+// silently proceed if there is no active session
+func removeSession(session *sessions.Session) {
+    mutex.Lock()
+    defer mutex.Unlock()
+
+    purgeStaleSessions()
+
+    if id, ok := session.Values[sessionIdKey].(int64); ok {
+        if entry, ok := activeSessions[id]; ok {
+            delete(activeSessions, id)
+            delete(timeouts, entry.timeout)
+
+            delete(session.Values, sessionIdKey)
+        }
+    }
+}
+
+// getSession is a function that returns the state associated with the current
+// session.  It also returns a true/false flag indicating if the state was
+// found in the active sessions, much like map lookup does.
+func getSession(session *sessions.Session) (SessionState, bool) {
+    mutex.Lock()
+    defer mutex.Unlock()
+
+    purgeStaleSessions()
+
+    if id, ok := session.Values[sessionIdKey].(int64); ok {
+        if entry, ok := activeSessions[id]; ok {
+            // Bump timeout to account for the usage of the session
+            delete(timeouts, entry.timeout)
+
+            entry.timeout = time.Now().Add(expirationTimeout)
+            activeSessions[id] = entry
+            timeouts[entry.timeout] = id
+
+            // .. and return the resulting entry
+            return entry, true
+        } else {
+
+            // We have a key in the cookie, but that key is invalid, so
+            // delete it.
+            delete(session.Values, sessionIdKey)
+        }
+    }
+
+    return SessionState{}, false
+}
+
+// purgeStaleSessions removes stale sessions from the active session list.  It
+// assumes that the number of sessions is not so large that the active session
+// list cannot be scanned.
+func purgeStaleSessions() {
+    now := time.Now()
+
+    for k, v := range timeouts {
+        if k.Before(now) {
+            delete(activeSessions, v)
+            delete(timeouts, k)
+        }
+    }
+}
+
+// +++ logging helpers
+
+// getActiveSessionCount gets the number of active sessions currently held
+func getActiveSessionCount() int {
+    mutex.Lock()
+    defer mutex.Unlock()
+
+    return len(activeSessions)
+}
+
+// dumpSessionState returns a string that has the current session's state
+// formatted.  This is intended for use by tracing calls.
+func dumpSessionState(session *sessions.Session) string {
+    stateString := "session state not found"
+    idString := "session ID not found"
+
+    if id, ok := session.Values[sessionIdKey].(int64); ok {
+        idString = fmt.Sprintf("ID: %d", id)
+    }
+
+    if state, ok := getSession(session); ok {
+        stateString = fmt.Sprintf(
+            "[Username: %s, expiry: %v",
+            state.name,
+            state.timeout)
+    }
+
+    return fmt.Sprintf(
+        "Session state: [%s, %s], active session count: %d",
+        idString,
+        stateString,
+        getActiveSessionCount())
+}
+
+// --- logging helpers
+
 // getLoggedInUser returns the user definition for the current session,
 // or an error, if no user can be found.
 func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
-    key, ok := session.Values[UserNameKey].(string)
+    entry, ok := getSession(session)
     if !ok {
         return nil, &HTTPError{
             SC:   http.StatusBadRequest,
@@ -21,7 +173,7 @@ func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
         }
     }
 
-    user, _, err := dbUsers.Get(key)
+    user, _, err := dbUsers.Get(entry.name)
     return user, err
 }
 
@@ -33,7 +185,7 @@ func doSessionHeader(
     ctx context.Context, w http.ResponseWriter, r *http.Request,
     action func(ctx context.Context, session *sessions.Session) error) error {
 
-    session, _ := server.cookieStore.Get(r, SessionCookieName)
+    session, _ := server.cookieStore.Get(r, sessionCookieName)
 
     err := action(ctx, session)
 
