@@ -20,8 +20,10 @@ const (
 	adminDeletePassword  = "AdminDeletePassword"
 	alice                = "Alice"
 	bob                  = "Bob"
+	eve                  = "Eve"
 	alicePassword        = "AlicePassowrd"
 	bobPassword          = "BobPassword"
+	evePassword          = "EvePassword"
 )
 
 func TestUserCreate(t *testing.T) {
@@ -185,6 +187,72 @@ func TestUserDelete(t *testing.T) {
 	revDeleteAgain, err := store.UserDelete(user, revRead)
 	assert.NotNilf(t, err, "Unecpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revDeleteAgain, "Expected post-re-delete revision invalid")
+
+	store.Disconnect()
+
+	store = nil
+	return
+}
+
+func TestUserList(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	type urec struct {
+		name string
+		pwd  string
+	}
+
+	userName := adminDelete
+
+	store := NewStore()
+	assert.NotNilf(t, store, "Failed to get the store as expected")
+
+	err := store.Connect()
+	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+	userSet := []urec{
+		{name: alice, pwd: alicePassword},
+		{name: bob, pwd: bobPassword},
+		{name: eve, pwd: evePassword},
+	}
+
+	users := make(map[string]*pb.User, len(userSet))
+
+	for i, u := range userSet {
+		pwdHash, err := bcrypt.GenerateFromPassword([]byte(u.pwd), bcrypt.DefaultCost)
+
+		assert.Nilf(t, err, "Failed to create password hash for user %q - error: %v", u.name, err)
+
+		users[u.name] = &pb.User{
+			Name:           u.name,
+			PasswordHash:   pwdHash,
+			UserId:         int64(i + 1),
+			Enabled:        true,
+			AccountManager: false,
+			NeverDelete:    false,
+		}
+	}
+
+	recordSet := UserRecordSet{StoreRevision: RevisionInvalid, Records: make(map[string]UserRecord, len(userSet))}
+
+	for name, rec := range users {
+		revCreate, err := store.UserCreate(rec)
+		assert.Nilf(t, err, "Failed to create new user %q - error: %v", name, err)
+		assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+
+		recordSet.Records[name] = UserRecord{Revision: revCreate, User: rec}
+	}
+
+	userList, err := store.UserList()
+	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
+	assert.Equalf(t, RevisionInvalid, userList.StoreRevision, "Expected new store revision to be greater than initial revision")
+	assert.Equalf(t, len(recordSet.Records), len(userList.Records), "Unexpected difference in count of records returned from user list")
+
+	for n, ur := range recordSet.Records {
+		assert.Equalf(t, ur.Revision, userList.Records[n].Revision, "Unexpected difference in revision from create for user %q", n)
+		assert.Equalf(t, ur.User, userList.Records[n].User, "Unexpected difference in record from create for user %q", n)
+	}
 
 	store.Disconnect()
 

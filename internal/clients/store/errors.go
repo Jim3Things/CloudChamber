@@ -112,3 +112,19 @@ type ErrStoreBadRecordCount string
 func (esbrc ErrStoreBadRecordCount) Error() string {
 	return fmt.Sprintf("CloudChamber: did not get the number of records expected %q", string(esbrc))
 }
+
+// ErrStoreBadRecordKey indicates the store has found a record with an unrecognized format
+//
+type ErrStoreBadRecordKey string
+
+func (esbrk ErrStoreBadRecordKey) Error() string {
+	return fmt.Sprintf("CloudChamber: discovered key with an unrecognized format %q", string(esbrk))
+}
+
+// ErrStoreBadRecordContent indicates the store has found a record with some content that does not match the key
+//
+type ErrStoreBadRecordContent string
+
+func (esbrk ErrStoreBadRecordContent) Error() string {
+	return fmt.Sprintf("CloudChamber: discovered found record where content does not match key %q", string(esbrk))
+}
