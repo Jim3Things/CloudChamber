@@ -37,6 +37,28 @@ if /i "%1" == "-?" (goto :StartEtcdHelp)
 if /i "%1" == "-h" (goto :StartEtcdHelp)
 
 
+rem Find a binary to use
+rem
+if exist %ETCDBINPATH%\etcd.exe (
+
+  set ETCDBIN=%ETCDBINPATH%\etcd.exe
+
+) else if exist %GOPATH%\bin\etcd.exe (
+
+  set ETCDBIN=%GOPATH%\bin\etcd.exe
+
+) else (
+   for %%I in (etcd.exe) do set ETCDBIN=%%~$PATH:I
+)
+
+
+if not exist "%ETCDBIN%" (
+echo.
+echo Unable to find a copy of etcd.exe
+echo.
+goto :StartEtcdExit
+)
+
 
 rem Ensure the root data directory is present
 rem
@@ -45,7 +67,10 @@ if not exist "%ETCDDATA%" (mkdir "%ETCDDATA%")
 
 rem Now actually start the ETCD service
 rem
-start %GOPATH%\bin\etcd --name "%ETCDINSTANCE%" --data-dir "%ETCDDATA%\%ETCDINSTANCE%.etcd" --listen-peer-urls "http://%LOCALHOST%:%ETCDPORTPEER%" --listen-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%" --advertise-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%"
+echo.
+echo Using %ETCDBIN% writing to %ETCDDATA%\%ETCDINSTANCE%.etcd
+
+start %ETCDBIN% --name "%ETCDINSTANCE%" --data-dir "%ETCDDATA%\%ETCDINSTANCE%.etcd" --listen-peer-urls "http://%LOCALHOST%:%ETCDPORTPEER%" --listen-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%" --advertise-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%"
 
 goto :StartEtcdExit
 
