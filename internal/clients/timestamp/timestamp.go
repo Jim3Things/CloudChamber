@@ -22,8 +22,8 @@ var dialOpts []grpc.DialOption
 // Defines the value returned from a delay wait.  This is more than the
 // simple timestamp inasmuch as the delay call can fail asynchronously.
 type TimeData struct {
-	time *ct.Timestamp
-	err  error
+	Time *ct.Timestamp
+	Err  error
 }
 
 type TimeStatus struct {
@@ -101,8 +101,8 @@ func After(deadline *ct.Timestamp) (<-chan TimeData, error) {
 		ctx, conn, err := connect()
 		if err != nil {
 			res <- TimeData{
-				time: nil,
-				err:  err,
+				Time: nil,
+				Err:  err,
 			}
 			return
 		}
@@ -114,10 +114,10 @@ func After(deadline *ct.Timestamp) (<-chan TimeData, error) {
 		rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: deadline, Jitter: 0})
 
 		if err != nil {
-			res <- TimeData{time: nil, err: err}
+			res <- TimeData{Time: nil, Err: err}
 			return
 		}
-		res <- TimeData{time: rsp, err: nil}
+		res <- TimeData{Time: rsp, Err: nil}
 	}(ch)
 
 	return ch, nil

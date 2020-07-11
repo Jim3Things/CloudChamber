@@ -28,10 +28,6 @@ const (
 
     Login = "login"
     Logout = "logout"
-
-    SessionCookieName = "CC-Session"
-    AuthStateKey      = "authenticated"
-    UserNameKey       = "username"
 )
 
 var (
@@ -286,6 +282,9 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
                 err = NewErrUserInvalidOperation(op)
             }
 
+            if err != nil {
+                _ = st.Error(ctx, -1, dumpSessionState(session))
+            }
             return err
         })
 
@@ -316,7 +315,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
     username := vars["username"]
 
     // Verify that there is no logged in user
-    if auth, ok := session.Values[AuthStateKey].(bool); ok && auth {
+    if _, ok := getSession(session); ok {
         return "", &HTTPError{
             SC:   http.StatusBadRequest,
             Base: ErrUserAlreadyLoggedIn,
@@ -354,8 +353,12 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
 
     // .. all passed.  So finally mark the session as logged in
     //
-    session.Values[AuthStateKey] = true
-    session.Values[UserNameKey] = username
+    if err = newSession(session, SessionState{ name: username }); err != nil {
+        return "", &HTTPError{
+            SC:   http.StatusBadRequest,
+            Base: err,
+        }
+    }
 
     return fmt.Sprintf("User %q logged in", username), nil
 }
@@ -366,18 +369,13 @@ func logout(session *sessions.Session, r *http.Request) (_ string, err error) {
     username := vars["username"]
 
     // Verify that there is a logged in user on this session
-    if auth, ok := session.Values[AuthStateKey].(bool); !ok || !auth {
-        return "", NewErrNoLoginActive(username)
-    }
-
     // .. and that it is the user we're trying to logout
-    if name, ok := session.Values[UserNameKey].(string); !ok || !strings.EqualFold(name, username) {
+    if state, ok := getSession(session); !ok  || !strings.EqualFold(state.name, username) {
         return "", NewErrNoLoginActive(username)
     }
 
     // .. and now log the user out
-    session.Values[AuthStateKey] = false
-    delete(session.Values, UserNameKey)
+    removeSession(session)
 
     return fmt.Sprintf("User %q logged out", username), nil
 }
@@ -455,17 +453,17 @@ func canManageAccounts(session *sessions.Session, username string) error {
 }
 
 // Get the secret associated with this session
-func secret(w http.ResponseWriter, r *http.Request) {
-    session, _ := server.cookieStore.Get(r, SessionCookieName)
-
-    // Check if user is authenticated
-    if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-        http.Error(w, "Forbidden", http.StatusForbidden)
-        return
-    }
-
-    // Print secret message
-    _, _ = fmt.Fprintln(w, "secret message")
-}
+// func secret(w http.ResponseWriter, r *http.Request) {
+//     session, _ := server.cookieStore.Get(r, SessionCookieName)
+//
+//     // Check if user is authenticated
+//     if state, ok := getSession(session); !ok || !state.authenticated {
+//         http.Error(w, "Forbidden", http.StatusForbidden)
+//         return
+//     }
+//
+//     // Print secret message
+//     _, _ = fmt.Fprintln(w, "secret message")
+// }
 
 // --- Helper functions
