@@ -31,10 +31,11 @@ if /i "%ETCDPORTPEER%" == "" (set ETCDPORTPEER=%DEFAULT_ETCDPORTPEER%)
 
 rem Check for requests for help without actually doing anything
 rem 
-if /i "%1" == "/?" (goto :StartEtcdHelp)
-if /i "%1" == "/h" (goto :StartEtcdHelp)
-if /i "%1" == "-?" (goto :StartEtcdHelp)
-if /i "%1" == "-h" (goto :StartEtcdHelp)
+if /i "%1" == "/?"    (goto :StartEtcdHelp)
+if /i "%1" == "-?"    (goto :StartEtcdHelp)
+if /i "%1" == "/h"    (goto :StartEtcdHelp)
+if /i "%1" == "-h"    (goto :StartEtcdHelp)
+if /i "%1" == "--help"(goto :StartEtcdHelp)
 
 
 rem Find a binary to use
@@ -87,8 +88,9 @@ echo which can be overriden by setting environment variables using the appropria
 echo desired values.
 echo.
 echo ETCDINSTANCE (defaults to %DEFAULT_ETCDINSTANCE%) - name of the ETCD instance
+echo ETCDNODEADDR (defaults to %DEFAULT_ETCDNODEADDR%) - IP address of the ETCD instance
 echo ETCDPORTCLNT (defaults to %DEFAULT_ETCDPORTCLNT%) - IP port to be used for communication with the client
-echo ETCDDATA     (defaults to %DEFAULT_ETCDDATA%)     - directory where the ETCD data files are to be placed- 
+echo ETCDDATA     (defaults to %DEFAULT_ETCDDATA%)     - directory where the ETCD data files are to be placed
 echo.
 echo.
 

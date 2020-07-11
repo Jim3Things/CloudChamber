@@ -104,6 +104,27 @@ delete the complete directory tree where the instance was storing its
 data. If etcd was started using the startetcd.cmd script, this will
 likely be %SystemDrive%\\etcd (typically c:\\etcd)
 
+## Configuring Etcd Instance Parameters
+
+There are many configuration options for etcd itself, but the startetcd
+command script has set a number of values sufficient for basic use
+cases. However, it does allow for configuration of some basic properties
+which are listed along with there default values in the help text
+obtained by
+
+  - %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber\\Scripts\\startetcd.cmd
+    -?
+
+Currently these configurable values are all set via environment variable
+which when set will override the defaults. These are
+
+| Environment Variable | Description                                          | Default                   |
+| -------------------- | ---------------------------------------------------- | ------------------------- |
+| ETCDINSTANCE         | name of the ETCD instance                            | %COMPUTERNAME%            |
+| ETCDNODEADDR         | IP address of the node hosting the Etcd instance     | 127.0.0.1                 |
+| ETCDPORTCLNT         | IP port to be used for communication with the client | 2379                      |
+| ETCDDATA             | directory for ETCD data (adds .etcd suffix)          | %SystemDrive%\\etcd\\data |
+
 ## Using the Etcdctl Utility
 
 The following all assumes the etcdctl.exe utility was placed in the
