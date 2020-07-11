@@ -98,6 +98,22 @@ func (m *DBInventory) ScanBladesInRack(rackid string, action func(bladeid int64)
 	return nil
 }
 
+func (m *DBInventory) GetBlade(rackid string, bladeid int64) (*common.BladeCapacity, error) {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	r, ok := m.Racks[rackid]
+	if !ok {
+		return nil, NewErrRackNotFound(rackid)
+	}
+
+	b, ok := r.Blades[bladeid]
+	if !ok {
+		return nil, NewErrBladeNotFound(rackid, bladeid)
+	}
+	return b, nil
+}
+
 //Scan
 // GET api/racks/{rackid}/blades
 

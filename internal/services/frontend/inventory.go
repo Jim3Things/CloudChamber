@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -48,8 +49,8 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
 	routeRacks.HandleFunc("/{rackid}", handlerRacksRead).Methods("GET")
-	routeRacks.HandleFunc("/{rackid}/blades",)
-	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksUpdate).Methods("PUT", "GET")
+	routeRacks.HandleFunc("/{rackid}/blades", handlerBladeList).Methods("GET")
+	routeRacks.HandleFunc("/{rackid}/blades/{bladeid}", handlerBladeRead).Methods("GET")
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
 }
 
@@ -98,7 +99,7 @@ func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		rackid := vars["rackid"]
-		
+
 		u, err := dbInventory.Get(rackid)
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -116,58 +117,57 @@ func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handlerBladeList(w http.ResponseWriter, r http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error){
+func handlerBladeList(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		rackid := vars["rackid"] // captured the key value in rackid variable
-	
-		if _, err := fmt.Fprintf(w, "Blades in %s (List)\n", rackid); err != nil { // Why printing the rack list in here?
+
+		if _, err := fmt.Fprintf(w, "Blades in %s (List)\n", rackid); err != nil {
 			return httpError(ctx, w, err)
 		}
-
 		b := r.URL.String()
 		if !strings.HasSuffix(b, "/") {
 			b += "/"
 		}
-
-		return dbInventory.ScanBladesInRack(rackid, func(bladeid int64) (err error) ) {
+		return dbInventory.ScanBladesInRack(rackid, func(bladeid int64) error {
 
 			target := fmt.Sprintf("%s%d", b, bladeid)
-						st.Infof(ctx, -1, " Listing blades '%d' at '%s'", bladeid, target)
-			
+			st.Infof(ctx, -1, " Listing blades '%d' at '%s'", bladeid, target)
+
 			if _, err = fmt.Fprintln(w, target); err != nil {
 				return httpError(ctx, w, err)
 			}
-			return
-		}  
+			return nil
+		})
 
 	})
 }
 
-func handlerBladeRead(w http.ResponseWriter, r http.Request){
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error){
+func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
-		rackid := vars["rackid"] // captured the key value in rackid variable
-	
-		if _, err := fmt.Fprintf(w, "Blades in %s (List)\n", rackid); err != nil { // Why printing the rack list in here?
-			return httpError(ctx, w, err)
-		}
+		rackid := vars["rackid"]
+		bladeName := vars["bladeid"]
 
-		b := r.URL.String()
-		if !strings.HasSuffix(b, "/") {
-			b += "/"
-		}
-		return dbInventory.ScanBladesInRack(rackid, func(bladeid int64) (err error) ) {
 		w.Header().Set("Content-Type", "application/json")
 
-		st.Infof(ctx, -1, "Returning details for blade %d: %v", bladeid, u)
+		bladeid, err := strconv.ParseInt(bladeName, 10, 64)
+		if err != nil {
+			return httpError(ctx, w, &HTTPError{
+				SC:   http.StatusBadRequest,
+				Base: err,
+			})
+		}
+		blade, err := dbInventory.GetBlade(rackid, bladeid)
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+		st.Infof(ctx, -1, "Returning details for blade %d  in rack %q:  %v", bladeid, rackid, blade)
 
-		// Get the user entry, and serialize it to json
-		// (export userPublic to json and return that as the body)
 		p := jsonpb.Marshaler{}
-		return p.Marshal(w, u)
-	}
-	return
+		return p.Marshal(w, blade)
+	})
+
 }
 
 //func handlerracksUpdate(w http.ResponseWriter, r *http.Request) {

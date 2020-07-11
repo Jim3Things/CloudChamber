@@ -38,8 +38,9 @@ func TestInventoryListRacks(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestInventoryListRead(t *testing.T) {
+func TestInventoryRackRead(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/Rack1"), nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -62,6 +63,7 @@ func TestInventoryListRead(t *testing.T) {
 }
 func TestInventoryUnknownRack(t *testing.T) {
 	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/Rack3"), nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -69,4 +71,64 @@ func TestInventoryUnknownRack(t *testing.T) {
 	response := doHTTP(request, nil)
 	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
 
+}
+
+func TestInventoryListBlades(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", "/api/racks/rack1/blades", nil)
+	response := doHTTP(request, nil)
+	body, err := getBody(response)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(t, "text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
+	s := string(body)                   // Converted into a string
+	var splits = strings.Split(s, "\n") // Created an array per line
+
+	expected := []string{"/api/racks/rack1/blades/1", "/api/racks/rack1/blades/2", ""}
+
+	assert.Equal(t, splits[0], "Blades in rack1 (List)")
+	assert.ElementsMatch(t, expected, splits[1:])
+
+	assert.Nil(t, err)
+}
+func TestInventoryUnknownBlades(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/3"), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response := doHTTP(request, nil)
+	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+}
+func TestInventoryNegativeBlades(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/-1"), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response := doHTTP(request, nil)
+	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+}
+func TestInventoryZeroBlades(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/0"), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response := doHTTP(request, nil)
+	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+}
+func TestInventoryStringBlades(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/Jeff"), nil)
+	request.Header.Set("Content-Type", "application/json")
+	response := doHTTP(request, nil)
+
+	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
 }
