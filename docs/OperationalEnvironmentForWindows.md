@@ -1,28 +1,52 @@
 At present the only requirement for external (to Cloud Chamber)
 components that need to be running is an etcd persistent store. This can
 be placed wherever is convenient but typically the local node is used.
-The shipping configuration file assumes that the etcd instance is
-running locally on the default ports. If this is not accurate, the
-configuration file(s) need to be modified to suit.
 
 # Etcd Store
+
+This document assumes the standard command script
+
+  - github.com\\Jim3Things\\CloudChamber\\scripts\\startetcd.cmd
+
+will be used to start etcd running locally using the default network
+ports. If any other options are required, the start method and
+configuration should be altered as required.
+
+## Etcd Documentation
 
 The primary etcd documentation can be found at <https://etcd.io/docs/>
 with the most recent version (v3.4.0) being used.
 
 ## Installing Etcd
 
-Etcd can either be installed using the pre-built binaries or using the
-sources pulled into a local git repository and built from there.
+There are several methods which can be used to obtain the etcd binaries
+and then install them. Any one of the methods below is sufficient, based
+on personal preference
+
+1.  Download a set of pre-built etcd binaries and install them in one of
+    
+    1.  a directory somewhere on the system %PATH%
+    
+    2.  or a directory pointed to by the %ETCDBINPATH% environment
+        variable
+
+2.  Build etcd from source by pulling the latest version from github.com
+    into the local git repository which will install the generated
+    binaries to %GOPATH%\\bin
+
+## Using the Pre-Built Etcd Binaries
 
 The link to the current release v3.4.9 can be found at
 <https://github.com/etcd-io/etcd/releases/>
 
 <https://github.com/etcd-io/etcd/releases/download/v3.4.9/etcd-v3.4.9-windows-amd64.zip>
 
-which contains two binaries etcd.exe and etcdctl.exe which should be
-placed in a convenient directory which can be on the system PATH or any
-other directory whose path in known.
+which contains two binaries etcd.exe and etcdctl.exe. These binaries
+should be placed in a convenient directory which should either be on the
+system PATH or any other directory which is defined in the %ETCDBINPATH%
+environment variable.
+
+## Building from source
 
 To build etcd and etcdctl from source, open a Windows Command line and
 set it up to a local git repository and ensure the GO environment is
@@ -34,19 +58,30 @@ properly configured. Then
 
 which should fetch the sources, build both etcd.exe and etcdctl.exe and
 finally copy then to the %GOPATH%\\bin directory. They can be left in
-place and run from the %GOPATH%\\bin directory or placed somewhere else
-as required.
+place and run from the %GOPATH%\\bin.
 
 ## Running Etcd
 
-To run a local etcd instance, from a Windows Command line using the
-CloudChamber git repository, run the
-github.com\\Jim3Things\\CloudChamber\\scripts\\startetcd.cmd command
-script. This will start an instance of etcd on the local machine using
-the default network ports and place the data store in the etcd directory
-on the SystemDrive (typically c:\\etcd). The instance will start in a
-new window which will contain various log messages from the etcd
-instance as it runs.
+There are several methods of running etcd but for the purposes of
+CloudChamber, the assumption is that the
+
+  - %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber\\Scripts\\startetcd.cmd
+
+command script is being used. This script will attempt to locate a copy
+of the etcd binary to use and will search the following locations in the
+given order and will use the first copy it finds.
+
+1.  In a directory pointer to with the ETCDBINPATH
+
+2.  In the %GOPATH%\\bin directory
+
+3.  In a directory included in the system %PATH% environment variable.
+
+This will start an instance of etcd on the local machine using the
+default network ports and place the data store in the etcd directory on
+the SystemDrive (typically c:\\etcd). The instance will start in a new
+window which will contain various log messages from the etcd instance as
+it runs.
 
 If this is not the first time etcd has been started, the new instance
 will re-start using the same data store as the previous instance and all
@@ -71,6 +106,11 @@ likely be %SystemDrive%\\etcd (typically c:\\etcd)
 
 ## Using the Etcdctl Utility
 
+The following all assumes the etcdctl.exe utility was placed in the
+%GOPATH%\\bin directory either as a result of building from source, or
+by coping the pre-built binaries. If an alternative location was used,
+the path should be modified to suit.
+
 Although the running etcd instance will print various message to the
 console window it opens, these messages are not particularly useful. To
 query and control the etcd instance the etcdctl.exe utility is used.
@@ -86,8 +126,8 @@ a Windows Command line type
 
   - %gopath%\\bin\\etcdctl member list
 
-Which should reply with a message which includes the computers name and
-some URLs.
+(assuming the etcdctl.exe binary was built from source) which should
+reply with a message which includes the computers name and some URLs.
 
 ### Dumping values from the Etcd store
 
@@ -129,8 +169,8 @@ pass, use
 
   - %gopath%\\bin\\etcdctl del --prefix /CloudChamber/v0.1/Test/
 
-But if the “Test/” were left off, all the CloudChamberrelated data would
-be removed. Be careful.
+But if the “Test/” were left off, all the CloudChamber related data
+would be removed. Be careful.
 
 ### Monitoring keys and values in the Etcd Store
 
