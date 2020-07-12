@@ -69,7 +69,6 @@ func commonSetup() {
 	}
 
 	setDefaultNamespaceSuffix(testNamespace)
-	return
 }
 
 func cleanNamespace(testNamespace string) error {

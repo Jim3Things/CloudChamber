@@ -65,7 +65,7 @@ func (eskff ErrStoreKeyReadFailure) Error() string {
 type ErrStoreKeyWriteFailure string
 
 func (eskwf ErrStoreKeyWriteFailure) Error() string {
-	return fmt.Sprintf("CloudChamber: transaction failed deleting key %q", string(eskwf))
+	return fmt.Sprintf("CloudChamber: transaction failed writing key %q", string(eskwf))
 }
 
 // ErrStoreKeyDeleteFailure indicates the read transaction failed.

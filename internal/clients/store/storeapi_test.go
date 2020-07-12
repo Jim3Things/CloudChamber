@@ -173,7 +173,7 @@ func TestUserDelete(t *testing.T) {
 	assert.Equalf(t, user, userRead, "Unexpected difference in updated user record and read user record")
 
 	revDelete, err := store.UserDelete(context.Background(), user, revRead-1)
-	assert.NotNilf(t, err, "Unecpected success trying to update with wrong revision for user %q - error: %v", userName, err)
+	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revDelete, "Expected post-delete revision to be greater than read revision")
 
 	revDelete, err = store.UserDelete(context.Background(), user, revRead)
