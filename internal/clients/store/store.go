@@ -78,6 +78,7 @@ import (
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 
 	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3/concurrency"
 	"go.etcd.io/etcd/clientv3/namespace"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"google.golang.org/grpc/codes"
@@ -703,7 +704,7 @@ func (store *Store) Read(key string) (result []byte, err error) {
 			err = ErrStoreKeyNotFound(key)
 			st.Errorf(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
 		} else if 1 != len(response.Kvs) {
-			err = ErrStoreBadResultSize{1, len(response.Kvs)}
+			err = ErrStoreBadRecordCount{key, 1, len(response.Kvs)}
 			st.Errorf(ctx, -1, "expected a single result and instead received something else - error: %v", err)
 		} else {
 			result = response.Kvs[0].Value
@@ -759,7 +760,7 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 
 			for i := 0; i < processedCount; i++ {
 				if 1 != len(responses[i].Kvs) {
-					err = ErrStoreBadResultSize{processedCount, len(responses[i].Kvs)}
+					err = ErrStoreBadRecordCount{string(responses[i].Kvs[0].Key), 1, len(responses[i].Kvs)}
 					st.Errorf(ctx, -1, "number of responses did not match expectations - error: %v", err)
 				} else {
 					results[i].key = string(responses[i].Kvs[0].Key)
@@ -795,9 +796,10 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 // return an empty set of key/value pairs if there are no matches for the supplied key
 // prefix.
 //
-func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse, err error) {
+func (store *Store) ReadWithPrefix(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
 
-	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -808,29 +810,37 @@ func (store *Store) ReadWithPrefix(keyPrefix string) (result []KeyValueResponse,
 
 		if err != nil {
 			store.logEtcdResponseError(ctx, err)
-		} else {
-			result = make([]KeyValueResponse, len(response.Kvs))
+			return err
+		}
 
-			for i, kv := range response.Kvs {
-				result[i] = KeyValueResponse{string(kv.Key), kv.Value}
-			}
+		resultSet := &RecordSet{Revision: 0, Records: make(map[string]Record, len(response.Kvs))}
+
+		for i, kv := range response.Kvs {
+			key := string(kv.Key)
+			val := string(kv.Value)
+			rev := kv.ModRevision
+
+			resultSet.Records[key] = Record{Revision: rev, Value: val}
 
 			if store.trace(traceFlagExpandResults) {
-				for i, kv := range result {
-					if store.trace(traceFlagTraceKeyAndValue) {
-						st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, len(result), string(kv.key), string(kv.value))
-					} else if store.trace(traceFlagTraceKey) {
-						st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(result), string(kv.key))
-					}
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(response.Kvs), key, rev, val)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(response.Kvs), key)
 				}
 			}
-
-			st.Infof(ctx, -1, "Processed %v items", len(result))
 		}
-		return err
+
+		resultSet.Revision = response.Header.Revision
+
+		rs = resultSet
+
+		st.Infof(ctx, -1, "Processed %v items", len(resultSet.Records))
+
+		return nil
 	})
 
-	return result, err
+	return rs, err
 }
 
 // Delete is a method used to remove a single key/value pair using the supplied name.
@@ -852,7 +862,7 @@ func (store *Store) Delete(key string) (err error) {
 			err = ErrStoreKeyNotFound(key)
 			st.Errorf(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
 		} else if 1 != response.Deleted {
-			err = ErrStoreBadResultSize{1, int(response.Deleted)}
+			err = ErrStoreBadRecordCount{key, 1, int(response.Deleted)}
 			st.Errorf(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
 		} else {
 			st.Infof(ctx, -1, "deleted key: %v", key)
@@ -958,4 +968,354 @@ func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		return ErrStoreNotImplemented("SetWatchWithPrefix")
 	})
+}
+
+// RevisionInvalid is returned from certain operations if
+// failure cases and is also used when defining
+// unconditional write to the store.
+//
+const (
+	RevisionInvalid int64 = 0
+)
+
+// Condition is a type used to define the test to be
+// applied when making a conditional write to the store
+//
+type Condition string
+
+// Set of specifiers for the type of condition in a
+// conditional record update.
+//
+const (
+	ConditionCreate                 = Condition("new")
+	ConditionUnconditional          = Condition("*")
+	ConditionRevisionNotEqual       = Condition("!=")
+	ConditionRevisionLess           = Condition("<")
+	ConditionRevisionLessOrEqual    = Condition("<=")
+	ConditionRevisionEqual          = Condition("==")
+	ConditionRevisionEqualOrGreater = Condition(">=")
+	ConditionRevisionGreater        = Condition(">")
+)
+
+// RecordKeySet is a struct defining the set of keys to be read along with an arbitrary
+// label to tag the transaction.
+//
+type RecordKeySet struct {
+	Label string
+	Keys  []string
+}
+
+// Record is a struct defining a single value and the associated revision describing
+// the store revision when the value was last updated.
+//
+type Record struct {
+	Revision int64
+	Value    string
+}
+
+// RecordSet is a struct defining a set of k,v pairs along with the revision of the
+// store at the time the values were retrieved.
+//
+type RecordSet struct {
+	Revision int64
+	Records  map[string]Record
+}
+
+// RecordUpdate is a struct defining a single value and it's revision along with
+// a condition based upon that revision which will permit an update to be attempted.
+//
+type RecordUpdate struct {
+	Condition Condition
+	Record    Record
+}
+
+// RecordUpdateSet is a struct defining the set of key value pairs to be updated
+// within a transaction along with conditions for a successful update based upon
+// the current revision of the k,v pair
+//
+type RecordUpdateSet struct {
+	Label   string
+	Records map[string]RecordUpdate
+}
+
+func generatePrefetchKeys(recordSet *RecordUpdateSet) (*[]string, error) {
+
+	prefetchKeys := make([]string, 0, len(recordSet.Records))
+
+	// Build an array of keys to supply as the arg to prefetch
+	// on the WithPrefetch() option below
+	//
+	for k, ru := range recordSet.Records {
+		switch ru.Condition {
+		case ConditionUnconditional:
+			// No need to prefetch if not comparing anything
+			break
+
+		case ConditionRevisionNotEqual:
+			fallthrough
+
+		case ConditionRevisionLess:
+			fallthrough
+
+		case ConditionRevisionLessOrEqual:
+			fallthrough
+
+		case ConditionRevisionEqual:
+			fallthrough
+
+		case ConditionRevisionEqualOrGreater:
+			fallthrough
+
+		case ConditionRevisionGreater:
+			if ru.Record.Revision == RevisionInvalid {
+				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, ru.Record.Revision}
+			}
+
+			fallthrough
+
+		case ConditionCreate:
+			prefetchKeys = append(prefetchKeys, k)
+
+		default:
+			return nil, ErrStoreBadArgCondition{k, Condition(ru.Condition)}
+		}
+	}
+
+	return &prefetchKeys, nil
+}
+
+func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
+
+	for k, ru := range recordSet.Records {
+		if ru.Condition == ConditionCreate {
+			if stm.Get(k) != "" {
+				return ErrStoreConditionFail{k, RevisionInvalid, ru.Condition, stm.Rev(k)}
+			}
+		} else if ru.Condition != ConditionUnconditional {
+			rev := stm.Rev(k)
+
+			switch ru.Condition {
+			case ConditionRevisionLess:
+				if rev >= ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+
+			case ConditionRevisionLessOrEqual:
+				if rev > ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+
+			case ConditionRevisionEqual:
+				if rev != ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+
+			case ConditionRevisionNotEqual:
+				if rev == ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+
+			case ConditionRevisionEqualOrGreater:
+				if rev < ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+
+			case ConditionRevisionGreater:
+				if rev <= ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*RecordSet, error) {
+
+	resultSet := RecordSet{Revision: 0, Records: make(map[string]Record)}
+
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		actionReadRecords := func(stm concurrency.STM) error {
+			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
+
+			for _, k := range keySet.Keys {
+
+				rev := stm.Rev(k)
+
+				// If the revision is zero, we take that to mean the key
+				// does not actually exist.
+				//
+				// Note that a key might well exist even if the value is
+				// an empty string. At least I believe it can. We choose
+				// to use the revision instead as a more reliable
+				// indicator of existence.
+				//
+				if rev != 0 {
+					resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+				}
+			}
+
+			return nil
+		}
+
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionReadRecords,
+			concurrency.WithIsolation(concurrency.ReadCommitted),
+			concurrency.WithPrefetch(keySet.Keys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !response.Succeeded {
+			err = ErrStoreKeyReadFailure(keySet.Label)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resultSet.Revision = response.Header.Revision
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &resultSet, nil
+}
+
+// WriteMultipleTxn is a method to write/update a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
+
+	revision := RevisionInvalid
+
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+			return err
+		}
+
+		actionWriteRecords := func(stm concurrency.STM) error {
+
+			if err = checkConditions(stm, recordSet); err != nil {
+				return err
+			}
+
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k, ru := range recordSet.Records {
+				stm.Put(k, string(ru.Record.Value))
+			}
+
+			return nil
+		}
+
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionWriteRecords,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !response.Succeeded {
+			err := ErrStoreKeyWriteFailure(recordSet.Label)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		revision = response.Header.Revision
+
+		return nil
+	})
+
+	return revision, err
+}
+
+// DeleteMultipleTxn is a method to delete a set of arbitrary keys within a
+// single txn so they form a (self-)consistent operation.
+//
+func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
+
+	revision := RevisionInvalid
+
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+			return err
+		}
+
+		actionDeleteRecords := func(stm concurrency.STM) error {
+
+			if err = checkConditions(stm, recordSet); err != nil {
+				return err
+			}
+
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k := range recordSet.Records {
+				stm.Del(k)
+			}
+
+			return nil
+		}
+
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionDeleteRecords,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !response.Succeeded {
+			err := ErrStoreKeyDeleteFailure(recordSet.Label)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		revision = response.Header.Revision
+
+		return nil
+	})
+
+	return revision, err
 }
