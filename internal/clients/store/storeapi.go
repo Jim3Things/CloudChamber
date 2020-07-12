@@ -51,7 +51,7 @@ func (store *Store) UserCreate(ctx context.Context, u *pb.User) (revision int64,
 
 		recordSet.Records[getKeyFromUsername(u.Name)] =
 			RecordUpdate{
-				Condition: WriteConditionCreate,
+				Condition: ConditionCreate,
 				Record: Record{
 					Revision: RevisionInvalid,
 					Value:    val,
@@ -89,15 +89,15 @@ func (store *Store) UserUpdate(ctx context.Context, u *pb.User, revCond int64) (
 		var (
 			rev       int64
 			val       string
-			condition WriteCondition
+			condition Condition
 		)
 
 		switch {
 		case revCond == RevisionInvalid:
-			condition = WriteConditionUnconditional
+			condition = ConditionUnconditional
 
 		default:
-			condition = WriteConditionRevisionEqual
+			condition = ConditionRevisionEqual
 		}
 
 		key := getKeyFromUsername(u.Name)
@@ -151,7 +151,7 @@ func (store *Store) UserDelete(ctx context.Context, u *pb.User, revision int64) 
 
 		recordSet.Records[key] =
 			RecordUpdate{
-				Condition: WriteConditionRevisionEqual,
+				Condition: ConditionRevisionEqual,
 				Record: Record{
 					Revision: revision,
 					Value:    "",
@@ -216,8 +216,7 @@ func (store *Store) UserRead(ctx context.Context, name string) (user *pb.User, r
 
 		switch recordCount {
 		default:
-			st.Errorf(ctx, -1, "searching for user %q found %v records when expecting just one", name, recordCount)
-			return ErrStoreBadRecordCount(name)
+			return ErrStoreBadRecordCount{name, 1, recordCount}
 
 		case 0:
 			return ErrStoreKeyNotFound(name)
@@ -308,7 +307,7 @@ func (store *Store) UserList(ctx context.Context) (recordSet *UserRecordSet, err
 
 			rs.Records[userName] = UserRecord{Revision: r.Revision, User: u}
 
-			st.Infof(ctx, -1, "found record for user %q eith revision %v", u.Name, r.Revision)
+			st.Infof(ctx, -1, "found record for user %q either revision %v", u.Name, r.Revision)
 		}
 
 		rs.StoreRevision = readResponse.Revision

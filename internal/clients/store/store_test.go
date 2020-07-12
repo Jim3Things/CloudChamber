@@ -734,7 +734,7 @@ func TestStoreWriteMultipleTxn(t *testing.T) {
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
-	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionUnconditional)
+	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, ConditionUnconditional)
 	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
 
 	store := NewStore()
@@ -780,7 +780,7 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
-	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionCreate)
+	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, ConditionCreate)
 	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
 
 	store := NewStore()
@@ -816,8 +816,7 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 	// Try to re-create the same keys. These should fail and the original values and revisions should survive.
 	//
 	revStoreRecreate, err := store.WriteMultipleTxn(context.Background(), &recordUpdateSet)
-	assert.NotNilf(t, err, "Succeeded where we expected to get a failed to write to store - error: %v", err)
-	// assert.Equalf(t, ErrStoreWriteConditionFail(keyFail), err, "Failed to get the expected error value")
+	assert.NotNilf(t, err, "Succeeded where we expected to get a failed store write - error: %v", err)
 	assert.Equalf(t, RevisionInvalid, revStoreRecreate, "Unexpected value for store revision on write(re-create) completion")
 
 	readResponseRecreate, err := store.ReadMultipleTxn(context.Background(), recordReadSet)
@@ -846,7 +845,7 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
-	recordCreateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionCreate)
+	recordCreateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, ConditionCreate)
 	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
 
 	store := NewStore()
@@ -886,7 +885,7 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 
 	for k, r := range recordCreateSet.Records {
 		recordUpdateSet.Records[k] = RecordUpdate{
-			Condition: WriteConditionUnconditional,
+			Condition: ConditionUnconditional,
 			Record: Record{
 				Revision: RevisionInvalid,
 				Value:    r.Record.Value + "+ConditionOverwrite",
@@ -924,7 +923,7 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
-	recordCreateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, WriteConditionCreate)
+	recordCreateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, ConditionCreate)
 	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
 
 	store := NewStore()
@@ -957,7 +956,7 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 		assert.Equalf(t, recordCreateSet.Records[k].Record.Value, r.Value, "read value does not match earlier write value")
 	}
 
-	// We verified the write worked, so try an conditional update when the revisions
+	// We verified the write worked, so try a conditional update when the revisions
 	// are equal. Set the required condition and change the value so we can verify
 	// after the update.
 	//
@@ -965,7 +964,7 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 
 	for k, r := range readResponse.Records {
 		recordUpdateSet.Records[k] = RecordUpdate{
-			Condition: WriteConditionRevisionEqual,
+			Condition: ConditionRevisionEqual,
 			Record: Record{
 				Revision: r.Revision,
 				Value:    r.Value + "+ConditionEqual",

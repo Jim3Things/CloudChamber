@@ -22,7 +22,6 @@ import (
 const keySetSize = 100
 
 var (
-	baseURI     string
 	initialized bool
 
 	testNamespaceSuffixRoot = "/Test"
@@ -132,7 +131,7 @@ func testGenerateKeySetFromKeyValueSet(keyValueSet []KeyValueArg) []string {
 
 // Build a set of key,value pairs to be created unconditionally in the store.
 //
-func testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet []KeyValueArg, label string, condition WriteCondition) RecordUpdateSet {
+func testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet []KeyValueArg, label string, condition Condition) RecordUpdateSet {
 
 	recordUpdateSet := RecordUpdateSet{Label: label, Records: make(map[string]RecordUpdate)}
 

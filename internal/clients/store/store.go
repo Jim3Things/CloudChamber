@@ -704,7 +704,7 @@ func (store *Store) Read(key string) (result []byte, err error) {
 			err = ErrStoreKeyNotFound(key)
 			st.Errorf(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
 		} else if 1 != len(response.Kvs) {
-			err = ErrStoreBadResultSize{1, len(response.Kvs)}
+			err = ErrStoreBadRecordCount{key, 1, len(response.Kvs)}
 			st.Errorf(ctx, -1, "expected a single result and instead received something else - error: %v", err)
 		} else {
 			result = response.Kvs[0].Value
@@ -760,7 +760,7 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 
 			for i := 0; i < processedCount; i++ {
 				if 1 != len(responses[i].Kvs) {
-					err = ErrStoreBadResultSize{processedCount, len(responses[i].Kvs)}
+					err = ErrStoreBadRecordCount{string(responses[i].Kvs[0].Key), 1, len(responses[i].Kvs)}
 					st.Errorf(ctx, -1, "number of responses did not match expectations - error: %v", err)
 				} else {
 					results[i].key = string(responses[i].Kvs[0].Key)
@@ -862,7 +862,7 @@ func (store *Store) Delete(key string) (err error) {
 			err = ErrStoreKeyNotFound(key)
 			st.Errorf(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
 		} else if 1 != response.Deleted {
-			err = ErrStoreBadResultSize{1, int(response.Deleted)}
+			err = ErrStoreBadRecordCount{key, 1, int(response.Deleted)}
 			st.Errorf(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
 		} else {
 			st.Infof(ctx, -1, "deleted key: %v", key)
@@ -978,23 +978,23 @@ const (
 	RevisionInvalid int64 = 0
 )
 
-// WriteCondition is a type used to define the test to be
+// Condition is a type used to define the test to be
 // applied when making a conditional write to the store
 //
-type WriteCondition int64
+type Condition string
 
 // Set of specifiers for the type of condition in a
-// conditional write record update.
+// conditional record update.
 //
 const (
-	WriteConditionCreate WriteCondition = iota
-	WriteConditionUnconditional
-	WriteConditionRevisionNotEqual
-	WriteConditionRevisionLess
-	WriteConditionRevisionLessOrEqual
-	WriteConditionRevisionEqual
-	WriteConditionRevisionEqualOrGreater
-	WriteConditionRevisionGreater
+	ConditionCreate                 = Condition("new")
+	ConditionUnconditional          = Condition("*")
+	ConditionRevisionNotEqual       = Condition("!=")
+	ConditionRevisionLess           = Condition("<")
+	ConditionRevisionLessOrEqual    = Condition("<=")
+	ConditionRevisionEqual          = Condition("==")
+	ConditionRevisionEqualOrGreater = Condition(">=")
+	ConditionRevisionGreater        = Condition(">")
 )
 
 // RecordKeySet is a struct defining the set of keys to be read along with an arbitrary
@@ -1025,7 +1025,7 @@ type RecordSet struct {
 // a condition based upon that revision which will permit an update to be attempted.
 //
 type RecordUpdate struct {
-	Condition WriteCondition
+	Condition Condition
 	Record    Record
 }
 
@@ -1047,37 +1047,37 @@ func generatePrefetchKeys(recordSet *RecordUpdateSet) (*[]string, error) {
 	//
 	for k, ru := range recordSet.Records {
 		switch ru.Condition {
-		case WriteConditionUnconditional:
+		case ConditionUnconditional:
 			// No need to prefetch if not comparing anything
 			break
 
-		case WriteConditionRevisionNotEqual:
+		case ConditionRevisionNotEqual:
 			fallthrough
 
-		case WriteConditionRevisionLess:
+		case ConditionRevisionLess:
 			fallthrough
 
-		case WriteConditionRevisionLessOrEqual:
+		case ConditionRevisionLessOrEqual:
 			fallthrough
 
-		case WriteConditionRevisionEqual:
+		case ConditionRevisionEqual:
 			fallthrough
 
-		case WriteConditionRevisionEqualOrGreater:
+		case ConditionRevisionEqualOrGreater:
 			fallthrough
 
-		case WriteConditionRevisionGreater:
+		case ConditionRevisionGreater:
 			if ru.Record.Revision == RevisionInvalid {
-				return nil, ErrStoreBadArgRevision(k)
+				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, ru.Record.Revision}
 			}
 
 			fallthrough
 
-		case WriteConditionCreate:
+		case ConditionCreate:
 			prefetchKeys = append(prefetchKeys, k)
 
 		default:
-			return nil, ErrStoreBadArgCompare(k)
+			return nil, ErrStoreBadArgCondition{k, Condition(ru.Condition)}
 		}
 	}
 
@@ -1087,42 +1087,42 @@ func generatePrefetchKeys(recordSet *RecordUpdateSet) (*[]string, error) {
 func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
 
 	for k, ru := range recordSet.Records {
-		if ru.Condition == WriteConditionCreate {
+		if ru.Condition == ConditionCreate {
 			if stm.Get(k) != "" {
-				return ErrStoreWriteConditionFail(k)
+				return ErrStoreConditionFail{k, RevisionInvalid, ru.Condition, stm.Rev(k)}
 			}
-		} else if ru.Condition != WriteConditionUnconditional {
+		} else if ru.Condition != ConditionUnconditional {
 			rev := stm.Rev(k)
 
 			switch ru.Condition {
-			case WriteConditionRevisionLess:
+			case ConditionRevisionLess:
 				if rev >= ru.Record.Revision {
-					return ErrStoreWriteConditionFail(k)
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
 				}
 
-			case WriteConditionRevisionLessOrEqual:
+			case ConditionRevisionLessOrEqual:
 				if rev > ru.Record.Revision {
-					return ErrStoreWriteConditionFail(k)
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
 				}
 
-			case WriteConditionRevisionEqual:
+			case ConditionRevisionEqual:
 				if rev != ru.Record.Revision {
-					return ErrStoreWriteConditionFail(k)
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
 				}
 
-			case WriteConditionRevisionNotEqual:
+			case ConditionRevisionNotEqual:
 				if rev == ru.Record.Revision {
-					return ErrStoreWriteConditionFail(k)
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
 				}
 
-			case WriteConditionRevisionEqualOrGreater:
+			case ConditionRevisionEqualOrGreater:
 				if rev < ru.Record.Revision {
-					return ErrStoreWriteConditionFail(k)
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
 				}
 
-			case WriteConditionRevisionGreater:
+			case ConditionRevisionGreater:
 				if rev <= ru.Record.Revision {
-					return ErrStoreWriteConditionFail(k)
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
 				}
 			}
 		}
@@ -1176,8 +1176,10 @@ func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*
 
 		if err != nil {
 			return err
-		} else if !response.Succeeded {
-			err = ErrStoreKeyFetchFailure(keySet.Label)
+		}
+
+		if !response.Succeeded {
+			err = ErrStoreKeyReadFailure(keySet.Label)
 			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
 			return err
 		}
@@ -1241,7 +1243,9 @@ func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdat
 
 		if err != nil {
 			return err
-		} else if !response.Succeeded {
+		}
+
+		if !response.Succeeded {
 			err := ErrStoreKeyWriteFailure(recordSet.Label)
 			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
 			return err
@@ -1300,7 +1304,9 @@ func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpda
 
 		if err != nil {
 			return err
-		} else if !response.Succeeded {
+		}
+
+		if !response.Succeeded {
 			err := ErrStoreKeyDeleteFailure(recordSet.Label)
 			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
 			return err
