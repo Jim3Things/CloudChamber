@@ -31,11 +31,11 @@ if /i "%ETCDPORTPEER%" == "" (set ETCDPORTPEER=%DEFAULT_ETCDPORTPEER%)
 
 rem Check for requests for help without actually doing anything
 rem 
-if /i "%1" == "/?"    (goto :StartEtcdHelp)
-if /i "%1" == "-?"    (goto :StartEtcdHelp)
-if /i "%1" == "/h"    (goto :StartEtcdHelp)
-if /i "%1" == "-h"    (goto :StartEtcdHelp)
-if /i "%1" == "--help"(goto :StartEtcdHelp)
+if /i "%1" == "/?"     (goto :StartEtcdHelp)
+if /i "%1" == "-?"     (goto :StartEtcdHelp)
+if /i "%1" == "/h"     (goto :StartEtcdHelp)
+if /i "%1" == "-h"     (goto :StartEtcdHelp)
+if /i "%1" == "--help" (goto :StartEtcdHelp)
 
 
 rem Find a binary to use
