@@ -37,8 +37,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
     _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
 
         err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
-            return nil
+            return ensureEstablishedSession(ctx, session)
         })
         if err != nil {
             return httpError(ctx, w, err)
@@ -64,8 +63,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
         var count int
 
         err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
-            return nil
+            return ensureEstablishedSession(ctx, session)
         })
         if err != nil {
             return httpError(ctx, w, err)
@@ -116,8 +114,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
         var policy pb.StepperPolicy
 
         err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
-            return nil
+            return ensureEstablishedSession(ctx, session)
         })
         if err != nil {
             return httpError(ctx, w, err)
@@ -177,8 +174,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
         after := vars["after"]
 
         err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
-            return nil
+            return ensureEstablishedSession(ctx, session)
         })
         if err != nil {
             return httpError(ctx, w, err)
@@ -210,8 +206,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 func handleGetNow(w http.ResponseWriter, r *http.Request) {
     _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
         err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-            st.Infof(ctx, -1, "Retrieved session, isNew=%v, value=%s", session.IsNew, dumpSessionState(session))
-            return nil
+            return ensureEstablishedSession(ctx, session)
         })
         if err != nil {
             return httpError(ctx, w, err)

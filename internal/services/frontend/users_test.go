@@ -32,14 +32,14 @@ const (
 
 var (
 	aliceDef    = &pb.UserDefinition{
-		Password:       alicePassword,
-		Enabled:        true,
-		ManageAccounts: false,
+		Password:       	alicePassword,
+		Enabled:        	true,
+		CanManageAccounts: 	false,
 	}
 	bobDef = &pb.UserDefinition{
-		Password:       bobPassword,
-		Enabled:        true,
-		ManageAccounts: false,
+		Password:       	bobPassword,
+		Enabled:        	true,
+		CanManageAccounts: 	false,
 	}
 
 	// The user URLs that have been added and not deleted during the test run.
@@ -565,7 +565,7 @@ func TestUsersRead(t *testing.T) {
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(t, "1", response.Header.Get("ETag"))
 	assert.True(t, user.Enabled)
-	assert.True(t, user.AccountManager)
+	assert.True(t, user.CanManageAccounts)
 	assert.True(t, user.NeverDelete)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
@@ -670,9 +670,9 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 func TestUsersUpdate(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       alicePassword,
-		Enabled:        true,
-		ManageAccounts: true,
+		Password:       	alicePassword,
+		Enabled:        	true,
+		CanManageAccounts: 	true,
 	}
 
 	unit_test.SetTesting(t)
@@ -697,7 +697,7 @@ func TestUsersUpdate(t *testing.T) {
 
 	assert.Equal(t, fmt.Sprintf("%v", rev+1), response.Header.Get("ETag"))
 	assert.True(t, user.Enabled)
-	assert.True(t, user.AccountManager)
+	assert.True(t, user.CanManageAccounts)
 	assert.False(t, user.NeverDelete)
 
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -738,9 +738,9 @@ func TestUsersUpdateBadData(t *testing.T) {
 
 func TestUsersUpdateBadMatch(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       alicePassword,
-		Enabled:        true,
-		ManageAccounts: true,
+		Password:       	alicePassword,
+		Enabled:        	true,
+		CanManageAccounts: 	true,
 	}
 
 	unit_test.SetTesting(t)
@@ -773,9 +773,9 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 
 func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       alicePassword,
-		Enabled:        true,
-		ManageAccounts: true,
+		Password:       	alicePassword,
+		Enabled:        	true,
+		CanManageAccounts: 	true,
 	}
 
 	unit_test.SetTesting(t)
@@ -805,9 +805,9 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 
 func TestUsersUpdateNoUser(t *testing.T) {
 	upd := &pb.UserDefinition{
-		Password:       "bogus",
-		Enabled:        true,
-		ManageAccounts: true,
+		Password:       	"bogus",
+		Enabled:        	true,
+		CanManageAccounts: 	true,
 	}
 
 	unit_test.SetTesting(t)
@@ -834,9 +834,9 @@ func TestUsersUpdateNoUser(t *testing.T) {
 
 func TestUsersUpdateNoPriv(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       alicePassword,
-		Enabled:        true,
-		ManageAccounts: true,
+		Password:       	alicePassword,
+		Enabled:        	true,
+		CanManageAccounts: 	true,
 	}
 
 	unit_test.SetTesting(t)

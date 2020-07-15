@@ -60,3 +60,22 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 	return entry
 }
+
+func SeverityFlag(severity log.Severity) string {
+	var severityToText = map[log.Severity]string{
+		log.Severity_Debug:   "D",
+		log.Severity_Reason:  "R",
+		log.Severity_Info:    "I",
+		log.Severity_Warning: "W",
+		log.Severity_Error:   "E",
+		log.Severity_Fatal:   "F",
+	}
+
+	t, ok := severityToText[severity]
+	if !ok {
+		t = "X"
+	}
+
+	return t
+}
+

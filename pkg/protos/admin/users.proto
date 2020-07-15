@@ -18,7 +18,7 @@ message user {
   bool enabled = 4;
 
   // The rights this user has
-  bool account_manager = 5;
+  bool can_manage_accounts = 5;
 
   // True, if this user entry can never be deleted.
   bool never_delete = 6;
@@ -38,7 +38,7 @@ message user_public {
   bool enabled = 1;
 
   // The rights this user has
-  bool account_manager = 2;
+  bool can_manage_accounts = 2;
 
   // True, if this user entry can never be deleted.
   bool never_delete = 3;
@@ -51,5 +51,5 @@ message user_definition {
   bool enabled = 2;
 
   // The rights this user has
-  bool manage_accounts = 3;
+  bool can_manage_accounts = 3;
 }

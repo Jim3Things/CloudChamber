@@ -2,7 +2,7 @@ package stdout
 
 import (
 	"context"
-	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 
@@ -33,22 +33,34 @@ func NewExporter(o Options) (*Exporter, error) {
 
 // ExportSpan writes a SpanData in json format to stdout.
 func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
-	var jsonSpan []byte
-	var err error
-
 	entry := common.ExtractEntry(ctx, data)
+	_, _ = e.outputWriter.Write([]byte(
+		fmt.Sprintf(
+			"[%s:%s] %s %s:\n%s\n\n",
+			entry.GetSpanID(),
+			entry.GetParentID(),
+			entry.GetStatus(),
+			entry.GetName(),
+			entry.GetStackTrace())))
 
-	if e.pretty {
-		jsonSpan, err = json.MarshalIndent(entry, "", "\t")
-	} else {
-		jsonSpan, err = json.Marshal(entry)
+	for _, event := range entry.Event {
+		if event.GetTick() < 0 {
+			_, _ = e.outputWriter.Write([]byte(
+				fmt.Sprintf(
+					"       : [%s] (%s) %s\n%s\n\n",
+					common.SeverityFlag(event.GetSeverity()),
+					event.GetName(),
+					event.GetText(),
+					event.GetStackTrace())))
+		} else {
+			_, _ = e.outputWriter.Write([]byte(
+				fmt.Sprintf(
+					"  @%4d: [%s] (%s) %s\n%s\n\n",
+					event.GetTick(),
+					common.SeverityFlag(event.GetSeverity()),
+					event.GetName(),
+					event.GetText(),
+					event.GetStackTrace())))
+		}
 	}
-	if err != nil {
-		// ignore writer failures for now
-		_, _ = e.outputWriter.Write([]byte("Error converting spanData to json: " + err.Error()))
-		return
-	}
-
-	// ignore writer failures for now
-	_, _ = e.outputWriter.Write(append(jsonSpan, byte('\n')))
 }
