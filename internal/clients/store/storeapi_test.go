@@ -4,14 +4,14 @@ import (
 	"context"
 	"testing"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/bcrypt"
+
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 const (
-	userURI              = "/api/users/"
 	admin                = "Admin"
 	adminPassword        = "AdminPassword"
 	adminUpdate          = "AdminUpdate"
@@ -22,7 +22,7 @@ const (
 	alice                = "Alice"
 	bob                  = "Bob"
 	eve                  = "Eve"
-	alicePassword        = "AlicePassowrd"
+	alicePassword        = "AlicePassword"
 	bobPassword          = "BobPassword"
 	evePassword          = "EvePassword"
 )
@@ -42,12 +42,12 @@ func TestUserCreate(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:           userName,
-		PasswordHash:   passwordHash,
-		UserId:         1,
-		Enabled:        true,
-		AccountManager: true,
-		NeverDelete:    true,
+		Name:           	userName,
+		PasswordHash:   	passwordHash,
+		UserId:         	1,
+		Enabled:        	true,
+		CanManageAccounts: 	true,
+		NeverDelete:    	true,
 	}
 
 	revCreate, err := store.UserCreate(context.Background(), user)
@@ -85,12 +85,12 @@ func TestUserUpdate(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminUpdatePassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:           userName,
-		PasswordHash:   passwordHash,
-		UserId:         1,
-		Enabled:        true,
-		AccountManager: true,
-		NeverDelete:    true,
+		Name:           	userName,
+		PasswordHash:   	passwordHash,
+		UserId:         	1,
+		Enabled:        	true,
+		CanManageAccounts: 	true,
+		NeverDelete:    	true,
 	}
 
 	revCreate, err := store.UserCreate(context.Background(), user)
@@ -111,12 +111,12 @@ func TestUserUpdate(t *testing.T) {
 	passwordHash, err = bcrypt.GenerateFromPassword([]byte(adminUpdatePassword2), bcrypt.DefaultCost)
 
 	userUpdate := &pb.User{
-		Name:           userName,
-		PasswordHash:   passwordHash,
-		UserId:         1,
-		Enabled:        false,
-		AccountManager: true,
-		NeverDelete:    true,
+		Name:           	userName,
+		PasswordHash:   	passwordHash,
+		UserId:         	1,
+		Enabled:        	false,
+		CanManageAccounts: 	true,
+		NeverDelete:    	true,
 	}
 
 	revUpdate, err := store.UserUpdate(context.Background(), userUpdate, readRev)
@@ -155,12 +155,12 @@ func TestUserDelete(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminDeletePassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:           userName,
-		PasswordHash:   passwordHash,
-		UserId:         1,
-		Enabled:        true,
-		AccountManager: true,
-		NeverDelete:    true,
+		Name:           	userName,
+		PasswordHash:   	passwordHash,
+		UserId:         	1,
+		Enabled:        	true,
+		CanManageAccounts: 	true,
+		NeverDelete:    	true,
 	}
 
 	revCreate, err := store.UserCreate(context.Background(), user)
@@ -186,7 +186,7 @@ func TestUserDelete(t *testing.T) {
 	assert.Nilf(t, userReread, "Unexpected success in reading user %q after delete", userName)
 
 	revDeleteAgain, err := store.UserDelete(context.Background(), user, revRead)
-	assert.NotNilf(t, err, "Unecpected success trying to update with wrong revision for user %q - error: %v", userName, err)
+	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revDeleteAgain, "Expected post-re-delete revision invalid")
 
 	store.Disconnect()
@@ -226,12 +226,12 @@ func TestUserList(t *testing.T) {
 		assert.Nilf(t, err, "Failed to create password hash for user %q - error: %v", u.name, err)
 
 		users[u.name] = &pb.User{
-			Name:           u.name,
-			PasswordHash:   pwdHash,
-			UserId:         int64(i + 1),
-			Enabled:        true,
-			AccountManager: false,
-			NeverDelete:    false,
+			Name:           	u.name,
+			PasswordHash:   	pwdHash,
+			UserId:         	int64(i + 1),
+			Enabled:        	true,
+			CanManageAccounts: 	false,
+			NeverDelete:    	false,
 		}
 	}
 

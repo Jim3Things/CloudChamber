@@ -92,7 +92,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
         return dbUsers.Scan(func(entry *pb.User) (err error) {
             target := fmt.Sprintf("%s%s", b, entry.Name)
 
-            st.Infof(ctx, -1, "   Listing user '%s' at '%s'", entry.Name, target)
+            st.Infof(ctx, tick(), "   Listing user '%s' at '%s'", entry.Name, target)
 
             if _, err = fmt.Fprintln(w, target); err != nil {
                 return httpError(ctx, w, err)
@@ -118,7 +118,7 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
             return httpError(ctx, w, err)
         }
 
-        st.Infof(ctx, -1, "Creating user %q", username)
+        st.Infof(ctx, tick(), "Creating user %q", username)
 
         u := &pb.UserDefinition{}
         if err = jsonpb.Unmarshal(r.Body, u); err != nil {
@@ -127,14 +127,14 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 
         var rev int64
 
-        if rev, err = UserAdd(username, u.Password, u.ManageAccounts, u.Enabled, false); err != nil {
+        if rev, err = UserAdd(username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
             return httpError(ctx, w, err)
         }
 
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-        st.Infof(ctx, -1, "Created user %q, pwd: %q, enabled: %v, accountManager: %v", username, u.Password, u.Enabled, u.ManageAccounts)
-        _, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.ManageAccounts)
+        st.Infof(ctx, tick(), "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
+        _, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.CanManageAccounts)
         return err
     })
 }
@@ -163,12 +163,12 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         ext := &pb.UserPublic{
-            Enabled:        u.Enabled,
-            AccountManager: u.AccountManager,
-            NeverDelete:    u.NeverDelete,
+            Enabled:            u.Enabled,
+            CanManageAccounts:  u.CanManageAccounts,
+            NeverDelete:        u.NeverDelete,
         }
 
-        st.Infof(ctx, -1, "Returning details for user %q: %v", username, u)
+        st.Infof(ctx, tick(), "Returning details for user %q: %v", username, u)
 
         // Get the user entry, and serialize it to json
         // (export userPublic to json and return that as the body)
@@ -215,7 +215,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         // mismatch, or the user may have been deleted.  Given the check above, these
         // can all be considered version conflicts.
         var rev int64
-        if rev, err = userUpdate(username, upd.Password, upd.ManageAccounts, upd.Enabled, match); err != nil {
+        if rev, err = userUpdate(username, upd.Password, upd.CanManageAccounts, upd.Enabled, match); err != nil {
             return httpError(ctx, w, err)
         }
 
@@ -223,11 +223,11 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
         ext := &pb.UserPublic{
-            Enabled:        upd.Enabled,
-            AccountManager: upd.ManageAccounts,
+            Enabled:            upd.Enabled,
+            CanManageAccounts:  upd.CanManageAccounts,
         }
 
-        st.Infof(ctx, -1, "Returning details for user %q: %v", username, upd)
+        st.Infof(ctx, tick(), "Returning details for user %q: %v", username, upd)
 
         p := jsonpb.Marshaler{}
         return p.Marshal(w, ext)
@@ -269,7 +269,7 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
             vars := mux.Vars(r)
             username := vars["username"]
 
-            st.Infof(ctx, -1, "Operation %q, user %q, session %v", op, username, session)
+            st.Infof(ctx, tick(), "Operation %q, user %q, session %v", op, username, session)
 
             switch op {
             case Login:
@@ -283,7 +283,7 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
             }
 
             if err != nil {
-                _ = st.Error(ctx, -1, dumpSessionState(session))
+                _ = st.Error(ctx, tick(), dumpSessionState(session))
             }
             return err
         })
@@ -396,11 +396,11 @@ func UserAdd(name string, password string, accountManager bool, enabled bool, ne
     }
 
     return dbUsers.Create(&pb.User{
-        Name: name,
-        PasswordHash: passwordHash,
-        Enabled: enabled,
-        AccountManager: accountManager,
-        NeverDelete: neverDelete})
+        Name:               name,
+        PasswordHash:       passwordHash,
+        Enabled:            enabled,
+        CanManageAccounts:  accountManager,
+        NeverDelete:        neverDelete})
 }
 
 func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) (int64, error) {
@@ -414,7 +414,7 @@ func userUpdate(name string, password string, accountManager bool, enabled bool,
         Name: name,
         PasswordHash: passwordHash,
         Enabled: enabled,
-        AccountManager: accountManager}, rev)
+        CanManageAccounts: accountManager}, rev)
 }
 
 func userRemove(name string) error {
@@ -445,7 +445,7 @@ func canManageAccounts(session *sessions.Session, username string) error {
         return NewErrUserPermissionDenied()
     }
 
-    if !user.AccountManager && !strings.EqualFold(user.Name, username) {
+    if !user.CanManageAccounts && !strings.EqualFold(user.Name, username) {
         return NewErrUserPermissionDenied()
     }
 

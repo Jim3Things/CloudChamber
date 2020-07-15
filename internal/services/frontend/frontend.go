@@ -132,6 +132,7 @@ func initService(cfg *config.GlobalConfig) error {
 	server.rootFilePath = cfg.WebServer.RootFilePath
 	server.port = cfg.WebServer.FE.Port
 	server.cookieStore = sessions.NewCookieStore(keyAuthentication, keyEncryption)
+	server.cookieStore.Options.SameSite = http.SameSiteStrictMode
 
 	// TODO: These are here only because we've not gotten https working yet.  Once it is, these need to be removed.
 	server.cookieStore.Options.Secure = false

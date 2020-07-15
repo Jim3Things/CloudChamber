@@ -10,6 +10,8 @@ import (
 
     "github.com/gorilla/sessions"
 
+    ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -197,4 +199,27 @@ func doSessionHeader(
     }
 
     return err
+}
+
+// ensureEstablishedSession verifies that the session is not new, and triggers
+// an error if it is.
+func ensureEstablishedSession(ctx context.Context, session *sessions.Session) error {
+    if session.IsNew {
+        return st.Errorf(
+            ctx, -1,
+            "Unexpected new session, value=%s", dumpSessionState(session))
+    }
+
+    return nil
+}
+
+// tick provides the current simulated time tick, or '-1' if the simulated time
+// cannot be retrieved (e.g. during startup)
+func tick() int64 {
+    now, err := ts.Now()
+    if err != nil {
+        return -1
+    }
+
+    return now.Ticks
 }

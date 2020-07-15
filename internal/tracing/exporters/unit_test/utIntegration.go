@@ -78,27 +78,9 @@ func processOneEntry(entry *log.Entry, deferred bool) {
 
 	for _, event := range entry.Event {
 		if event.GetTick() < 0 {
-			testContext.Logf("       : [%s] (%s) %s\n%s", severityFlag(event.GetSeverity()), event.GetName(), event.GetText(), event.GetStackTrace())
+			testContext.Logf("       : [%s] (%s) %s\n%s", common.SeverityFlag(event.GetSeverity()), event.GetName(), event.GetText(), event.GetStackTrace())
 		} else {
-			testContext.Logf("  @%4d: [%s] (%s) %s\n%s", event.GetTick(), severityFlag(event.GetSeverity()), event.GetName(), event.GetText(), event.GetStackTrace())
+			testContext.Logf("  @%4d: [%s] (%s) %s\n%s", event.GetTick(), common.SeverityFlag(event.GetSeverity()), event.GetName(), event.GetText(), event.GetStackTrace())
 		}
 	}
-}
-
-func severityFlag(severity log.Severity) string {
-	var severityToText = map[log.Severity]string{
-		log.Severity_Debug:   "D",
-		log.Severity_Reason:  "R",
-		log.Severity_Info:    "I",
-		log.Severity_Warning: "W",
-		log.Severity_Error:   "E",
-		log.Severity_Fatal:   "F",
-	}
-
-	t, ok := severityToText[severity]
-	if !ok {
-		t = "X"
-	}
-
-	return t
 }
