@@ -1089,7 +1089,7 @@ func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
 	for k, ru := range recordSet.Records {
 		if ru.Condition == ConditionCreate {
 			if stm.Get(k) != "" {
-				return ErrStoreConditionFail{k, RevisionInvalid, ru.Condition, stm.Rev(k)}
+				return ErrStoreRecordExists(k)
 			}
 		} else if ru.Condition != ConditionUnconditional {
 			rev := stm.Rev(k)
@@ -1123,6 +1123,101 @@ func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
 			case ConditionRevisionGreater:
 				if rev <= ru.Record.Revision {
 					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+func getPrefetchKeys(req *Request) (*[]string, error) {
+
+	prefetchKeys := make([]string, 0, len(req.Records))
+
+	// Build an array of keys to supply as the arg to prefetch
+	// on the WithPrefetch() option below
+	//
+	for k, r := range req.Records {
+		c := req.Conditions[k]
+		switch c {
+		case ConditionUnconditional:
+			// No need to prefetch if not comparing anything
+			break
+
+		case ConditionRevisionNotEqual:
+			fallthrough
+
+		case ConditionRevisionLess:
+			fallthrough
+
+		case ConditionRevisionLessOrEqual:
+			fallthrough
+
+		case ConditionRevisionEqual:
+			fallthrough
+
+		case ConditionRevisionEqualOrGreater:
+			fallthrough
+
+		case ConditionRevisionGreater:
+			if r.Revision == RevisionInvalid {
+				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, r.Revision}
+			}
+
+			fallthrough
+
+		case ConditionCreate:
+			prefetchKeys = append(prefetchKeys, k)
+
+		default:
+			return nil, ErrStoreBadArgCondition{k, Condition(c)}
+		}
+	}
+
+	return &prefetchKeys, nil
+}
+
+func chkConditions(stm concurrency.STM, req *Request) error {
+
+	for k, r := range req.Records {
+		c := req.Conditions[k]
+		if c == ConditionCreate {
+			if stm.Get(k) != "" {
+				return ErrStoreRecordExists(k)
+			}
+		} else if c != ConditionUnconditional {
+			rev := stm.Rev(k)
+
+			switch c {
+			case ConditionRevisionLess:
+				if rev >= r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionLessOrEqual:
+				if rev > r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionEqual:
+				if rev != r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionNotEqual:
+				if rev == r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionEqualOrGreater:
+				if rev < r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionGreater:
+				if rev <= r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
 				}
 			}
 		}
@@ -1318,4 +1413,216 @@ func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpda
 	})
 
 	return revision, err
+}
+
+//
+// ToDo: need to add WithAction(actionRoutine) and WithRawValue() options.
+//
+
+// ReadTxn is a method to fetch a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, len(request.Records))}
+
+		txnAction := func(stm concurrency.STM) error {
+
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
+
+			// It is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			// If the revision is zero, we take that to mean the key
+			// does not actually exist.
+			//
+			// Note that a key might well exist even if the value is
+			// an empty string. At least I believe it can. We choose
+			// to use the revision instead as a more reliable
+			// indicator of existence.
+			//
+			for k := range request.Records {
+
+				rev := stm.Rev(k)
+
+				if rev != 0 {
+					resp.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+				}
+			}
+
+			return nil
+		}
+
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.ReadCommitted),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !txnResponse.Succeeded {
+			err = ErrStoreKeyReadFailure(request.Reason)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
+
+		response = resp
+
+		return nil
+	})
+
+	return response, nil
+}
+
+// WriteTxn is a method to write/update a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, 0)}
+
+		txnAction := func(stm concurrency.STM) error {
+
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
+
+			// It is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k, r := range request.Records {
+				stm.Put(k, string(r.Value))
+			}
+
+			return nil
+		}
+
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !txnResponse.Succeeded {
+			err := ErrStoreKeyWriteFailure(request.Reason)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
+
+		response = resp
+
+		return nil
+	})
+
+	return response, err
+}
+
+// DeleteTxn is a method to delete a set of arbitrary keys within a
+// single txn so they form a (self-)consistent operation.
+//
+func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, 0)}
+
+		txnAction := func(stm concurrency.STM) error {
+
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
+
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k := range request.Records {
+				stm.Del(k)
+			}
+
+			return nil
+		}
+
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !txnResponse.Succeeded {
+			err := ErrStoreKeyDeleteFailure(request.Reason)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
+
+		response = resp
+
+		return nil
+	})
+
+	return response, err
 }

@@ -60,7 +60,7 @@ func (eskff ErrStoreKeyReadFailure) Error() string {
 	return fmt.Sprintf("CloudChamber: transaction failed reading key %q", string(eskff))
 }
 
-// ErrStoreKeyWriteFailure indicates the read transaction failed.
+// ErrStoreKeyWriteFailure indicates the write transaction failed as a result of a pre-condition failure.
 //
 type ErrStoreKeyWriteFailure string
 
@@ -97,7 +97,7 @@ func (esbrk ErrStoreBadRecordKey) Error() string {
 type ErrStoreBadRecordContent string
 
 func (esbrk ErrStoreBadRecordContent) Error() string {
-	return fmt.Sprintf("CloudChamber: discovered found record where content does not match key %q", string(esbrk))
+	return fmt.Sprintf("CloudChamber: discovered record where content does not match key %q", string(esbrk))
 }
 
 // ErrStoreBadRecordCount indicates the record count for the operation was not valid.
@@ -149,4 +149,12 @@ type ErrStoreConditionFail struct {
 
 func (esucf ErrStoreConditionFail) Error() string {
 	return fmt.Sprintf("CloudChamber: condition failure on update for key %q - requested: %v condition: %v actual: %v", esucf.key, esucf.requested, esucf.condition, esucf.actual)
+}
+
+// ErrStoreRecordExists indicates the key, value pair being created already exists
+//
+type ErrStoreRecordExists string
+
+func (esre ErrStoreRecordExists) Error() string {
+	return fmt.Sprintf("CloudChamber: condition failure (already exists) on create for key %q", string(esre))
 }
