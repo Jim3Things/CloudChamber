@@ -43,11 +43,36 @@ func InitDBInventory() error {
 			Pdu:    &pb.ExternalPdu{},
 			Blades: make(map[int64]*common.BladeCapacity),
 		}
-		dbInventory.Racks["rack1"].Blades[1] = &common.BladeCapacity{} //First blade for rack 1.
-		dbInventory.Racks["rack1"].Blades[2] = &common.BladeCapacity{} //Second blade for rack 1.
+		dbInventory.Racks["rack1"].Blades[1] = &common.BladeCapacity{
+			Cores:                  8,
+			MemoryInMb:             16384,
+			DiskInGb:               120,
+			NetworkBandwidthInMbps: 1024,
+			Arch:                   "X64",
+		} //First blade for rack 1.
 
-		dbInventory.Racks["rack2"].Blades[1] = &common.BladeCapacity{} //First blade for rack 2.
-		dbInventory.Racks["rack2"].Blades[2] = &common.BladeCapacity{} //Second blade for rack 2.
+		dbInventory.Racks["rack1"].Blades[2] = &common.BladeCapacity{
+			Cores:                  16,
+			MemoryInMb:             16384,
+			DiskInGb:               240,
+			NetworkBandwidthInMbps: 2048,
+			Arch:                   "X64",
+		} //Second blade for rack 1.
+
+		dbInventory.Racks["rack2"].Blades[1] = &common.BladeCapacity{
+			Cores:                  24,
+			MemoryInMb:             16384,
+			DiskInGb:               120,
+			NetworkBandwidthInMbps: 1024,
+			Arch:                   "X64",
+		} //First blade for rack 2.
+		dbInventory.Racks["rack2"].Blades[2] = &common.BladeCapacity{
+			Cores:                  32,
+			MemoryInMb:             16384,
+			DiskInGb:               120,
+			NetworkBandwidthInMbps: 1024,
+			Arch:                   "X64",
+		} //Second blade for rack 2.
 
 	}
 
@@ -113,20 +138,3 @@ func (m *DBInventory) GetBlade(rackid string, bladeid int64) (*common.BladeCapac
 	}
 	return b, nil
 }
-
-//Scan
-// GET api/racks/{rackid}/blades
-
-// GET api/racks/{rackid}/blades/{bladeid}
-
-// GET api/racks/rack1/blades  ## 91 and 93 as 1st check in
-
-//Get blade list from rack 1 <-- uris for blade1 & blade2 in rack1
-
-// GET api/racks/rack1/blades/1  ## 95 and 97 as second checkin
-
-// <-- details for blade 1 in rack1
-
-// RAck 2 as well
-
-// Rack2 blade 3 is the negative test

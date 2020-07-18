@@ -48,7 +48,7 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
 	//
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
-	routeRacks.HandleFunc("/{rackid}", handlerRacksRead).Methods("GET")
+	routeRacks.HandleFunc("/{rackid}", handlerRackRead).Methods("GET")
 	routeRacks.HandleFunc("/{rackid}/blades", handlerBladeList).Methods("GET")
 	routeRacks.HandleFunc("/{rackid}/blades/{bladeid}", handlerBladeRead).Methods("GET")
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
@@ -89,13 +89,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	})
 
 }
-
-//func handlerracksCreate(w http.ResponseWriter, r *http.Request) {
-
-//	racksDisplayArguments(w, r, "add")
-//}
-
-func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
+func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		rackid := vars["rackid"]
@@ -116,13 +110,12 @@ func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
 
 	})
 }
-
-func handlerBladeList(w http.ResponseWriter, r *http.Request) {
+func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		rackid := vars["rackid"] // captured the key value in rackid variable
 
-		if _, err := fmt.Fprintf(w, "Blades in %s (List)\n", rackid); err != nil {
+		if _, err := fmt.Fprintf(w, "Blades in %q (List)\n", rackid); err != nil {
 			return httpError(ctx, w, err)
 		}
 		b := r.URL.String()
@@ -132,7 +125,7 @@ func handlerBladeList(w http.ResponseWriter, r *http.Request) {
 		return dbInventory.ScanBladesInRack(rackid, func(bladeid int64) error {
 
 			target := fmt.Sprintf("%s%d", b, bladeid)
-			st.Infof(ctx, -1, " Listing blades '%d' at '%s'", bladeid, target)
+			st.Infof(ctx, -1, " Listing blades '%d' at %q", bladeid, target)
 
 			if _, err = fmt.Fprintln(w, target); err != nil {
 				return httpError(ctx, w, err)
@@ -142,7 +135,6 @@ func handlerBladeList(w http.ResponseWriter, r *http.Request) {
 
 	})
 }
-
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
@@ -169,13 +161,3 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	})
 
 }
-
-//func handlerracksUpdate(w http.ResponseWriter, r *http.Request) {
-
-//	racksDisplayArguments(w, r, "update")
-//}
-
-//func handlerracksDelete(w http.ResponseWriter, r *http.Request) {
-
-//	racksDisplayArguments(w, r, "remove")
-//}
