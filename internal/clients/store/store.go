@@ -1089,7 +1089,7 @@ func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
 	for k, ru := range recordSet.Records {
 		if ru.Condition == ConditionCreate {
 			if stm.Get(k) != "" {
-				return ErrStoreRecordExists(k)
+				return ErrStoreAlreadyExists(k)
 			}
 		} else if ru.Condition != ConditionUnconditional {
 			rev := stm.Rev(k)
@@ -1184,7 +1184,7 @@ func chkConditions(stm concurrency.STM, req *Request) error {
 		c := req.Conditions[k]
 		if c == ConditionCreate {
 			if stm.Get(k) != "" {
-				return ErrStoreRecordExists(k)
+				return ErrStoreAlreadyExists(k)
 			}
 		} else if c != ConditionUnconditional {
 			rev := stm.Rev(k)
@@ -1224,6 +1224,63 @@ func chkConditions(stm concurrency.STM, req *Request) error {
 	}
 
 	return nil
+}
+
+// ListWithPrefix is a method used to query for a set of zero or more key/value pairs
+// which have a common prefix. The method will return all matching key/value pairs so
+// care should be taken with key naming to avoid attempting to fetch a large number
+// of key/value pairs.
+//
+// It is not an error to attmept to retrieve an empty set. For example, when querying
+// for the presence of a set of values, this method can be used which would successfully
+// return an empty set of key/value pairs if there are no matches for the supplied key
+// prefix.
+//
+func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		getResponse, err := store.Client.Get(opCtx, keyPrefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		cancel()
+
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, len(getResponse.Kvs))}
+
+		for i, kv := range getResponse.Kvs {
+			key := string(kv.Key)
+			val := string(kv.Value)
+			rev := kv.ModRevision
+
+			resp.Records[key] = Record{Revision: rev, Value: val}
+
+			if store.trace(traceFlagExpandResults) {
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
+				}
+			}
+		}
+
+		resp.Revision = getResponse.Header.GetRevision()
+
+		response = resp
+
+		st.Infof(ctx, -1, "Processed %v items", len(resp.Records))
+
+		return nil
+	})
+
+	return response, err
 }
 
 // ReadMultipleTxn is a method to fetch a set of arbitrary keys within a

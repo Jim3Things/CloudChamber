@@ -153,7 +153,8 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		u, rev, err := dbUsers.Read(username)
+		u, rev, err := userRead(username)
+
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
@@ -326,7 +327,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
 
 	// First, verify that this is an actual user account, and that account is
 	// enabled for login operations.
-	if u, _, err := dbUsers.Read(username); err != nil || !u.Enabled {
+	if u, _, err := userRead(username); err != nil || !u.Enabled {
 		return "", &HTTPError{
 			SC:   http.StatusNotFound,
 			Base: ErrUserAuthFailed,
@@ -394,12 +395,22 @@ func userAdd(name string, password string, accountManager bool, enabled bool, ne
 		return InvalidRev, err
 	}
 
-	return dbUsers.Create(&pb.User{
+	revision, err := dbUsers.Create(&pb.User{
 		Name:              name,
 		PasswordHash:      passwordHash,
 		Enabled:           enabled,
 		CanManageAccounts: accountManager,
 		NeverDelete:       neverDelete})
+
+	if err == ErrUserAlreadyExists(name) {
+		return InvalidRev, NewErrUserAlreadyExists(name)
+	}
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	return revision, nil
 }
 
 func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) (int64, error) {
@@ -409,21 +420,63 @@ func userUpdate(name string, password string, accountManager bool, enabled bool,
 		return InvalidRev, err
 	}
 
-	return dbUsers.Update(&pb.User{
+	revision, err := dbUsers.Update(&pb.User{
 		Name:              name,
 		PasswordHash:      passwordHash,
 		Enabled:           enabled,
 		CanManageAccounts: accountManager}, rev)
+
+	if err == ErrUserNotFound(name) {
+		return InvalidRev, NewErrUserNotFound(name)
+	}
+
+	if err == ErrUserStaleVersion(name) {
+		return InvalidRev, NewErrUserStaleVersion(name)
+	}
+
+	if err != nil {
+		return InvalidRev, err
+	}
+	return revision, nil
+}
+
+func userRead(name string) (*pb.User, int64, error) {
+
+	u, rev, err := dbUsers.Read(name)
+
+	if err == ErrUserNotFound(name) {
+		return nil, InvalidRev, NewErrUserNotFound(name)
+	}
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
+
+	return u, rev, nil
 }
 
 func userRemove(name string) error {
-	return dbUsers.Delete(name, InvalidRev)
+	err := dbUsers.Delete(name, InvalidRev)
+
+	if err == ErrUserProtected(name) {
+		return NewErrUserProtected(name)
+	}
+
+	if err == ErrUserStaleVersion(name) {
+		return NewErrUserStaleVersion(name)
+	}
+
+	if err == ErrUserNotFound(name) {
+		return NewErrUserNotFound(name)
+	}
+
+	return err
 }
 
 // TODO: Figure out how to better protect leakage of the password in memory.
 func userVerifyPassword(name string, password []byte) error {
 
-	entry, _, err := dbUsers.Read(name)
+	entry, _, err := userRead(name)
 
 	if err != nil {
 		return err

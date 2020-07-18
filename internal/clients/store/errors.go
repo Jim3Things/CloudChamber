@@ -151,10 +151,10 @@ func (esucf ErrStoreConditionFail) Error() string {
 	return fmt.Sprintf("CloudChamber: condition failure on update for key %q - requested: %v condition: %v actual: %v", esucf.key, esucf.requested, esucf.condition, esucf.actual)
 }
 
-// ErrStoreRecordExists indicates the key, value pair being created already exists
+// ErrStoreAlreadyExists indicates the key, value pair being created already exists
 //
-type ErrStoreRecordExists string
+type ErrStoreAlreadyExists string
 
-func (esre ErrStoreRecordExists) Error() string {
-	return fmt.Sprintf("CloudChamber: condition failure (already exists) on create for key %q", string(esre))
+func (esae ErrStoreAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: condition failure (already exists) on create for key %q", string(esae))
 }

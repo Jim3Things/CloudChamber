@@ -13,14 +13,12 @@ package frontend
 
 import (
 	"context"
-	"strings"
 	"sync"
-
-	"github.com/golang/protobuf/jsonpb"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // DBUsers is a container used to established synchronized access to
@@ -47,48 +45,43 @@ func InitDBUsers(cfg *config.GlobalConfig) (err error) {
 		return err
 	}
 
-	_, err = userAdd(
-		cfg.WebServer.SystemAccount,
-		cfg.WebServer.SystemAccountPassword,
-		true,
-		true,
-		true)
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(cfg.WebServer.SystemAccountPassword), bcrypt.DefaultCost)
+
+	if err != nil {
+		return err
+	}
+
+	_, err = dbUsers.Create(&pb.User{
+		Name:              cfg.WebServer.SystemAccount,
+		PasswordHash:      passwordHash,
+		Enabled:           true,
+		CanManageAccounts: true,
+		NeverDelete:       true})
 
 	// If the SystemAccount already exists, eat the failure
 	//
-	if err == store.ErrStoreRecordExists(cfg.WebServer.SystemAccount) {
+	if err == ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
 		return nil
 	}
 
 	return err
 }
 
-func encode(u *pb.User) (s string, err error) {
-
-	p := jsonpb.Marshaler{}
-
-	if s, err = p.MarshalToString(u); err != nil {
-		return "", err
-	}
-
-	return s, nil
-}
-
-func decode(s string) (*pb.User, error) {
-	u := &pb.User{}
-
-	if err := jsonpb.Unmarshal(strings.NewReader(s), u); err != nil {
-		return nil, err
-	}
-
-	return u, nil
-}
-
 // Create a new user in the store
 //
 func (m *DBUsers) Create(u *pb.User) (int64, error) {
 
-	rev, err := m.Store.CreateNew(context.Background(), store.KeyRootUsers, u.Name, u)
+	v, err := store.Encode(u)
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	rev, err := m.Store.CreateNewValue(context.Background(), store.KeyRootUsers, u.Name, v)
+
+	if err == store.ErrStoreAlreadyExists(u.Name) {
+		return InvalidRev, ErrUserAlreadyExists(u.Name)
+	}
 
 	if err != nil {
 		return InvalidRev, err
@@ -101,34 +94,27 @@ func (m *DBUsers) Create(u *pb.User) (int64, error) {
 //
 func (m *DBUsers) Read(name string) (*pb.User, int64, error) {
 
-	u := &pb.User{}
-
-	rev, err := m.Store.ReadNew(context.Background(), store.KeyRootUsers, name, u)
+	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, name)
 
 	if err == store.ErrStoreKeyNotFound(name) {
-		return nil, InvalidRev, NewErrUserNotFound(name)
+		return nil, InvalidRev, ErrUserNotFound(name)
 	}
 
 	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	return u, rev, nil
-}
+	u := &pb.User{}
 
-// Scan the set of known users in the store, invoking the supplied
-// function with each entry.
-func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
-
-	for _, user := range dbUsers.Users {
-		if err := action(user.User); err != nil {
-			return err
-		}
+	if err = store.Decode(*val, u); err != nil {
+		return nil, InvalidRev, err
 	}
 
-	return nil
+	if store.GetNormalizedName(name) != store.GetNormalizedName(u.GetName()) {
+		return nil, InvalidRev, ErrUserBadRecordContent{name, *val}
+	}
+
+	return u, rev, nil
 }
 
 // Update an existing user entry, iff the current revision is the same as the
@@ -141,13 +127,10 @@ func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
 //
 func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
 
-	old := &pb.User{}
-
-	//    rev, err := m.Store.ReadNewWithRevision(context.Background(), store.KeyRootUsers, key, old, match)
-	rev, err := m.Store.ReadNew(context.Background(), store.KeyRootUsers, u.Name, old)
+	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, u.Name)
 
 	if err == store.ErrStoreKeyNotFound(u.Name) {
-		return InvalidRev, NewErrUserNotFound(u.Name)
+		return InvalidRev, ErrUserNotFound(u.Name)
 	}
 
 	if err != nil {
@@ -155,7 +138,13 @@ func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
 	}
 
 	if rev != match {
-		return InvalidRev, NewErrUserStaleVersion(u.Name)
+		return InvalidRev, ErrUserStaleVersion(u.Name)
+	}
+
+	old := &pb.User{}
+
+	if err = store.Decode(*val, old); err != nil {
+		return InvalidRev, err
 	}
 
 	// Update the entry, retaining the fields from the old version that are
@@ -185,20 +174,24 @@ func (m *DBUsers) Delete(name string, match int64) error {
 
 	n := store.GetNormalizedName(name)
 
-	old := &pb.User{}
-
-	rev, err := m.Store.ReadNew(context.Background(), store.KeyRootUsers, n, old)
+	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, n)
 
 	if err == store.ErrStoreKeyNotFound(n) {
-		return NewErrUserNotFound(name)
+		return ErrUserNotFound(name)
 	}
 
 	if err != nil {
 		return err
 	}
 
+	old := &pb.User{}
+
+	if err = store.Decode(*val, old); err != nil {
+		return err
+	}
+
 	if old.GetNeverDelete() {
-		return NewErrUserProtected(name)
+		return ErrUserProtected(name)
 	}
 
 	if InvalidRev == match {
@@ -213,17 +206,48 @@ func (m *DBUsers) Delete(name string, match int64) error {
 		// Revision matters, so if it does not match then report
 		// the problem
 		//
-		return NewErrUserStaleVersion(name)
+		return ErrUserStaleVersion(name)
 	}
 
 	_, err = m.Store.DeleteNew(context.Background(), store.KeyRootUsers, n, rev)
 
 	if err == store.ErrStoreKeyNotFound(n) {
-		return NewErrUserNotFound(name)
+		return ErrUserNotFound(name)
 	}
 
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// Scan the set of known users in the store, invoking the supplied
+// function with each entry.
+//
+func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
+
+	recs, _, err := m.Store.ListNew(context.Background(), store.KeyRootUsers)
+
+	if err != nil {
+		return err
+	}
+
+	for n, r := range *recs {
+
+		u := &pb.User{}
+
+		if err = store.Decode(r.Value, u); err != nil {
+			return err
+		}
+
+		if n != store.GetNormalizedName(u.GetName()) {
+			return ErrUserBadRecordContent{n, r.Value}
+		}
+
+		if err := action(u); err != nil {
+			return err
+		}
 	}
 
 	return nil
