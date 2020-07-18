@@ -158,3 +158,11 @@ type ErrStoreAlreadyExists string
 func (esae ErrStoreAlreadyExists) Error() string {
 	return fmt.Sprintf("CloudChamber: condition failure (already exists) on create for key %q", string(esae))
 }
+
+// ErrStoreInvalidConfiguration indicates the key, value pair being created already exists
+//
+type ErrStoreInvalidConfiguration string
+
+func (esic ErrStoreInvalidConfiguration) Error() string {
+	return fmt.Sprintf("CloudChamber: invalid store configuration - %v", string(esic))
+}

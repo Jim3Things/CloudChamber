@@ -120,7 +120,8 @@ func commonSetup() {
 				Port:     config.StoreDefaultEtcdSvcPort,
 			},
 			Test: config.StoreTypeTest{
-				UseUniqueInstance: config.StoreDefaultTestUseUniqueInstance,
+				UseTestNamespace:  true,
+				UseUniqueInstance: false,
 				PreCleanStore:     true,
 			},
 		},

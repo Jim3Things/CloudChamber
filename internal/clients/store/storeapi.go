@@ -25,12 +25,14 @@ const (
 	KeyRootBlades
 	KeyRootRacks
 	KeyRootWorkloads
+	KeyRootStoreTest
 )
 const (
-	namespaceRootUsers     = "/users/"
-	namespaceRootRacks     = "/racks/"
-	namespaceRootBlades    = "/blades/"
-	namespaceRootWorkloads = "/workloads/"
+	namespaceRootUsers     = "users/"
+	namespaceRootRacks     = "racks/"
+	namespaceRootBlades    = "blades/"
+	namespaceRootWorkloads = "workloads/"
+	namespaceRootStoreTest = "storetest/"
 )
 
 var namespaceRoots = map[KeyRoot]string{
@@ -38,6 +40,7 @@ var namespaceRoots = map[KeyRoot]string{
 	KeyRootRacks:     namespaceRootBlades,
 	KeyRootBlades:    namespaceRootBlades,
 	KeyRootWorkloads: namespaceRootWorkloads,
+	KeyRootStoreTest: namespaceRootStoreTest,
 }
 
 func getNamespaceRootFromKeyRoot(r KeyRoot) string {
@@ -48,10 +51,10 @@ func getKeyFromKeyRootAndName(r KeyRoot, n string) string {
 	return namespaceRoots[r] + GetNormalizedName(n)
 }
 
-// GetKeyFromUsername is a utility function to convert a supplied username to
+// GetKeyFromUsername1 is a utility function to convert a supplied username to
 // a store usable key for use when operating with user records.
 //
-func GetKeyFromUsername(name string) string {
+func GetKeyFromUsername1(name string) string {
 	return getKeyFromKeyRootAndName(KeyRootUsers, name)
 }
 
@@ -212,8 +215,6 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 			response *Response
 		)
 
-		key := GetKeyFromUsername(n)
-
 		// If we need to do the read to get the revision, we will need an array of the keys
 		//
 		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
@@ -236,8 +237,8 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 			return ErrStoreKeyNotFound(n)
 
 		case 1:
-			rev = response.Records[key].Revision
-			val = response.Records[key].Value
+			rev = response.Records[k].Revision
+			val = response.Records[k].Value
 			st.Infof(ctx, -1, "found record for %q with revision %v and value %q", n, rev, val)
 
 			err = Decode(val, m)
@@ -279,8 +280,6 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 			response *Response
 		)
 
-		key := GetKeyFromUsername(n)
-
 		// If we need to do the read to get the revision, we will need an array of the keys
 		//
 		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
@@ -303,8 +302,8 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 			return ErrStoreKeyNotFound(n)
 
 		case 1:
-			rev = response.Records[key].Revision
-			val = response.Records[key].Value
+			rev = response.Records[k].Revision
+			val = response.Records[k].Value
 			st.Infof(ctx, -1, "found record for %q with revision %v and value %q", n, rev, val)
 
 			st.Infof(ctx, -1, "Read record for %q with revision %v", n, rev)

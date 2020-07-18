@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
@@ -24,14 +23,10 @@ const keySetSize = 100
 var (
 	initialized bool
 
-	testNamespaceSuffixRoot = "/Test"
-
 	configPath *string
 )
 
 func commonSetup() {
-	var testNamespace string
-
 	setup.Init(exporters.UnitTest)
 
 	configPath = flag.String("config", ".", "path to the configuration file")
@@ -43,55 +38,6 @@ func commonSetup() {
 	}
 
 	Initialize(cfg)
-
-	// It is meaningless to have both a unique per-instance test namespace
-	// and to clean the store before the tests are run
-	//
-	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
-		log.Fatalf("invalid configuration: both UseUniqueInstance and PreCleanStore are enabled: %v", err)
-	}
-
-	// For test purposes, need to set an alternate namespace rather than
-	// rely on the standard. From the configuration, we can either use the
-	// standard, fixed, well-known prefix, or we can use a per-instance
-	// unique prefix derived from the current time
-	//
-	if cfg.Store.Test.UseUniqueInstance {
-		testNamespace = fmt.Sprintf("%s/%s/", testNamespaceSuffixRoot, time.Now().Format(time.RFC3339Nano))
-	} else {
-		testNamespace = testNamespaceSuffixRoot + "/Standard/"
-	}
-
-	if cfg.Store.Test.PreCleanStore {
-		if err := cleanNamespace(testNamespace); err != nil {
-			log.Fatalf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
-		}
-	}
-
-	setDefaultNamespaceSuffix(testNamespace)
-}
-
-func cleanNamespace(testNamespace string) error {
-
-	store := NewStore()
-
-	if store == nil {
-		log.Fatalf("unable to allocate store context for pre-cleanup")
-	}
-
-	if err := store.SetNamespaceSuffix(""); err != nil {
-		return err
-	}
-	if err := store.Connect(); err != nil {
-		return err
-	}
-	if err := store.DeleteWithPrefix(testNamespace); err != nil {
-		return err
-	}
-
-	store.Disconnect()
-
-	return nil
 }
 
 func testGenerateKeyValueSet(setSize int, setName string) []KeyValueArg {

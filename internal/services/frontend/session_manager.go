@@ -1,4 +1,5 @@
 // This module contains the session management support methods
+
 package frontend
 
 import (
@@ -18,11 +19,13 @@ import (
 const (
 	sessionCookieName = "CC-Session"
 
-	sessionIdKey = "session-id"
+	sessionIDKey = "session-id"
 
 	expirationTimeout = time.Duration(1) * time.Hour
 )
 
+// SessionState holds the current state for the session
+//
 type SessionState struct {
 	name    string
 	timeout time.Time
@@ -36,8 +39,8 @@ var mutex = sync.Mutex{}
 var activeSessions = map[int64]SessionState{}
 var timeouts = map[time.Time]int64{}
 
-// lastId contains the last session ID used by this server
-var lastId int64 = 0
+// lastID contains the last session ID used by this server
+var lastID int64 = 0
 
 // newSession is a function that creates a new login session, so long as
 // one is not currently active
@@ -48,19 +51,19 @@ func newSession(session *sessions.Session, state SessionState) error {
 	purgeStaleSessions()
 
 	// Fail if there is already a valid active session
-	if id, ok := session.Values[sessionIdKey].(int64); ok {
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
 		if _, ok = activeSessions[id]; ok {
 			return ErrUserAlreadyLoggedIn
 		}
 	}
 
 	// Create the new session
-	lastId++
+	lastID++
 	state.timeout = time.Now().Add(expirationTimeout)
 
-	activeSessions[lastId] = state
-	timeouts[state.timeout] = lastId
-	session.Values[sessionIdKey] = lastId
+	activeSessions[lastID] = state
+	timeouts[state.timeout] = lastID
+	session.Values[sessionIDKey] = lastID
 
 	return nil
 }
@@ -73,12 +76,12 @@ func removeSession(session *sessions.Session) {
 
 	purgeStaleSessions()
 
-	if id, ok := session.Values[sessionIdKey].(int64); ok {
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
 		if entry, ok := activeSessions[id]; ok {
 			delete(activeSessions, id)
 			delete(timeouts, entry.timeout)
 
-			delete(session.Values, sessionIdKey)
+			delete(session.Values, sessionIDKey)
 		}
 	}
 }
@@ -92,7 +95,7 @@ func getSession(session *sessions.Session) (SessionState, bool) {
 
 	purgeStaleSessions()
 
-	if id, ok := session.Values[sessionIdKey].(int64); ok {
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
 		if entry, ok := activeSessions[id]; ok {
 			// Bump timeout to account for the usage of the session
 			delete(timeouts, entry.timeout)
@@ -103,12 +106,12 @@ func getSession(session *sessions.Session) (SessionState, bool) {
 
 			// .. and return the resulting entry
 			return entry, true
-		} else {
-
-			// We have a key in the cookie, but that key is invalid, so
-			// delete it.
-			delete(session.Values, sessionIdKey)
 		}
+
+		// We have a key in the cookie, but that key is invalid, so
+		// delete it.
+		delete(session.Values, sessionIDKey)
+
 	}
 
 	return SessionState{}, false
@@ -144,7 +147,7 @@ func dumpSessionState(session *sessions.Session) string {
 	stateString := "session state not found"
 	idString := "session ID not found"
 
-	if id, ok := session.Values[sessionIdKey].(int64); ok {
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
 		idString = fmt.Sprintf("ID: %d", id)
 	}
 

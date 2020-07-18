@@ -84,8 +84,8 @@ func (eubrc ErrUserBadRecordContent) Error() string {
 	return fmt.Sprintf("CloudChamber: discovered record for user %q where the content does not match key %q", eubrc.name, eubrc.value)
 }
 
-// Custom common HTTP error type that includes the status code to use in
-// the response.
+// HTTPError is a custom common HTTP error type that includes the status code
+// to use in a response.
 type HTTPError struct {
 	// HTTP status code
 	SC int
@@ -94,6 +94,8 @@ type HTTPError struct {
 	Base error
 }
 
+// StatusCode is used to extract a status from a standard HTTPError
+//
 func (he *HTTPError) StatusCode() int {
 	// We should not need this, but if we're called with no error at all,
 	// then the status should be success...

@@ -17,6 +17,8 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 )
 
+// Default values for the configurable parameters
+//
 const (
 	DefaultGlobalConfigFile     = "cloudchamber.yaml"
 	DefaultConfigType           = "yaml"
@@ -26,7 +28,7 @@ const (
 	WebServerDefaultPort        = 8084
 	WebServerFEDefaultPort      = 8080
 	DefaultHost                 = ""
-	DefaultStepperPolicy		= ""
+	DefaultStepperPolicy        = ""
 	DefaultRootFilePath         = "."
 	DefaultSystemAccount        = "Admin"
 	DefaultSystemPassword       = "SystemPassword"
@@ -36,6 +38,7 @@ const (
 	StoreDefaultEtcdSvcHostname = "localhost"
 	StoreDefaultEtcdSvcPort     = 2379
 
+	StoreDefaultTestUseTestNamespace  = false
 	StoreDefaultTestUseUniqueInstance = false
 	StoreDefaultTestPreCleanStore     = false
 )
@@ -115,6 +118,7 @@ type WebServerType struct {
 // a store test
 //
 type StoreTypeTest struct {
+	UseTestNamespace  bool
 	UseUniqueInstance bool
 	PreCleanStore     bool
 }
@@ -170,6 +174,7 @@ func newGlobalConfig() *GlobalConfig {
 				Port:     StoreDefaultEtcdSvcPort,
 			},
 			Test: StoreTypeTest{
+				UseTestNamespace:  StoreDefaultTestUseTestNamespace,
 				UseUniqueInstance: StoreDefaultTestUseUniqueInstance,
 				PreCleanStore:     StoreDefaultTestPreCleanStore,
 			},
@@ -238,7 +243,7 @@ func ToString(data *GlobalConfig) string {
 			"SimSupport:\n"+
 			"  EP:\n"+
 			"    port: %v\n    hostname: %v\n"+
-			"  StepperPolicy: %v\n" +
+			"  StepperPolicy: %v\n"+
 			"Webserver:\n"+
 			"  FE:\n"+
 			"    port: %v\n    hostname: %v\n"+
@@ -252,6 +257,7 @@ func ToString(data *GlobalConfig) string {
 			"  RequestTimeout: %v\n"+
 			"  TraceLevel: %v\n"+
 			"  Test:\n"+
+			"    UseTestNamespace: %v\n"+
 			"    UseUniqueInstance: %v\n"+
 			"    PreCleanStore: %v\n"+
 			"",
@@ -267,6 +273,7 @@ func ToString(data *GlobalConfig) string {
 		data.Store.ConnectTimeout,
 		data.Store.RequestTimeout,
 		data.Store.TraceLevel,
+		data.Store.Test.UseTestNamespace,
 		data.Store.Test.UseUniqueInstance,
 		data.Store.Test.PreCleanStore)
 }

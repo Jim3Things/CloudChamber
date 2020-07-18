@@ -69,6 +69,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -79,7 +80,7 @@ import (
 
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
-	"go.etcd.io/etcd/clientv3/namespace"
+	ns "go.etcd.io/etcd/clientv3/namespace"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -93,7 +94,9 @@ import (
 // At no time can the root namespace be removed.
 //
 const (
+	slash                 = "/"
 	cloudChamberNamespace = string("/CloudChamber/v0.1")
+	testNamespaceSuffix   = string("Test")
 )
 
 // TraceFlags is the type used when setting of fetching the relevant flags
@@ -131,6 +134,7 @@ type Store struct {
 	UnprefixedKV      clientv3.KV
 	UnprefixedWatcher clientv3.Watcher
 	UnprefixedLease   clientv3.Lease
+	Namespace         string
 	NamespaceSuffix   string
 	TraceFlags        TraceFlags
 }
@@ -238,8 +242,90 @@ func Initialize(cfg *config.GlobalConfig) {
 			storeRoot.DefaultTimeoutRequest,
 			storeRoot.DefaultTraceFlags,
 			storeRoot.DefaultNamespaceSuffix)
+
+		// See if any part of the test namespace requires initialization and optionally cleanining.
+		//
+		// NOTE: This only affects the test namespace, not the production namespace. Ideally it
+		//       would not be here but the store is used by other services as part of their test
+		//       operation and so this feature needs to be in common code.
+		//
+		PrepareTestNamespace(ctx, cfg)
+
 		return nil
 	})
+}
+
+// PrepareTestNamespace will prepare the store to be used for test purposes. Optionally, this will
+// clean out the store of data left from previous runs and set a test specific namespace for all
+// subsequent store operations.
+//
+// NOTE: It is expected that this is call soon after the store is initiaitlized and before any
+//       data related operations have taken place.
+//
+func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
+
+	if !cfg.Store.Test.UseTestNamespace {
+		return
+	}
+
+	// It is meaningless to have both a unique per-instance test namespace
+	// and to clean the store before the tests are run
+	//
+	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
+		log.Fatalf("invalid configuration: : %v", ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
+	}
+
+	// For test purposes, need to set an alternate namespace rather than
+	// rely on the standard. From the configuration, we can either use the
+	// standard, fixed, well-known prefix, or we can use a per-instance
+	// unique prefix derived from the current time
+	//
+	testNamespace := testNamespaceSuffix
+
+	if cfg.Store.Test.UseUniqueInstance {
+		testNamespace += fmt.Sprintf("/%s", time.Now().Format(time.RFC3339Nano))
+	} else {
+		testNamespace += "/Standard"
+	}
+
+	st.Infof(ctx, -1, "Configured to use test namespace %q", testNamespace)
+
+	if cfg.Store.Test.PreCleanStore {
+
+		st.Infof(ctx, -1, "Starting store pre-clean of namespace %q", testNamespace)
+
+		if err := cleanNamespace(testNamespace); err != nil {
+			msg := fmt.Sprintf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
+
+			st.Errorf(ctx, -1, msg)
+			log.Fatalf(msg)
+		}
+	}
+
+	setDefaultNamespaceSuffix(testNamespace)
+}
+
+func cleanNamespace(testNamespace string) error {
+
+	store := NewStore()
+
+	if store == nil {
+		log.Fatalf("unable to allocate store context for pre-cleanup")
+	}
+
+	if err := store.SetNamespaceSuffix(""); err != nil {
+		return err
+	}
+	if err := store.Connect(); err != nil {
+		return err
+	}
+	if err := store.DeleteWithPrefix(testNamespace); err != nil {
+		return err
+	}
+
+	store.Disconnect()
+
+	return nil
 }
 
 // NewStore is a method to allocate a new Store struct using the
@@ -271,7 +357,7 @@ func NewStore() *Store {
 //
 func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags, namespace string) *Store {
 
-	store := Store{
+	store := &Store{
 		Endpoints:       endpoints,
 		TimeoutConnect:  timeoutConnect,
 		TimeoutRequest:  timeoutRequest,
@@ -279,7 +365,7 @@ func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.D
 		NamespaceSuffix: namespace,
 	}
 
-	return &store
+	return store
 }
 
 // Initialize is a method used to initialize a specific instance of a Store struct.
@@ -427,7 +513,6 @@ func (store *Store) GetTimeoutRequest() time.Duration { return store.TimeoutRequ
 func (store *Store) SetNamespaceSuffix(suffix string) error {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		const slash = "/"
 
 		if err := store.connected(ctx); err != nil {
 			return err
@@ -435,13 +520,7 @@ func (store *Store) SetNamespaceSuffix(suffix string) error {
 
 		// remove any leading, or trailing "/" characters regardless of how many there might be.
 		//
-		suffix = strings.Trim(suffix, slash)
-
-		if suffix == "" {
-			store.NamespaceSuffix = ""
-		} else {
-			store.NamespaceSuffix = slash + suffix
-		}
+		store.NamespaceSuffix = strings.Trim(suffix, slash)
 
 		st.Infof(ctx, -1, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
 		return nil
@@ -481,11 +560,19 @@ func (store *Store) Connect() (err error) {
 		store.UnprefixedLease = cli.Lease
 		store.UnprefixedWatcher = cli.Watcher
 
-		name := cloudChamberNamespace + store.GetNamespaceSuffix()
+		namespace := cloudChamberNamespace + slash
 
-		cli.KV = namespace.NewKV(cli.KV, name)
-		cli.Watcher = namespace.NewWatcher(cli.Watcher, name)
-		cli.Lease = namespace.NewLease(cli.Lease, name)
+		suffix := store.GetNamespaceSuffix()
+
+		if "" != suffix {
+			namespace += suffix + slash
+		}
+
+		store.Namespace = namespace
+
+		cli.KV = ns.NewKV(cli.KV, store.Namespace)
+		cli.Watcher = ns.NewWatcher(cli.Watcher, store.Namespace)
+		cli.Lease = ns.NewLease(cli.Lease, store.Namespace)
 
 		return nil
 	})

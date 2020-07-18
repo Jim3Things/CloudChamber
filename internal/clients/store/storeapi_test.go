@@ -32,7 +32,7 @@ func TestCreate(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	userName := admin + tracing.MethodName(1)
+	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -77,7 +77,7 @@ func TestReadNew(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	userName := admin + tracing.MethodName(1)
+	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -128,7 +128,7 @@ func TestReadNewValue(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	userName := admin + tracing.MethodName(1)
+	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -182,7 +182,7 @@ func TestUpdate(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	userName := admin + tracing.MethodName(1)
+	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -263,7 +263,7 @@ func TestUpdateUnconditional(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	userName := admin + tracing.MethodName(1)
+	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -359,8 +359,7 @@ func TestDelete(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	suffix := tracing.MethodName(1)
-	userName := alice + suffix
+	userName := alice + "." + tracing.MethodName(1)
 	passWord := alicePassword
 
 	store := NewStore()
@@ -439,7 +438,7 @@ func TestList(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	suffix := tracing.MethodName(1)
+	suffix := "." + tracing.MethodName(1)
 
 	userSet := []urec{
 		{name: alice + suffix, pwd: alicePassword},
