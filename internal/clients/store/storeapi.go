@@ -366,7 +366,7 @@ func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int6
 	return revision, err
 }
 
-// DeleteNew is a function to create a single key, value record pair
+// DeleteNew is a function to delete a single key, value record pair
 //
 func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int64) (revision int64, err error) {
 

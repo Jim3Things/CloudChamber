@@ -17,6 +17,8 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -33,36 +35,58 @@ type DBUsers struct {
 
 // InitDBUsers is a method to initialize the users store.  For now this is only a map in memory.
 func InitDBUsers(cfg *config.GlobalConfig) (err error) {
-	if dbUsers == nil {
-		dbUsers = &DBUsers{
-			Mutex: sync.Mutex{},
-			Users: make(map[string]*pb.UserInternal),
-			Store: store.NewStore(),
+
+	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if dbUsers == nil {
+			dbUsers = &DBUsers{
+				Mutex: sync.Mutex{},
+				Users: make(map[string]*pb.UserInternal),
+				Store: store.NewStore(),
+			}
 		}
-	}
 
-	if err = dbUsers.Store.Connect(); err != nil {
+		if err = dbUsers.Store.Connect(); err != nil {
+			return err
+		}
+
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(cfg.WebServer.SystemAccountPassword), bcrypt.DefaultCost)
+
+		if err != nil {
+			return err
+		}
+
+		_, err = dbUsers.Create(&pb.User{
+			Name:              cfg.WebServer.SystemAccount,
+			PasswordHash:      passwordHash,
+			Enabled:           true,
+			CanManageAccounts: true,
+			NeverDelete:       true})
+
+		// If the SystemAccount already exists we need to do a couple of things.
+		//
+		// First, check to see if the password is the same and if not, issue a warning message
+		// to help troubleshoot the inability to use the SystemAccount with the expected password.
+		//
+		// Secondly, eat the "already exists" failure as there is no need to prevent startup
+		// if the account is already present.
+		//
+		if err == ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
+
+			existingUser, _, err := dbUsers.Read(cfg.WebServer.SystemAccount)
+
+			if err != nil {
+				return st.Errorf(ctx, -1, "CloudChamber: unable to verify the standard %q account is using configured password - error %v", cfg.WebServer.SystemAccount, err)
+			}
+
+			if err := bcrypt.CompareHashAndPassword(existingUser.GetPasswordHash(), []byte(cfg.WebServer.SystemAccountPassword)); err != nil {
+				st.Infof(ctx, -1, "CloudChamber: standard %q account is not using using configured password - error %v", cfg.WebServer.SystemAccount, err)
+			}
+
+			return nil
+		}
+
 		return err
-	}
-
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(cfg.WebServer.SystemAccountPassword), bcrypt.DefaultCost)
-
-	if err != nil {
-		return err
-	}
-
-	_, err = dbUsers.Create(&pb.User{
-		Name:              cfg.WebServer.SystemAccount,
-		PasswordHash:      passwordHash,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true})
-
-	// If the SystemAccount already exists, eat the failure
-	//
-	if err == ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
-		return nil
-	}
+	})
 
 	return err
 }

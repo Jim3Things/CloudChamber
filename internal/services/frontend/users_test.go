@@ -563,8 +563,11 @@ func TestUsersRead(t *testing.T) {
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	// TODO MCJ - false expectation for E-Tag assert.Equal(t, "1", response.Header.Get("ETag"))
-	assert.Less(t, "1", response.Header.Get("ETag"))
+
+	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
+	assert.Less(t, int64(1), match)
+
 	assert.True(t, user.Enabled)
 	assert.True(t, user.CanManageAccounts)
 	assert.True(t, user.NeverDelete)
@@ -696,8 +699,19 @@ func TestUsersUpdate(t *testing.T) {
 	err = getJsonBody(response, user)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
-	// TODO MCJ False assumption on expectation for E-Tag	assert.Equal(t, fmt.Sprintf("%v", rev+1), response.Header.Get("ETag"))
-	assert.Less(t, fmt.Sprintf("%v", rev), response.Header.Get("ETag"))
+	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
+
+	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
+	// that by the time it returns there will be an account, and the returned revision is the
+	// revision at the time the account was created, whether then, or earlier. Since for the
+	// store, the revision is per-store, and NOT per-key, we cannot assume anything about the
+	// exact relationship or "distance" between revisions that are not equal.
+	//
+	// So a "rev + 1" style test is not appropriate.
+	//
+	assert.Less(t, rev, match)
+
 	assert.True(t, user.Enabled)
 	assert.True(t, user.CanManageAccounts)
 	assert.False(t, user.NeverDelete)
