@@ -31,15 +31,15 @@ const (
 )
 
 var (
-	aliceDef    = &pb.UserDefinition{
-		Password:       	alicePassword,
-		Enabled:        	true,
-		CanManageAccounts: 	false,
+	aliceDef = &pb.UserDefinition{
+		Password:          alicePassword,
+		Enabled:           true,
+		CanManageAccounts: false,
 	}
 	bobDef = &pb.UserDefinition{
-		Password:       	bobPassword,
-		Enabled:        	true,
-		CanManageAccounts: 	false,
+		Password:          bobPassword,
+		Enabled:           true,
+		CanManageAccounts: false,
 	}
 
 	// The user URLs that have been added and not deleted during the test run.
@@ -507,7 +507,7 @@ func TestUsersList(t *testing.T) {
 
 	// .. and then verify that all following lines correctly consist of all the expected names
 	match := knownNames
-	match[baseURI + admin] = baseURI + admin
+	match[baseURI+admin] = baseURI + admin
 
 	// .. this involves converting the set of keys to an array for matching
 	keys := make([]string, 0, len(match))
@@ -563,7 +563,11 @@ func TestUsersRead(t *testing.T) {
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, "1", response.Header.Get("ETag"))
+
+	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
+	assert.Less(t, int64(1), match)
+
 	assert.True(t, user.Enabled)
 	assert.True(t, user.CanManageAccounts)
 	assert.True(t, user.NeverDelete)
@@ -670,9 +674,9 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 func TestUsersUpdate(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       	alicePassword,
-		Enabled:        	true,
-		CanManageAccounts: 	true,
+		Password:          alicePassword,
+		Enabled:           true,
+		CanManageAccounts: true,
 	}
 
 	unit_test.SetTesting(t)
@@ -695,7 +699,19 @@ func TestUsersUpdate(t *testing.T) {
 	err = getJsonBody(response, user)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Equal(t, fmt.Sprintf("%v", rev+1), response.Header.Get("ETag"))
+	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
+
+	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
+	// that by the time it returns there will be an account, and the returned revision is the
+	// revision at the time the account was created, whether then, or earlier. Since for the
+	// store, the revision is per-store, and NOT per-key, we cannot assume anything about the
+	// exact relationship or "distance" between revisions that are not equal.
+	//
+	// So a "rev + 1" style test is not appropriate.
+	//
+	assert.Less(t, rev, match)
+
 	assert.True(t, user.Enabled)
 	assert.True(t, user.CanManageAccounts)
 	assert.False(t, user.NeverDelete)
@@ -738,9 +754,9 @@ func TestUsersUpdateBadData(t *testing.T) {
 
 func TestUsersUpdateBadMatch(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       	alicePassword,
-		Enabled:        	true,
-		CanManageAccounts: 	true,
+		Password:          alicePassword,
+		Enabled:           true,
+		CanManageAccounts: true,
 	}
 
 	unit_test.SetTesting(t)
@@ -773,9 +789,9 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 
 func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       	alicePassword,
-		Enabled:        	true,
-		CanManageAccounts: 	true,
+		Password:          alicePassword,
+		Enabled:           true,
+		CanManageAccounts: true,
 	}
 
 	unit_test.SetTesting(t)
@@ -805,9 +821,9 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 
 func TestUsersUpdateNoUser(t *testing.T) {
 	upd := &pb.UserDefinition{
-		Password:       	"bogus",
-		Enabled:        	true,
-		CanManageAccounts: 	true,
+		Password:          "bogus",
+		Enabled:           true,
+		CanManageAccounts: true,
 	}
 
 	unit_test.SetTesting(t)
@@ -834,9 +850,9 @@ func TestUsersUpdateNoUser(t *testing.T) {
 
 func TestUsersUpdateNoPriv(t *testing.T) {
 	aliceUpd := &pb.UserDefinition{
-		Password:       	alicePassword,
-		Enabled:        	true,
-		CanManageAccounts: 	true,
+		Password:          alicePassword,
+		Enabled:           true,
+		CanManageAccounts: true,
 	}
 
 	unit_test.SetTesting(t)
@@ -969,4 +985,5 @@ func TestUsersDeleteProtected(t *testing.T) {
 
 	doLogout(t, adminAccountName, response.Cookies())
 }
+
 // --- Delete user tests

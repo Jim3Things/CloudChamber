@@ -49,9 +49,12 @@ store:
     hostname: localhost
     port: 2379
 
-  # Client and peer ports for the etcd instance to be created
-  # when running the local tests. These values are ignored
-  # for production use.
+  # Test specific configuration. 
+  #
+  # Setting UseTestNamespace to 1 will instruct the store to use
+  # a pre-defined test namespace which optionally can be deleted
+  # prior to running the any tests. Only the test namespace is
+  # affected by any cleanining.
   #
   # If UseUniqueInstance is set to 1, the tests will write to a
   # unique namespace to isolate test results from run to run.
@@ -62,6 +65,7 @@ store:
   # will not match.
   #
   Test:
+    UseTestNamespace: 0
     UseUniqueInstance: 0
     PreCleanStore: 0
 

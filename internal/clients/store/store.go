@@ -69,6 +69,7 @@ package store
 import (
 	"context"
 	"fmt"
+	"log"
 	"strings"
 	"sync"
 	"time"
@@ -79,7 +80,7 @@ import (
 
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
-	"go.etcd.io/etcd/clientv3/namespace"
+	ns "go.etcd.io/etcd/clientv3/namespace"
 	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -93,7 +94,9 @@ import (
 // At no time can the root namespace be removed.
 //
 const (
+	slash                 = "/"
 	cloudChamberNamespace = string("/CloudChamber/v0.1")
+	testNamespaceSuffix   = string("Test")
 )
 
 // TraceFlags is the type used when setting of fetching the relevant flags
@@ -131,6 +134,7 @@ type Store struct {
 	UnprefixedKV      clientv3.KV
 	UnprefixedWatcher clientv3.Watcher
 	UnprefixedLease   clientv3.Lease
+	Namespace         string
 	NamespaceSuffix   string
 	TraceFlags        TraceFlags
 }
@@ -238,8 +242,90 @@ func Initialize(cfg *config.GlobalConfig) {
 			storeRoot.DefaultTimeoutRequest,
 			storeRoot.DefaultTraceFlags,
 			storeRoot.DefaultNamespaceSuffix)
+
+		// See if any part of the test namespace requires initialization and optionally cleanining.
+		//
+		// NOTE: This only affects the test namespace, not the production namespace. Ideally it
+		//       would not be here but the store is used by other services as part of their test
+		//       operation and so this feature needs to be in common code.
+		//
+		PrepareTestNamespace(ctx, cfg)
+
 		return nil
 	})
+}
+
+// PrepareTestNamespace will prepare the store to be used for test purposes. Optionally, this will
+// clean out the store of data left from previous runs and set a test specific namespace for all
+// subsequent store operations.
+//
+// NOTE: It is expected that this is call soon after the store is initiaitlized and before any
+//       data related operations have taken place.
+//
+func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
+
+	if !cfg.Store.Test.UseTestNamespace {
+		return
+	}
+
+	// It is meaningless to have both a unique per-instance test namespace
+	// and to clean the store before the tests are run
+	//
+	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
+		log.Fatalf("invalid configuration: : %v", ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
+	}
+
+	// For test purposes, need to set an alternate namespace rather than
+	// rely on the standard. From the configuration, we can either use the
+	// standard, fixed, well-known prefix, or we can use a per-instance
+	// unique prefix derived from the current time
+	//
+	testNamespace := testNamespaceSuffix
+
+	if cfg.Store.Test.UseUniqueInstance {
+		testNamespace += fmt.Sprintf("/%s", time.Now().Format(time.RFC3339Nano))
+	} else {
+		testNamespace += "/Standard"
+	}
+
+	st.Infof(ctx, -1, "Configured to use test namespace %q", testNamespace)
+
+	if cfg.Store.Test.PreCleanStore {
+
+		st.Infof(ctx, -1, "Starting store pre-clean of namespace %q", testNamespace)
+
+		if err := cleanNamespace(testNamespace); err != nil {
+			msg := fmt.Sprintf("failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
+
+			st.Errorf(ctx, -1, msg)
+			log.Fatalf(msg)
+		}
+	}
+
+	setDefaultNamespaceSuffix(testNamespace)
+}
+
+func cleanNamespace(testNamespace string) error {
+
+	store := NewStore()
+
+	if store == nil {
+		log.Fatalf("unable to allocate store context for pre-cleanup")
+	}
+
+	if err := store.SetNamespaceSuffix(""); err != nil {
+		return err
+	}
+	if err := store.Connect(); err != nil {
+		return err
+	}
+	if err := store.DeleteWithPrefix(testNamespace); err != nil {
+		return err
+	}
+
+	store.Disconnect()
+
+	return nil
 }
 
 // NewStore is a method to allocate a new Store struct using the
@@ -271,7 +357,7 @@ func NewStore() *Store {
 //
 func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.Duration, traceFlags TraceFlags, namespace string) *Store {
 
-	store := Store{
+	store := &Store{
 		Endpoints:       endpoints,
 		TimeoutConnect:  timeoutConnect,
 		TimeoutRequest:  timeoutRequest,
@@ -279,7 +365,7 @@ func New(endpoints []string, timeoutConnect time.Duration, timeoutRequest time.D
 		NamespaceSuffix: namespace,
 	}
 
-	return &store
+	return store
 }
 
 // Initialize is a method used to initialize a specific instance of a Store struct.
@@ -427,7 +513,6 @@ func (store *Store) GetTimeoutRequest() time.Duration { return store.TimeoutRequ
 func (store *Store) SetNamespaceSuffix(suffix string) error {
 
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		const slash = "/"
 
 		if err := store.connected(ctx); err != nil {
 			return err
@@ -435,13 +520,7 @@ func (store *Store) SetNamespaceSuffix(suffix string) error {
 
 		// remove any leading, or trailing "/" characters regardless of how many there might be.
 		//
-		suffix = strings.Trim(suffix, slash)
-
-		if suffix == "" {
-			store.NamespaceSuffix = ""
-		} else {
-			store.NamespaceSuffix = slash + suffix
-		}
+		store.NamespaceSuffix = strings.Trim(suffix, slash)
 
 		st.Infof(ctx, -1, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
 		return nil
@@ -481,11 +560,19 @@ func (store *Store) Connect() (err error) {
 		store.UnprefixedLease = cli.Lease
 		store.UnprefixedWatcher = cli.Watcher
 
-		name := cloudChamberNamespace + store.GetNamespaceSuffix()
+		namespace := cloudChamberNamespace + slash
 
-		cli.KV = namespace.NewKV(cli.KV, name)
-		cli.Watcher = namespace.NewWatcher(cli.Watcher, name)
-		cli.Lease = namespace.NewLease(cli.Lease, name)
+		suffix := store.GetNamespaceSuffix()
+
+		if "" != suffix {
+			namespace += suffix + slash
+		}
+
+		store.Namespace = namespace
+
+		cli.KV = ns.NewKV(cli.KV, store.Namespace)
+		cli.Watcher = ns.NewWatcher(cli.Watcher, store.Namespace)
+		cli.Lease = ns.NewLease(cli.Lease, store.Namespace)
 
 		return nil
 	})
@@ -1089,7 +1176,7 @@ func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
 	for k, ru := range recordSet.Records {
 		if ru.Condition == ConditionCreate {
 			if stm.Get(k) != "" {
-				return ErrStoreConditionFail{k, RevisionInvalid, ru.Condition, stm.Rev(k)}
+				return ErrStoreAlreadyExists(k)
 			}
 		} else if ru.Condition != ConditionUnconditional {
 			rev := stm.Rev(k)
@@ -1129,6 +1216,158 @@ func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
 	}
 
 	return nil
+}
+
+func getPrefetchKeys(req *Request) (*[]string, error) {
+
+	prefetchKeys := make([]string, 0, len(req.Records))
+
+	// Build an array of keys to supply as the arg to prefetch
+	// on the WithPrefetch() option below
+	//
+	for k, r := range req.Records {
+		c := req.Conditions[k]
+		switch c {
+		case ConditionUnconditional:
+			// No need to prefetch if not comparing anything
+			break
+
+		case ConditionRevisionNotEqual:
+			fallthrough
+
+		case ConditionRevisionLess:
+			fallthrough
+
+		case ConditionRevisionLessOrEqual:
+			fallthrough
+
+		case ConditionRevisionEqual:
+			fallthrough
+
+		case ConditionRevisionEqualOrGreater:
+			fallthrough
+
+		case ConditionRevisionGreater:
+			if r.Revision == RevisionInvalid {
+				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, r.Revision}
+			}
+
+			fallthrough
+
+		case ConditionCreate:
+			prefetchKeys = append(prefetchKeys, k)
+
+		default:
+			return nil, ErrStoreBadArgCondition{k, Condition(c)}
+		}
+	}
+
+	return &prefetchKeys, nil
+}
+
+func chkConditions(stm concurrency.STM, req *Request) error {
+
+	for k, r := range req.Records {
+		c := req.Conditions[k]
+		if c == ConditionCreate {
+			if stm.Get(k) != "" {
+				return ErrStoreAlreadyExists(k)
+			}
+		} else if c != ConditionUnconditional {
+			rev := stm.Rev(k)
+
+			switch c {
+			case ConditionRevisionLess:
+				if rev >= r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionLessOrEqual:
+				if rev > r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionEqual:
+				if rev != r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionNotEqual:
+				if rev == r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionEqualOrGreater:
+				if rev < r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+
+			case ConditionRevisionGreater:
+				if rev <= r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// ListWithPrefix is a method used to query for a set of zero or more key/value pairs
+// which have a common prefix. The method will return all matching key/value pairs so
+// care should be taken with key naming to avoid attempting to fetch a large number
+// of key/value pairs.
+//
+// It is not an error to attmept to retrieve an empty set. For example, when querying
+// for the presence of a set of values, this method can be used which would successfully
+// return an empty set of key/value pairs if there are no matches for the supplied key
+// prefix.
+//
+func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		getResponse, err := store.Client.Get(opCtx, keyPrefix, clientv3.WithPrefix(), clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		cancel()
+
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, len(getResponse.Kvs))}
+
+		for i, kv := range getResponse.Kvs {
+			key := string(kv.Key)
+			val := string(kv.Value)
+			rev := kv.ModRevision
+
+			resp.Records[key] = Record{Revision: rev, Value: val}
+
+			if store.trace(traceFlagExpandResults) {
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
+				}
+			}
+		}
+
+		resp.Revision = getResponse.Header.GetRevision()
+
+		response = resp
+
+		st.Infof(ctx, -1, "Processed %v items", len(resp.Records))
+
+		return nil
+	})
+
+	return response, err
 }
 
 // ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
@@ -1318,4 +1557,216 @@ func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpda
 	})
 
 	return revision, err
+}
+
+//
+// ToDo: need to add WithAction(actionRoutine) and WithRawValue() options.
+//
+
+// ReadTxn is a method to fetch a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, len(request.Records))}
+
+		txnAction := func(stm concurrency.STM) error {
+
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
+
+			// It is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			// If the revision is zero, we take that to mean the key
+			// does not actually exist.
+			//
+			// Note that a key might well exist even if the value is
+			// an empty string. At least I believe it can. We choose
+			// to use the revision instead as a more reliable
+			// indicator of existence.
+			//
+			for k := range request.Records {
+
+				rev := stm.Rev(k)
+
+				if rev != 0 {
+					resp.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+				}
+			}
+
+			return nil
+		}
+
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.ReadCommitted),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !txnResponse.Succeeded {
+			err = ErrStoreKeyReadFailure(request.Reason)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
+
+		response = resp
+
+		return nil
+	})
+
+	return response, nil
+}
+
+// WriteTxn is a method to write/update a set of arbitrary keys within a
+// single txn so they form a (self-)consistent set.
+//
+func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, 0)}
+
+		txnAction := func(stm concurrency.STM) error {
+
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
+
+			// It is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k, r := range request.Records {
+				stm.Put(k, string(r.Value))
+			}
+
+			return nil
+		}
+
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !txnResponse.Succeeded {
+			err := ErrStoreKeyWriteFailure(request.Reason)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
+
+		response = resp
+
+		return nil
+	})
+
+	return response, err
+}
+
+// DeleteTxn is a method to delete a set of arbitrary keys within a
+// single txn so they form a (self-)consistent operation.
+//
+func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *Response, err error) {
+
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		if err := store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		var prefetchKeys *[]string
+
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
+
+		resp := &Response{Revision: RevisionInvalid, Records: make(map[string]Record, 0)}
+
+		txnAction := func(stm concurrency.STM) error {
+
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
+
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k := range request.Records {
+				stm.Del(k)
+			}
+
+			return nil
+		}
+
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
+
+		if err != nil {
+			return err
+		}
+
+		if !txnResponse.Succeeded {
+			err := ErrStoreKeyDeleteFailure(request.Reason)
+			st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
+
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
+
+		response = resp
+
+		return nil
+	})
+
+	return response, err
 }

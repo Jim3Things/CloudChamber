@@ -35,8 +35,57 @@ var (
 	ErrUserAuthFailed = errors.New("CloudChamber: authentication failed, invalid user name or password")
 )
 
-// Custom common HTTP error type that includes the status code to use in
-// the response.
+// ErrUserAlreadyExists indicates the attempt to create a new user account
+// failed as that user already exists.
+//
+type ErrUserAlreadyExists string
+
+func (euae ErrUserAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q already exists", string(euae))
+}
+
+// ErrUserNotFound indicates the attempt to locate a user account failed as that
+// user does not exist.
+//
+type ErrUserNotFound string
+
+func (eunf ErrUserNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q not found", string(eunf))
+}
+
+// ErrUserStaleVersion indicates the attempt to locate a user account failed as that
+// user does not exist.
+//
+type ErrUserStaleVersion string
+
+func (eusv ErrUserStaleVersion) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q has a newer version than expected", string(eusv))
+}
+
+// ErrUserProtected indicates the attempt to locate a user account failed as that
+// user does not exist.
+//
+type ErrUserProtected string
+
+func (eup ErrUserProtected) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q is protected and cannot be deleted", string(eup))
+}
+
+// ErrUserBadRecordContent indicates the user record retrieved from the store store
+// has some content that does not match the key. An example might be that the user
+// name used for a key does not match the user name field in the record.
+//
+type ErrUserBadRecordContent struct {
+	name  string
+	value string
+}
+
+func (eubrc ErrUserBadRecordContent) Error() string {
+	return fmt.Sprintf("CloudChamber: discovered record for user %q where the content does not match key %q", eubrc.name, eubrc.value)
+}
+
+// HTTPError is a custom common HTTP error type that includes the status code
+// to use in a response.
 type HTTPError struct {
 	// HTTP status code
 	SC int
@@ -45,6 +94,8 @@ type HTTPError struct {
 	Base error
 }
 
+// StatusCode is used to extract a status from a standard HTTPError
+//
 func (he *HTTPError) StatusCode() int {
 	// We should not need this, but if we're called with no error at all,
 	// then the status should be success...
@@ -86,7 +137,7 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
 
 // +++ HTTPError specializations
 
-// ErrNoLoginActive indicates that the specified user is not logged into this session
+// NewErrNoLoginActive indicates that the specified user is not logged into this session
 func NewErrNoLoginActive(name string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusBadRequest,
@@ -94,7 +145,7 @@ func NewErrNoLoginActive(name string) *HTTPError {
 	}
 }
 
-// ErrUserNotFound indicates the specified user account was determined to
+// NewErrUserNotFound indicates the specified user account was determined to
 // not exist (i.e. the search succeeded but no record was found)
 //
 func NewErrUserNotFound(name string) *HTTPError {
@@ -104,17 +155,17 @@ func NewErrUserNotFound(name string) *HTTPError {
 	}
 }
 
-// ErrUserAlreadyCreated indicates the specified user account was previously
+// NewErrUserAlreadyExists indicates the specified user account was previously
 // created and the request was determined to be a duplicate Create request.
 //
-func NewErrUserAlreadyCreated(name string) *HTTPError {
+func NewErrUserAlreadyExists(name string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusBadRequest,
 		Base: fmt.Errorf("CloudChamber: user %q already exists", name),
 	}
 }
 
-// ErrUserPermissionDenied indicates the user does not have the appropriate
+// NewErrUserPermissionDenied indicates the user does not have the appropriate
 // permissions for the requested operation.
 //
 func NewErrUserPermissionDenied() *HTTPError {
@@ -124,7 +175,7 @@ func NewErrUserPermissionDenied() *HTTPError {
 	}
 }
 
-// ErrUserStaleVersion indicates that an operation against the specified user
+// NewErrUserStaleVersion indicates that an operation against the specified user
 // expected a different revision number than was found
 //
 func NewErrUserStaleVersion(name string) *HTTPError {
@@ -134,7 +185,7 @@ func NewErrUserStaleVersion(name string) *HTTPError {
 	}
 }
 
-// ErrBadMatchType indicates that the If-Match value was syntactically incorrect,
+// NewErrBadMatchType indicates that the If-Match value was syntactically incorrect,
 // and could not be processed
 func NewErrBadMatchType(match string) *HTTPError {
 	return &HTTPError{
@@ -143,7 +194,7 @@ func NewErrBadMatchType(match string) *HTTPError {
 	}
 }
 
-// ErrUserInvalidOperation indicates the operation requested for the supplied
+// NewErrUserInvalidOperation indicates the operation requested for the supplied
 // user account is invalid in some way, likely a non-existent operation code.
 //
 func NewErrUserInvalidOperation(op string) *HTTPError {
@@ -153,7 +204,7 @@ func NewErrUserInvalidOperation(op string) *HTTPError {
 	}
 }
 
-// ErrUserProected indicates that the user entry may not be deleted.
+// NewErrUserProtected indicates that the user entry may not be deleted.
 func NewErrUserProtected(name string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusForbidden,
@@ -161,7 +212,7 @@ func NewErrUserProtected(name string) *HTTPError {
 	}
 }
 
-// ErrRackNotFound indicates the specified rack do not exist and the http
+// NewErrRackNotFound indicates the specified rack do not exist and the http
 // request (http.statusNotFound) determines to be the request was made against
 // a non-existing rack.
 func NewErrRackNotFound(name string) *HTTPError {
@@ -189,7 +240,7 @@ func NewErrInvalidStepperMode(mode string) *HTTPError {
 	}
 }
 
-// ErrInvalidRateRequest indicates that the automatic ticks-per-second rate was
+// NewErrInvalidRateRequest indicates that the automatic ticks-per-second rate was
 // present, but the selected policy mode was not 'automatic'.
 func NewErrInvalidRateRequest() *HTTPError {
 	return &HTTPError{
@@ -198,7 +249,7 @@ func NewErrInvalidRateRequest() *HTTPError {
 	}
 }
 
-// ErrInvalidStepperRate indicates that the supplied ticks-per-second rate was
+// NewErrInvalidStepperRate indicates that the supplied ticks-per-second rate was
 // not recognized as a valid number.
 func NewErrInvalidStepperRate(rate string) *HTTPError {
 	return &HTTPError{
@@ -207,7 +258,7 @@ func NewErrInvalidStepperRate(rate string) *HTTPError {
 	}
 }
 
-// ErrStepperFailedToSetPolicy indicates that an error occurred while setting
+// NewErrStepperFailedToSetPolicy indicates that an error occurred while setting
 // the new policy.  This most likely is due to an ETag mismatch.
 func NewErrStepperFailedToSetPolicy() *HTTPError {
 	return &HTTPError{
@@ -216,7 +267,7 @@ func NewErrStepperFailedToSetPolicy() *HTTPError {
 	}
 }
 
-// ErrInvalidStepperRate indicates that the supplied ticks-per-second rate was
+// NewErrInvalidStepperAfter indicates that the supplied ticks-per-second rate was
 // not recognized as a valid number.
 func NewErrInvalidStepperAfter(after string) *HTTPError {
 	return &HTTPError{

@@ -26,6 +26,7 @@ import (
 	"github.com/gorilla/sessions"
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
@@ -154,6 +155,10 @@ func initService(cfg *config.GlobalConfig) error {
 	if err := InitDBInventory(); err != nil {
 		return err
 	}
+
+	// Initialize the underlying store
+	//
+	store.Initialize(cfg)
 
 	// Finally, initialize the user store
 	return InitDBUsers(cfg)
