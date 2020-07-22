@@ -43,11 +43,36 @@ func InitDBInventory() error {
 			Pdu:    &pb.ExternalPdu{},
 			Blades: make(map[int64]*common.BladeCapacity),
 		}
-		dbInventory.Racks["rack1"].Blades[1] = &common.BladeCapacity{} //First blade for rack 1.
-		dbInventory.Racks["rack1"].Blades[2] = &common.BladeCapacity{} //Second blade for rack 1.
+		dbInventory.Racks["rack1"].Blades[1] = &common.BladeCapacity{
+			Cores:                  8,
+			MemoryInMb:             16384,
+			DiskInGb:               120,
+			NetworkBandwidthInMbps: 1024,
+			Arch:                   "X64",
+		} //First blade for rack 1.
 
-		dbInventory.Racks["rack2"].Blades[1] = &common.BladeCapacity{} //First blade for rack 2.
-		dbInventory.Racks["rack2"].Blades[2] = &common.BladeCapacity{} //Second blade for rack 2.
+		dbInventory.Racks["rack1"].Blades[2] = &common.BladeCapacity{
+			Cores:                  16,
+			MemoryInMb:             16384,
+			DiskInGb:               240,
+			NetworkBandwidthInMbps: 2048,
+			Arch:                   "X64",
+		} //Second blade for rack 1.
+
+		dbInventory.Racks["rack2"].Blades[1] = &common.BladeCapacity{
+			Cores:                  24,
+			MemoryInMb:             16384,
+			DiskInGb:               120,
+			NetworkBandwidthInMbps: 1024,
+			Arch:                   "X64",
+		} //First blade for rack 2.
+		dbInventory.Racks["rack2"].Blades[2] = &common.BladeCapacity{
+			Cores:                  32,
+			MemoryInMb:             16384,
+			DiskInGb:               120,
+			NetworkBandwidthInMbps: 1024,
+			Arch:                   "X64",
+		} //Second blade for rack 2.
 
 	}
 
@@ -80,4 +105,36 @@ func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
 	}
 	return r, nil
 
+}
+
+func (m *DBInventory) ScanBladesInRack(rackid string, action func(bladeid int64) error) error {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	r, ok := m.Racks[rackid]
+	if !ok {
+		return NewErrRackNotFound(rackid)
+	}
+	for name := range r.Blades {
+		if err := action(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *DBInventory) GetBlade(rackid string, bladeid int64) (*common.BladeCapacity, error) {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	r, ok := m.Racks[rackid]
+	if !ok {
+		return nil, NewErrRackNotFound(rackid)
+	}
+
+	b, ok := r.Blades[bladeid]
+	if !ok {
+		return nil, NewErrBladeNotFound(rackid, bladeid)
+	}
+	return b, nil
 }

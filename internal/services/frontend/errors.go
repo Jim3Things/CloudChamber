@@ -4,12 +4,12 @@
 package frontend
 
 import (
-    "context"
-    "errors"
-    "fmt"
-    "net/http"
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
 
-    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 var (
@@ -64,24 +64,24 @@ func (he *HTTPError) Error() string {
 // Note that this returns the original error in case there is later processing
 // to be done with it.
 func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
-    // We're hoping this is an HTTPError form of error, which would have the
-    // preferred HTTP status code included.
-    //
-    // If it isn't, then the error originated in some support or library logic,
-    // rather than the web server's business logic.  In that case we assume a
-    // status code of internal server error as the most likely correct value.
-    he, ok := err.(*HTTPError)
-    if !ok {
-        he = &HTTPError{
-            SC:   http.StatusInternalServerError,
-            Base: err,
-        }
-    }
+	// We're hoping this is an HTTPError form of error, which would have the
+	// preferred HTTP status code included.
+	//
+	// If it isn't, then the error originated in some support or library logic,
+	// rather than the web server's business logic.  In that case we assume a
+	// status code of internal server error as the most likely correct value.
+	he, ok := err.(*HTTPError)
+	if !ok {
+		he = &HTTPError{
+			SC:   http.StatusInternalServerError,
+			Base: err,
+		}
+	}
 
-    _ = st.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
-    http.Error(w, he.Error(), he.StatusCode())
+	_ = st.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
+	http.Error(w, he.Error(), he.StatusCode())
 
-    return err
+	return err
 }
 
 // +++ HTTPError specializations
@@ -171,40 +171,49 @@ func NewErrRackNotFound(name string) *HTTPError {
 	}
 }
 
+//BladeNotFound indicates that the rack was found but no blade was found
+
+func NewErrBladeNotFound(rackid string, bladeid int64) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusNotFound,
+		Base: fmt.Errorf("CloudChamber: blade %d not found in rack %q", bladeid, rackid),
+	}
+}
+
 // ErrInvalidStepperMode indicates that an unrecognized simulated policy mode
 // was requested.
 func NewErrInvalidStepperMode(mode string) *HTTPError {
-    return &HTTPError{
-        SC:   http.StatusBadRequest,
-        Base: fmt.Errorf("CloudChamber: mode %q is invalid.  Supported modes are 'manual' and 'automatic'", mode),
-    }
+	return &HTTPError{
+		SC:   http.StatusBadRequest,
+		Base: fmt.Errorf("CloudChamber: mode %q is invalid.  Supported modes are 'manual' and 'automatic'", mode),
+	}
 }
 
 // ErrInvalidRateRequest indicates that the automatic ticks-per-second rate was
 // present, but the selected policy mode was not 'automatic'.
 func NewErrInvalidRateRequest() *HTTPError {
-    return &HTTPError{
-        SC:   http.StatusBadRequest,
-        Base: errors.New("CloudChamber: manual mode does not accept additional arguments"),
-    }
+	return &HTTPError{
+		SC:   http.StatusBadRequest,
+		Base: errors.New("CloudChamber: manual mode does not accept additional arguments"),
+	}
 }
 
 // ErrInvalidStepperRate indicates that the supplied ticks-per-second rate was
 // not recognized as a valid number.
 func NewErrInvalidStepperRate(rate string) *HTTPError {
-    return &HTTPError{
-        SC:   http.StatusBadRequest,
-        Base: fmt.Errorf("CloudChamber: requested rate %q could not be parsed as a positive decimal number", rate),
-    }
+	return &HTTPError{
+		SC:   http.StatusBadRequest,
+		Base: fmt.Errorf("CloudChamber: requested rate %q could not be parsed as a positive decimal number", rate),
+	}
 }
 
 // ErrStepperFailedToSetPolicy indicates that an error occurred while setting
 // the new policy.  This most likely is due to an ETag mismatch.
 func NewErrStepperFailedToSetPolicy() *HTTPError {
-    return &HTTPError{
-        SC:   http.StatusBadRequest,
-        Base: errors.New("CloudChamber: Set simulated time policy operation failed"),
-    }
+	return &HTTPError{
+		SC:   http.StatusBadRequest,
+		Base: errors.New("CloudChamber: Set simulated time policy operation failed"),
+	}
 }
 
 // ErrInvalidStepperRate indicates that the supplied ticks-per-second rate was
