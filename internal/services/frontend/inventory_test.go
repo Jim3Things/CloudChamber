@@ -76,7 +76,6 @@ func TestInventoryUnknownRack(t *testing.T) {
 
 }
 
-/
 func TestInventoryListBlades(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -91,7 +90,7 @@ func TestInventoryListBlades(t *testing.T) {
 
 	expected := []string{"/api/racks/rack1/blades/1", "/api/racks/rack1/blades/2", ""}
 
-	assert.Equal(t, splits[0], "Blades in rack1 (List)")
+	assert.Equal(t, splits[0], "Blades in \"rack1\" (List)")
 	assert.ElementsMatch(t, expected, splits[1:])
 
 	assert.Nil(t, err)
