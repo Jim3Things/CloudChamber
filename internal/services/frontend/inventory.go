@@ -49,7 +49,7 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
 	routeRacks.HandleFunc("/{rackid}", handlerRackRead).Methods("GET")
-	routeRacks.HandleFunc("/{rackid}/blades", handlerBladeList).Methods("GET")
+	routeRacks.HandleFunc("/{rackid}/blades", handlerBladesList).Methods("GET")
 	routeRacks.HandleFunc("/{rackid}/blades/{bladeid}", handlerBladeRead).Methods("GET")
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
 }
