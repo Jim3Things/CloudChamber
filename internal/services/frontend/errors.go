@@ -222,7 +222,16 @@ func NewErrRackNotFound(name string) *HTTPError {
 	}
 }
 
-// NewErrInvalidStepperMode indicates that an unrecognized simulated policy mode
+//BladeNotFound indicates that the rack was found but no blade was found
+
+func NewErrBladeNotFound(rackid string, bladeid int64) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusNotFound,
+		Base: fmt.Errorf("CloudChamber: blade %d not found in rack %q", bladeid, rackid),
+	}
+}
+
+// ErrInvalidStepperMode indicates that an unrecognized simulated policy mode
 // was requested.
 func NewErrInvalidStepperMode(mode string) *HTTPError {
 	return &HTTPError{

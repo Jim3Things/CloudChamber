@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -47,8 +48,9 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//   POST is NOT idempotent so translates to CREATE in the CRUD methodolgy
 	//
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
-	routeRacks.HandleFunc("/{rackid}", handlerRacksRead).Methods("GET")
-	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksUpdate).Methods("PUT", "GET")
+	routeRacks.HandleFunc("/{rackid}", handlerRackRead).Methods("GET")
+	routeRacks.HandleFunc("/{rackid}/blades", handlerBladesList).Methods("GET")
+	routeRacks.HandleFunc("/{rackid}/blades/{bladeid}", handlerBladeRead).Methods("GET")
 	//routeRacks.HandleFunc("/racks/{rackid}", handlerRacksDelete).Methods("DELETE", "GET")
 }
 
@@ -82,18 +84,12 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 				return httpError(ctx, w, err)
 			}
 
-			return err
+			return nil
 		})
 	})
 
 }
-
-//func handlerracksCreate(w http.ResponseWriter, r *http.Request) {
-
-//	racksDisplayArguments(w, r, "add")
-//}
-
-func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
+func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		rackid := vars["rackid"]
@@ -114,13 +110,54 @@ func handlerRacksRead(w http.ResponseWriter, r *http.Request) {
 
 	})
 }
+func handlerBladesList(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		vars := mux.Vars(r)
+		rackid := vars["rackid"] // captured the key value in rackid variable
 
-//func handlerracksUpdate(w http.ResponseWriter, r *http.Request) {
+		if _, err := fmt.Fprintf(w, "Blades in %q (List)\n", rackid); err != nil {
+			return httpError(ctx, w, err)
+		}
+		b := r.URL.String()
+		if !strings.HasSuffix(b, "/") {
+			b += "/"
+		}
+		return dbInventory.ScanBladesInRack(rackid, func(bladeid int64) error {
 
-//	racksDisplayArguments(w, r, "update")
-//}
+			target := fmt.Sprintf("%s%d", b, bladeid)
+			st.Infof(ctx, -1, " Listing blades '%d' at %q", bladeid, target)
 
-//func handlerracksDelete(w http.ResponseWriter, r *http.Request) {
+			if _, err = fmt.Fprintln(w, target); err != nil {
+				return httpError(ctx, w, err)
+			}
+			return nil
+		})
 
-//	racksDisplayArguments(w, r, "remove")
-//}
+	})
+}
+func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		vars := mux.Vars(r)
+		rackid := vars["rackid"]
+		bladeName := vars["bladeid"]
+
+		w.Header().Set("Content-Type", "application/json")
+
+		bladeid, err := strconv.ParseInt(bladeName, 10, 64)
+		if err != nil {
+			return httpError(ctx, w, &HTTPError{
+				SC:   http.StatusBadRequest,
+				Base: err,
+			})
+		}
+		blade, err := dbInventory.GetBlade(rackid, bladeid)
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+		st.Infof(ctx, -1, "Returning details for blade %d  in rack %q:  %v", bladeid, rackid, blade)
+
+		p := jsonpb.Marshaler{}
+		return p.Marshal(w, blade)
+	})
+
+}
