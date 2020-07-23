@@ -100,6 +100,42 @@ func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*h
 	return tag, response.Cookies()
 }
 
+func testUserRead(t *testing.T, path string, cookies []*http.Cookie) (*http.Response, *pb.UserPublic) {
+	request := httptest.NewRequest("GET", path, nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response := doHTTP(request, cookies)
+
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	user := &pb.UserPublic{}
+	err := getJsonBody(response, user)
+	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+
+	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+
+	return response, user
+}
+
+func testUserSetPassword(t *testing.T, name string, upd *pb.UserPassword, rev int64, cookies []*http.Cookie) (*http.Response, int64) {
+	r, err := toJsonReader(upd)
+	assert.Nilf(t, err, "Failed to format UserPassword, err = %v", err)
+
+	path := baseURI + userURI + name + "?password"
+
+	request := httptest.NewRequest("PUT", path, r)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+
+	response := doHTTP(request, cookies)
+
+	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
+
+	return response, match
+}
+
+
 // --- Helper functions
 
 // The individual unit tests follow here.  They are grouped by the operation
@@ -673,8 +709,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 // +++ Update user tests
 
 func TestUsersUpdate(t *testing.T) {
-	aliceUpd := &pb.UserDefinition{
-		Password:          alicePassword,
+	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
@@ -753,8 +788,7 @@ func TestUsersUpdateBadData(t *testing.T) {
 }
 
 func TestUsersUpdateBadMatch(t *testing.T) {
-	aliceUpd := &pb.UserDefinition{
-		Password:          alicePassword,
+	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
@@ -820,8 +854,7 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 }
 
 func TestUsersUpdateNoUser(t *testing.T) {
-	upd := &pb.UserDefinition{
-		Password:          "bogus",
+	upd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
@@ -849,8 +882,7 @@ func TestUsersUpdateNoUser(t *testing.T) {
 }
 
 func TestUsersUpdateNoPriv(t *testing.T) {
-	aliceUpd := &pb.UserDefinition{
-		Password:          alicePassword,
+	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
@@ -880,6 +912,73 @@ func TestUsersUpdateNoPriv(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	doLogout(t, "bob", response.Cookies())
+}
+
+func testUsersUpdate(t *testing.T, path string, upd *pb.UserUpdate, rev int64, cookies []*http.Cookie) (*http.Response, int64) {
+	r, err := toJsonReader(upd)
+	assert.Nilf(t, err, "Failed to format UserUpdate, err = %v", err)
+
+	request := httptest.NewRequest("PUT", path, r)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+
+	response := doHTTP(request, cookies)
+	assert.Equal(t, http.StatusOK, response.StatusCode)
+
+	tagString := response.Header.Get("ETag")
+	tag, err := strconv.ParseInt(tagString, 10, 64)
+	assert.Nilf(t, err, fmt.Sprintf("Error parsing ETag. tag = %q, err = %v", tagString, err))
+
+	return response, tag
+}
+
+func TestUsersUpdateExpandRights(t *testing.T) {
+	aliceUpd := &pb.UserUpdate{
+		Enabled:           true,
+		CanManageAccounts: true,
+	}
+
+	aliceOriginal := &pb.UserUpdate{
+		Enabled: 		   true,
+		CanManageAccounts: false,
+	}
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	path := baseURI + alice
+
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+
+	response, rev = testUsersUpdate(t, path, aliceOriginal, rev, cookies)
+	_, err := getBody(response)
+	assert.Nil(t, err)
+
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+
+	response = doLogin(t, "Alice", alicePassword, response.Cookies())
+
+	r, err := toJsonReader(aliceUpd)
+	assert.Nilf(t, err, "Failed to format UserUpdate, err = %v", err)
+
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, alice), r)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+
+	response = doHTTP(request, response.Cookies())
+	body, err := getBody(response)
+	assert.Equal(t, "CloudChamber: permission denied\n", string(body))
+
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	// Now verify that the entry has not been changed
+	response, user := testUserRead(t, baseURI + alice, response.Cookies())
+	assert.False(t, user.CanManageAccounts)
+	assert.True(t, user.Enabled)
+	assert.False(t, user.NeverDelete)
+
+	doLogout(t, "Alice", response.Cookies())
 }
 
 // --- Update user tests
@@ -987,3 +1086,173 @@ func TestUsersDeleteProtected(t *testing.T) {
 }
 
 // --- Delete user tests
+
+// +++ SetPassword user tests
+
+func TestUsersSetPassword(t *testing.T) {
+	aliceUpd := &pb.UserPassword{
+		OldPassword: alicePassword,
+		NewPassword: alicePassword + "xxx",
+		Force:       false,
+	}
+
+	aliceRevert := &pb.UserPassword{
+		OldPassword: alicePassword + "xxx",
+		NewPassword: alicePassword,
+		Force:		 true,
+	}
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+
+	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	response, match := testUserSetPassword(t, "Alice", aliceUpd, rev, cookies)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
+	// that by the time it returns there will be an account, and the returned revision is the
+	// revision at the time the account was created, whether then, or earlier. Since for the
+	// store, the revision is per-store, and NOT per-key, we cannot assume anything about the
+	// exact relationship or "distance" between revisions that are not equal.
+	//
+	// So a "rev + 1" style test is not appropriate.
+	//
+	assert.Less(t, rev, match)
+
+
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+
+	// Now verify that the password was changed, by trying to log in again
+	response = doLogin(t, "Alice", alicePassword + "xxx", response.Cookies())
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	// Now set the password back
+	response, match = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	doLogout(t, "Alice", response.Cookies())
+}
+
+func TestUsersSetPasswordForce(t *testing.T) {
+	aliceUpd := &pb.UserPassword{
+		OldPassword: "bogus",
+		NewPassword: alicePassword + "xxx",
+		Force:       true,
+	}
+
+	aliceRevert := &pb.UserPassword{
+		OldPassword: alicePassword + "xxx",
+		NewPassword: alicePassword,
+		Force:		 true,
+	}
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+
+	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	response, match := testUserSetPassword(t, "Alice", aliceUpd, rev, cookies)
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
+	// that by the time it returns there will be an account, and the returned revision is the
+	// revision at the time the account was created, whether then, or earlier. Since for the
+	// store, the revision is per-store, and NOT per-key, we cannot assume anything about the
+	// exact relationship or "distance" between revisions that are not equal.
+	//
+	// So a "rev + 1" style test is not appropriate.
+	//
+	assert.Less(t, rev, match)
+
+
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+
+	// Now verify that the password was changed, by trying to log in again
+	response = doLogin(t, "Alice", alicePassword + "xxx", response.Cookies())
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	// Now set the password back
+	response, match = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	doLogout(t, "Alice", response.Cookies())
+}
+
+func TestUsersSetPasswordBadPassword(t *testing.T) {
+	aliceUpd := &pb.UserPassword{
+		OldPassword: "bogus",
+		NewPassword: alicePassword + "xxx",
+		Force:       false,
+	}
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+
+	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+
+	r, err := toJsonReader(aliceUpd)
+	assert.Nilf(t, err, "Failed to format UserPassword, err = %v", err)
+
+	path := baseURI + alice + "?password"
+
+	request := httptest.NewRequest("PUT", path, r)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+
+	response = doHTTP(request, cookies)
+
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+
+	// Now verify that the password was not changed, by trying to log in again
+	response = doLogin(t, "Alice", alicePassword, response.Cookies())
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	doLogout(t, "Alice", response.Cookies())
+}
+
+func TestUsersSetPasswordNoPriv(t *testing.T) {
+	adminUpd := &pb.UserPassword{
+		OldPassword: adminPassword,
+		NewPassword: adminPassword + "xxx",
+		Force:       false,
+	}
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	response = doLogout(t, "Admin", cookies)
+
+	response = doLogin(t, "Alice", alicePassword, response.Cookies())
+
+	r, err := toJsonReader(adminUpd)
+	assert.Nilf(t, err, "Failed to format UserPassword, err = %v", err)
+
+	path := baseURI + admin + "?password"
+
+	request := httptest.NewRequest("PUT", path, r)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", fmt.Sprintf("%v", -1))
+
+	response = doHTTP(request, response.Cookies())
+
+	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	response = doLogout(t, "Alice", response.Cookies())
+
+	// Now verify that the password was not changed, by trying to log in again
+	response = doLogin(t, "Admin", adminPassword, response.Cookies())
+	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	doLogout(t, "Admin", response.Cookies())
+}
+
+// --- SetPassword user tests
