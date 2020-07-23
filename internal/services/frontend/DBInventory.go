@@ -17,7 +17,7 @@ import (
 
 // DBInventory is a container used to establish synchronized access to
 // the in-memory set of Racks records.
-
+//
 type DBInventory struct { //A struct for the collection of Racks
 	Mutex sync.Mutex
 	Racks map[string]*pb.ExternalRack
@@ -25,6 +25,13 @@ type DBInventory struct { //A struct for the collection of Racks
 
 var dbInventory *DBInventory
 
+// InitDBInventory initializes the base state for the inventory.
+//
+// At present the primary state is sufficient data in an in-memory db sufficient
+// for testing purposes. Eventually, this will be removed and the calls will be
+// connected to the store in order to persist the inventory read from an external
+// definition file
+//
 func InitDBInventory() error {
 	if dbInventory == nil {
 		dbInventory = &DBInventory{
@@ -94,6 +101,8 @@ func (m *DBInventory) Scan(action func(entry string) error) error {
 	return nil
 }
 
+// Get returns the rack details to match the supplied rackId
+//
 func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
 
 	m.Mutex.Lock()
@@ -107,6 +116,10 @@ func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
 
 }
 
+// ScanBladesInRack enumerates over all the blades in a rack of the
+// given rackId, and invokes the supplied action on each discovered
+// bladeId in turn.
+//
 func (m *DBInventory) ScanBladesInRack(rackid string, action func(bladeid int64) error) error {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
@@ -123,6 +136,9 @@ func (m *DBInventory) ScanBladesInRack(rackid string, action func(bladeid int64)
 	return nil
 }
 
+// GetBlade returns the details of a blade matching the
+// supplied rackId and bladeId
+//
 func (m *DBInventory) GetBlade(rackid string, bladeid int64) (*common.BladeCapacity, error) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()

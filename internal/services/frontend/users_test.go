@@ -342,7 +342,7 @@ func TestUsersCreate(t *testing.T) {
 
 	path := baseURI + alice + "2"
 
-	r, err := toJsonReader(aliceDef)
+	r, err := toJSONReader(aliceDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -371,7 +371,7 @@ func TestUsersCreateDup(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	r, err := toJsonReader(aliceDef)
+	r, err := toJSONReader(aliceDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -429,7 +429,7 @@ func TestUsersCreateNoPriv(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	r, err := toJsonReader(bobDef)
+	r, err := toJSONReader(bobDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	response := doLogin(t, "Alice", alicePassword, nil)
@@ -459,7 +459,7 @@ func TestUsersCreateNoSession(t *testing.T) {
 
 	path := baseURI + alice + "2"
 
-	r, err := toJsonReader(aliceDef)
+	r, err := toJSONReader(aliceDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	request := httptest.NewRequest("POST", path, r)
@@ -559,7 +559,7 @@ func TestUsersRead(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	user := &pb.UserPublic{}
-	err := getJsonBody(response, user)
+	err := getJSONBody(response, user)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
@@ -684,7 +684,7 @@ func TestUsersUpdate(t *testing.T) {
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	r, err := toJsonReader(aliceUpd)
+	r, err := toJSONReader(aliceUpd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -696,7 +696,7 @@ func TestUsersUpdate(t *testing.T) {
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
 	user := &pb.UserPublic{}
-	err = getJsonBody(response, user)
+	err = getJSONBody(response, user)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
@@ -764,7 +764,7 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	r, err := toJsonReader(aliceUpd)
+	r, err := toJSONReader(aliceUpd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -799,7 +799,7 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	r, err := toJsonReader(aliceUpd)
+	r, err := toJSONReader(aliceUpd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -831,7 +831,7 @@ func TestUsersUpdateNoUser(t *testing.T) {
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	r, err := toJsonReader(upd)
+	r, err := toJSONReader(upd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, userURI+"BadUser"), r)
@@ -865,7 +865,7 @@ func TestUsersUpdateNoPriv(t *testing.T) {
 
 	response = doLogin(t, "Bob", bobPassword, response.Cookies())
 
-	r, err := toJsonReader(aliceUpd)
+	r, err := toJSONReader(aliceUpd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, alice), r)
