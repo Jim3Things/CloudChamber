@@ -265,6 +265,22 @@ using
 or you can change the persistent environment PATH variable (recommended)
 using any of the previously described methods.
 
+# Installing the Node.js Package Manager (NPM)
+
+The CloudChamber UI portion of the project uses several features of a
+set of frameworks which are installed using the NPM utility and then the
+project itself is built using NPM.
+
+## Installing the NPM Utility
+
+Download the pre-built binary package. This can be obtained from
+
+> <https://nodejs.org/en/>
+
+for the latest version (currently 14.5.0). Run the installer and leave
+the installation location to the default. The additional tools are not
+required and the checkbox can be left un-selected.
+
 # Setting up the Cygwin Utility Environment
 
 The Cygwin environment provides a comprehensive suite of UNIX derived
@@ -434,6 +450,55 @@ This should build all the CloudChamber services and copy the generated
 executables and support files to
 
 > %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber\\deployments
+
+# Setting up the Initial CloudChamber UI Repository
+
+## Fetch the CloudChamber UI Itself
+
+This is just another GitHub project so any of the normal methods can be
+used to set up the git repository, such as
+
+> pushd %GOPATH%\\src\\github.com\\Jim3Things
+> 
+> go get github.com\\Jim3Things\\cloud\_chamber\_react\_ts
+
+If using the GitHub desktop application, remember to add this newly
+created repository to the set of known repositories.
+
+## Install the additional packages using NPM
+
+To prepare the additional packages to be used with the UI project, at a
+Windows command line
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\cloud\_chamber\_react\_ts
+> 
+> npm install react --save
+> 
+> npm install react-dom --save
+> 
+> npm install @material-ui/core
+> 
+> npm install @material-ui/icons
+> 
+> npm install @material-ui/lab
+
+The “--save” option use a double ‘-‘ character)
+
+Note that after an individual step, there may be a message suggesting
+that there are some potential security issues. If so, run the suggested
+
+> npm audi fix
+
+command.
+
+## Build The CloudChamber UI Project
+
+Once the repository has been populated, and the additional node.js
+packages installed, the project can be built using the following
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\cloud\_chamber\_react\_ts
+> 
+> npm run-script build
 
 # Installing the VsCode Application
 
