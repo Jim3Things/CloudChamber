@@ -479,6 +479,8 @@ Windows command line
 > npm install @material-ui/core
 > 
 > npm install @material-ui/icons
+> 
+> npm install @material-ui/lab
 
 The “--save” option use a double ‘-‘ character)
 
