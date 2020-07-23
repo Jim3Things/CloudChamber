@@ -22,9 +22,8 @@ set DEFAULT_ETCDPORTPEER=2380
 rem Setup the necessary variables if not overriden
 rem 
 
-if /i "%ETCDDATA%" == "" (set ETCDDATA=%DEFAULT_ETCDDATA%)
-
 if /i "%ETCDINSTANCE%" == "" (set ETCDINSTANCE=%DEFAULT_ETCDINSTANCE%)
+if /i "%ETCDNODEADDR%" == "" (set ETCDNODEADDR=%DEFAULT_ETCDNODEADDR%)
 if /i "%ETCDPORTCLNT%" == "" (set ETCDPORTCLNT=%DEFAULT_ETCDPORTCLNT%)
 if /i "%ETCDPORTPEER%" == "" (set ETCDPORTPEER=%DEFAULT_ETCDPORTPEER%)
 
@@ -36,6 +35,23 @@ if /i "%1" == "-?"     (goto :StartEtcdHelp)
 if /i "%1" == "/h"     (goto :StartEtcdHelp)
 if /i "%1" == "-h"     (goto :StartEtcdHelp)
 if /i "%1" == "--help" (goto :StartEtcdHelp)
+
+
+rem Decide on a path to the data
+rem
+if /i "%1" NEQ "" (
+
+  set ETCDDIR=%1
+
+) else if "%ETCDDATA%" == "" (
+
+  set ETCDDIR=%DEFAULT_ETCDDATA%\%ETCDINSTANCE%.etcd
+
+) else (
+
+  set ETCDDIR=%ETCDDATA%\%ETCDINSTANCE%.etcd
+
+)
 
 
 rem Find a binary to use
@@ -63,15 +79,15 @@ goto :StartEtcdExit
 
 rem Ensure the root data directory is present
 rem
-if not exist "%ETCDDATA%" (mkdir "%ETCDDATA%")
+if not exist "%ETCDDIR%" (mkdir "%ETCDDIR%")
 
 
 rem Now actually start the ETCD service
 rem
 echo.
-echo Using %ETCDBIN% writing to %ETCDDATA%\%ETCDINSTANCE%.etcd
+echo Using %ETCDBIN% writing to "%ETCDDIR%"
 
-start %ETCDBIN% --name "%ETCDINSTANCE%" --data-dir "%ETCDDATA%\%ETCDINSTANCE%.etcd" --listen-peer-urls "http://%LOCALHOST%:%ETCDPORTPEER%" --listen-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%" --advertise-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%"
+start %ETCDBIN% --name "%ETCDINSTANCE%" --data-dir "%ETCDDIR%" --listen-peer-urls "http://%LOCALHOST%:%ETCDPORTPEER%" --listen-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%" --advertise-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%"
 
 goto :StartEtcdExit
 
@@ -84,7 +100,7 @@ echo.
 echo Starts a single etcd instance.
 echo.
 echo There are a number of (required on Windows) parameters which have default values as listed below but
-echo which can be overriden by setting environment variables using the appropriate names along with the
+echo which can be overridden by setting environment variables using the appropriate names along with the
 echo desired values.
 echo.
 echo ETCDINSTANCE (defaults to %DEFAULT_ETCDINSTANCE%) - name of the ETCD instance
