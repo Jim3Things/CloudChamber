@@ -45,7 +45,7 @@ func testStepperGetNow(t *testing.T, cookies []*http.Cookie) (*common.Timestamp,
     assert.Equal(t, http.StatusOK, response.StatusCode)
 
     res := &common.Timestamp{}
-    err := getJsonBody(response, res)
+    err := getJSONBody(response, res)
 
     assert.Nilf(t, err, "Unexpected error, err: %v", err)
 
@@ -59,7 +59,7 @@ func testStepperGetStatus(t *testing.T, cookies []*http.Cookie) (*pb.StatusRespo
     assert.Equal(t, http.StatusOK, response.StatusCode)
 
     res := &pb.StatusResponse{}
-    err := getJsonBody(response, res)
+    err := getJSONBody(response, res)
 
     assert.Nilf(t, err, "Unexpected error, err: %v", err)
 
@@ -72,7 +72,7 @@ func testStepperAdvance(t *testing.T, cookies []*http.Cookie) (*common.Timestamp
     assert.Equal(t, http.StatusOK, response.StatusCode)
 
     res := &common.Timestamp{}
-    err := getJsonBody(response, res)
+    err := getJSONBody(response, res)
 
     assert.Nilf(t, err, "Unexpected error, err: %v", err)
 
@@ -86,7 +86,7 @@ func testStepperAfter(t *testing.T, after int64, cookies []*http.Cookie) (*commo
     assert.Equal(t, http.StatusOK, response.StatusCode)
 
     res := &common.Timestamp{}
-    err := getJsonBody(response, res)
+    err := getJSONBody(response, res)
 
     assert.Nilf(t, err, "Unexpected error, err: %v", err)
 
@@ -225,7 +225,7 @@ func TestStepperAdvanceTwo(t *testing.T) {
     assert.Equal(t, http.StatusOK, response.StatusCode)
 
     res2 := &common.Timestamp{}
-    err := getJsonBody(response, res2)
+    err := getJSONBody(response, res2)
 
     assert.Nilf(t, err, "Unexpected error, err: %v", err)
 

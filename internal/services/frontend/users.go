@@ -26,7 +26,12 @@ const (
 	// InvalidRev is a value that can never be a valid version number
 	InvalidRev = -1
 
-	Login  = "login"
+	// Login is a string used to select and identify the login operation
+	//
+	Login = "login"
+
+	// Logout is a string used to select and identify the logout operation
+	//
 	Logout = "logout"
 )
 

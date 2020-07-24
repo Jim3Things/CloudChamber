@@ -222,8 +222,8 @@ func NewErrRackNotFound(name string) *HTTPError {
 	}
 }
 
-//BladeNotFound indicates that the rack was found but no blade was found
-
+// NewErrBladeNotFound indicates that the rack was found but no blade was found
+//
 func NewErrBladeNotFound(rackid string, bladeid int64) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusNotFound,
@@ -231,7 +231,7 @@ func NewErrBladeNotFound(rackid string, bladeid int64) *HTTPError {
 	}
 }
 
-// ErrInvalidStepperMode indicates that an unrecognized simulated policy mode
+// NewErrInvalidStepperMode indicates that an unrecognized simulated policy mode
 // was requested.
 func NewErrInvalidStepperMode(mode string) *HTTPError {
 	return &HTTPError{
