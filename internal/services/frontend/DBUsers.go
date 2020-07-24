@@ -13,23 +13,20 @@ package frontend
 
 import (
 	"context"
-	"sync"
+
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // DBUsers is a container used to established synchronized access to
 // the in-memory set of user records.
 //
 type DBUsers struct {
-	Mutex sync.Mutex
-	Users map[string]*pb.UserInternal
-
 	Store *store.Store
 }
 
@@ -39,8 +36,6 @@ func InitDBUsers(cfg *config.GlobalConfig) (err error) {
 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		if dbUsers == nil {
 			dbUsers = &DBUsers{
-				Mutex: sync.Mutex{},
-				Users: make(map[string]*pb.UserInternal),
 				Store: store.NewStore(),
 			}
 		}
@@ -149,26 +144,26 @@ func (m *DBUsers) Read(name string) (*pb.User, int64, error) {
 //       Update() routine itself to allow the caller to selectively update
 //       individual fields from within the transaction.
 //
-func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
+func (m *DBUsers) Update(name string, u *pb.UserUpdate, match int64) (*pb.User, int64, error) {
 
-	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, u.Name)
+	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, name)
 
-	if err == store.ErrStoreKeyNotFound(u.Name) {
-		return InvalidRev, ErrUserNotFound(u.Name)
+	if err == store.ErrStoreKeyNotFound(name) {
+		return nil, InvalidRev, ErrUserNotFound(name)
 	}
 
 	if err != nil {
-		return InvalidRev, err
+		return nil, InvalidRev, err
 	}
 
 	if rev != match {
-		return InvalidRev, ErrUserStaleVersion(u.Name)
+		return nil, InvalidRev, ErrUserStaleVersion(name)
 	}
 
 	old := &pb.User{}
 
 	if err = store.Decode(*val, old); err != nil {
-		return InvalidRev, err
+		return nil, InvalidRev, err
 	}
 
 	// Update the entry, retaining the fields from the old version that are
@@ -176,20 +171,67 @@ func (m *DBUsers) Update(u *pb.User, match int64) (int64, error) {
 	//
 	user := &pb.User{
 		Name:              old.GetName(),
-		PasswordHash:      u.GetPasswordHash(),
+		PasswordHash:      old.GetPasswordHash(),
 		UserId:            old.GetUserId(),
 		Enabled:           u.GetEnabled(),
 		CanManageAccounts: u.GetCanManageAccounts(),
 		NeverDelete:       old.GetNeverDelete(),
 	}
 
-	rev, err = m.Store.UpdateNew(context.Background(), store.KeyRootUsers, u.Name, match, user)
+	rev, err = m.Store.UpdateNew(context.Background(), store.KeyRootUsers, name, match, user)
 
 	if err != nil {
-		return InvalidRev, err
+		return nil, InvalidRev, err
 	}
 
-	return rev, nil
+	return user, rev, nil
+}
+
+// UpdatePassword is a function that updates the password hash field only in an
+// existing user record.
+//
+// That this is split out from Update reflects the usage patterns for updating
+// user entries.
+func (m *DBUsers) UpdatePassword(name string, hash []byte, match int64) (*pb.User, int64, error) {
+
+	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, name)
+
+	if err == store.ErrStoreKeyNotFound(name) {
+		return nil, InvalidRev, ErrUserNotFound(name)
+	}
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
+
+	if rev != match {
+		return nil, InvalidRev, ErrUserStaleVersion(name)
+	}
+
+	old := &pb.User{}
+
+	if err = store.Decode(*val, old); err != nil {
+		return nil, InvalidRev, err
+	}
+
+	// Update the entry, retaining all fields save the password hash
+	//
+	user := &pb.User{
+		Name:              old.GetName(),
+		PasswordHash:      hash,
+		UserId:            old.GetUserId(),
+		Enabled:           old.GetEnabled(),
+		CanManageAccounts: old.GetCanManageAccounts(),
+		NeverDelete:       old.GetNeverDelete(),
+	}
+
+	rev, err = m.Store.UpdateNew(context.Background(), store.KeyRootUsers, name, match, user)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
+
+	return user, rev, nil
 }
 
 // Delete the entry

@@ -56,13 +56,14 @@ func usersAddRoutes(routeBase *mux.Router) {
 	// Routes for routes with query tags.  Note that this must come before the
 	// route handlers without query tags, as query tags are optional and will
 	// be matched to the first handler encountered with a matching route.
-	routeUsers.HandleFunc(routeString, handlerUsersOperation).Queries("op", "{op}").Methods("PUT")
+	routeUsers.HandleFunc(routeString, handlerUserOperation).Queries("op", "{op}").Methods("PUT")
+	routeUsers.HandleFunc(routeString, handlerUserSetPassword).Queries("password", "{pwd}").Methods("PUT")
 
 	// Routes for individual user operations
-	routeUsers.HandleFunc(routeString, handlerUsersCreate).Methods("POST")
-	routeUsers.HandleFunc(routeString, handlerUsersRead).Methods("GET")
-	routeUsers.HandleFunc(routeString, handlerUsersUpdate).Methods("PUT")
-	routeUsers.HandleFunc(routeString, handlerUsersDelete).Methods("DELETE")
+	routeUsers.HandleFunc(routeString, handlerUserCreate).Methods("POST")
+	routeUsers.HandleFunc(routeString, handlerUserRead).Methods("GET")
+	routeUsers.HandleFunc(routeString, handlerUserUpdate).Methods("PUT")
+	routeUsers.HandleFunc(routeString, handlerUserDelete).Methods("DELETE")
 }
 
 // Process an http request for the list of users.  Response should contain a document of links to the
@@ -102,7 +103,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
+func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
@@ -138,7 +139,7 @@ func handlerUsersCreate(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
+func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
@@ -178,14 +179,21 @@ func handlerUsersRead(w http.ResponseWriter, r *http.Request) {
 }
 
 // Update the user entry
-func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
+func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
+		var caller *pb.User
+
 		err = doSessionHeader(
 			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) error {
+			func(ctx context.Context, session *sessions.Session) (err error) {
+				caller, err = getLoggedInUser(session)
+				if err != nil {
+					return err
+				}
+
 				return canManageAccounts(session, username)
 			})
 
@@ -206,16 +214,25 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Next, get the new definition values, and make sure that they are valid.
-		upd := &pb.UserDefinition{}
+		upd := &pb.UserUpdate{}
 		if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
 			return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		}
+
+		// Finally, check that no rights are being added that the logged in user does
+		// not have.  Since a user can modify their own entries, the canManageAccounts
+		// check is insufficient.
+		if err := verifyRightsAvailable(caller, upd); err != nil {
+			return httpError(ctx, w, err)
 		}
 
 		// All the prep is done.  Proceed with the update.  This may get a version
 		// mismatch, or the user may have been deleted.  Given the check above, these
 		// can all be considered version conflicts.
 		var rev int64
-		if rev, err = userUpdate(username, upd.Password, upd.CanManageAccounts, upd.Enabled, match); err != nil {
+		var newVer *pb.User
+
+		if newVer, rev, err = userUpdate(username, upd, match); err != nil {
 			return httpError(ctx, w, err)
 		}
 
@@ -223,8 +240,9 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
 		ext := &pb.UserPublic{
-			Enabled:           upd.Enabled,
-			CanManageAccounts: upd.CanManageAccounts,
+			Enabled:           newVer.Enabled,
+			CanManageAccounts: newVer.CanManageAccounts,
+			NeverDelete:       newVer.NeverDelete,
 		}
 
 		st.Infof(ctx, tick(), "Returning details for user %q: %v", username, upd)
@@ -235,7 +253,7 @@ func handlerUsersUpdate(w http.ResponseWriter, r *http.Request) {
 }
 
 // Delete the user entry
-func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
+func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
@@ -260,7 +278,7 @@ func handlerUsersDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 // Perform an admin operation (login, logout, enable, disable) on an account
-func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
+func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		var s string
 
@@ -294,6 +312,57 @@ func handlerUsersOperation(w http.ResponseWriter, r *http.Request) {
 
 		_, err = fmt.Fprintln(w, s)
 
+		return err
+	})
+}
+
+// Set a new password on the specified account
+func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		vars := mux.Vars(r)
+		username := vars["username"]
+
+		err = doSessionHeader(
+			ctx, w, r,
+			func(ctx context.Context, session *sessions.Session) (err error) {
+				return canManageAccounts(session, username)
+			})
+
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+
+		// All updates are qualified by an ETag match.  The ETag comes from the database
+		// revision number.  So, first we get the 'if-match' tag to determine the revision
+		// that must be current for the update to proceed.
+
+		var match int64
+
+		matchString := r.Header.Get("If-Match")
+		match, err = strconv.ParseInt(matchString, 10, 64)
+		if err != nil {
+			return httpError(ctx, w, NewErrBadMatchType(matchString))
+		}
+
+		// Next, get the new password values, and make sure that they are valid.
+		upd := &pb.UserPassword{}
+		if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
+			return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		}
+
+		// All the prep is done.  Proceed to try to set.  This may get a version
+		// mismatch, the user may have been deleted, or the old password may not
+		// match.
+		var rev int64
+
+		if rev, err = userSetPassword(username, upd, match); err != nil {
+			return httpError(ctx, w, err)
+		}
+
+		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+
+		st.Infof(ctx, tick(), "Password changed for user %q", username)
+		_, err = fmt.Fprintf(w, "Password changed for user %q", username)
 		return err
 	})
 }
@@ -413,31 +482,22 @@ func userAdd(name string, password string, accountManager bool, enabled bool, ne
 	return revision, nil
 }
 
-func userUpdate(name string, password string, accountManager bool, enabled bool, rev int64) (int64, error) {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-
-	if err != nil {
-		return InvalidRev, err
-	}
-
-	revision, err := dbUsers.Update(&pb.User{
-		Name:              name,
-		PasswordHash:      passwordHash,
-		Enabled:           enabled,
-		CanManageAccounts: accountManager}, rev)
+func userUpdate(name string, u *pb.UserUpdate, rev int64) (*pb.User, int64, error) {
+	upd, revision, err := dbUsers.Update(name, u, rev)
 
 	if err == ErrUserNotFound(name) {
-		return InvalidRev, NewErrUserNotFound(name)
+		return nil, InvalidRev, NewErrUserNotFound(name)
 	}
 
 	if err == ErrUserStaleVersion(name) {
-		return InvalidRev, NewErrUserStaleVersion(name)
+		return nil, InvalidRev, NewErrUserStaleVersion(name)
 	}
 
 	if err != nil {
-		return InvalidRev, err
+		return nil, InvalidRev, err
 	}
-	return revision, nil
+
+	return upd, revision, nil
 }
 
 func userRead(name string) (*pb.User, int64, error) {
@@ -474,6 +534,8 @@ func userRemove(name string) error {
 }
 
 // TODO: Figure out how to better protect leakage of the password in memory.
+
+// Verify that the password matches the user's current hashed password
 func userVerifyPassword(name string, password []byte) error {
 
 	entry, _, err := userRead(name)
@@ -483,6 +545,39 @@ func userVerifyPassword(name string, password []byte) error {
 	}
 
 	return bcrypt.CompareHashAndPassword(entry.PasswordHash, password)
+}
+
+// Set the password for a given user account, after first verifying that
+// the current password was correctly provided (or an override was in place)
+func userSetPassword(name string, changes *pb.UserPassword, rev int64) (int64, error) {
+	if !changes.Force {
+		if err := userVerifyPassword(name, []byte(changes.OldPassword)); err != nil {
+			return InvalidRev, NewErrUserPermissionDenied()
+		}
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(changes.NewPassword), bcrypt.DefaultCost)
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	_, revision, err := dbUsers.UpdatePassword(name, passwordHash, rev)
+
+	if err == ErrUserNotFound(name) {
+		return InvalidRev, NewErrUserNotFound(name)
+	}
+
+	if err == ErrUserStaleVersion(name) {
+		return InvalidRev, NewErrUserStaleVersion(name)
+	}
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	return revision, nil
+
 }
 
 // --- Mid-level support methods
@@ -498,6 +593,18 @@ func canManageAccounts(session *sessions.Session, username string) error {
 	}
 
 	if !user.CanManageAccounts && !strings.EqualFold(user.Name, username) {
+		return NewErrUserPermissionDenied()
+	}
+
+	return nil
+}
+
+func verifyRightsAvailable(current *pb.User, upd *pb.UserUpdate) error {
+	if current.CanManageAccounts {
+		return nil
+	}
+
+	if upd.CanManageAccounts {
 		return NewErrUserPermissionDenied()
 	}
 

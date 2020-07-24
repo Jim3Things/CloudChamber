@@ -24,14 +24,6 @@ message user {
   bool never_delete = 6;
 }
 
-// Extend the base user definition with the revision number.  This is
-// managed by the storage layer only, and is used as match criteria on
-// updates.
-message user_internal {
-  user user = 1;
-  int64 revision = 2;
-}
-
 // Limited exposure of user attributes for use when returning information
 // to a remote client.
 message user_public {
@@ -45,11 +37,32 @@ message user_public {
 }
 
 // Public definition for a user, sent by a remote client to the Cloud Chamber
-// controller.
+// controller when the user is created.
 message user_definition {
   string password = 1;
   bool enabled = 2;
 
   // The rights this user has
   bool can_manage_accounts = 3;
+}
+
+// Public definition for the fields for a user that can be mutated in an
+// update operation
+message user_update {
+  bool enabled = 2;
+
+  // The rights this user has
+  bool can_manage_accounts = 3;
+}
+
+// Public definition for a request to set a new password for a user
+message user_password {
+  // The existing password, used to check that this is a legit request
+  string old_password = 1;
+
+  // The new password
+  string new_password = 2;
+
+  // An administrative flag to force the new password
+  bool force = 3;
 }
