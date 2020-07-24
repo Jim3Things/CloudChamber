@@ -28,11 +28,11 @@ const (
 	KeyRootStoreTest
 )
 const (
-	namespaceRootUsers     = "users/"
-	namespaceRootRacks     = "racks/"
-	namespaceRootBlades    = "blades/"
-	namespaceRootWorkloads = "workloads/"
-	namespaceRootStoreTest = "storetest/"
+	namespaceRootUsers     = "users"
+	namespaceRootRacks     = "racks"
+	namespaceRootBlades    = "blades"
+	namespaceRootWorkloads = "workloads"
+	namespaceRootStoreTest = "storetest"
 )
 
 var namespaceRoots = map[KeyRoot]string{
@@ -47,8 +47,12 @@ func getNamespaceRootFromKeyRoot(r KeyRoot) string {
 	return namespaceRoots[r]
 }
 
+func getNamespacePrefixFromKeyRoot(r KeyRoot) string {
+	return namespaceRoots[r] + "/"
+}
+
 func getKeyFromKeyRootAndName(r KeyRoot, n string) string {
-	return namespaceRoots[r] + GetNormalizedName(n)
+	return namespaceRoots[r] + "/" + GetNormalizedName(n)
 }
 
 // GetKeyFromUsername1 is a utility function to convert a supplied username to
@@ -111,6 +115,10 @@ func (store *Store) CreateNew(ctx context.Context, r KeyRoot, n string, m protoi
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
+		prefix := getNamespacePrefixFromKeyRoot(r)
+
+		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
+
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -140,7 +148,7 @@ func (store *Store) CreateNew(ctx context.Context, r KeyRoot, n string, m protoi
 			return err
 		}
 
-		st.Infof(ctx, -1, "Created record for %q with revision %v", n, resp.Revision)
+		st.Infof(ctx, -1, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
 
 		revision = resp.Revision
 
@@ -155,6 +163,10 @@ func (store *Store) CreateNew(ctx context.Context, r KeyRoot, n string, m protoi
 func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v string) (revision int64, err error) {
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		prefix := getNamespacePrefixFromKeyRoot(r)
+
+		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
 
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -179,7 +191,7 @@ func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v s
 			return err
 		}
 
-		st.Infof(ctx, -1, "Created record for %q with revision %v", n, resp.Revision)
+		st.Infof(ctx, -1, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
 
 		revision = resp.Revision
 
@@ -204,6 +216,10 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 	revision = RevisionInvalid
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		prefix := getNamespacePrefixFromKeyRoot(r)
+
+		st.Infof(ctx, -1, "Request to read and decode %q under prefix %q", n, prefix)
 
 		if err := store.disconnected(ctx); err != nil {
 			return err
@@ -239,11 +255,12 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 		case 1:
 			rev = response.Records[k].Revision
 			val = response.Records[k].Value
-			st.Infof(ctx, -1, "found record for %q with revision %v and value %q", n, rev, val)
 
-			err = Decode(val, m)
+			if err := Decode(val, m); err != nil {
+				return err
+			}
 
-			st.Infof(ctx, -1, "Read record for %q with revision %v", n, rev)
+			st.Infof(ctx, -1, "found and decoded record for %q under prefix %q with revision %v and value %q", n, prefix, rev, val)
 
 			revision = rev
 
@@ -270,6 +287,10 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
+		prefix := getNamespacePrefixFromKeyRoot(r)
+
+		st.Infof(ctx, -1, "Request to read value of %q under prefix %q", n, prefix)
+
 		if err := store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -304,9 +325,7 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 		case 1:
 			rev = response.Records[k].Revision
 			val = response.Records[k].Value
-			st.Infof(ctx, -1, "found record for %q with revision %v and value %q", n, rev, val)
-
-			st.Infof(ctx, -1, "Read record for %q with revision %v", n, rev)
+			st.Infof(ctx, -1, "found record for %q under prefix %q, with revision %v and value %q", n, prefix, rev, val)
 
 			revision = rev
 			value = &val
@@ -323,6 +342,10 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int64, m protoiface.MessageV1) (revision int64, err error) {
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		prefix := getNamespacePrefixFromKeyRoot(r)
+
+		st.Infof(ctx, -1, "Request to update %q under prefix %q", n, prefix)
 
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -356,7 +379,7 @@ func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int6
 			return err
 		}
 
-		st.Infof(ctx, -1, "Updated record for %q from revision %v to revision %v", n, rev, resp.Revision)
+		st.Infof(ctx, -1, "Updated record %q under prefix %q from revision %v to revision %v", n, prefix, rev, resp.Revision)
 
 		revision = resp.Revision
 
@@ -371,6 +394,10 @@ func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int6
 func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int64) (revision int64, err error) {
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+
+		prefix := getNamespacePrefixFromKeyRoot(r)
+
+		st.Infof(ctx, -1, "Request to delete %q under prefix %q", n, prefix)
 
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -405,7 +432,7 @@ func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int6
 			return err
 		}
 
-		st.Infof(ctx, -1, "Deleted record for %q with revision %v at store revision %v", n, rev, resp.Revision)
+		st.Infof(ctx, -1, "Deleted record for %q under prefix %q with revision %v resulting in store revision %v", n, prefix, rev, resp.Revision)
 
 		revision = resp.Revision
 
@@ -429,11 +456,13 @@ func (store *Store) ListNew(ctx context.Context, r KeyRoot) (records *map[string
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 
+		prefix := getNamespacePrefixFromKeyRoot(r)
+
+		st.Infof(ctx, -1, "Request to list keys under prefix %q", prefix)
+
 		if err := store.disconnected(ctx); err != nil {
 			return err
 		}
-
-		prefix := getNamespaceRootFromKeyRoot(r)
 
 		response, err := store.ListWithPrefix(ctx, prefix)
 

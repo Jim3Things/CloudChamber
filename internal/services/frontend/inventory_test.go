@@ -52,7 +52,7 @@ func TestInventoryRackRead(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	rack := &pb.ExternalRack{}
-	err := getJsonBody(response, rack)
+	err := getJSONBody(response, rack)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
@@ -157,7 +157,7 @@ func TestInventoryBladeRead(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
 
 	blade := &common.BladeCapacity{}
-	err := getJsonBody(response, blade)
+	err := getJSONBody(response, blade)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
@@ -180,7 +180,7 @@ func TestInventoryBlade2Read(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
 
 	blade := &common.BladeCapacity{}
-	err := getJsonBody(response, blade)
+	err := getJSONBody(response, blade)
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))

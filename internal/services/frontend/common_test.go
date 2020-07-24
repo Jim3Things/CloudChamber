@@ -142,7 +142,7 @@ func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 }
 
 // Convert a proto message into a reader with json-formatted contents
-func toJsonReader(v proto.Message) (io.Reader, error) {
+func toJSONReader(v proto.Message) (io.Reader, error) {
 	var buf bytes.Buffer
 	w := bufio.NewWriter(&buf)
 	p := jsonpb.Marshaler{}
@@ -178,7 +178,7 @@ func getBody(resp *http.Response) ([]byte, error) {
 }
 
 // Get the body of a response, unmarshaled into the supplied message structure
-func getJsonBody(resp *http.Response, v proto.Message) error {
+func getJSONBody(resp *http.Response, v proto.Message) error {
 	defer func() { _ = resp.Body.Close() }()
 	return jsonpb.Unmarshal(resp.Body, v)
 }
