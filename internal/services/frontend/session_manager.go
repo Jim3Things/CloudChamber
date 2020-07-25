@@ -204,6 +204,8 @@ func doSessionHeader(
 	return err
 }
 
+
+
 // ensureEstablishedSession verifies that the session is not new, and triggers
 // an error if it is.
 func ensureEstablishedSession(ctx context.Context, session *sessions.Session) error {
