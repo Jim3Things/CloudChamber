@@ -85,26 +85,39 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		if _, err := fmt.Fprintln(w, "Users (List)"); err != nil {
-			return httpError(ctx, w, err)
-		}
-
 		b := r.URL.String()
 		if !strings.HasSuffix(b, "/") {
 			b += "/"
 		}
 
-		return dbUsers.Scan(func(entry *pb.User) (err error) {
+		w.Header().Set("Content-Type", "application/json")
+
+		users := &pb.UserList{}
+
+		err = dbUsers.Scan(func(entry *pb.User) (err error) {
 			target := fmt.Sprintf("%s%s", b, entry.Name)
-
-			st.Infof(ctx, tick(), "   Listing user '%s' at '%s'", entry.Name, target)
-
-			if _, err = fmt.Fprintln(w, target); err != nil {
-				return httpError(ctx, w, err)
+			protected := ""
+			if entry.NeverDelete {
+				protected = " (protected)"
 			}
+
+			st.Infof(ctx, tick(), "   Listing user %q: %q%s", entry.Name, target, protected)
+
+			users.Users = append(users.Users, &pb.UserListEntry{
+				Name:      entry.Name,
+				Uri:       target,
+				Protected: entry.NeverDelete,
+			})
 
 			return err
 		})
+
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+
+		p := jsonpb.Marshaler{}
+		return p.Marshal(w, users)
 	})
 }
 

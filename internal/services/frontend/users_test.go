@@ -526,20 +526,27 @@ func TestUsersList(t *testing.T) {
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
+	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	users := &pb.UserList{}
+	err := getJSONBody(response, users)
+	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now verify that the list of names matches our expectations.
-	// First, split the return string into an array of lines, removing the possible trailing newline
-	s := strings.TrimSuffix(string(body), "\n")
-	names := strings.Split(s, "\n")
+	// First, form an array of names from the returned structure
+	addresses := make([]string, 0, len(users.Users))
+	for _, entry := range users.Users {
+		assert.True(t, strings.HasSuffix(entry.Uri, entry.Name))
+		if strings.EqualFold(entry.Name, adminAccountName) {
+			assert.True(t, entry.Protected)
+		}
 
-	// Next, verify the initial title line
-	assert.Equal(t, "Users (List)", names[0])
+		addresses = append(addresses, entry.Uri)
+	}
 
 	// .. and then verify that all following lines correctly consist of all the expected names
 	match := knownNames
@@ -551,7 +558,7 @@ func TestUsersList(t *testing.T) {
 		keys = append(keys, k)
 	}
 
-	assert.ElementsMatchf(t, keys, names[1:], "elements did not match\nReturned Value: %s\nMatch Values: %v", s, keys)
+	assert.ElementsMatchf(t, keys, addresses, "elements did not match\nReturned Value: %s\nMatch Values: %v", addresses, keys)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }

@@ -66,3 +66,22 @@ message user_password {
   // An administrative flag to force the new password
   bool force = 3;
 }
+
+// User list response.
+message user_list {
+
+  // A single user entry
+  message entry {
+    // Name of the user
+    string name = 1;
+
+    // Uri to use to access the user
+    string uri = 2;
+
+    // True, if the user is protected against changes
+    bool protected = 3;
+  }
+
+  // List of known users
+  repeated entry users = 1;
+}
