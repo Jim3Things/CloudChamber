@@ -66,7 +66,7 @@ rem
 echo.
 echo Starting %TARGETBIN%
 
-start %TARGETBIN% -config=.
+start %TARGETBIN% -config=%2
 
 goto :StartBinaryExit
 

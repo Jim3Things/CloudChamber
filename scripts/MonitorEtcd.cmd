@@ -1,6 +1,6 @@
 @rem
 @rem
-@rem    S T A R T E T C D M O N I T O R . C M D
+@rem    M O N I T O R E T C D . C M D
 @rem
 @rem
 @rem
@@ -12,6 +12,7 @@ SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 set LOCALHOST=127.0.0.1
 
 set BINARY=etcdctl.exe
+set TARGETBINPATH=%ETCDCTLBINPATH%
 
 set DEFAULT_ETCDINSTANCE=%COMPUTERNAME%
 set DEFAULT_ETCDNODEADDR=%LOCALHOST%
@@ -40,9 +41,9 @@ if exist %~dp0%BINARY% (
 
   set TARGETBIN=%~dp0%BINARY%
 
-) else if exist %ETCDCTLBINPATH%\%BINARY% (
+) else if exist %TARGETBINPATH%\%BINARY% (
 
-  set TARGETBIN=%ETCDCTLBINPATH%\%BINARY%
+  set TARGETBIN=%TARGETBINPATH%\%BINARY%
 
 ) else if exist %GOPATH%\bin\%BINARY% (
 
@@ -53,7 +54,6 @@ if exist %~dp0%BINARY% (
    for %%I in (%BINARY%) do set TARGETBIN=%%~$PATH:I
 
 )
-
 
 
 if not exist "%TARGETBIN%" (

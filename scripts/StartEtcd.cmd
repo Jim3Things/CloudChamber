@@ -11,6 +11,9 @@ SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
 set LOCALHOST=127.0.0.1
 
+set BINARY=etcd.exe
+set TARGETBINPATH=%ETCDBINPATH%
+
 set DEFAULT_ETCDROOT=%SystemDrive%\etcd
 set DEFAULT_ETCDDATA=%DEFAULT_ETCDROOT%\data
 set DEFAULT_ETCDINSTANCE=%COMPUTERNAME%
@@ -30,11 +33,11 @@ if /i "%ETCDPORTPEER%" == "" (set ETCDPORTPEER=%DEFAULT_ETCDPORTPEER%)
 
 rem Check for requests for help without actually doing anything
 rem 
-if /i "%1" == "/?"     (goto :StartEtcdHelp)
-if /i "%1" == "-?"     (goto :StartEtcdHelp)
-if /i "%1" == "/h"     (goto :StartEtcdHelp)
-if /i "%1" == "-h"     (goto :StartEtcdHelp)
-if /i "%1" == "--help" (goto :StartEtcdHelp)
+if /i "%1" == "/?"     (goto :ScriptHelp)
+if /i "%1" == "-?"     (goto :ScriptHelp)
+if /i "%1" == "/h"     (goto :ScriptHelp)
+if /i "%1" == "-h"     (goto :ScriptHelp)
+if /i "%1" == "--help" (goto :ScriptHelp)
 
 
 rem Decide on a path to the data
@@ -56,24 +59,30 @@ if /i "%1" NEQ "" (
 
 rem Find a binary to use
 rem
-if exist %ETCDBINPATH%\etcd.exe (
+if exist %~dp0%BINARY% (
 
-  set ETCDBIN=%ETCDBINPATH%\etcd.exe
+  set TARGETBIN=%~dp0%BINARY%
 
-) else if exist %GOPATH%\bin\etcd.exe (
+) else if exist %TARGETBINPATH%\%BINARY% (
 
-  set ETCDBIN=%GOPATH%\bin\etcd.exe
+  set TARGETBIN=%TARGETBINPATH%\%BINARY%
+
+) else if exist %GOPATH%\bin\%BINARY% (
+
+  set TARGETBIN=%GOPATH%\bin\%BINARY%
 
 ) else (
-   for %%I in (etcd.exe) do set ETCDBIN=%%~$PATH:I
+
+   for %%I in (%BINARY%) do set TARGETBIN=%%~$PATH:I
+
 )
 
 
-if not exist "%ETCDBIN%" (
-echo.
-echo Unable to find a copy of etcd.exe
-echo.
-goto :StartEtcdExit
+if not exist "%TARGETBIN%" (
+  echo.
+  echo Unable to find a copy of %BINARY%
+  echo.
+  goto :ScriptExit
 )
 
 
@@ -85,15 +94,15 @@ if not exist "%ETCDDIR%" (mkdir "%ETCDDIR%")
 rem Now actually start the ETCD service
 rem
 echo.
-echo Using %ETCDBIN% writing to "%ETCDDIR%"
+echo Using %TARGETBIN% writing to "%ETCDDIR%"
 
-start %ETCDBIN% --name "%ETCDINSTANCE%" --data-dir "%ETCDDIR%" --listen-peer-urls "http://%LOCALHOST%:%ETCDPORTPEER%" --listen-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%" --advertise-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%"
+start %TARGETBIN% --name "%ETCDINSTANCE%" --data-dir "%ETCDDIR%" --listen-peer-urls "http://%LOCALHOST%:%ETCDPORTPEER%" --listen-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%" --advertise-client-urls "http://%LOCALHOST%:%ETCDPORTCLNT%"
 
-goto :StartEtcdExit
+goto :ScriptExit
 
 
 
-:StartEtcdHelp
+:ScriptHelp
 
 echo StartEtcd
 echo.
@@ -110,11 +119,11 @@ echo ETCDDATA     (defaults to %DEFAULT_ETCDDATA%)     - directory where the ETC
 echo.
 echo.
 
-goto :StartEtcdExit
+goto :ScriptExit
 
 
 
-:StartEtcdExit
+:ScriptExit
 
 ENDLOCAL
 goto :EOF
