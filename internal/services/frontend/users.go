@@ -116,6 +116,8 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
+
+		
 		p := jsonpb.Marshaler{}
 		return p.Marshal(w, users)
 	})
