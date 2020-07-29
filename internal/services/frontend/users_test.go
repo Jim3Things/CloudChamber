@@ -1136,7 +1136,7 @@ func TestUsersSetPassword(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
-	response, match = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
+	response, _ = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	doLogout(t, "Alice", response.Cookies())
@@ -1182,7 +1182,7 @@ func TestUsersSetPasswordForce(t *testing.T) {
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
-	response, match = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
+	response, _ = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	doLogout(t, "Alice", response.Cookies())

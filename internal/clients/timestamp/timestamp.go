@@ -26,13 +26,6 @@ type TimeData struct {
 	Err  error
 }
 
-type TimeStatus struct {
-	policy pb.StepperPolicy
-	delay *duration.Duration
-	now *ct.Timestamp
-	waiters int64
-}
-
 // Store the information needed to be able to connect to the Stepper service.
 func InitTimestamp(name string, opts ...grpc.DialOption) {
 	dialName = name
