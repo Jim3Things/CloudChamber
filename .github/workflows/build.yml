@@ -1,0 +1,16 @@
+name: build
+on:
+  pull_request:
+jobs:
+  golangci:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+
+      - name: Install Protoc
+        uses: arduino/setup-protoc@master
+
+      - name: build
+        run: make build
