@@ -10,4 +10,6 @@ jobs:
       - uses: arduino/setup-protoc@master
 
       - name: build
-        run: make build
+        run: 
+          go env
+          make build
