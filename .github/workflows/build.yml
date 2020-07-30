@@ -11,6 +11,6 @@ jobs:
         with:
           go-version: '^1.13.1' # The Go version to download (if necessary) and use.
       - uses: arduino/setup-protoc@master
-      - run: |
-          go env
-          make GOPATH=${GOPATH} build
+      - uses: cedrickring/golang-action@1.5.2
+        with:
+          args: make build
