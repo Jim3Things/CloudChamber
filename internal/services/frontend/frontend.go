@@ -114,6 +114,8 @@ func initHandlers() error {
 	return nil
 }
 
+
+
 func initService(cfg *config.GlobalConfig) error {
 
 	// A failure to generate a random key is most likely a result of a failure of the
