@@ -13,4 +13,4 @@ jobs:
       - uses: arduino/setup-protoc@master
       - run: |
           go env
-          make build
+          make GOPATH=${GOPATH} build
