@@ -59,6 +59,8 @@ func SendLogger(next actor.SenderFunc) actor.SenderFunc {
     }
 }
 
+
+
 // Simple trace formatting for each of the known message types.
 func dumpMessage(msg interface{}) string {
     switch msg := msg.(type) {
