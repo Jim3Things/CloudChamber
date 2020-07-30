@@ -132,6 +132,7 @@ all: \
 	run_tests
 
 build: \
+	verify_env \
 	protogen \
 	version \
 	service_build \
@@ -141,6 +142,9 @@ protogen: $(PROTO_GEN_FILES)
 
 version:
 	go generate $(PROJECT)/pkg/version/version.go
+
+verify_env:
+	go env
 
 service_build: $(SERVICES)
 
