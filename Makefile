@@ -145,6 +145,7 @@ version:
 
 verify_env:
 	go env
+	echo "GOPATH='$(GOPATH)'"
 
 service_build: $(SERVICES)
 
