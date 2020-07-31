@@ -11,7 +11,7 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 )
 
-//go:generate go run generator\generate.go
+//go:generate go run generator/generate.go
 
 // ToString is a function which returns the version information formatted as a
 // single line, suitable for dumping to a log file.
