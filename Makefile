@@ -70,16 +70,16 @@ service_build: $(SERVICES)
 copy_to: $(ARTIFACTS)
 
 run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
-    go test $(PROJECT)/internal/clients/store
-    go test $(PROJECT)/internal/clients/timestamp
-    go test $(PROJECT)/internal/services/frontend
-    go test $(PROJECT)/internal/services/stepper_actor
+	go test $(PROJECT)/internal/clients/store
+	go test $(PROJECT)/internal/clients/timestamp
+	go test $(PROJECT)/internal/services/frontend
+	go test $(PROJECT)/internal/services/stepper_actor
 
 
 .PHONY : clean
 
 clean:
-    $(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(VERSION_MARKER)
+	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(VERSION_MARKER)
 
 
 .PHONY : test
@@ -88,43 +88,40 @@ test: run_tests
 
 
 %.pb.go : %.proto
-    $(PROTOC) $(PROJECT)/$<
+	$(PROTOC) $(PROJECT)/$<
 
 
 pkg/protos/monitor/monitor.pb.go: pkg/protos/monitor/monitor.proto
-    $(GRPC_PROTOC) $(PROJECT)/$<
+	$(GRPC_PROTOC) $(PROJECT)/$<
 
 pkg/protos/Stepper/stepper.pb.go: pkg/protos/Stepper/stepper.proto
-    $(GRPC_PROTOC) $(PROJECT)/$<
+	$(GRPC_PROTOC) $(PROJECT)/$<
 
 
 
 $(VERSION_MARKER) &: pkg/version/version.go
-    go generate $(PROJECT)/$<
+	go generate $(PROJECT)/$<
 
 deployments/controllerd.exe: cmd/controllerd/main.go   $(PROTO_GEN_FILES) $(VERSION_MARKER)
-    go build -o $(PROJECT)/$@ $(PROJECT)/$<
+	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
 deployments/inventoryd.exe: cmd/inventoryd/main.go     $(PROTO_GEN_FILES) $(VERSION_MARKER)
-    go build -o $(PROJECT)/$@ $(PROJECT)/$<
+	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
 deployments/sim_supportd.exe: cmd/sim_supportd/main.go $(PROTO_GEN_FILES) $(VERSION_MARKER)
-    go build -o $(PROJECT)/$@ $(PROJECT)/$<
+	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
 deployments/web_server.exe: cmd/web_server/main.go     $(PROTO_GEN_FILES) $(VERSION_MARKER)
-    go build -o $(PROJECT)/$@ $(PROJECT)/$<
+	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
 deployments/readme.md: pkg/version/version_stamp.md
-    $(CP) $(PROJECT)/$< $(PROJECT)/$@
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/cloudchamber.yaml: configs/cloudchamber.yaml
-    $(CP) $(PROJECT)/$< $(PROJECT)/$@
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/start_cloud_chamber.cmd: scripts/start_cloud_chamber.cmd
-    $(CP) $(PROJECT)/$< $(PROJECT)/$@
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/startetcd.cmd: scripts/startetcd.cmd
-    $(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-
-
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
