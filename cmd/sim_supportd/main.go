@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
+	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
@@ -28,7 +29,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.StdOut)
+	setup.Init(exporters.StdOut/*, exporters.LocalProduction*/)
 
 	version.Trace()
 
@@ -48,6 +49,11 @@ func main() {
 	}
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
+
+	if err := tracing_sink.Register(s); err != nil {
+		log.Fatalf(
+			"failed to register the tracing sink.  Err: %v", err)
+	}
 
 	if err := stepper.Register(s, cfg.SimSupport.GetPolicyType()); err != nil {
 		log.Fatalf(

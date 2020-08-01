@@ -15,7 +15,8 @@ PROTO_FILES = \
     pkg/protos/workload/internal.proto \
     pkg/protos/workload/target.proto \
     pkg/protos/monitor/monitor.proto \
-    pkg/protos/Stepper/stepper.proto
+    pkg/protos/Stepper/stepper.proto \
+    pkg/protos/trace_sink/trace_sink.proto
 
 
 PROTO_GEN_FILES = \
@@ -33,7 +34,8 @@ PROTO_GEN_FILES = \
     pkg/protos/workload/internal.pb.go \
     pkg/protos/workload/target.pb.go \
     pkg/protos/monitor/monitor.pb.go \
-    pkg/protos/Stepper/stepper.pb.go
+    pkg/protos/Stepper/stepper.pb.go \
+	pkg/protos/trace_sink/trace_sink.pb.go
 
 SERVICES = \
 	deployments/controllerd.exe \
@@ -99,6 +101,9 @@ pkg/protos/monitor/monitor.pb.go: pkg/protos/monitor/monitor.proto
 	$(GRPC_PROTOC) $(PROJECT)/$<
 
 pkg/protos/Stepper/stepper.pb.go: pkg/protos/Stepper/stepper.proto
+	$(GRPC_PROTOC) $(PROJECT)/$<
+
+pkg/protos/trace_sink/trace_sink.pb.go: pkg/protos/trace_sink/trace_sink.proto
 	$(GRPC_PROTOC) $(PROJECT)/$<
 
 

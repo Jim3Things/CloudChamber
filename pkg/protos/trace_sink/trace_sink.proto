@@ -1,0 +1,51 @@
+syntax = "proto3";
+
+package trace_sink;
+
+import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
+
+option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink";
+
+service TraceSink {
+  rpc Append(AppendRequest) returns (AppendResponse);
+
+  rpc GetAfter(GetAfterRequest) returns (GetAfterResponse);
+
+  rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
+
+  // Maybe?
+  rpc SetPolicy(SetPolicyRequest) returns (SetPolicyResponse);
+}
+
+message AppendRequest {
+  log.entry entry = 1;
+}
+
+message AppendResponse {
+
+}
+
+message GetAfterRequest {
+  int64 id = 1;
+}
+
+message GetAfterResponse {
+  int64 lastId = 1;
+  map<int64, log.entry> entries = 2;
+}
+
+message GetPolicyRequest {
+
+}
+
+message GetPolicyResponse {
+  int64 max_entries_held = 1;
+}
+
+message SetPolicyRequest {
+
+}
+
+message SetPolicyResponse {
+
+}

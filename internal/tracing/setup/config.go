@@ -3,34 +3,32 @@ package setup
 import (
 	"log"
 
-	"go.opentelemetry.io/otel/sdk/export/trace"
-
 	"go.opentelemetry.io/otel/api/global"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 )
 
-// Init configures an OpenTelemetry exporter and trace provider
-func Init(exportType int) trace.SpanSyncer {
+// Init configures one or more OpenTelemetry exporters into our trace provider
+func Init(exportType ...int) {
 
-	var exporter trace.SpanSyncer
-	var err error
+	var options []sdktrace.ProviderOption
+	options = append(options, sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}))
 
-	exporter, err = exporters.NewExporter(exportType, exporter, err)
-	if err != nil {
-		log.Fatal(err)
+	for _, item := range exportType {
+		exporter, err := exporters.NewExporter(item)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		options = append(options, sdktrace.WithSyncer(exporter))
 	}
 
-	tp, err := sdktrace.NewProvider(
-		sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}),
-		sdktrace.WithSyncer(exporter),
-	)
+
+	tp, err := sdktrace.NewProvider(options...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	global.SetTraceProvider(tp)
-
-	return exporter
 }
