@@ -117,7 +117,7 @@ deployments/web_server.exe: cmd/web_server/main.go
 deployments/readme.md: pkg/version/version_stamp.md
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/cloudchamber.yaml: Configs/cloudchamber.yaml
+deployments/cloudchamber.yaml: configs/cloudchamber.yaml
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/start_cloud_chamber.cmd: scripts/start_cloud_chamber.cmd
