@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gorilla/sessions"
+
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/golang/protobuf/jsonpb"
@@ -66,6 +68,13 @@ func racksDisplayArguments(w http.ResponseWriter, r *http.Request, command strin
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
+		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+			return ensureEstablishedSession(ctx, session)
+		})
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+
 		if _, err := fmt.Fprintln(w, "Racks (List)"); err != nil {
 			return httpError(ctx, w, err)
 		}
@@ -91,6 +100,13 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 }
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+			return ensureEstablishedSession(ctx, session)
+		})
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+
 		vars := mux.Vars(r)
 		rackid := vars["rackid"]
 
@@ -112,6 +128,13 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 }
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+			return ensureEstablishedSession(ctx, session)
+		})
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+
 		vars := mux.Vars(r)
 		rackid := vars["rackid"] // captured the key value in rackid variable
 
@@ -137,6 +160,13 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 }
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+			return ensureEstablishedSession(ctx, session)
+		})
+		if err != nil {
+			return httpError(ctx, w, err)
+		}
+
 		vars := mux.Vars(r)
 		rackid := vars["rackid"]
 		bladeName := vars["bladeid"]
