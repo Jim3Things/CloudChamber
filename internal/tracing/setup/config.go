@@ -1,19 +1,24 @@
 package setup
 
 import (
+	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"go.opentelemetry.io/otel/api/global"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	sdk "go.opentelemetry.io/otel/sdk/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/io_writer"
 )
 
 // Init configures one or more OpenTelemetry exporters into our trace provider
 func Init(exportType ...int) {
 
-	var options []sdktrace.ProviderOption
-	options = append(options, sdktrace.WithConfig(sdktrace.Config{DefaultSampler: sdktrace.AlwaysSample()}))
+	var options []sdk.ProviderOption
+
+	options = append(options, sdk.WithConfig(sdk.Config{DefaultSampler: sdk.AlwaysSample()}))
 
 	for _, item := range exportType {
 		exporter, err := exporters.NewExporter(item)
@@ -21,14 +26,33 @@ func Init(exportType ...int) {
 			log.Fatal(err)
 		}
 
-		options = append(options, sdktrace.WithSyncer(exporter))
+		options = append(options, sdk.WithSyncer(exporter))
 	}
 
-
-	tp, err := sdktrace.NewProvider(options...)
+	tp, err := sdk.NewProvider(options...)
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	global.SetTraceProvider(tp)
+}
+
+// SetFileWriter sets up the IO writer for the trace exporter that outputs to
+// a file.  It defaults to stdout if no file name is specified.
+func SetFileWriter(name string) error {
+	if name == "" || strings.EqualFold(name, "stdout") {
+		// If no trace file specified, use stdout
+		return io_writer.SetLogFileWriter(os.Stdout)
+	} else {
+		writer, err := os.OpenFile(
+			name,
+			os.O_APPEND | os.O_CREATE | os.O_WRONLY,
+			0644)
+
+		if err != nil {
+			return fmt.Errorf("error creating trace file (%q), err=%v", name, err)
+		}
+
+		return io_writer.SetLogFileWriter(writer)
+	}
 }

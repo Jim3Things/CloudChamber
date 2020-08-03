@@ -24,7 +24,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.StdOut)
+	setup.Init(exporters.IoWriter)
 
 	version.Trace()
 
@@ -33,12 +33,16 @@ func main() {
 		log.Fatalf("failed to process the global configuration: %v", err)
 	}
 
+	if err = setup.SetFileWriter(cfg.WebServer.TraceFile); err != nil {
+		log.Fatalf("failed to set up the trace logger, err=%v", err)
+	}
+
 	if *showConfig {
 		fmt.Println(config.ToString(cfg))
 		os.Exit(0)
 	}
 
-	if err := frontend.StartService(cfg); err != nil {
+	if err = frontend.StartService(cfg); err != nil {
 		log.Fatalf("Error running service: %v", err)
 	}
 }

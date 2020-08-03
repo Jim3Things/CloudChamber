@@ -50,7 +50,7 @@ func SetEndpoint(name string, dialOptions ...grpc.DialOption) error {
     return nil
 }
 
-// Exporter is an implementation of trace.Exporter that writes spans to stdout.
+// Exporter is an implementation of trace.Exporter that writes spans to io_writer.
 type Exporter struct {
     queue *common.Deferrable
 }
@@ -61,7 +61,7 @@ func NewExporter() (*Exporter, error) {
     }, nil
 }
 
-// ExportSpan writes a SpanData in json format to stdout.
+// ExportSpan writes a SpanData in json format to io_writer.
 func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
     entry := common.ExtractEntry(ctx, data)
 

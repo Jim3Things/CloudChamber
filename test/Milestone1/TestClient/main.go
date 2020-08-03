@@ -30,7 +30,7 @@ PUT api/Users/admin?op=logout
 
 // Command line: M1S -config=<global config file>
 func main() {
-    setup.Init(exporters.StdOut)
+    setup.Init(exporters.IoWriter)
 
     cfgPath := flag.String("config", ".", "path to the configuration file")
     showConfig := flag.Bool("showConfig", false, "display the current configuration settings")

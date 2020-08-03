@@ -76,6 +76,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test $(PROJECT)/internal/clients/timestamp
 	go test $(PROJECT)/internal/services/frontend
 	go test $(PROJECT)/internal/services/stepper_actor
+	go test $(PROJECT)/internal/tracing/exporters/common
 
 
 .PHONY : clean

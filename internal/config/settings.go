@@ -23,10 +23,14 @@ const (
 	DefaultGlobalConfigFile     = "cloudchamber.yaml"
 	DefaultConfigType           = "yaml"
 	ControllerDefaultPort       = 8081
+	ControllerDefaultTraceFile  = ".\\controller_trace.txt"
 	InventoryDefaultPort        = 8082
+	InventoryDefaultTraceFile   = ".\\inventory_trace.txt"
 	SimSupportDefaultPort       = 8083
+	SimSupportDefaultTraceFile  = ".\\sim_support_trace.txt"
 	WebServerDefaultPort        = 8084
 	WebServerFEDefaultPort      = 8080
+	WebServerDefaultTraceFile   = ".\\web_server_trace.txt"
 	DefaultHost                 = ""
 	DefaultStepperPolicy        = ""
 	DefaultRootFilePath         = "."
@@ -65,18 +69,21 @@ type Endpoint struct {
 type ControllerType struct {
 	// Exposed GRPC endpoint
 	EP Endpoint
+	TraceFile string
 }
 
 // InventoryType is a helper type that describes the inventoryd configuration settings
 type InventoryType struct {
 	// Exposed GRPC endpoint
 	EP Endpoint
+	TraceFile string
 }
 
 // SimSupportType is a helper type that describes the sim_supportd configuration settings
 type SimSupportType struct {
 	// Exposed GRPC endpoint
 	EP Endpoint
+	TraceFile string
 
 	// Name of the initial stepper policy to apply
 	StepperPolicy string
@@ -112,6 +119,7 @@ type WebServerType struct {
 
 	// GPRC endpoint, used for internal notifications
 	BE Endpoint
+	TraceFile string
 }
 
 // StoreTypeTest describes the specific configured elements for
@@ -141,17 +149,22 @@ func newGlobalConfig() *GlobalConfig {
 			EP: Endpoint{
 				Hostname: DefaultHost,
 				Port:     ControllerDefaultPort,
-			}},
+			},
+			TraceFile: ControllerDefaultTraceFile,
+		},
 		Inventory: InventoryType{
 			EP: Endpoint{
 				Hostname: DefaultHost,
 				Port:     InventoryDefaultPort,
-			}},
+			},
+			TraceFile: InventoryDefaultTraceFile,
+		},
 		SimSupport: SimSupportType{
 			EP: Endpoint{
 				Hostname: DefaultHost,
 				Port:     SimSupportDefaultPort,
 			},
+			TraceFile: SimSupportDefaultTraceFile,
 			StepperPolicy: DefaultStepperPolicy},
 		WebServer: WebServerType{
 			RootFilePath:          DefaultRootFilePath,
@@ -164,7 +177,9 @@ func newGlobalConfig() *GlobalConfig {
 			BE: Endpoint{
 				Hostname: DefaultHost,
 				Port:     WebServerDefaultPort,
-			}},
+			},
+			TraceFile: WebServerDefaultTraceFile,
+		},
 		Store: StoreType{
 			ConnectTimeout: StoreDefaultConnectTimeout,
 			RequestTimeout: StoreDefaultRequestTimeout,
@@ -237,18 +252,22 @@ func ToString(data *GlobalConfig) string {
 		"Controller:\n"+
 			"  EP:\n"+
 			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
 			"Inventory:\n"+
 			"  EP:\n"+
 			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
 			"SimSupport:\n"+
 			"  EP:\n"+
 			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
 			"  StepperPolicy: %v\n"+
 			"Webserver:\n"+
 			"  FE:\n"+
 			"    port: %v\n    hostname: %v\n"+
 			"  BE:\n"+
 			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
 			"  RootFilePath: %s\n"+
 			"  SystemAccount: %s\n"+
 			"  SystemAccountPassword: %s\n"+
@@ -262,11 +281,15 @@ func ToString(data *GlobalConfig) string {
 			"    PreCleanStore: %v\n"+
 			"",
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
+		data.Controller.TraceFile,
 		data.Inventory.EP.Port, data.Inventory.EP.Hostname,
+		data.Inventory.TraceFile,
 		data.SimSupport.EP.Port, data.SimSupport.EP.Hostname,
+		data.SimSupport.TraceFile,
 		data.SimSupport.StepperPolicy,
 		data.WebServer.FE.Port, data.WebServer.FE.Hostname,
 		data.WebServer.BE.Port, data.WebServer.BE.Hostname,
+		data.WebServer.TraceFile,
 		data.WebServer.RootFilePath,
 		data.WebServer.SystemAccount,
 		data.WebServer.SystemAccountPassword,
