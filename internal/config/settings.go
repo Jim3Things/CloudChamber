@@ -165,7 +165,8 @@ func newGlobalConfig() *GlobalConfig {
 				Port:     SimSupportDefaultPort,
 			},
 			TraceFile: SimSupportDefaultTraceFile,
-			StepperPolicy: DefaultStepperPolicy},
+			StepperPolicy: DefaultStepperPolicy,
+		},
 		WebServer: WebServerType{
 			RootFilePath:          DefaultRootFilePath,
 			SystemAccount:         DefaultSystemAccount,

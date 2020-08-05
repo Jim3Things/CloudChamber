@@ -11,10 +11,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
-// Options are the options to be used when initializing a unit test export.
-type Options struct {
-}
-
 // Exporter is an implementation of trace.Exporter that writes spans to the
 // unit test logger.
 type Exporter struct {
@@ -36,7 +32,7 @@ var (
 )
 
 // NewExporter creates a new unit test Exporter instance
-func NewExporter(_ Options) (*Exporter, error) {
+func NewExporter() (*Exporter, error) {
 	return &Exporter{}, nil
 }
 
@@ -64,7 +60,7 @@ func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 		flushSaved(ctx)
 		processOneEntry(entry, false)
 	} else {
-		_= queue.Defer(entry)
+		_ = queue.Defer(entry)
 	}
 }
 

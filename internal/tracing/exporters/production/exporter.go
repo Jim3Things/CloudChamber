@@ -221,7 +221,7 @@ func scheduleReconnect() {
         defer mutex.Unlock()
 
         if state != awaitingConnection {
-            return
+            log.Fatalf("unexpected change in state while waiting for the backoff interval.  State is %v", state)
         }
 
         attemptConnection()

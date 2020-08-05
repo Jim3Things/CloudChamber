@@ -12,29 +12,24 @@ import (
 )
 
 // NewExporter creates a trace exporter instance based on the export type
-func NewExporter(exportType int) (trace.SpanSyncer, error) {
+func NewExporter(exportType int) (exporter trace.SpanSyncer, err error) {
 	switch exportType {
 	case IoWriter:
-		if exporter, err := io_writer.NewExporter(); err != nil {
-			log.Fatal(err)
-		} else {
-			return exporter, nil
-		}
+		exporter, err = io_writer.NewExporter()
 
 	case UnitTest:
-		if exporter, err := unit_test.NewExporter(unit_test.Options{}); err != nil {
-			log.Fatal(err)
-		} else {
-			return exporter, nil
-		}
+		exporter, err = unit_test.NewExporter()
 
 	case Production:
-		if exporter, err := production.NewExporter(); err != nil {
-			log.Fatal(err)
-		} else {
-			return exporter, nil
-		}
+		exporter, err = production.NewExporter()
+
+	default:
+		return nil, errors.InvalidArgumentError("exportType")
 	}
 
-	return nil, errors.InvalidArgumentError("exportType")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return exporter, nil
 }

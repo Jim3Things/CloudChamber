@@ -29,7 +29,8 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.IoWriter /*, exporters.LocalProduction*/)
+	// TODO: add exporters.LocalProduction when that is ready
+	setup.Init(exporters.IoWriter)
 
 	version.Trace()
 
