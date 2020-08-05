@@ -1,10 +1,10 @@
 package main
 
 import (
-    "bufio"
     "flag"
     "fmt"
     "io"
+    "io/ioutil"
     "log"
     "net/http"
     "os"
@@ -16,7 +16,7 @@ import (
 )
 
 /*
-PUT api/Users/admin?op=login  <-- No password or creds at this point
+PUT api/Users/admin?op=login  <-- No password or credentials at this point
 --- Log cookies
 GET api/Racks
 --- Add login cookie
@@ -46,7 +46,8 @@ func main() {
         os.Exit(0)
     }
 
-    baseAddress := fmt.Sprintf("http://%s:%d/api", cfg.WebServer.FE.Hostname, cfg.WebServer.FE.Port)
+    endpoint := fmt.Sprintf("http://%s:%d", cfg.WebServer.FE.Hostname, cfg.WebServer.FE.Port)
+    baseAddress := fmt.Sprintf("%s/api", endpoint)
     client := &http.Client{}
 
     // 1: try to login
@@ -58,7 +59,7 @@ func main() {
 
     dumpResponse(resp, err)
 
-    // 0: get list of known users
+    // 1a: get list of known users
     target = fmt.Sprintf("%s/users", baseAddress)
     resp, err = get(client, target, resp.Cookies(), nil)
     if err != nil {
@@ -68,7 +69,42 @@ func main() {
     dumpResponse(resp, err)
 
     // 2: get the list of racks
-    // TBD
+    target = fmt.Sprintf("%s/racks", baseAddress)
+    resp, err = get(client, target, resp.Cookies(), nil)
+    if err != nil {
+        panic(err)
+    }
+
+    body := dumpResponse(resp, err)
+    lines := strings.Split(body, "\n")
+
+    // 3: get one rack's detail info
+    target = fmt.Sprintf("%s%s", endpoint, lines[1])
+    resp, err = get(client, target, resp.Cookies(), nil)
+    if err != nil {
+        panic(err)
+    }
+
+    dumpResponse(resp, err)
+
+    // 4: get one rack's list of blades
+    target = fmt.Sprintf("%s/racks/rack1/blades", baseAddress)
+    resp, err = get(client, target, resp.Cookies(), nil)
+    if err != nil {
+        panic(err)
+    }
+
+    body = dumpResponse(resp, err)
+    lines = strings.Split(body, "\n")
+
+    // 5: get one rack's first blade details
+    target = fmt.Sprintf("%s%s", endpoint, lines[1])
+    resp, err = get(client, target, resp.Cookies(), nil)
+    if err != nil {
+        panic(err)
+    }
+
+    dumpResponse(resp, err)
 
     // last: and now logout
     target = fmt.Sprintf("%s/users/admin?op=logout", baseAddress)
@@ -119,19 +155,25 @@ func put(client *http.Client, uri string, cookies []*http.Cookie, body io.Reader
     return resp, nil
 }
 
-func dumpResponse(resp *http.Response, err error) {
+func dumpResponse(resp *http.Response, err error) string {
     fmt.Printf("resp: %v\nerr: %v\n", resp, err)
 
     for _, cookie := range resp.Cookies() {
         fmt.Println(cookie.Name)
     }
 
-    defer resp.Body.Close()
-    scanner := bufio.NewScanner(resp.Body)
-    scanner.Split(bufio.ScanBytes)
-    for scanner.Scan() {
-        fmt.Print(scanner.Text())
+    body, err := getBody(resp)
+    if err != nil {
+        panic(err)
     }
 
-    fmt.Println("")
+    s := string(body)
+
+    fmt.Println(s)
+    return s
+}
+
+func getBody(resp *http.Response) ([]byte, error) {
+    defer func() { _ = resp.Body.Close() }()
+    return ioutil.ReadAll(resp.Body)
 }
