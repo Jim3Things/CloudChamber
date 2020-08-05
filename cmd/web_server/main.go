@@ -24,7 +24,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.IoWriter)
+	setup.Init(exporters.IoWriter, exporters.Production)
 
 	version.Trace()
 
@@ -35,6 +35,10 @@ func main() {
 
 	if err = setup.SetFileWriter(cfg.WebServer.TraceFile); err != nil {
 		log.Fatalf("failed to set up the trace logger, err=%v", err)
+	}
+
+	if err = setup.SetEndpoint(cfg.SimSupport.EP.Hostname, cfg.SimSupport.EP.Port); err != nil {
+		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
 	}
 
 	if *showConfig {

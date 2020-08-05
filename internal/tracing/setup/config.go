@@ -8,9 +8,11 @@ import (
 
 	"go.opentelemetry.io/otel/api/global"
 	sdk "go.opentelemetry.io/otel/sdk/trace"
+	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/io_writer"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/production"
 )
 
 // Init configures one or more OpenTelemetry exporters into our trace provider
@@ -55,4 +57,11 @@ func SetFileWriter(name string) error {
 
 		return io_writer.SetLogFileWriter(writer)
 	}
+}
+
+// SetEndpoint supplies the endpoint to the trace sink service for the
+// 'production' trace exporter variant
+func SetEndpoint(host string, port int) error {
+	endpoint := fmt.Sprintf("%s:%d", host, port)
+	return production.SetEndpoint(endpoint, grpc.WithInsecure())
 }
