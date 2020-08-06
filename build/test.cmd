@@ -21,6 +21,10 @@ for %%j in (frontend stepper_actor) do (
   if "%1" == "%%j" (call :TestRunService %1 %2)
 )
 
+for %%j in (deferrable) do (
+    if "%1" == "%%j" (call :TestRunTracing common %2)
+)
+
 goto :TestExit
 
 :TestAll
@@ -30,6 +34,10 @@ for %%j in (timestamp store) do (
 
 for %%j in (frontend stepper_actor) do (
     call :TestRunService %%j %2
+)
+
+for %%j in (deferrable) do (
+    call :TestRunTracing common %2
 )
 
 goto :TestExit
@@ -46,6 +54,10 @@ goto :EOF
 
 :TestRunService %1 %2
 call :TestRun %1 %GOPATH%\src\github.com\Jim3Things\CloudChamber\internal\services %2
+goto :EOF
+
+:TestRunTracing %1 %2
+call :TestRun %1 %GOPATH%\src\github.com\Jim3Things\CloudChamber\internal\tracing\exporters %2
 goto :EOF
 
 
@@ -70,6 +82,7 @@ echo   frontend
 echo   stepper
 echo   store
 echo   timestamp
+echo   deferrable
 echo.
 echo The option argument is used when running the targeted test.
 echo It defaults to nothing, which runs the tests in quiet more.

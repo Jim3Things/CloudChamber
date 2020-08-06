@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
+	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
@@ -28,13 +29,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.StdOut)
+	// TODO: add exporters.LocalProduction when that is ready
+	setup.Init(exporters.IoWriter)
 
 	version.Trace()
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
 		log.Fatalf("failed to process the global configuration: %v", err)
+	}
+
+	if err = setup.SetFileWriter(cfg.SimSupport.TraceFile); err != nil {
+		log.Fatalf("failed to set up the trace logger, err=%v", err)
 	}
 
 	if *showConfig {
@@ -49,14 +55,19 @@ func main() {
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-	if err := stepper.Register(s, cfg.SimSupport.GetPolicyType()); err != nil {
+	if err = tracing_sink.Register(s); err != nil {
+		log.Fatalf(
+			"failed to register the tracing sink.  Err: %v", err)
+	}
+
+	if err = stepper.Register(s, cfg.SimSupport.GetPolicyType()); err != nil {
 		log.Fatalf(
 			"failed to register the stepper actor.  default policy: %v, err: %v",
 			cfg.SimSupport.GetPolicyType(),
 			err)
 	}
 
-	if err := s.Serve(lis); err != nil {
+	if err = s.Serve(lis); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }

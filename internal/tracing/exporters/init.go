@@ -4,26 +4,32 @@ import (
 	"log"
 
 	"go.opentelemetry.io/otel/sdk/export/trace"
+	"golang.org/x/crypto/openpgp/errors"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/stdout"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/io_writer"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/production"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 )
 
-func NewExporter(exportType int, exporter trace.SpanSyncer, err error) (trace.SpanSyncer, error) {
+// NewExporter creates a trace exporter instance based on the export type
+func NewExporter(exportType int) (exporter trace.SpanSyncer, err error) {
 	switch exportType {
-	case StdOut:
-		exporter, err = stdout.NewExporter(stdout.Options{PrettyPrint: true})
-		if err != nil {
-			log.Fatal(err)
-		}
+	case IoWriter:
+		exporter, err = io_writer.NewExporter()
 
 	case UnitTest:
-		exporter, err = unit_test.NewExporter(unit_test.Options{})
-		if err != nil {
-			log.Fatal(err)
-		}
+		exporter, err = unit_test.NewExporter()
 
 	case Production:
+		exporter, err = production.NewExporter()
+
+	default:
+		return nil, errors.InvalidArgumentError("exportType")
 	}
-	return exporter, err
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return exporter, nil
 }

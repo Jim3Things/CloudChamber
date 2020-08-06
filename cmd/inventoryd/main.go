@@ -23,13 +23,21 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.StdOut)
+	setup.Init(exporters.IoWriter)
 
 	version.Trace()
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
 	if err != nil {
 		log.Fatalf("failed to process the global configuration: %v", err)
+	}
+
+	if err = setup.SetFileWriter(cfg.Inventory.TraceFile); err != nil {
+		log.Fatalf("failed to set up the trace logger, err=%v", err)
+	}
+
+	if err = setup.SetEndpoint(cfg.SimSupport.EP.Hostname, cfg.SimSupport.EP.Port); err != nil {
+		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
 	}
 
 	if *showConfig {
