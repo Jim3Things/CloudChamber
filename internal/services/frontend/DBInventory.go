@@ -1,26 +1,31 @@
-// This module encapsulates storage and retrieval of known racks
+// This module encapsulates storage and retrieval of known inventory
+//
+// Racks are held in a zone.  The zone has the racks, and a memoized summary of
+// the maximum number of blades held in any rack.
+//
+// The full rack contains attributes about tor, pdU and blades.  It also has a
+// memoized summary of the maximum capacity values.
+//
+// The memoized values are used by callers, such as the Cloud Chamber UI, to
+// quickly shape the dimensions of the inventory display
 
-// The full rack contains attributes about tor, pdU and blades.
-
-// Each rack has an associated key which is the lowercased form of the
-// username.  The supplied name is retained as an attribute in order to present
-// the form that the caller originally used for display purposes.
+// Each rack has an associated key which is the string name of the rack.
 
 package frontend
 
 import (
 	"sync"
 
-	common "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 // DBInventory is a container used to establish synchronized access to
 // the in-memory set of Racks records.
 //
-type DBInventory struct { //A struct for the collection of Racks
+type DBInventory struct {
 	Mutex sync.Mutex
-	Racks map[string]*pb.ExternalRack
+	Zone *pb.ExternalZone
 }
 
 var dbInventory *DBInventory
@@ -36,64 +41,83 @@ func InitDBInventory() error {
 	if dbInventory == nil {
 		dbInventory = &DBInventory{
 			Mutex: sync.Mutex{},
-			Racks: make(map[string]*pb.ExternalRack),
+			Zone: &pb.ExternalZone{
+				Racks:         make(map[string]*pb.ExternalRack),
+				MaxCapacity: &common.BladeCapacity{},
+			},
 		}
-		dbInventory.Racks["rack1"] = &pb.ExternalRack{ //
 
+		dbInventory.Zone.Racks["rack1"] = &pb.ExternalRack{
 			Tor:    &pb.ExternalTor{},
 			Pdu:    &pb.ExternalPdu{},
 			Blades: make(map[int64]*common.BladeCapacity),
 		}
-		dbInventory.Racks["rack2"] = &pb.ExternalRack{ //
 
+		dbInventory.Zone.Racks["rack2"] = &pb.ExternalRack{
 			Tor:    &pb.ExternalTor{},
 			Pdu:    &pb.ExternalPdu{},
 			Blades: make(map[int64]*common.BladeCapacity),
 		}
-		dbInventory.Racks["rack1"].Blades[1] = &common.BladeCapacity{
+
+		// First blade for rack 1.
+		dbInventory.Zone.Racks["rack1"].Blades[1] = &common.BladeCapacity{
 			Cores:                  8,
 			MemoryInMb:             16384,
 			DiskInGb:               120,
 			NetworkBandwidthInMbps: 1024,
 			Arch:                   "X64",
-		} //First blade for rack 1.
+		}
 
-		dbInventory.Racks["rack1"].Blades[2] = &common.BladeCapacity{
+		// Second blade for rack 1.
+		dbInventory.Zone.Racks["rack1"].Blades[2] = &common.BladeCapacity{
 			Cores:                  16,
 			MemoryInMb:             16384,
 			DiskInGb:               240,
 			NetworkBandwidthInMbps: 2048,
 			Arch:                   "X64",
-		} //Second blade for rack 1.
+		}
 
-		dbInventory.Racks["rack2"].Blades[1] = &common.BladeCapacity{
+		// First blade for rack 2.
+		dbInventory.Zone.Racks["rack2"].Blades[1] = &common.BladeCapacity{
 			Cores:                  24,
 			MemoryInMb:             16384,
 			DiskInGb:               120,
 			NetworkBandwidthInMbps: 1024,
 			Arch:                   "X64",
-		} //First blade for rack 2.
-		dbInventory.Racks["rack2"].Blades[2] = &common.BladeCapacity{
+		}
+
+		// Second blade for rack 2.
+		dbInventory.Zone.Racks["rack2"].Blades[2] = &common.BladeCapacity{
 			Cores:                  32,
 			MemoryInMb:             16384,
 			DiskInGb:               120,
 			NetworkBandwidthInMbps: 1024,
 			Arch:                   "X64",
-		} //Second blade for rack 2.
+		}
 
+		dbInventory.buildSummary()
 	}
 
 	return nil
 }
 
-// Scan the set of known blades the store, invoking the supplied
-// function with each entry.
-func (m *DBInventory) Scan(action func(entry string) error) error {
+// GetMaxBladesPerRack returns the maximum number of blades held in any rack
+// in the inventory.
+func (m *DBInventory) GetMemoData() (int64, *common.BladeCapacity) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	for name := range dbInventory.Racks {
-		if err := action(name); err != nil {
+	return m.Zone.MaxBladeCount, m.Zone.MaxCapacity
+}
+
+// Scan the set of known blades the store, invoking the supplied
+// function with each entry.
+func (m *DBInventory) Scan(action func(entry string, memo *common.BladeCapacity) error) error {
+	m.Mutex.Lock()
+	defer m.Mutex.Unlock()
+
+	for name, rack := range dbInventory.Zone.Racks {
+		if err := action(name, rack.MaxBladeCapacity); err != nil {
 			return err
 		}
 	}
@@ -101,56 +125,90 @@ func (m *DBInventory) Scan(action func(entry string) error) error {
 	return nil
 }
 
-// Get returns the rack details to match the supplied rackId
-//
-func (m *DBInventory) Get(rackid string) (*pb.ExternalRack, error) {
-
+// Get returns the rack details to match the supplied rackID
+func (m *DBInventory) Get(rackID string) (*pb.ExternalRack, error) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	r, ok := m.Racks[rackid]
+	r, ok := m.Zone.Racks[rackID]
 	if !ok {
-		return nil, NewErrRackNotFound(rackid)
+		return nil, NewErrRackNotFound(rackID)
 	}
-	return r, nil
 
+	return r, nil
 }
 
-// ScanBladesInRack enumerates over all the blades in a rack of the
-// given rackId, and invokes the supplied action on each discovered
-// bladeId in turn.
-//
-func (m *DBInventory) ScanBladesInRack(rackid string, action func(bladeid int64) error) error {
+// ScanBladesInRack enumerates over all the blades in a rack of the given
+// rackID, and invokes the supplied action on each discovered bladeID in
+// turn.
+func (m *DBInventory) ScanBladesInRack(rackID string, action func(bladeID int64) error) error {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	r, ok := m.Racks[rackid]
+	r, ok := m.Zone.Racks[rackID]
 	if !ok {
-		return NewErrRackNotFound(rackid)
+		return NewErrRackNotFound(rackID)
 	}
+
 	for name := range r.Blades {
 		if err := action(name); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
-// GetBlade returns the details of a blade matching the
-// supplied rackId and bladeId
-//
-func (m *DBInventory) GetBlade(rackid string, bladeid int64) (*common.BladeCapacity, error) {
+// GetBlade returns the details of a blade matching the supplied rackID and
+// bladeID
+func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*common.BladeCapacity, error) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	r, ok := m.Racks[rackid]
+	r, ok := m.Zone.Racks[rackID]
 	if !ok {
-		return nil, NewErrRackNotFound(rackid)
+		return nil, NewErrRackNotFound(rackID)
 	}
 
-	b, ok := r.Blades[bladeid]
+	b, ok := r.Blades[bladeID]
 	if !ok {
-		return nil, NewErrBladeNotFound(rackid, bladeid)
+		return nil, NewErrBladeNotFound(rackID, bladeID)
 	}
+
 	return b, nil
+}
+
+// buildSummary constructs the memo-ed summary data for the zone.  This should
+// be called whenever the configured inventory changes.
+func (m *DBInventory) buildSummary() {
+	m.Zone.MaxBladeCount = 0
+
+	memo := &common.BladeCapacity{}
+	for _, rack := range m.Zone.Racks {
+
+		for _, blade := range rack.Blades {
+			memo.Cores = maxInt64(memo.Cores, blade.Cores)
+			memo.DiskInGb = maxInt64(memo.DiskInGb, blade.DiskInGb)
+			memo.MemoryInMb = maxInt64(memo.MemoryInMb, blade.MemoryInMb)
+			memo.NetworkBandwidthInMbps = maxInt64(
+				memo.NetworkBandwidthInMbps,
+				blade.NetworkBandwidthInMbps)
+		}
+
+		m.Zone.MaxCapacity = memo
+		m.Zone.MaxBladeCount = maxInt64(
+			m.Zone.MaxBladeCount,
+			int64(len(rack.Blades)))
+
+		rack.MaxBladeCapacity = memo
+	}
+}
+
+// maxInt64 is a helper function to return the maximum of two int64 values
+func maxInt64(a int64, b int64) int64 {
+	if a < b {
+		return b
+	}
+
+	return a
 }

@@ -10,9 +10,13 @@ import (
     "os"
     "strings"
 
+    "github.com/golang/protobuf/jsonpb"
+    "github.com/golang/protobuf/proto"
+
     "github.com/Jim3Things/CloudChamber/internal/config"
     "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
     "github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 /*
@@ -75,11 +79,22 @@ func main() {
         panic(err)
     }
 
-    body := dumpResponse(resp, err)
-    lines := strings.Split(body, "\n")
+    list := &pb.ExternalZoneSummary{}
+    err = getJSONBody(resp, list)
+    if err != nil {
+        panic(err)
+    }
+
+    for name, item := range list.Racks {
+        fmt.Printf("Found rack %q: %q\n", name, item.Uri)
+    }
 
     // 3: get one rack's detail info
-    target = fmt.Sprintf("%s%s", endpoint, lines[1])
+    for _, summary := range list.Racks {
+        target = fmt.Sprintf("%s%s", endpoint, summary.Uri)
+        break
+    }
+
     resp, err = get(client, target, resp.Cookies(), nil)
     if err != nil {
         panic(err)
@@ -94,8 +109,8 @@ func main() {
         panic(err)
     }
 
-    body = dumpResponse(resp, err)
-    lines = strings.Split(body, "\n")
+    body := dumpResponse(resp, err)
+    lines := strings.Split(body, "\n")
 
     // 5: get one rack's first blade details
     target = fmt.Sprintf("%s%s", endpoint, lines[1])
@@ -176,4 +191,10 @@ func dumpResponse(resp *http.Response, err error) string {
 func getBody(resp *http.Response) ([]byte, error) {
     defer func() { _ = resp.Body.Close() }()
     return ioutil.ReadAll(resp.Body)
+}
+
+// Get the body of a response, unmarshaled into the supplied message structure
+func getJSONBody(resp *http.Response, v proto.Message) error {
+    defer func() { _ = resp.Body.Close() }()
+    return jsonpb.Unmarshal(resp.Body, v)
 }
