@@ -44,12 +44,10 @@ func TestInventoryListRacks(t *testing.T) {
 
 	r, ok := list.Racks["rack1"]
 	assert.True(t, ok)
-	assert.Equal(t, "rack1", r.Name)
 	assert.Equal(t, "/api/racks/rack1", r.Uri)
 
 	r, ok = list.Racks["rack2"]
 	assert.True(t, ok)
-	assert.Equal(t, "rack2", r.Name)
 	assert.Equal(t, "/api/racks/rack2", r.Uri)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())

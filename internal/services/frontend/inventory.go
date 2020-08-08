@@ -18,7 +18,6 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -76,13 +75,10 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 			b += "/"
 		}
 
-		err = dbInventory.Scan(func(name string, memo *common.BladeCapacity) (err error) {
+		err = dbInventory.Scan(func(name string) (err error) {
 			target := fmt.Sprintf("%s%s", b, name)
 
-			res.Racks[name] = &pb.ExternalRackSummary{
-				Name: name,
-				Uri:  target,
-			}
+			res.Racks[name] = &pb.ExternalRackSummary{ Uri:  target	}
 
 			st.Infof(ctx, tick(), "   Listing rack %q at %q", name, target)
 
