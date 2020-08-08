@@ -258,3 +258,21 @@ func TestInventoryNoSession(t *testing.T) {
 
 	assert.Equal(t, http.StatusInternalServerError, response.StatusCode, "Handler returned Internal server error: %v", response.StatusCode)
 }
+func TestInventoryNoSessionRack(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", "/api/racks/rack1", nil)
+	response := doHTTP(request, nil)
+
+	assert.Equal(t, http.StatusInternalServerError, response.StatusCode, "Handler returned Internal server error: %v", response.StatusCode)
+}
+func TestInventoryNoSessionBlade(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", "/api/racks/rack1/Blades/1", nil)
+	response := doHTTP(request, nil)
+
+	assert.Equal(t, http.StatusInternalServerError, response.StatusCode, "Handler returned Internal server error: %v", response.StatusCode)
+}
