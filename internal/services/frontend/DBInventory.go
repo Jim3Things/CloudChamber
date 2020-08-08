@@ -20,12 +20,25 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
-// DBInventory is a container used to establish synchronized access to
-// the in-memory set of Racks records.
+// DBInventory is a structure used to establish synchronized access to
+// the in-memory version of the inventory.
+//
+// The structure consists of three parts:
+// 	- the Mutex field controls access to the rest of the structure, avoiding
+// 	  collisions between two simultaneous web server calls.
+//
+// 	- the Zone field contains the inventory definition data.  This data
+//    originated externally, via a definition file, and is read only.
+//
+//  - the remains fields, MaxBladeCount and MaxCapacity, contain summary memo
+// 	  calculations that simplify the sizing and placement calculations for the
+//	  Cloud Chamber UI.
 //
 type DBInventory struct {
 	Mutex sync.Mutex
+
 	Zone *pb.ExternalZone
+
 	MaxBladeCount int64
 	MaxCapacity *common.BladeCapacity
 }
@@ -183,6 +196,9 @@ func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*common.BladeCapac
 
 // buildSummary constructs the memo-ed summary data for the zone.  This should
 // be called whenever the configured inventory changes.
+//
+// This method assumes it is called from within a DBInventory function, and the
+// required mutex is already held.
 func (m *DBInventory) buildSummary() {
 	m.MaxBladeCount = 0
 
