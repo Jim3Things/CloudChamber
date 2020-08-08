@@ -38,10 +38,42 @@ message external {
         // specify the blades in the rack.  Each blade is defined by an integer index within that rack, which is used
         // here as the key.
         map<int64, common.blade_capacity> blades = 3;
+
+        // max_blade_capacity is a cached summary of the maximum values for
+        // each of the blade capacity values.  This can be used to size any
+        // collective values, such as having the UI frame the zone visually
+        common.blade_capacity max_blade_capacity = 4;
     }
 
     // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in the map below.
     message zone {
         map<string, rack> racks = 1;
+        int64 max_blade_count = 2;
+        common.blade_capacity max_capacity = 3;
+    }
+
+    // The following messages are used to format JSON strings for use by
+    // external callers.  These contain memoized calculations that are likely
+    // to be needed by the common callers.
+
+    // Rack list entry item
+    message rack_summary {
+        // Friendly name for the rack
+        string name = 1;
+
+        // host relative URI that can be used to retrieve its details
+        string uri = 2;
+    }
+
+    // Summary of the full inventory
+    message zone_summary {
+        // Summary information about all known racks
+        map<string, rack_summary> racks = 1;
+
+        // The largest number of blades held in any rack
+        int64 max_blade_count = 2;
+
+        // The largest capacity values found in any blade
+        common.blade_capacity max_capacity = 3;
     }
 }

@@ -11,10 +11,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
-	"github.com/stretchr/testify/assert"
 )
 
 // First DBInventory unit test
@@ -27,19 +28,29 @@ func TestInventoryListRacks(t *testing.T) {
 
 	request := httptest.NewRequest("GET", "/api/racks/", nil)
 	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t, "text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
-	s := string(body)                   // Converted into a string
-	var splits = strings.Split(s, "\n") // Created an array per line
+	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	expected := []string{"/api/racks/rack1", "/api/racks/rack2", ""}
+	list := &pb.ExternalZoneSummary{}
+	err := getJSONBody(response, list)
+	assert.Nilf(t, err, "Failed to convert racks list to valid json.  err: %v", err)
 
-	assert.Equal(t, splits[0], "Racks (List)")
-	assert.ElementsMatch(t, expected, splits[1:])
+	assert.Equal(t, int64(2), list.MaxBladeCount)
+	assert.Equal(t, int64(32), list.MaxCapacity.Cores)
+	assert.Equal(t, int64(16384), list.MaxCapacity.MemoryInMb)
+	assert.Equal(t, int64(240), list.MaxCapacity.DiskInGb)
+	assert.Equal(t, int64(2048), list.MaxCapacity.NetworkBandwidthInMbps)
+	assert.Equal(t, 2, len(list.Racks))
 
-	assert.Nil(t, err)
+	r, ok := list.Racks["rack1"]
+	assert.True(t, ok)
+	assert.Equal(t, "rack1", r.Name)
+	assert.Equal(t, "/api/racks/rack1", r.Uri)
+
+	r, ok = list.Racks["rack2"]
+	assert.True(t, ok)
+	assert.Equal(t, "rack2", r.Name)
+	assert.Equal(t, "/api/racks/rack2", r.Uri)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
@@ -72,7 +83,7 @@ func TestInventoryRackRead(t *testing.T) {
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
 
-//Reading a rack that do not exist - should get status not found error
+// Reading a rack that does not exist - should get status not found error
 func TestInventoryUnknownRack(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -96,8 +107,9 @@ func TestInventoryListBlades(t *testing.T) {
 
 	request := httptest.NewRequest("GET", "/api/racks/rack1/blades", nil)
 	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+
+	body, err := getBody(response)
 	assert.Equal(t, "text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
 	s := string(body)                   // Converted into a string
 	var splits = strings.Split(s, "\n") // Created an array per line
