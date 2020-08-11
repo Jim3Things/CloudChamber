@@ -260,7 +260,8 @@ func TestInventoryNoSession(t *testing.T) {
 	request := httptest.NewRequest("GET", "/api/racks/", nil)
 	response := doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned Internal server error: %v", response.StatusCode)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
 }
 
 func TestInventoryNoSessionRack(t *testing.T) {
@@ -270,7 +271,8 @@ func TestInventoryNoSessionRack(t *testing.T) {
 	request := httptest.NewRequest("GET", "/api/racks/rack1", nil)
 	response := doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned Internal server error: %v", response.StatusCode)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
 }
 
 func TestInventoryNoSessionBlade(t *testing.T) {
@@ -280,5 +282,6 @@ func TestInventoryNoSessionBlade(t *testing.T) {
 	request := httptest.NewRequest("GET", "/api/racks/rack1/Blades/1", nil)
 	response := doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned Internal server error: %v", response.StatusCode)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
 }
