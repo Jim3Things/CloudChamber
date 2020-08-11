@@ -9,6 +9,7 @@ import (
     "context"
     "fmt"
     "sync"
+    "time"
 
     "google.golang.org/grpc"
 
@@ -97,7 +98,7 @@ func (s *server) addEntry(entry *log.Entry) {
         s.firstId = s.entries.Front().Value.(listEntry).id
     }
 
-    fmt.Printf("%d(%d): %v\n\n", s.lastId, s.entries.Len(), entry)
+    fmt.Printf("%s: %d(%d): %v\n\n", time.Now().Format(time.RFC822), s.lastId, s.entries.Len(), entry)
     s.lastId++
 }
 

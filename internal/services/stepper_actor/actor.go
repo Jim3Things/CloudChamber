@@ -62,7 +62,7 @@ func Register(svc *grpc.Server, p pb.StepperPolicy) (err error) {
 
     // Finally, if there is a default policy provided, set it now.
     if p != pb.StepperPolicy_Invalid {
-        if err := act.adapter.SetDefaultPolicy(p); err != nil {
+        if err = act.adapter.SetDefaultPolicy(p); err != nil {
             return err
         }
     }
