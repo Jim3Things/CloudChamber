@@ -137,6 +137,15 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
 
 // +++ HTTPError specializations
 
+// NewErrNoSessionActive indicates that the request was made without first
+// establishing a logged in session
+func NewErrNoSessionActive() *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusForbidden,
+		Base: errors.New("CloudChamber: no session active"),
+	}
+}
+
 // NewErrNoLoginActive indicates that the specified user is not logged into this session
 func NewErrNoLoginActive(name string) *HTTPError {
 	return &HTTPError{

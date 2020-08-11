@@ -47,7 +47,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -96,7 +96,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -124,7 +124,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -156,7 +156,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
