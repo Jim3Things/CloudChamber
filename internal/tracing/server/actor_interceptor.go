@@ -3,6 +3,7 @@ package server
 import (
     "context"
     "fmt"
+    "strconv"
 
     "github.com/AsynkronIT/protoactor-go/actor"
     "github.com/golang/protobuf/ptypes/empty"
@@ -25,7 +26,7 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
         tr := global.TraceProvider().Tracer("server")
 
         ctx, span := tr.Start(
-            context.Background(),
+            annotatedContext(context.Background(), envelope),
             fmt.Sprintf("Actor %q/Receive", c.Self()),
             trc.WithSpanKind(trc.SpanKindServer),
             trc.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
@@ -142,4 +143,39 @@ func dumpMessage(msg interface{}) string {
 
         return fmt.Sprintf("%v", m)
     }
+}
+
+func annotatedContext(ctx context.Context, envelope *actor.MessageEnvelope) context.Context {
+    parent := trc.SpanContext{
+        TraceID:    trc.ID{},
+        SpanID:     trc.SpanID{},
+        TraceFlags: 0,
+    }
+
+    id, err := trc.SpanIDFromHex(envelope.Header.Get(tracing.SourceSpanID))
+    if err == nil {
+        parent.SpanID = id
+    } else {
+        return ctx
+    }
+
+    traceID, err := trc.IDFromHex(envelope.Header.Get(tracing.SourceTraceID))
+    if err == nil {
+        parent.TraceID = traceID
+    } else {
+        return ctx
+    }
+
+    flg, err := strconv.Atoi(envelope.Header.Get(tracing.SourceTraceFlgs))
+    if err == nil {
+        parent.TraceFlags = byte(flg)
+    } else {
+        return ctx
+    }
+
+    if parent.IsValid() {
+        return trc.ContextWithRemoteSpanContext(ctx, parent)
+    }
+
+    return ctx
 }

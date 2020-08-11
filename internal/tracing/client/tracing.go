@@ -25,12 +25,12 @@ func Interceptor(ctx context.Context, method string, req, reply interface{}, cc 
 	ctx = metadata.NewOutgoingContext(ctx, metadataCopy)
 
 	err := invoker(ctx, method, req, reply, cc, opts...)
-	setTraceStatus(span, err)
+	setTraceStatus(ctx, span, err)
 
 	return err
 }
 
-func setTraceStatus(span trace.Span, err error) {
+func setTraceStatus(ctx context.Context, span trace.Span, err error) {
 	// Spans assume a status of "OK", so we only need to update the
 	// status if it is an error.
 	if err != nil {
@@ -41,7 +41,7 @@ func setTraceStatus(span trace.Span, err error) {
 			code = codes.InvalidArgument
 		}
 
-		span.SetStatus(code, "returned error")
+		span.RecordError(ctx, err, trace.WithErrorStatus(code))
 	} else {
 		span.SetStatus(codes.OK, "OK")
 	}
