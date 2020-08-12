@@ -55,8 +55,8 @@ var (
 	server Server
 )
 
-// normalizeURL standardizes the URL string before handing them it to the
-// normal route processing.
+// normalizeURL standardizes the URL string before handing them to the normal
+// route processing.
 //
 // The rules for processing URLs are:
 //	a) any POST operation is lower-cased, except for the last segment.  That
