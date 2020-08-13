@@ -45,7 +45,7 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
             return httpError(ctx, w, err)
         }
 
-        w.Header().Set("Expires", ccSession.timeout.Format(time.RFC850))
+        w.Header().Set("Expires", ccSession.timeout.Format(time.RFC3339))
         return nil
     })
 }

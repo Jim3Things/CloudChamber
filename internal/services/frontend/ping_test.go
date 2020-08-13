@@ -30,7 +30,7 @@ func TestPing(t *testing.T) {
     response = doHTTP(request, response.Cookies())
 
     expiry := response.Header.Get("Expires")
-    expTime, err := time.Parse(time.RFC850, expiry)
+    expTime, err := time.Parse(time.RFC3339, expiry)
     assert.Nil(t, err)
 
     assert.True(t, startTime.Before(expTime))
@@ -42,7 +42,7 @@ func TestPing(t *testing.T) {
     response = doHTTP(request, response.Cookies())
 
     expiry = response.Header.Get("Expires")
-    expTime, err = time.Parse(time.RFC850, expiry)
+    expTime, err = time.Parse(time.RFC3339, expiry)
     assert.Nil(t, err)
 
     assert.True(t, startTime.Before(expTime))
