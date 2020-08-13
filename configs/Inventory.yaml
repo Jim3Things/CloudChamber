@@ -1,34 +1,35 @@
 #defining a blade1 and blade2 for rack1
-Inventory:
+Zone:
+ Racks:
  - rack1:
-	Blades:
-	 - blade: 1
-		Cores: 16
-		MemoryInMb: 16834
-		DiskInGb: 240 
-		NetworkBandwidthInMbps: 2048
-		Arch: X64
-	 - blade: 2
-		Cores: 8
-		MemoryInMb: 16834
-		DiskInGb: 120
-		NetworkBandwidthInMbps: 2048
-		Arch: X64
-	Tor:
-	Pdu:
+    Blades:
+    - blade: 1
+      Cores: 16
+      MemoryInMb: 16834
+      DiskInGb: 240 
+			NetworkBandwidthInMbps: 2048
+      Arch: "X64"
+    - blade: 2
+		  Cores: 8
+	  	MemoryInMb: 16834
+		  DiskInGb: 120
+		  NetworkBandwidthInMbps: 2048
+		  Arch: X64
+	 Tor:
+	 Pdu:
  - rack2:
-	Blades:
-	 - blade: 1
-		Cores: 16
-		MemoryInMb: 16834
-		DiskInGb: 240 
-		NetworkBandwidthInMbps: 2048
-		Arch: X64
-	- blade: 2
-		Cores: 8
-		MemoryInMb: 16834
-		DiskInGb: 120
-		NetworkBandwidthInMbps: 2048
-		Arch: X64
-	Tor:
-	Pdu:
+    Blades:
+    - blade: 1
+      Cores: 16
+      MemoryInMb: 16834
+      DiskInGb: 240 
+			NetworkBandwidthInMbps: 2048
+      Arch: "X64"
+	  - blade: 2
+		  Cores: 8
+	  	MemoryInMb: 16834
+		  DiskInGb: 120
+		  NetworkBandwidthInMbps: 2048
+		  Arch: X64
+	  Tor:
+	  Pdu:

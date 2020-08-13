@@ -189,3 +189,5 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		return p.Marshal(w, blade)
 	})
 }
+
+func ReadInventoryDefinition ()
