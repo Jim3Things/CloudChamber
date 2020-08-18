@@ -40,15 +40,15 @@ PROTO_GEN_FILES = \
     pkg/protos/trace_sink/trace_sink.pb.go
 
 
-VERSION_MARKER = \
-    pkg/version/generated.go \
-    pkg/version/version_stamp.md
-
 SERVICES = \
     deployments/controllerd.exe \
     deployments/inventoryd.exe \
     deployments/sim_supportd.exe \
     deployments/web_server.exe
+
+VERSION_MARKER = \
+    pkg/version/generated.go \
+    pkg/version/version_stamp.md
 
 ARTIFACTS = \
     deployments/readme.md \
