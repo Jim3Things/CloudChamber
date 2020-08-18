@@ -33,7 +33,7 @@ if /i "%1" NEQ "" (
 
 ) else (
 
-  set CLOUDCHAMBERDIR=%DEFAULT_DEPLOYMENT%)
+  set CLOUDCHAMBERDIR=%DEFAULT_DEPLOYMENT%
 
 )
 

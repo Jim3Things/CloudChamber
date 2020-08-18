@@ -73,7 +73,7 @@ if exist %~dp0%BINARY% (
 
 ) else (
 
-   for %%I in (%BINARY%) do set TARGETBIN=%%~$PATH:I
+  for %%I in (%BINARY%) do set TARGETBIN=%%~$PATH:I
 
 )
 
