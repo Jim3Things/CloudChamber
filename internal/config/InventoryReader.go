@@ -1,41 +1,64 @@
-// Inventory reader parses the YAML file and returns Zone. into a pb external zone. 
+// Inventory reader parses the YAML file and returns Zone. into a pb external zone.
 
-package main
+package config
 
-import(
-
-	"fmt"
-	"io/ioutil"
-	"path/filepath"
-
-	"gopkg.in/yaml.v2"
+import (
 	"context"
-	
-	"net/http"
-	"strconv"
-	"strings"
+	"fmt"
 
-	"github.com/gorilla/sessions"
+	"github.com/spf13/viper"
+	"go.opentelemetry.io/otel/api/global"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/gorilla/mux"
-
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
-func (x *EXternalZone) Reset(){
+const(
+	DefaultDefinitionFile = "inventory.yaml"
+)
 
-	yamlFile, err := ioutil.ReadFile("C:\Users\Waheguru\go\src\github.com\Jim3Things\CloudChamber\configs\Inventory.yaml")
-	if err != nil {
-		log.PrintF("yamlFile.Get err  #%v", err)
-	}
-	err = yaml.marshal(yamlFile, x)
-	if err != nil {
-		log.Fatalf("Unmarshal: %v", err)
-	}
+func ReadInventoryDefinition(path string) (*pb.ExternalZone, error){
 
-	return x
+	viper.SetConfigName(DefaultDefinitionFile)
+	viper.AddConfigPath(path)
+	viper.SetConfigType(DefaultConfigType)
+
+	cfg := &pb.ExternalZone{}
+
+	tr := global.TraceProvider().Tracer("")
+
+	ctx, span :=tr.Start(
+			context.Background(),
+			"ReadInventoryDefinition")
+		defer span.End()
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+							// Config file not found; we'll just use the default values
+							span.AddEvent(
+											ctx,
+											fmt.Sprintf(
+															"No inventory definitino found at %s/%s (%s), applying defaults.",
+															path,
+															DefaultDefinitionFile,
+															DefaultConfigType))
+			} else {
+							// Config file was found but another error was produced
+							err = fmt.Errorf("fatal error reading definition file: %s", err)
+							span.AddEvent(ctx, err.Error())
+							return nil, err
+			}
+} else {
+			// Fill in the global configuration object from the configuration file
+			if err = viper.UnmarshalExact(cfg); err != nil {
+							err = fmt.Errorf("unable to decode into struct, %v", err)
+							span.AddEvent(ctx, err.Error())
+							return nil, err
+			}
 }
+
+span.AddEvent(ctx,
+			fmt.Sprintf("Inventory definition Read: \n%v", cfg))
+
+return cfg, nil
+}
+
+

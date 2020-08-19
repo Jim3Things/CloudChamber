@@ -190,4 +190,3 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func ReadInventoryDefinition ()
