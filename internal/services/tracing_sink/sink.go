@@ -22,6 +22,10 @@ type listEntry struct {
     entry *log.Entry
 }
 
+type waitResponse struct {
+
+}
+
 type server struct {
     pb.UnimplementedTraceSinkServer
 
@@ -66,7 +70,8 @@ func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*pb.App
 }
 
 func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
-    return nil, fmt.Errorf("not yet implemented")
+    resp := <-s.wait(request)
+    return resp.res, resp.err
 }
 
 func (s *server) GetPolicy(ctx context.Context, request *pb.GetPolicyRequest) (*pb.GetPolicyResponse, error) {
@@ -100,8 +105,14 @@ func (s *server) addEntry(entry *log.Entry) {
 
     fmt.Printf("%s: %d(%d): %v\n\n", time.Now().Format(time.RFC822), s.lastId, s.entries.Len(), entry)
     s.lastId++
+
+    s.signalWaiters()
 }
 
 func (s *server) signalWaiters() {
 
+}
+
+func (s *server) wait(request *pb.GetAfterRequest) <- chan waitResponse{
+    
 }
