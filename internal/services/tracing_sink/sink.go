@@ -13,6 +13,8 @@ import (
 
     "google.golang.org/grpc"
 
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
     "github.com/Jim3Things/CloudChamber/pkg/protos/log"
     pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
 )
@@ -23,7 +25,13 @@ type listEntry struct {
 }
 
 type waitResponse struct {
+    err error
+    res *pb.GetAfterResponse
+}
 
+type waiter struct {
+    maxEntries int64
+    ch <-chan waitResponse
 }
 
 type server struct {
@@ -61,16 +69,26 @@ func LocalAppend(ctx context.Context, entry *log.Entry) error {
 }
 
 func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*pb.AppendResponse, error) {
-    s.mutex.Lock()
-    defer s.mutex.Unlock()
+    err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+        return s.LocalAppend(ctx, request.Entry)
+    })
 
-    s.addEntry(request.Entry)
-
-    return &pb.AppendResponse{}, nil
+    return &pb.AppendResponse{}, err
 }
 
 func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
-    resp := <-s.wait(request)
+    var resp waitResponse
+
+    _ = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+        if !request.Wait {
+            resp = s.processWaiter(request.Id, request.MaxEntries)
+            return nil
+        }
+
+        resp = <-s.wait(request)
+        return nil
+    })
+
     return resp.res, resp.err
 }
 
@@ -83,6 +101,11 @@ func (s *server) SetPolicy(ctx context.Context, request *pb.SetPolicyRequest) (*
 }
 
 func (s *server) LocalAppend(ctx context.Context, entry *log.Entry) error {
+    s.mutex.Lock()
+    defer s.mutex.Unlock()
+
+    s.addEntry(entry)
+
     return nil
 }
 
@@ -95,9 +118,9 @@ func (s *server) addEntry(entry *log.Entry) {
     s.entries.PushBack(item)
 
     if s.entries.Len() > s.maxHeld {
-        firsteEntry := s.entries.Front().Value.(listEntry)
+        firstEntry := s.entries.Front().Value.(listEntry)
 
-        fmt.Printf("    : Deleting entry %d\n\n", firsteEntry.id)
+        fmt.Printf("    : Deleting entry %d\n\n", firstEntry.id)
 
         s.entries.Remove(s.entries.Front())
         s.firstId = s.entries.Front().Value.(listEntry).id
@@ -114,5 +137,12 @@ func (s *server) signalWaiters() {
 }
 
 func (s *server) wait(request *pb.GetAfterRequest) <- chan waitResponse{
-    
+    ch := make(<-chan waitResponse)
+
+
+    return ch
+}
+
+func (s *server) processWaiter(startId int64, maxEntries int64) waitResponse {
+    return waitResponse{}
 }
