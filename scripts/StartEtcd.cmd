@@ -11,8 +11,6 @@ SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
 set LOCALHOST=127.0.0.1
 
-set BINARY=etcd.exe
-set TARGETBINPATH=%ETCDBINPATH%
 
 set DEFAULT_ETCDROOT=%SystemDrive%\etcd
 set DEFAULT_ETCDDATA=%DEFAULT_ETCDROOT%\data
@@ -57,30 +55,30 @@ if /i "%1" NEQ "" (
 )
 
 
-rem Find a binary to use
+rem Find a etcd.exe to use
 rem
-if exist %~dp0%BINARY% (
+if exist %~dp0etcd.exe (
 
-  set TARGETBIN=%~dp0%BINARY%
+  set TARGETBIN=%~dp0etcd.exe
 
-) else if exist %TARGETBINPATH%\%BINARY% (
+) else if exist %ETCDBINPATH%\etcd.exe (
 
-  set TARGETBIN=%TARGETBINPATH%\%BINARY%
+  set TARGETBIN=%ETCDBINPATH%\etcd.exe
 
-) else if exist %GOPATH%\bin\%BINARY% (
+) else if exist %GOPATH%\bin\etcd.exe (
 
-  set TARGETBIN=%GOPATH%\bin\%BINARY%
+  set TARGETBIN=%GOPATH%\bin\etcd.exe
 
 ) else (
 
-  for %%I in (%BINARY%) do set TARGETBIN=%%~$PATH:I
+  for %%I in (etcd.exe) do set TARGETBIN=%%~$PATH:I
 
 )
 
 
 if not exist "%TARGETBIN%" (
   echo.
-  echo Unable to find a copy of %BINARY%
+  echo Unable to find a copy of etcd.exe
   echo.
   goto :ScriptExit
 )
