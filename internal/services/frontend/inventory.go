@@ -78,7 +78,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		err = dbInventory.Scan(func(name string) (err error) {
 			target := fmt.Sprintf("%s%s", b, name)
 
-			res.Racks[name] = &pb.ExternalRackSummary{ Uri:  target	}
+			res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
 			st.Infof(ctx, tick(), "   Listing rack %q at %q", name, target)
 

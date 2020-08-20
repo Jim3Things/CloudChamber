@@ -210,7 +210,7 @@ func ensureEstablishedSession(session *sessions.Session) error {
 		return NewErrNoSessionActive()
 	}
 
-	if _, ok := getSession(session);  !ok {
+	if _, ok := getSession(session); !ok {
 		return NewErrNoSessionActive()
 	}
 

@@ -15,7 +15,7 @@ import (
 
 // Workload is a representation of a specific workload
 //
-//TODO This is just a placeholder until we have proper workload definitions
+// TODO This is just a placeholder until we have proper workload definitions
 //     held in a persisted store (Etcd)
 //
 type Workload struct {

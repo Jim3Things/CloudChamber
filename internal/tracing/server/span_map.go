@@ -9,29 +9,29 @@
 package server
 
 import (
-    "sync"
+	"sync"
 
-    "github.com/AsynkronIT/protoactor-go/actor"
-    "go.opentelemetry.io/otel/api/trace"
+	"github.com/AsynkronIT/protoactor-go/actor"
+	"go.opentelemetry.io/otel/api/trace"
 )
 
 var spans = sync.Map{}
 
 // Get a span based on an actor ID
 func GetSpan(pid *actor.PID) trace.Span {
-    value, ok := spans.Load(pid)
-    if !ok {
-        return nil
-    }
-    return value.(trace.Span)
+	value, ok := spans.Load(pid)
+	if !ok {
+		return nil
+	}
+	return value.(trace.Span)
 }
 
 // Remove an actor ID to span association
 func ClearSpan(pid *actor.PID) {
-    spans.Delete(pid)
+	spans.Delete(pid)
 }
 
 // Establish an actor ID to span association
 func SetSpan(pid *actor.PID, span trace.Span) {
-    spans.Store(pid, span)
+	spans.Store(pid, span)
 }

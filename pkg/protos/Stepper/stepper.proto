@@ -7,7 +7,7 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/duration.proto";
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/Stepper";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper";
 
 // This service manages the overall passage of time.
 //
@@ -77,10 +77,10 @@ message PolicyRequest {
 }
 
 // Define the request associated with a Step operation
-message StepRequest { }
+message StepRequest {}
 
 // Define the request associated with a current time query
-message NowRequest { }
+message NowRequest {}
 
 // Define the parameters when requesting a delay
 message DelayRequest {
@@ -95,10 +95,10 @@ message DelayRequest {
 }
 
 // Define the request associated with a forcible reset
-message ResetRequest { }
+message ResetRequest {}
 
 // Define the request associated with a status request
-message GetStatusRequest { }
+message GetStatusRequest {}
 
 // Internally used message to cause a simulate time advance based on timer
 // expiry

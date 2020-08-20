@@ -135,7 +135,6 @@ func testUserSetPassword(t *testing.T, name string, upd *pb.UserPassword, rev in
 	return response, match
 }
 
-
 // --- Helper functions
 
 // The individual unit tests follow here.  They are grouped by the operation
@@ -980,7 +979,7 @@ func TestUsersUpdateExpandRights(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now verify that the entry has not been changed
-	response, user := testUserRead(t, baseURI + alice, response.Cookies())
+	response, user := testUserRead(t, baseURI+alice, response.Cookies())
 	assert.False(t, user.CanManageAccounts)
 	assert.True(t, user.Enabled)
 	assert.False(t, user.NeverDelete)
@@ -1128,11 +1127,10 @@ func TestUsersSetPassword(t *testing.T) {
 	//
 	assert.Less(t, rev, match)
 
-
 	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = doLogin(t, "Alice", alicePassword + "xxx", response.Cookies())
+	response = doLogin(t, "Alice", alicePassword+"xxx", response.Cookies())
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
@@ -1174,11 +1172,10 @@ func TestUsersSetPasswordForce(t *testing.T) {
 	//
 	assert.Less(t, rev, match)
 
-
 	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = doLogin(t, "Alice", alicePassword + "xxx", response.Cookies())
+	response = doLogin(t, "Alice", alicePassword+"xxx", response.Cookies())
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back

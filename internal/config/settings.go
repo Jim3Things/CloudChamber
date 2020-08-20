@@ -68,21 +68,21 @@ type Endpoint struct {
 // ControllerType is a helper type describes the controllerd configuration settings
 type ControllerType struct {
 	// Exposed GRPC endpoint
-	EP Endpoint
+	EP        Endpoint
 	TraceFile string
 }
 
 // InventoryType is a helper type that describes the inventoryd configuration settings
 type InventoryType struct {
 	// Exposed GRPC endpoint
-	EP Endpoint
+	EP        Endpoint
 	TraceFile string
 }
 
 // SimSupportType is a helper type that describes the sim_supportd configuration settings
 type SimSupportType struct {
 	// Exposed GRPC endpoint
-	EP Endpoint
+	EP        Endpoint
 	TraceFile string
 
 	// Name of the initial stepper policy to apply
@@ -118,7 +118,7 @@ type WebServerType struct {
 	FE Endpoint
 
 	// GPRC endpoint, used for internal notifications
-	BE Endpoint
+	BE        Endpoint
 	TraceFile string
 }
 
@@ -164,7 +164,7 @@ func newGlobalConfig() *GlobalConfig {
 				Hostname: DefaultHost,
 				Port:     SimSupportDefaultPort,
 			},
-			TraceFile: SimSupportDefaultTraceFile,
+			TraceFile:     SimSupportDefaultTraceFile,
 			StepperPolicy: DefaultStepperPolicy,
 		},
 		WebServer: WebServerType{
