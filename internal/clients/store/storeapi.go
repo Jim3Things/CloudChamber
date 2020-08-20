@@ -18,7 +18,7 @@ import (
 //
 type KeyRoot int
 
-// The set of avalable namespace roots used by vcarious record types
+// The set of available namespace roots used by various record types
 //
 const (
 	KeyRootUsers KeyRoot = iota
@@ -89,7 +89,6 @@ type Response struct {
 // Encode is a default protobuf defined message to JSON encoded string encoder
 //
 func Encode(m proto.Message) (s string, err error) {
-
 	p := jsonpb.Marshaler{}
 
 	if s, err = p.MarshalToString(m); err != nil {
@@ -111,10 +110,12 @@ func Decode(s string, m protoiface.MessageV1) error {
 
 // CreateNew is a function to create a single key, value record pair
 //
-func (store *Store) CreateNew(ctx context.Context, r KeyRoot, n string, m protoiface.MessageV1) (revision int64, err error) {
-
+func (store *Store) CreateNew(
+	ctx context.Context,
+	r KeyRoot,
+	n string,
+	m protoiface.MessageV1) (revision int64, err error) {
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
@@ -129,7 +130,10 @@ func (store *Store) CreateNew(ctx context.Context, r KeyRoot, n string, m protoi
 			return err
 		}
 
-		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
+		request := &Request{
+			Records:    make(map[string]Record),
+			Conditions: make(map[string]Condition),
+		}
 
 		k := getKeyFromKeyRootAndName(r, n)
 		request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
@@ -161,9 +165,7 @@ func (store *Store) CreateNew(ctx context.Context, r KeyRoot, n string, m protoi
 // CreateNewValue is a function to create a single key, value record pair
 //
 func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v string) (revision int64, err error) {
-
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
@@ -172,7 +174,10 @@ func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v s
 			return err
 		}
 
-		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
+		request := &Request{
+			Records:    make(map[string]Record),
+			Conditions: make(map[string]Condition),
+		}
 
 		k := getKeyFromKeyRootAndName(r, n)
 		request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
@@ -202,7 +207,7 @@ func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v s
 }
 
 // ReadNew is a method to retrieve the user record associated with the
-// supplied name, deal with any store related key prefixes, and decore
+// supplied name, deal with any store related key prefixes, and decode
 // the json encoded record into something the caller understands.
 //
 // NOTE: A future enhancement may occur where the caller supplies an action
@@ -211,17 +216,19 @@ func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v s
 //       the keys used to persist the callers records but not have to worry
 //       about the encode/decode formats or indeed the target record itself.
 //
-func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoiface.MessageV1) (revision int64, err error) {
-
+func (store *Store) ReadNew(
+	ctx context.Context,
+	r KeyRoot,
+	n string,
+	m protoiface.MessageV1) (revision int64, err error) {
 	revision = RevisionInvalid
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to read and decode %q under prefix %q", n, prefix)
 
-		if err := store.disconnected(ctx); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -233,7 +240,10 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 
 		// If we need to do the read to get the revision, we will need an array of the keys
 		//
-		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
+		request := &Request{
+			Records:    make(map[string]Record),
+			Conditions: make(map[string]Condition),
+		}
 
 		k := getKeyFromKeyRootAndName(r, n)
 		request.Records[k] = Record{Revision: RevisionInvalid}
@@ -256,11 +266,14 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 			rev = response.Records[k].Revision
 			val = response.Records[k].Value
 
-			if err := Decode(val, m); err != nil {
+			if err = Decode(val, m); err != nil {
 				return err
 			}
 
-			st.Infof(ctx, -1, "found and decoded record for %q under prefix %q with revision %v and value %q", n, prefix, rev, val)
+			st.Infof(
+				ctx, -1,
+				"found and decoded record for %q under prefix %q with revision %v and value %q",
+				n, prefix, rev, val)
 
 			revision = rev
 
@@ -272,7 +285,7 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 }
 
 // ReadNewValue is a method to retrieve the user record associated with the
-// supplied name, deal with any store related key prefixes, and decore
+// supplied name, deal with any store related key prefixes, and decode
 // the json encoded record into something the caller understands.
 //
 // NOTE: A future enhancement may occur where the caller supplies an action
@@ -282,16 +295,14 @@ func (store *Store) ReadNew(ctx context.Context, r KeyRoot, n string, m protoifa
 //       about the encode/decode formats or indeed the target record itself.
 //
 func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (value *string, revision int64, err error) {
-
 	revision = RevisionInvalid
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to read value of %q under prefix %q", n, prefix)
 
-		if err := store.disconnected(ctx); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -303,7 +314,10 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 
 		// If we need to do the read to get the revision, we will need an array of the keys
 		//
-		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
+		request := &Request{
+			Records:    make(map[string]Record),
+			Conditions: make(map[string]Condition),
+		}
 
 		k := getKeyFromKeyRootAndName(r, n)
 		request.Records[k] = Record{Revision: RevisionInvalid}
@@ -339,10 +353,13 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 
 // UpdateNew is a function to conditionally update a value for a single key
 //
-func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int64, m protoiface.MessageV1) (revision int64, err error) {
-
+func (store *Store) UpdateNew(
+	ctx context.Context,
+	r KeyRoot,
+	n string,
+	rev int64,
+	m protoiface.MessageV1) (revision int64, err error) {
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to update %q under prefix %q", n, prefix)
@@ -352,7 +369,6 @@ func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int6
 		}
 
 		v, err := Encode(m)
-
 		if err != nil {
 			return err
 		}
@@ -367,7 +383,9 @@ func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int6
 			condition = ConditionRevisionEqual
 		}
 
-		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
+		request := &Request{
+			Records:    make(map[string]Record),
+			Conditions: make(map[string]Condition)}
 
 		k := getKeyFromKeyRootAndName(r, n)
 		request.Records[k] = Record{Revision: rev, Value: v}
@@ -379,7 +397,10 @@ func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int6
 			return err
 		}
 
-		st.Infof(ctx, -1, "Updated record %q under prefix %q from revision %v to revision %v", n, prefix, rev, resp.Revision)
+		st.Infof(
+			ctx, -1,
+			"Updated record %q under prefix %q from revision %v to revision %v",
+			n, prefix, rev, resp.Revision)
 
 		revision = resp.Revision
 
@@ -392,9 +413,7 @@ func (store *Store) UpdateNew(ctx context.Context, r KeyRoot, n string, rev int6
 // DeleteNew is a function to delete a single key, value record pair
 //
 func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int64) (revision int64, err error) {
-
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to delete %q under prefix %q", n, prefix)
@@ -413,7 +432,10 @@ func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int6
 			condition = ConditionRevisionEqual
 		}
 
-		request := &Request{Records: make(map[string]Record), Conditions: make(map[string]Condition)}
+		request := &Request{
+			Records:    make(map[string]Record),
+			Conditions: make(map[string]Condition),
+		}
 
 		k := getKeyFromKeyRootAndName(r, n)
 		request.Records[k] = Record{Revision: rev}
@@ -432,7 +454,10 @@ func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int6
 			return err
 		}
 
-		st.Infof(ctx, -1, "Deleted record for %q under prefix %q with revision %v resulting in store revision %v", n, prefix, rev, resp.Revision)
+		st.Infof(
+			ctx, -1,
+			"Deleted record for %q under prefix %q with revision %v resulting in store revision %v",
+			n, prefix, rev, resp.Revision)
 
 		revision = resp.Revision
 
@@ -449,18 +474,16 @@ func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int6
 // NOTE: This should only be used at present if the number of user records
 //       is limited as there is a limit to the number of records that can
 //       be fetched from the store in a single shot. Eventually this will
-//       be updated to user an "interupted" enum style call to allow for
+//       be updated to use an "interrupted" enum style call to allow for
 //		 an essentially infinite number of records.
 //
 func (store *Store) ListNew(ctx context.Context, r KeyRoot) (records *map[string]Record, revision int64, err error) {
-
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to list keys under prefix %q", prefix)
 
-		if err := store.disconnected(ctx); err != nil {
+		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
 
@@ -472,7 +495,7 @@ func (store *Store) ListNew(ctx context.Context, r KeyRoot) (records *map[string
 
 		recs := make(map[string]Record, len(response.Records))
 
-		for k, r := range response.Records {
+		for k, record := range response.Records {
 
 			if !strings.HasPrefix(k, prefix) {
 				return ErrStoreBadRecordKey(k)
@@ -480,9 +503,9 @@ func (store *Store) ListNew(ctx context.Context, r KeyRoot) (records *map[string
 
 			name := strings.TrimPrefix(k, prefix)
 
-			recs[name] = Record{Revision: r.Revision, Value: r.Value}
+			recs[name] = Record{Revision: record.Revision, Value: record.Value}
 
-			st.Infof(ctx, -1, "found record with key %q for name %q with revision %v", k, name, r.Revision)
+			st.Infof(ctx, -1, "found record with key %q for name %q with revision %v", k, name, record.Revision)
 		}
 
 		st.Infof(ctx, -1, "returned %v records at store revision %v", len(response.Records), response.Revision)
