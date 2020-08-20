@@ -67,23 +67,23 @@
 package store
 
 import (
-    "context"
-    "fmt"
-    "log"
-    "strings"
-    "sync"
-    "time"
+	"context"
+	"fmt"
+	"log"
+	"strings"
+	"sync"
+	"time"
 
-    "github.com/Jim3Things/CloudChamber/internal/config"
-    "github.com/Jim3Things/CloudChamber/internal/tracing"
-    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 
-    "go.etcd.io/etcd/clientv3"
-    "go.etcd.io/etcd/clientv3/concurrency"
-    ns "go.etcd.io/etcd/clientv3/namespace"
-    "go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
-    "google.golang.org/grpc/codes"
-    "google.golang.org/grpc/status"
+	"go.etcd.io/etcd/clientv3"
+	"go.etcd.io/etcd/clientv3/concurrency"
+	ns "go.etcd.io/etcd/clientv3/namespace"
+	"go.etcd.io/etcd/etcdserver/api/v3rpc/rpctypes"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // All CloudChamber key-value pairs are stored under a common namespace root.
@@ -94,9 +94,9 @@ import (
 // At no time can the root namespace be removed.
 //
 const (
-    slash                 = "/"
-    cloudChamberNamespace = string("/CloudChamber/v0.1")
-    testNamespaceSuffix   = string("Test")
+	slash                 = "/"
+	cloudChamberNamespace = string("/CloudChamber/v0.1")
+	testNamespaceSuffix   = string("Test")
 )
 
 // TraceFlags is the type used when setting of fetching the relevant flags
@@ -104,47 +104,47 @@ const (
 type TraceFlags uint
 
 const (
-    traceFlagEnabled TraceFlags = 1 << iota
-    traceFlagExpandResults
-    traceFlagTraceKey
-    traceFlagTraceKeyAndValue
-    traceFlagExpandResultsInTest
+	traceFlagEnabled TraceFlags = 1 << iota
+	traceFlagExpandResults
+	traceFlagTraceKey
+	traceFlagTraceKeyAndValue
+	traceFlagExpandResultsInTest
 )
 
 type global struct {
-    Stores     map[string]Store
-    StoreMutex sync.Mutex
+	Stores     map[string]Store
+	StoreMutex sync.Mutex
 
-    DefaultTimeoutConnect  time.Duration
-    DefaultTimeoutRequest  time.Duration
-    DefaultEndpoints       []string
-    DefaultTraceFlags      TraceFlags
-    DefaultNamespaceSuffix string
+	DefaultTimeoutConnect  time.Duration
+	DefaultTimeoutRequest  time.Duration
+	DefaultEndpoints       []string
+	DefaultTraceFlags      TraceFlags
+	DefaultNamespaceSuffix string
 }
 
 // Store is a struct used to collect all the interesting state values associated with
 // communicating with an instance of the store
 //
 type Store struct {
-    Endpoints         []string
-    TimeoutConnect    time.Duration
-    TimeoutRequest    time.Duration
-    Mutex             sync.Mutex
-    Client            *clientv3.Client
-    UnprefixedKV      clientv3.KV
-    UnprefixedWatcher clientv3.Watcher
-    UnprefixedLease   clientv3.Lease
-    Namespace         string
-    NamespaceSuffix   string
-    TraceFlags        TraceFlags
+	Endpoints         []string
+	TimeoutConnect    time.Duration
+	TimeoutRequest    time.Duration
+	Mutex             sync.Mutex
+	Client            *clientv3.Client
+	UnprefixedKV      clientv3.KV
+	UnprefixedWatcher clientv3.Watcher
+	UnprefixedLease   clientv3.Lease
+	Namespace         string
+	NamespaceSuffix   string
+	TraceFlags        TraceFlags
 }
 
 // KeyValueArg is a struct used to describe one or more key/value pairs supplied
 // to a call such as WriteMultiple()
 //
 type KeyValueArg struct {
-    key   string
-    value string
+	key   string
+	value string
 }
 
 // KeyValueResponse is a struct used to describe one or more key/value pairs
@@ -152,109 +152,109 @@ type KeyValueArg struct {
 // call.
 //
 type KeyValueResponse struct {
-    key   string
-    value []byte
+	key   string
+	value []byte
 }
 
 var (
-    storeRoot global
+	storeRoot global
 )
 
 func (store *Store) traceEnabled() bool { return store.TraceFlags != 0 }
 
 func (store *Store) trace(v TraceFlags) (result bool) {
 
-    if v&traceFlagEnabled == traceFlagEnabled {
-        return store.traceEnabled()
-    }
+	if v&traceFlagEnabled == traceFlagEnabled {
+		return store.traceEnabled()
+	}
 
-    if v&store.TraceFlags != 0 {
-        return true
-    }
+	if v&store.TraceFlags != 0 {
+		return true
+	}
 
-    return false
+	return false
 }
 
 func getDefaultEndpoints() []string {
-    return storeRoot.DefaultEndpoints
+	return storeRoot.DefaultEndpoints
 }
 
 func getDefaultTimeoutConnect() time.Duration {
-    return storeRoot.DefaultTimeoutConnect
+	return storeRoot.DefaultTimeoutConnect
 }
 
 func getDefaultTimeoutRequest() time.Duration {
-    return storeRoot.DefaultTimeoutRequest
+	return storeRoot.DefaultTimeoutRequest
 }
 
 func getDefaultTraceFlags() TraceFlags {
-    return storeRoot.DefaultTraceFlags
+	return storeRoot.DefaultTraceFlags
 }
 
 func getDefaultNamespaceSuffix() string {
-    return storeRoot.DefaultNamespaceSuffix
+	return storeRoot.DefaultNamespaceSuffix
 }
 
 func setDefaultNamespaceSuffix(suffix string) {
-    storeRoot.DefaultNamespaceSuffix = suffix
+	storeRoot.DefaultNamespaceSuffix = suffix
 }
 
 func (store *Store) connected(ctx context.Context) error {
 
-    if nil != store.Client {
-        err := ErrStoreConnected
-        _ = st.Errorf(ctx, -1, "unable to perform operation - store is connected - error: %v", err)
-        return err
-    }
+	if nil != store.Client {
+		err := ErrStoreConnected
+		_ = st.Errorf(ctx, -1, "unable to perform operation - store is connected - error: %v", err)
+		return err
+	}
 
-    return nil
+	return nil
 }
 
 func (store *Store) disconnected(ctx context.Context) error {
 
-    if nil == store.Client {
-        err := ErrStoreNotConnected
-        _ = st.Errorf(ctx, -1, "unable to perform operation - no current connection - error: %v", err)
-        return err
-    }
+	if nil == store.Client {
+		err := ErrStoreNotConnected
+		_ = st.Errorf(ctx, -1, "unable to perform operation - no current connection - error: %v", err)
+		return err
+	}
 
-    return nil
+	return nil
 }
 
 // Initialize is a method used to initialise the basic global state used to access
 // the back-end db service.
 //
 func Initialize(cfg *config.GlobalConfig) {
-    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        storeRoot.DefaultEndpoints = []string {
-            fmt.Sprintf("%s:%d", cfg.Store.EtcdService.Hostname, cfg.Store.EtcdService.Port),
-        }
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		storeRoot.DefaultEndpoints = []string{
+			fmt.Sprintf("%s:%d", cfg.Store.EtcdService.Hostname, cfg.Store.EtcdService.Port),
+		}
 
-        storeRoot.DefaultTimeoutConnect = time.Duration(cfg.Store.ConnectTimeout) * time.Second
-        storeRoot.DefaultTimeoutRequest = time.Duration(cfg.Store.RequestTimeout) * time.Second
-        storeRoot.DefaultTraceFlags = TraceFlags(cfg.Store.TraceLevel)
-        storeRoot.DefaultNamespaceSuffix = ""
+		storeRoot.DefaultTimeoutConnect = time.Duration(cfg.Store.ConnectTimeout) * time.Second
+		storeRoot.DefaultTimeoutRequest = time.Duration(cfg.Store.RequestTimeout) * time.Second
+		storeRoot.DefaultTraceFlags = TraceFlags(cfg.Store.TraceLevel)
+		storeRoot.DefaultNamespaceSuffix = ""
 
-        st.Infof(
-            ctx,
-            -1,
-            "EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v",
-            storeRoot.DefaultEndpoints,
-            storeRoot.DefaultTimeoutConnect,
-            storeRoot.DefaultTimeoutRequest,
-            storeRoot.DefaultTraceFlags,
-            storeRoot.DefaultNamespaceSuffix)
+		st.Infof(
+			ctx,
+			-1,
+			"EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v",
+			storeRoot.DefaultEndpoints,
+			storeRoot.DefaultTimeoutConnect,
+			storeRoot.DefaultTimeoutRequest,
+			storeRoot.DefaultTraceFlags,
+			storeRoot.DefaultNamespaceSuffix)
 
-        // See if any part of the test namespace requires initialization and optionally cleaning.
-        //
-        // NOTE: This only affects the test namespace, not the production namespace. Ideally it
-        //       would not be here but the store is used by other services as part of their test
-        //       operation and so this feature needs to be in common code.
-        //
-        PrepareTestNamespace(ctx, cfg)
+		// See if any part of the test namespace requires initialization and optionally cleaning.
+		//
+		// NOTE: This only affects the test namespace, not the production namespace. Ideally it
+		//       would not be here but the store is used by other services as part of their test
+		//       operation and so this feature needs to be in common code.
+		//
+		PrepareTestNamespace(ctx, cfg)
 
-        return nil
-    })
+		return nil
+	})
 }
 
 // PrepareTestNamespace will prepare the store to be used for test purposes. Optionally, this will
@@ -265,71 +265,71 @@ func Initialize(cfg *config.GlobalConfig) {
 //       data related operations have taken place.
 //
 func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
-    if !cfg.Store.Test.UseTestNamespace {
-        return
-    }
+	if !cfg.Store.Test.UseTestNamespace {
+		return
+	}
 
-    // It is meaningless to have both a unique per-instance test namespace
-    // and to clean the store before the tests are run
-    //
-    if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
-        st.Fatalf(ctx, -1,
-            "invalid configuration: : %v",
-            ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
-    }
+	// It is meaningless to have both a unique per-instance test namespace
+	// and to clean the store before the tests are run
+	//
+	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
+		st.Fatalf(ctx, -1,
+			"invalid configuration: : %v",
+			ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
+	}
 
-    // For test purposes, need to set an alternate namespace rather than
-    // rely on the standard. From the configuration, we can either use the
-    // standard, fixed, well-known prefix, or we can use a per-instance
-    // unique prefix derived from the current time
-    //
-    testNamespace := testNamespaceSuffix
+	// For test purposes, need to set an alternate namespace rather than
+	// rely on the standard. From the configuration, we can either use the
+	// standard, fixed, well-known prefix, or we can use a per-instance
+	// unique prefix derived from the current time
+	//
+	testNamespace := testNamespaceSuffix
 
-    if cfg.Store.Test.UseUniqueInstance {
-        testNamespace += fmt.Sprintf("/%s", time.Now().Format(time.RFC3339Nano))
-    } else {
-        testNamespace += "/Standard"
-    }
+	if cfg.Store.Test.UseUniqueInstance {
+		testNamespace += fmt.Sprintf("/%s", time.Now().Format(time.RFC3339Nano))
+	} else {
+		testNamespace += "/Standard"
+	}
 
-    st.Infof(ctx, -1, "Configured to use test namespace %q", testNamespace)
+	st.Infof(ctx, -1, "Configured to use test namespace %q", testNamespace)
 
-    if cfg.Store.Test.PreCleanStore {
+	if cfg.Store.Test.PreCleanStore {
 
-        st.Infof(ctx, -1, "Starting store pre-clean of namespace %q", testNamespace)
+		st.Infof(ctx, -1, "Starting store pre-clean of namespace %q", testNamespace)
 
-        if err := cleanNamespace(testNamespace); err != nil {
-            st.Fatalf(
-                ctx, -1,
-                "failed to pre-clean the store as requested - namespace: %s err: %v",
-                testNamespace, err)
-        }
-    }
+		if err := cleanNamespace(testNamespace); err != nil {
+			st.Fatalf(
+				ctx, -1,
+				"failed to pre-clean the store as requested - namespace: %s err: %v",
+				testNamespace, err)
+		}
+	}
 
-    setDefaultNamespaceSuffix(testNamespace)
+	setDefaultNamespaceSuffix(testNamespace)
 }
 
 func cleanNamespace(testNamespace string) error {
-    store := NewStore()
+	store := NewStore()
 
-    if store == nil {
-        log.Fatal("unable to allocate store context for pre-cleanup")
-    }
+	if store == nil {
+		log.Fatal("unable to allocate store context for pre-cleanup")
+	}
 
-    if err := store.SetNamespaceSuffix(""); err != nil {
-        return err
-    }
+	if err := store.SetNamespaceSuffix(""); err != nil {
+		return err
+	}
 
-    if err := store.Connect(); err != nil {
-        return err
-    }
+	if err := store.Connect(); err != nil {
+		return err
+	}
 
-    if err := store.DeleteWithPrefix(testNamespace); err != nil {
-        return err
-    }
+	if err := store.DeleteWithPrefix(testNamespace); err != nil {
+		return err
+	}
 
-    store.Disconnect()
+	store.Disconnect()
 
-    return nil
+	return nil
 }
 
 // NewStore is a method to allocate a new Store struct using the
@@ -342,13 +342,13 @@ func cleanNamespace(testNamespace string) error {
 // providing the store has not yet connected to the back-end db service.
 //
 func NewStore() *Store {
-    return New(
-        getDefaultEndpoints(),
-        getDefaultTimeoutConnect(),
-        getDefaultTimeoutRequest(),
-        getDefaultTraceFlags(),
-        getDefaultNamespaceSuffix(),
-    )
+	return New(
+		getDefaultEndpoints(),
+		getDefaultTimeoutConnect(),
+		getDefaultTimeoutRequest(),
+		getDefaultTraceFlags(),
+		getDefaultNamespaceSuffix(),
+	)
 }
 
 // New is a method supplied values. These values can later be overridden with
@@ -360,85 +360,84 @@ func NewStore() *Store {
 // providing the store has not yet connected to the back-end db service.
 //
 func New(
-        endpoints []string,
-        timeoutConnect time.Duration,
-        timeoutRequest time.Duration,
-        traceFlags TraceFlags,
-        namespace string) *Store {
-    store := &Store{
-        Endpoints:       endpoints,
-        TimeoutConnect:  timeoutConnect,
-        TimeoutRequest:  timeoutRequest,
-        TraceFlags:      traceFlags,
-        NamespaceSuffix: namespace,
-    }
+	endpoints []string,
+	timeoutConnect time.Duration,
+	timeoutRequest time.Duration,
+	traceFlags TraceFlags,
+	namespace string) *Store {
+	store := &Store{
+		Endpoints:       endpoints,
+		TimeoutConnect:  timeoutConnect,
+		TimeoutRequest:  timeoutRequest,
+		TraceFlags:      traceFlags,
+		NamespaceSuffix: namespace,
+	}
 
-    return store
+	return store
 }
 
 // Initialize is a method used to initialize a specific instance of a Store struct.
 //
 func (store *Store) Initialize(
-        endpoints []string,
-        timeoutConnect time.Duration,
-        timeoutRequest time.Duration,
-        traceFlags TraceFlags,
-        namespaceSuffix string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.connected(ctx); err != nil {
-            return err
-        }
+	endpoints []string,
+	timeoutConnect time.Duration,
+	timeoutRequest time.Duration,
+	traceFlags TraceFlags,
+	namespaceSuffix string) error {
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.connected(ctx); err != nil {
+			return err
+		}
 
-        if err = store.SetAddress(endpoints); err != nil {
-            return err
-        }
+		if err = store.SetAddress(endpoints); err != nil {
+			return err
+		}
 
-        if err = store.SetTimeoutConnect(timeoutConnect); err != nil {
-            return err
-        }
+		if err = store.SetTimeoutConnect(timeoutConnect); err != nil {
+			return err
+		}
 
-        if err = store.SetTimeoutRequest(timeoutRequest); err != nil {
-            return err
-        }
+		if err = store.SetTimeoutRequest(timeoutRequest); err != nil {
+			return err
+		}
 
-        store.SetTraceFlags(traceFlags)
+		store.SetTraceFlags(traceFlags)
 
-        if err = store.SetNamespaceSuffix(namespaceSuffix); err != nil {
-            return err
-        }
+		if err = store.SetNamespaceSuffix(namespaceSuffix); err != nil {
+			return err
+		}
 
-
-        store.Client = nil
-        return nil
-    })
+		store.Client = nil
+		return nil
+	})
 }
 
 func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
-    if store.traceEnabled() {
-        switch err {
-        case context.Canceled:
-            _ = st.Errorf(ctx, -1, "ctx is canceled by another routine: %v", err)
+	if store.traceEnabled() {
+		switch err {
+		case context.Canceled:
+			_ = st.Errorf(ctx, -1, "ctx is canceled by another routine: %v", err)
 
-        case context.DeadlineExceeded:
-            _ = st.Errorf(ctx, -1, "ctx is attached with a deadline is exceeded: %v", err)
+		case context.DeadlineExceeded:
+			_ = st.Errorf(ctx, -1, "ctx is attached with a deadline is exceeded: %v", err)
 
-        case rpctypes.ErrEmptyKey:
-            _ = st.Errorf(ctx, -1, "client-side error: %v", err)
+		case rpctypes.ErrEmptyKey:
+			_ = st.Errorf(ctx, -1, "client-side error: %v", err)
 
-        default:
-            if ev, ok := status.FromError(err); ok {
-                code := ev.Code()
-                if code == codes.DeadlineExceeded {
-                    // server-side context might have timed-out first (due to clock skew)
-                    // while original client-side context is not timed-out yet
-                    //
-                    _ = st.Errorf(ctx, -1, "server-side deadline is exceeded: %v", code)
-                }
-            } else {
-                _ = st.Errorf(ctx, -1, "bad cluster endpoints, which are not etcd servers: %v", err)
-            }
-        }
-    }
+		default:
+			if ev, ok := status.FromError(err); ok {
+				code := ev.Code()
+				if code == codes.DeadlineExceeded {
+					// server-side context might have timed-out first (due to clock skew)
+					// while original client-side context is not timed-out yet
+					//
+					_ = st.Errorf(ctx, -1, "server-side deadline is exceeded: %v", code)
+				}
+			} else {
+				_ = st.Errorf(ctx, -1, "bad cluster endpoints, which are not etcd servers: %v", err)
+			}
+		}
+	}
 }
 
 // SetTraceFlags is a method that can be used to change the verbosity of the tracing.
@@ -447,11 +446,11 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 // store object.
 //
 func (store *Store) SetTraceFlags(traceLevel TraceFlags) {
-    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
-        store.TraceFlags = traceLevel
-        st.Infof(ctx, -1, "TraceFlags: %v", store.GetTraceFlags())
-        return nil
-    })
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+		store.TraceFlags = traceLevel
+		st.Infof(ctx, -1, "TraceFlags: %v", store.GetTraceFlags())
+		return nil
+	})
 }
 
 // GetTraceFlags is a method to retrieve the current trace flags value.
@@ -464,16 +463,16 @@ func (store *Store) GetTraceFlags() TraceFlags { return store.TraceFlags }
 // This method can only be used when the store object is not connected.
 //
 func (store *Store) SetAddress(endpoints []string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
-        if err := store.connected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+		if err := store.connected(ctx); err != nil {
+			return err
+		}
 
-        store.Endpoints = endpoints
+		store.Endpoints = endpoints
 
-        st.Infof(ctx, -1, "EP: %v", store.GetAddress())
-        return nil
-    })
+		st.Infof(ctx, -1, "EP: %v", store.GetAddress())
+		return nil
+	})
 }
 
 // GetAddress is a method to retrieve the current set of addresses used to connect to
@@ -487,16 +486,16 @@ func (store *Store) GetAddress() []string { return store.Endpoints }
 // This method can only be used when the store object is not connected.
 //
 func (store *Store) SetTimeoutConnect(timeout time.Duration) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
-        if err := store.connected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+		if err := store.connected(ctx); err != nil {
+			return err
+		}
 
-        store.TimeoutConnect = timeout
+		store.TimeoutConnect = timeout
 
-        st.Infof(ctx, -1, "TimeoutConnect: %v", store.GetTimeoutConnect())
-        return nil
-    })
+		st.Infof(ctx, -1, "TimeoutConnect: %v", store.GetTimeoutConnect())
+		return nil
+	})
 }
 
 // GetTimeoutConnect is a method which can be used to query the current timeout being
@@ -511,12 +510,12 @@ func (store *Store) GetTimeoutConnect() time.Duration { return store.TimeoutConn
 // store object, although it will only affect IO initiated after the method has returned.
 //
 func (store *Store) SetTimeoutRequest(timeout time.Duration) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
-        store.TimeoutRequest = timeout
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+		store.TimeoutRequest = timeout
 
-        st.Infof(ctx, -1, "TimeoutRequest: %v", store.GetTimeoutRequest())
-        return nil
-    })
+		st.Infof(ctx, -1, "TimeoutRequest: %v", store.GetTimeoutRequest())
+		return nil
+	})
 }
 
 // GetTimeoutRequest is a method which can be used to query the current timeout being
@@ -531,18 +530,18 @@ func (store *Store) GetTimeoutRequest() time.Duration { return store.TimeoutRequ
 // old temporary test data.
 //
 func (store *Store) SetNamespaceSuffix(suffix string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
-        if err := store.connected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+		if err := store.connected(ctx); err != nil {
+			return err
+		}
 
-        // remove any leading, or trailing "/" characters regardless of how many there might be.
-        //
-        store.NamespaceSuffix = strings.Trim(suffix, slash)
+		// remove any leading, or trailing "/" characters regardless of how many there might be.
+		//
+		store.NamespaceSuffix = strings.Trim(suffix, slash)
 
-        st.Infof(ctx, -1, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
-        return nil
-    })
+		st.Infof(ctx, -1, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
+		return nil
+	})
 }
 
 // GetNamespaceSuffix is a method which can be used to query the current namespace prefix
@@ -555,44 +554,44 @@ func (store *Store) GetNamespaceSuffix() string { return store.NamespaceSuffix }
 // attempted.
 //
 func (store *Store) Connect() error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.connected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.connected(ctx); err != nil {
+			return err
+		}
 
-        cli, err := clientv3.New(clientv3.Config{
-            Endpoints:   store.GetAddress(),
-            DialTimeout: store.GetTimeoutConnect(),
-        })
+		cli, err := clientv3.New(clientv3.Config{
+			Endpoints:   store.GetAddress(),
+			DialTimeout: store.GetTimeoutConnect(),
+		})
 
-        if err != nil {
-            _ = st.Errorf(ctx, -1, "Failed to establish connection to store - error: %v", err)
-            return err
-        }
+		if err != nil {
+			_ = st.Errorf(ctx, -1, "Failed to establish connection to store - error: %v", err)
+			return err
+		}
 
-        // Hookup the namespace prefixing mechanism
-        //
-        store.Client = cli
-        store.UnprefixedKV = cli.KV
-        store.UnprefixedLease = cli.Lease
-        store.UnprefixedWatcher = cli.Watcher
+		// Hookup the namespace prefixing mechanism
+		//
+		store.Client = cli
+		store.UnprefixedKV = cli.KV
+		store.UnprefixedLease = cli.Lease
+		store.UnprefixedWatcher = cli.Watcher
 
-        namespace := cloudChamberNamespace + slash
+		namespace := cloudChamberNamespace + slash
 
-        suffix := store.GetNamespaceSuffix()
+		suffix := store.GetNamespaceSuffix()
 
-        if "" != suffix {
-            namespace += suffix + slash
-        }
+		if "" != suffix {
+			namespace += suffix + slash
+		}
 
-        store.Namespace = namespace
+		store.Namespace = namespace
 
-        cli.KV = ns.NewKV(cli.KV, store.Namespace)
-        cli.Watcher = ns.NewWatcher(cli.Watcher, store.Namespace)
-        cli.Lease = ns.NewLease(cli.Lease, store.Namespace)
+		cli.KV = ns.NewKV(cli.KV, store.Namespace)
+		cli.Watcher = ns.NewWatcher(cli.Watcher, store.Namespace)
+		cli.Lease = ns.NewLease(cli.Lease, store.Namespace)
 
-        return nil
-    })
+		return nil
+	})
 }
 
 // Disconnect is a method used to terminate the connection between the store object
@@ -600,112 +599,112 @@ func (store *Store) Connect() error {
 // no further IO should be attempted.
 //
 func (store *Store) Disconnect() {
-    _ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if nil == store.Client {
-            st.Infof(ctx, -1, "Store is already disconnected. No action taken")
-            return nil
-        }
+	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if nil == store.Client {
+			st.Infof(ctx, -1, "Store is already disconnected. No action taken")
+			return nil
+		}
 
-        _ = store.Client.Close()
+		_ = store.Client.Close()
 
-        store.Client = nil
-        store.UnprefixedKV = nil
-        store.UnprefixedLease = nil
-        store.UnprefixedWatcher = nil
+		store.Client = nil
+		store.UnprefixedKV = nil
+		store.UnprefixedLease = nil
+		store.UnprefixedWatcher = nil
 
-        return nil
-    })
+		return nil
+	})
 }
 
 // Cluster is a structure which describes aspects of a cluster and the members of that cluster.
 //
 type Cluster struct {
-    ID      uint64
-    Members []ClusterMember
+	ID      uint64
+	Members []ClusterMember
 }
 
 // ClusterMember is a structure which describes aspects of a single member within a cluster
 //
 type ClusterMember struct {
-    ID         uint64
-    Name       string
-    PeerURLs   []string
-    ClientURLs []string
+	ID         uint64
+	Name       string
+	PeerURLs   []string
+	ClientURLs []string
 }
 
 // GetClusterMembers is a method to fetch a description of the cluster to which the store
 // object is currently connected.
 //
 func (store *Store) GetClusterMembers() (result *Cluster, err error) {
-    err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        // Originally had a new context here - not sure if we can use the supplied
-        // ctx or whether we still need the new one.
-        //
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        response, err := store.Client.MemberList(opCtx)
-        cancel()
+		// Originally had a new context here - not sure if we can use the supplied
+		// ctx or whether we still need the new one.
+		//
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		response, err := store.Client.MemberList(opCtx)
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-        } else {
-            result = &Cluster{
-                ID:      response.Header.GetClusterId(),
-                Members: make([]ClusterMember, len(response.Members))}
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+		} else {
+			result = &Cluster{
+				ID:      response.Header.GetClusterId(),
+				Members: make([]ClusterMember, len(response.Members))}
 
-            for i, member := range response.Members {
-                result.Members[i] = ClusterMember{
-                    Name:       member.GetName(),
-                    ID:         member.GetID(),
-                    PeerURLs:   member.GetPeerURLs(),
-                    ClientURLs: member.GetClientURLs()}
-            }
+			for i, member := range response.Members {
+				result.Members[i] = ClusterMember{
+					Name:       member.GetName(),
+					ID:         member.GetID(),
+					PeerURLs:   member.GetPeerURLs(),
+					ClientURLs: member.GetClientURLs()}
+			}
 
-            if store.trace(traceFlagExpandResults) {
-                for i, node := range result.Members {
-                    st.Infof(ctx, -1, "node [%v] Id: %v Name: %v", i, node.ID, node.Name)
+			if store.trace(traceFlagExpandResults) {
+				for i, node := range result.Members {
+					st.Infof(ctx, -1, "node [%v] Id: %v Name: %v", i, node.ID, node.Name)
 
-                    for j, url := range node.ClientURLs {
-                        st.Infof(ctx, -1, "  client [%v] URL: %v", j, url)
-                    }
+					for j, url := range node.ClientURLs {
+						st.Infof(ctx, -1, "  client [%v] URL: %v", j, url)
+					}
 
-                    for k, url := range node.PeerURLs {
-                        st.Infof(ctx, -1, "  peer [%v] URL: %v", k, url)
-                    }
-                }
-            }
+					for k, url := range node.PeerURLs {
+						st.Infof(ctx, -1, "  peer [%v] URL: %v", k, url)
+					}
+				}
+			}
 
-            st.Infof(ctx, -1, "Processed %v items", len(result.Members))
-        }
+			st.Infof(ctx, -1, "Processed %v items", len(result.Members))
+		}
 
-        return err
-    })
+		return err
+	})
 
-    return result, err
+	return result, err
 }
 
 // UpdateClusterConnections is a method which updates the current set of connections
 // to the connected underlying store according to the currently available connections
 //
 func (store *Store) UpdateClusterConnections() error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        err = store.Client.Sync(opCtx)
-        cancel()
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		err = store.Client.Sync(opCtx)
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+		}
 
-        return err
-    })
+		return err
+	})
 }
 
 // Write is a method to write a new value into the store or update an existing
@@ -715,23 +714,23 @@ func (store *Store) UpdateClusterConnections() error {
 // to the backed db server.
 //
 func (store *Store) Write(key string, value string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        _, err = store.Client.Put(opCtx, key, value)
-        cancel()
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		_, err = store.Client.Put(opCtx, key, value)
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-        } else {
-            st.Infof(ctx, -1, "wrote/updated key: %v value: %v", key, value)
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+		} else {
+			st.Infof(ctx, -1, "wrote/updated key: %v value: %v", key, value)
+		}
 
-        return err
-    })
+		return err
+	})
 }
 
 // WriteMultiple is a method to write or update a set of values using a supplied
@@ -741,52 +740,52 @@ func (store *Store) Write(key string, value string) error {
 // in a single call rather than repeating individual calls to the Write() method.
 //
 func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        var processedCount int
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		var processedCount int
 
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        // The timeout multiplier (5) is arbitrary. May not even be necessary.
-        //
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
+		// The timeout multiplier (5) is arbitrary. May not even be necessary.
+		//
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
-        for _, vp := range keyValueSet {
-            _, err = store.Client.Put(opCtx, vp.key, vp.value)
-            if err != nil {
-                break
-            }
-            processedCount++
-        }
+		for _, vp := range keyValueSet {
+			_, err = store.Client.Put(opCtx, vp.key, vp.value)
+			if err != nil {
+				break
+			}
+			processedCount++
+		}
 
-        cancel()
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-            _ = st.Errorf(
-                ctx, -1,
-                "Unable to write all the key/value pairs - requested: %v achieved: %v",
-                len(keyValueSet), processedCount)
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			_ = st.Errorf(
+				ctx, -1,
+				"Unable to write all the key/value pairs - requested: %v achieved: %v",
+				len(keyValueSet), processedCount)
+		}
 
-        if store.trace(traceFlagExpandResults) {
-            for i := 0; i < processedCount; i++ {
-                if store.trace(traceFlagTraceKeyAndValue) {
-                    st.Infof(
-                        ctx, -1,
-                        "wrote/updated [%v/%v] key: %v value: %v",
-                        i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
-                } else if store.trace(traceFlagTraceKey) {
-                    st.Infof(ctx, -1, "wrote/updated [%v/%v] key: %v", i, processedCount, keyValueSet[i].key)
-                }
-            }
-        }
+		if store.trace(traceFlagExpandResults) {
+			for i := 0; i < processedCount; i++ {
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(
+						ctx, -1,
+						"wrote/updated [%v/%v] key: %v value: %v",
+						i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "wrote/updated [%v/%v] key: %v", i, processedCount, keyValueSet[i].key)
+				}
+			}
+		}
 
-        st.Infof(ctx, -1, "Processed %v items", processedCount)
+		st.Infof(ctx, -1, "Processed %v items", processedCount)
 
-        return err
-    })
+		return err
+	})
 }
 
 // Read is a method to read a single value from the store using the supplied key.
@@ -795,36 +794,36 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) error {
 // to the backed db server.
 //
 func (store *Store) Read(key string) (result []byte, err error) {
-    err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        response, err := store.Client.Get(opCtx, key)
-        cancel()
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		response, err := store.Client.Get(opCtx, key)
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-        } else if 0 == len(response.Kvs) {
-            err = ErrStoreKeyNotFound(key)
-            _ = st.Errorf(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
-        } else if 1 != len(response.Kvs) {
-            err = ErrStoreBadRecordCount{key, 1, len(response.Kvs)}
-            _ = st.Errorf(ctx, -1, "expected a single result and instead received something else - error: %v", err)
-        } else {
-            result = response.Kvs[0].Value
-            if store.trace(traceFlagTraceKeyAndValue) {
-                st.Infof(ctx, -1, "read key: %v value: %v", key, string(result))
-            } else if store.trace(traceFlagTraceKey) {
-                st.Infof(ctx, -1, "read key: %v", key)
-            }
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+		} else if 0 == len(response.Kvs) {
+			err = ErrStoreKeyNotFound(key)
+			_ = st.Errorf(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
+		} else if 1 != len(response.Kvs) {
+			err = ErrStoreBadRecordCount{key, 1, len(response.Kvs)}
+			_ = st.Errorf(ctx, -1, "expected a single result and instead received something else - error: %v", err)
+		} else {
+			result = response.Kvs[0].Value
+			if store.trace(traceFlagTraceKeyAndValue) {
+				st.Infof(ctx, -1, "read key: %v value: %v", key, string(result))
+			} else if store.trace(traceFlagTraceKey) {
+				st.Infof(ctx, -1, "read key: %v", key)
+			}
+		}
 
-        return err
-    })
+		return err
+	})
 
-    return result, err
+	return result, err
 }
 
 // ReadMultiple is a method to read a set of values from the store using a supplied
@@ -834,64 +833,64 @@ func (store *Store) Read(key string) (result []byte, err error) {
 // in a single call rather than repeating individual calls to the Read() method.
 //
 func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, err error) {
-    err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        var processedCount int
+	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		var processedCount int
 
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        responses := make([]*clientv3.GetResponse, len(keySet))
+		responses := make([]*clientv3.GetResponse, len(keySet))
 
-        // The timeout multiplier (5) is arbitrary. May not even be necessary.
-        //
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
+		// The timeout multiplier (5) is arbitrary. May not even be necessary.
+		//
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
-        for i, key := range keySet {
-            responses[i], err = store.Client.Get(opCtx, key)
-            if err != nil {
-                break
-            }
-            processedCount++
-        }
+		for i, key := range keySet {
+			responses[i], err = store.Client.Get(opCtx, key)
+			if err != nil {
+				break
+			}
+			processedCount++
+		}
 
-        cancel()
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-            _ = st.Errorf(
-                ctx, -1,
-                "Unable to read all the key/value pairs - requested: %v achieved: %v",
-                len(keySet), processedCount)
-        } else {
-            results = make([]KeyValueResponse, processedCount)
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			_ = st.Errorf(
+				ctx, -1,
+				"Unable to read all the key/value pairs - requested: %v achieved: %v",
+				len(keySet), processedCount)
+		} else {
+			results = make([]KeyValueResponse, processedCount)
 
-            for i := 0; i < processedCount; i++ {
-                if 1 != len(responses[i].Kvs) {
-                    err = ErrStoreBadRecordCount{string(responses[i].Kvs[0].Key), 1, len(responses[i].Kvs)}
-                    _ = st.Errorf(ctx, -1, "number of responses did not match expectations - error: %v", err)
-                } else {
-                    results[i].key = string(responses[i].Kvs[0].Key)
-                    results[i].value = responses[i].Kvs[0].Value
-                }
-            }
-        }
+			for i := 0; i < processedCount; i++ {
+				if 1 != len(responses[i].Kvs) {
+					err = ErrStoreBadRecordCount{string(responses[i].Kvs[0].Key), 1, len(responses[i].Kvs)}
+					_ = st.Errorf(ctx, -1, "number of responses did not match expectations - error: %v", err)
+				} else {
+					results[i].key = string(responses[i].Kvs[0].Key)
+					results[i].value = responses[i].Kvs[0].Value
+				}
+			}
+		}
 
-        if store.trace(traceFlagExpandResults) {
-            for i := 0; i < processedCount; i++ {
-                if store.trace(traceFlagTraceKeyAndValue) {
-                    st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, processedCount, results[i].key, string(results[i].value))
-                } else if store.trace(traceFlagTraceKey) {
-                    st.Infof(ctx, -1, "read [%v/%v] key: %v", i, processedCount, results[i].key)
-                }
-            }
-        }
+		if store.trace(traceFlagExpandResults) {
+			for i := 0; i < processedCount; i++ {
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, processedCount, results[i].key, string(results[i].value))
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, processedCount, results[i].key)
+				}
+			}
+		}
 
-        st.Infof(ctx, -1, "Processed %v items", processedCount)
-        return err
-    })
+		st.Infof(ctx, -1, "Processed %v items", processedCount)
+		return err
+	})
 
-    return results, err
+	return results, err
 }
 
 // ReadWithPrefix is a method used to query for a set of zero or more key/value pairs
@@ -905,83 +904,83 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 // prefix.
 //
 func (store *Store) ReadWithPrefix(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
-    err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        response, err := store.Client.Get(
-            opCtx,
-            keyPrefix,
-            clientv3.WithPrefix(),
-            clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
-        cancel()
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		response, err := store.Client.Get(
+			opCtx,
+			keyPrefix,
+			clientv3.WithPrefix(),
+			clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-            return err
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			return err
+		}
 
-        resultSet := &RecordSet{
-            Revision: 0,
-            Records:  make(map[string]Record, len(response.Kvs)),
-        }
+		resultSet := &RecordSet{
+			Revision: 0,
+			Records:  make(map[string]Record, len(response.Kvs)),
+		}
 
-        for i, kv := range response.Kvs {
-            key := string(kv.Key)
-            val := string(kv.Value)
-            rev := kv.ModRevision
+		for i, kv := range response.Kvs {
+			key := string(kv.Key)
+			val := string(kv.Value)
+			rev := kv.ModRevision
 
-            resultSet.Records[key] = Record{Revision: rev, Value: val}
+			resultSet.Records[key] = Record{Revision: rev, Value: val}
 
-            if store.trace(traceFlagExpandResults) {
-                if store.trace(traceFlagTraceKeyAndValue) {
-                    st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(response.Kvs), key, rev, val)
-                } else if store.trace(traceFlagTraceKey) {
-                    st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(response.Kvs), key)
-                }
-            }
-        }
+			if store.trace(traceFlagExpandResults) {
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(response.Kvs), key, rev, val)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(response.Kvs), key)
+				}
+			}
+		}
 
-        resultSet.Revision = response.Header.Revision
+		resultSet.Revision = response.Header.Revision
 
-        rs = resultSet
+		rs = resultSet
 
-        st.Infof(ctx, -1, "Processed %v items", len(resultSet.Records))
+		st.Infof(ctx, -1, "Processed %v items", len(resultSet.Records))
 
-        return nil
-    })
+		return nil
+	})
 
-    return rs, err
+	return rs, err
 }
 
 // Delete is a method used to remove a single key/value pair using the supplied name.
 //
 func (store *Store) Delete(key string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        response, err := store.Client.Delete(opCtx, key)
-        cancel()
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		response, err := store.Client.Delete(opCtx, key)
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-        } else if 0 == response.Deleted {
-            err = ErrStoreKeyNotFound(key)
-            _ = st.Errorf(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
-        } else if 1 != response.Deleted {
-            err = ErrStoreBadRecordCount{key, 1, int(response.Deleted)}
-            _ = st.Errorf(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
-        } else {
-            st.Infof(ctx, -1, "deleted key: %v", key)
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+		} else if 0 == response.Deleted {
+			err = ErrStoreKeyNotFound(key)
+			_ = st.Errorf(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
+		} else if 1 != response.Deleted {
+			err = ErrStoreBadRecordCount{key, 1, int(response.Deleted)}
+			_ = st.Errorf(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
+		} else {
+			st.Infof(ctx, -1, "deleted key: %v", key)
+		}
 
-        return err
-    })
+		return err
+	})
 }
 
 // DeleteMultiple is a method that can be used to remove a set of key/value pairs.
@@ -990,73 +989,73 @@ func (store *Store) Delete(key string) error {
 // in a single call rather than repeating individual calls to the Delete() method.
 //
 func (store *Store) DeleteMultiple(keySet []string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        var processedCount int
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		var processedCount int
 
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        // The timeout multiplier (5) is arbitrary. May not even be necessary.
-        //
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
+		// The timeout multiplier (5) is arbitrary. May not even be necessary.
+		//
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
-        for _, key := range keySet {
-            _, err = store.Client.Delete(opCtx, key)
-            if err != nil {
-                break
-            }
-            processedCount++
-        }
+		for _, key := range keySet {
+			_, err = store.Client.Delete(opCtx, key)
+			if err != nil {
+				break
+			}
+			processedCount++
+		}
 
-        cancel()
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-            _ = st.Errorf(ctx, -1, "Unable to delete all the keys - requested: %v achieved: %v", len(keySet), processedCount)
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			_ = st.Errorf(ctx, -1, "Unable to delete all the keys - requested: %v achieved: %v", len(keySet), processedCount)
+		}
 
-        if store.trace(traceFlagExpandResults) {
-            for i := 0; i < processedCount; i++ {
-                st.Infof(ctx, -1, "deleted [%v/%v] key: %v", i, processedCount, keySet[i])
-            }
-        }
+		if store.trace(traceFlagExpandResults) {
+			for i := 0; i < processedCount; i++ {
+				st.Infof(ctx, -1, "deleted [%v/%v] key: %v", i, processedCount, keySet[i])
+			}
+		}
 
-        st.Infof(ctx, -1, "Processed %v items", processedCount)
+		st.Infof(ctx, -1, "Processed %v items", processedCount)
 
-        return err
-    })
+		return err
+	})
 }
 
 // DeleteWithPrefix is a method used to remove an entire sub-tree of key/value
 // pairs which have a common key name prefix.
 //
 func (store *Store) DeleteWithPrefix(keyPrefix string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        response, err := store.Client.Delete(opCtx, keyPrefix, clientv3.WithPrefix())
-        cancel()
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		response, err := store.Client.Delete(opCtx, keyPrefix, clientv3.WithPrefix())
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-        } else {
-            st.Infof(ctx, -1, "deleted %v keys under prefix %v", response.Deleted, keyPrefix)
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+		} else {
+			st.Infof(ctx, -1, "deleted %v keys under prefix %v", response.Deleted, keyPrefix)
+		}
 
-        return err
-    })
+		return err
+	})
 }
 
 // SetWatch is a method used to establish a watchpoint on a single key/value pari
 //
 func (store *Store) SetWatch(key string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        return ErrStoreNotImplemented("SetWatch")
-    })
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		return ErrStoreNotImplemented("SetWatch")
+	})
 }
 
 // SetWatchMultiple is a method used to establish a set of watchpoints on a set of
@@ -1066,18 +1065,18 @@ func (store *Store) SetWatch(key string) error {
 // in a single call rather than repeating individual calls to the SetWatch() method.
 //
 func (store *Store) SetWatchMultiple(key []string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        return ErrStoreNotImplemented("SetWatchMultiple")
-    })
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		return ErrStoreNotImplemented("SetWatchMultiple")
+	})
 }
 
 // SetWatchWithPrefix is a method used to establish a watchpoint on a entire
 // sub-tree of key/value pairs which have a common key name prefix/
 //
 func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
-    return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-        return ErrStoreNotImplemented("SetWatchWithPrefix")
-    })
+	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+		return ErrStoreNotImplemented("SetWatchWithPrefix")
+	})
 }
 
 // RevisionInvalid is returned from certain operations if
@@ -1085,7 +1084,7 @@ func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
 // unconditional write to the store.
 //
 const (
-    RevisionInvalid int64 = 0
+	RevisionInvalid int64 = 0
 )
 
 // Condition is a type used to define the test to be
@@ -1097,46 +1096,46 @@ type Condition string
 // conditional record update.
 //
 const (
-    ConditionCreate                 = Condition("new")
-    ConditionUnconditional          = Condition("*")
-    ConditionRevisionNotEqual       = Condition("!=")
-    ConditionRevisionLess           = Condition("<")
-    ConditionRevisionLessOrEqual    = Condition("<=")
-    ConditionRevisionEqual          = Condition("==")
-    ConditionRevisionEqualOrGreater = Condition(">=")
-    ConditionRevisionGreater        = Condition(">")
+	ConditionCreate                 = Condition("new")
+	ConditionUnconditional          = Condition("*")
+	ConditionRevisionNotEqual       = Condition("!=")
+	ConditionRevisionLess           = Condition("<")
+	ConditionRevisionLessOrEqual    = Condition("<=")
+	ConditionRevisionEqual          = Condition("==")
+	ConditionRevisionEqualOrGreater = Condition(">=")
+	ConditionRevisionGreater        = Condition(">")
 )
 
 // RecordKeySet is a struct defining the set of keys to be read along with an arbitrary
 // label to tag the transaction.
 //
 type RecordKeySet struct {
-    Label string
-    Keys  []string
+	Label string
+	Keys  []string
 }
 
 // Record is a struct defining a single value and the associated revision describing
 // the store revision when the value was last updated.
 //
 type Record struct {
-    Revision int64
-    Value    string
+	Revision int64
+	Value    string
 }
 
 // RecordSet is a struct defining a set of k,v pairs along with the revision of the
 // store at the time the values were retrieved.
 //
 type RecordSet struct {
-    Revision int64
-    Records  map[string]Record
+	Revision int64
+	Records  map[string]Record
 }
 
 // RecordUpdate is a struct defining a single value and it's revision along with
 // a condition based upon that revision which will permit an update to be attempted.
 //
 type RecordUpdate struct {
-    Condition Condition
-    Record    Record
+	Condition Condition
+	Record    Record
 }
 
 // RecordUpdateSet is a struct defining the set of key value pairs to be updated
@@ -1144,192 +1143,192 @@ type RecordUpdate struct {
 // the current revision of the k,v pair
 //
 type RecordUpdateSet struct {
-    Label   string
-    Records map[string]RecordUpdate
+	Label   string
+	Records map[string]RecordUpdate
 }
 
 func generatePrefetchKeys(recordSet *RecordUpdateSet) (*[]string, error) {
-    prefetchKeys := make([]string, 0, len(recordSet.Records))
+	prefetchKeys := make([]string, 0, len(recordSet.Records))
 
-    // Build an array of keys to supply as the arg to prefetch
-    // on the WithPrefetch() option below
-    //
-    for k, ru := range recordSet.Records {
-        switch ru.Condition {
-        case ConditionUnconditional:
-            // No need to prefetch if not comparing anything
-            break
+	// Build an array of keys to supply as the arg to prefetch
+	// on the WithPrefetch() option below
+	//
+	for k, ru := range recordSet.Records {
+		switch ru.Condition {
+		case ConditionUnconditional:
+			// No need to prefetch if not comparing anything
+			break
 
-        case ConditionRevisionNotEqual:
-            fallthrough
+		case ConditionRevisionNotEqual:
+			fallthrough
 
-        case ConditionRevisionLess:
-            fallthrough
+		case ConditionRevisionLess:
+			fallthrough
 
-        case ConditionRevisionLessOrEqual:
-            fallthrough
+		case ConditionRevisionLessOrEqual:
+			fallthrough
 
-        case ConditionRevisionEqual:
-            fallthrough
+		case ConditionRevisionEqual:
+			fallthrough
 
-        case ConditionRevisionEqualOrGreater:
-            fallthrough
+		case ConditionRevisionEqualOrGreater:
+			fallthrough
 
-        case ConditionRevisionGreater:
-            if ru.Record.Revision == RevisionInvalid {
-                return nil, ErrStoreBadArgRevision{k, RevisionInvalid, ru.Record.Revision}
-            }
+		case ConditionRevisionGreater:
+			if ru.Record.Revision == RevisionInvalid {
+				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, ru.Record.Revision}
+			}
 
-            fallthrough
+			fallthrough
 
-        case ConditionCreate:
-            prefetchKeys = append(prefetchKeys, k)
+		case ConditionCreate:
+			prefetchKeys = append(prefetchKeys, k)
 
-        default:
-            return nil, ErrStoreBadArgCondition{k, ru.Condition}
-        }
-    }
+		default:
+			return nil, ErrStoreBadArgCondition{k, ru.Condition}
+		}
+	}
 
-    return &prefetchKeys, nil
+	return &prefetchKeys, nil
 }
 
 func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
-    for k, ru := range recordSet.Records {
-        if ru.Condition == ConditionCreate {
-            if stm.Get(k) != "" {
-                return ErrStoreAlreadyExists(k)
-            }
-        } else if ru.Condition != ConditionUnconditional {
-            rev := stm.Rev(k)
+	for k, ru := range recordSet.Records {
+		if ru.Condition == ConditionCreate {
+			if stm.Get(k) != "" {
+				return ErrStoreAlreadyExists(k)
+			}
+		} else if ru.Condition != ConditionUnconditional {
+			rev := stm.Rev(k)
 
-            switch ru.Condition {
-            case ConditionRevisionLess:
-                if rev >= ru.Record.Revision {
-                    return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-                }
+			switch ru.Condition {
+			case ConditionRevisionLess:
+				if rev >= ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
 
-            case ConditionRevisionLessOrEqual:
-                if rev > ru.Record.Revision {
-                    return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-                }
+			case ConditionRevisionLessOrEqual:
+				if rev > ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
 
-            case ConditionRevisionEqual:
-                if rev != ru.Record.Revision {
-                    return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-                }
+			case ConditionRevisionEqual:
+				if rev != ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
 
-            case ConditionRevisionNotEqual:
-                if rev == ru.Record.Revision {
-                    return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-                }
+			case ConditionRevisionNotEqual:
+				if rev == ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
 
-            case ConditionRevisionEqualOrGreater:
-                if rev < ru.Record.Revision {
-                    return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-                }
+			case ConditionRevisionEqualOrGreater:
+				if rev < ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
 
-            case ConditionRevisionGreater:
-                if rev <= ru.Record.Revision {
-                    return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-                }
-            }
-        }
-    }
+			case ConditionRevisionGreater:
+				if rev <= ru.Record.Revision {
+					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
+				}
+			}
+		}
+	}
 
-    return nil
+	return nil
 }
 
 func getPrefetchKeys(req *Request) (*[]string, error) {
-    prefetchKeys := make([]string, 0, len(req.Records))
+	prefetchKeys := make([]string, 0, len(req.Records))
 
-    // Build an array of keys to supply as the arg to prefetch
-    // on the WithPrefetch() option below
-    //
-    for k, r := range req.Records {
-        c := req.Conditions[k]
-        switch c {
-        case ConditionUnconditional:
-            // No need to prefetch if not comparing anything
-            break
+	// Build an array of keys to supply as the arg to prefetch
+	// on the WithPrefetch() option below
+	//
+	for k, r := range req.Records {
+		c := req.Conditions[k]
+		switch c {
+		case ConditionUnconditional:
+			// No need to prefetch if not comparing anything
+			break
 
-        case ConditionRevisionNotEqual:
-            fallthrough
+		case ConditionRevisionNotEqual:
+			fallthrough
 
-        case ConditionRevisionLess:
-            fallthrough
+		case ConditionRevisionLess:
+			fallthrough
 
-        case ConditionRevisionLessOrEqual:
-            fallthrough
+		case ConditionRevisionLessOrEqual:
+			fallthrough
 
-        case ConditionRevisionEqual:
-            fallthrough
+		case ConditionRevisionEqual:
+			fallthrough
 
-        case ConditionRevisionEqualOrGreater:
-            fallthrough
+		case ConditionRevisionEqualOrGreater:
+			fallthrough
 
-        case ConditionRevisionGreater:
-            if r.Revision == RevisionInvalid {
-                return nil, ErrStoreBadArgRevision{k, RevisionInvalid, r.Revision}
-            }
+		case ConditionRevisionGreater:
+			if r.Revision == RevisionInvalid {
+				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, r.Revision}
+			}
 
-            fallthrough
+			fallthrough
 
-        case ConditionCreate:
-            prefetchKeys = append(prefetchKeys, k)
+		case ConditionCreate:
+			prefetchKeys = append(prefetchKeys, k)
 
-        default:
-            return nil, ErrStoreBadArgCondition{k, c}
-        }
-    }
+		default:
+			return nil, ErrStoreBadArgCondition{k, c}
+		}
+	}
 
-    return &prefetchKeys, nil
+	return &prefetchKeys, nil
 }
 
 func chkConditions(stm concurrency.STM, req *Request) error {
-    for k, r := range req.Records {
-        c := req.Conditions[k]
-        if c == ConditionCreate {
-            if stm.Get(k) != "" {
-                return ErrStoreAlreadyExists(k)
-            }
-        } else if c != ConditionUnconditional {
-            rev := stm.Rev(k)
+	for k, r := range req.Records {
+		c := req.Conditions[k]
+		if c == ConditionCreate {
+			if stm.Get(k) != "" {
+				return ErrStoreAlreadyExists(k)
+			}
+		} else if c != ConditionUnconditional {
+			rev := stm.Rev(k)
 
-            switch c {
-            case ConditionRevisionLess:
-                if rev >= r.Revision {
-                    return ErrStoreConditionFail{k, r.Revision, c, rev}
-                }
+			switch c {
+			case ConditionRevisionLess:
+				if rev >= r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
 
-            case ConditionRevisionLessOrEqual:
-                if rev > r.Revision {
-                    return ErrStoreConditionFail{k, r.Revision, c, rev}
-                }
+			case ConditionRevisionLessOrEqual:
+				if rev > r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
 
-            case ConditionRevisionEqual:
-                if rev != r.Revision {
-                    return ErrStoreConditionFail{k, r.Revision, c, rev}
-                }
+			case ConditionRevisionEqual:
+				if rev != r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
 
-            case ConditionRevisionNotEqual:
-                if rev == r.Revision {
-                    return ErrStoreConditionFail{k, r.Revision, c, rev}
-                }
+			case ConditionRevisionNotEqual:
+				if rev == r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
 
-            case ConditionRevisionEqualOrGreater:
-                if rev < r.Revision {
-                    return ErrStoreConditionFail{k, r.Revision, c, rev}
-                }
+			case ConditionRevisionEqualOrGreater:
+				if rev < r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
 
-            case ConditionRevisionGreater:
-                if rev <= r.Revision {
-                    return ErrStoreConditionFail{k, r.Revision, c, rev}
-                }
-            }
-        }
-    }
+			case ConditionRevisionGreater:
+				if rev <= r.Revision {
+					return ErrStoreConditionFail{k, r.Revision, c, rev}
+				}
+			}
+		}
+	}
 
-    return nil
+	return nil
 }
 
 // ListWithPrefix is a method used to query for a set of zero or more key/value pairs
@@ -1343,241 +1342,241 @@ func chkConditions(stm concurrency.STM, req *Request) error {
 // prefix.
 //
 func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (response *Response, err error) {
-    err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-        getResponse, err := store.Client.Get(
-            opCtx,
-            keyPrefix,
-            clientv3.WithPrefix(),
-            clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
-        cancel()
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		getResponse, err := store.Client.Get(
+			opCtx,
+			keyPrefix,
+			clientv3.WithPrefix(),
+			clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+		cancel()
 
-        if err != nil {
-            store.logEtcdResponseError(ctx, err)
-            return err
-        }
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			return err
+		}
 
-        resp := &Response{
-            Revision: RevisionInvalid,
-            Records:  make(map[string]Record, len(getResponse.Kvs)),
-        }
+		resp := &Response{
+			Revision: RevisionInvalid,
+			Records:  make(map[string]Record, len(getResponse.Kvs)),
+		}
 
-        for i, kv := range getResponse.Kvs {
-            key := string(kv.Key)
-            val := string(kv.Value)
-            rev := kv.ModRevision
+		for i, kv := range getResponse.Kvs {
+			key := string(kv.Key)
+			val := string(kv.Value)
+			rev := kv.ModRevision
 
-            resp.Records[key] = Record{Revision: rev, Value: val}
+			resp.Records[key] = Record{Revision: rev, Value: val}
 
-            if store.trace(traceFlagExpandResults) {
-                if store.trace(traceFlagTraceKeyAndValue) {
-                    st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
-                } else if store.trace(traceFlagTraceKey) {
-                    st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
-                }
-            }
-        }
+			if store.trace(traceFlagExpandResults) {
+				if store.trace(traceFlagTraceKeyAndValue) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
+				} else if store.trace(traceFlagTraceKey) {
+					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
+				}
+			}
+		}
 
-        resp.Revision = getResponse.Header.GetRevision()
+		resp.Revision = getResponse.Header.GetRevision()
 
-        response = resp
+		response = resp
 
-        st.Infof(ctx, -1, "Processed %v items", len(resp.Records))
+		st.Infof(ctx, -1, "Processed %v items", len(resp.Records))
 
-        return nil
-    })
+		return nil
+	})
 
-    return response, err
+	return response, err
 }
 
 // ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
 // single txn so they form a (self-)consistent set.
 //
 func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*RecordSet, error) {
-    resultSet := RecordSet{
-        Revision: 0,
-        Records:  make(map[string]Record),
-    }
+	resultSet := RecordSet{
+		Revision: 0,
+		Records:  make(map[string]Record),
+	}
 
-    err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        actionReadRecords := func(stm concurrency.STM) error {
-            st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
+		actionReadRecords := func(stm concurrency.STM) error {
+			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
 
-            for _, k := range keySet.Keys {
+			for _, k := range keySet.Keys {
 
-                rev := stm.Rev(k)
+				rev := stm.Rev(k)
 
-                // If the revision is zero, we take that to mean the key
-                // does not actually exist.
-                //
-                // Note that a key might well exist even if the value is
-                // an empty string. At least I believe it can. We choose
-                // to use the revision instead as a more reliable
-                // indicator of existence.
-                //
-                if rev != 0 {
-                    resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
-                }
-            }
+				// If the revision is zero, we take that to mean the key
+				// does not actually exist.
+				//
+				// Note that a key might well exist even if the value is
+				// an empty string. At least I believe it can. We choose
+				// to use the revision instead as a more reliable
+				// indicator of existence.
+				//
+				if rev != 0 {
+					resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+				}
+			}
 
-            return nil
-        }
+			return nil
+		}
 
-        response, err := concurrency.NewSTM(
-            store.Client,
-            actionReadRecords,
-            concurrency.WithIsolation(concurrency.ReadCommitted),
-            concurrency.WithPrefetch(keySet.Keys...),
-        )
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionReadRecords,
+			concurrency.WithIsolation(concurrency.ReadCommitted),
+			concurrency.WithPrefetch(keySet.Keys...),
+		)
 
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 
-        if !response.Succeeded {
-            err = ErrStoreKeyReadFailure(keySet.Label)
-            _ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-            return err
-        }
+		if !response.Succeeded {
+			err = ErrStoreKeyReadFailure(keySet.Label)
+			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
 
-        // And finally, the revision for the store as a whole.
-        //
-        resultSet.Revision = response.Header.Revision
+		// And finally, the revision for the store as a whole.
+		//
+		resultSet.Revision = response.Header.Revision
 
-        return nil
-    })
+		return nil
+	})
 
-    if err != nil {
-        return nil, err
-    }
+	if err != nil {
+		return nil, err
+	}
 
-    return &resultSet, nil
+	return &resultSet, nil
 }
 
 // WriteMultipleTxn is a method to write/update a set of arbitrary keys within a
 // single txn so they form a (self-)consistent set.
 //
 func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
-    revision := RevisionInvalid
+	revision := RevisionInvalid
 
-    err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        var prefetchKeys *[]string
+		var prefetchKeys *[]string
 
-        if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
-            return err
-        }
+		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+			return err
+		}
 
-        actionWriteRecords := func(stm concurrency.STM) error {
+		actionWriteRecords := func(stm concurrency.STM) error {
 
-            if err = checkConditions(stm, recordSet); err != nil {
-                return err
-            }
+			if err = checkConditions(stm, recordSet); err != nil {
+				return err
+			}
 
-            // it is only now that we know the conditions have been
-            // met for all the keys that we take the time to process
-            // all the updates.
-            //
-            for k, ru := range recordSet.Records {
-                stm.Put(k, ru.Record.Value)
-            }
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k, ru := range recordSet.Records {
+				stm.Put(k, ru.Record.Value)
+			}
 
-            return nil
-        }
+			return nil
+		}
 
-        response, err := concurrency.NewSTM(
-            store.Client,
-            actionWriteRecords,
-            concurrency.WithIsolation(concurrency.Serializable),
-            concurrency.WithPrefetch(*prefetchKeys...),
-        )
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionWriteRecords,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
 
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 
-        if !response.Succeeded {
-            err = ErrStoreKeyWriteFailure(recordSet.Label)
-            _ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-            return err
-        }
+		if !response.Succeeded {
+			err = ErrStoreKeyWriteFailure(recordSet.Label)
+			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
 
-        revision = response.Header.Revision
+		revision = response.Header.Revision
 
-        return nil
-    })
+		return nil
+	})
 
-    return revision, err
+	return revision, err
 }
 
 // DeleteMultipleTxn is a method to delete a set of arbitrary keys within a
 // single txn so they form a (self-)consistent operation.
 //
 func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
-    revision := RevisionInvalid
+	revision := RevisionInvalid
 
-    err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        var prefetchKeys *[]string
+		var prefetchKeys *[]string
 
-        if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
-            return err
-        }
+		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+			return err
+		}
 
-        actionDeleteRecords := func(stm concurrency.STM) error {
+		actionDeleteRecords := func(stm concurrency.STM) error {
 
-            if err = checkConditions(stm, recordSet); err != nil {
-                return err
-            }
+			if err = checkConditions(stm, recordSet); err != nil {
+				return err
+			}
 
-            // it is only now that we know the conditions have been
-            // met for all the keys that we take the time to process
-            // all the updates.
-            //
-            for k := range recordSet.Records {
-                stm.Del(k)
-            }
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k := range recordSet.Records {
+				stm.Del(k)
+			}
 
-            return nil
-        }
+			return nil
+		}
 
-        response, err := concurrency.NewSTM(
-            store.Client,
-            actionDeleteRecords,
-            concurrency.WithIsolation(concurrency.Serializable),
-            concurrency.WithPrefetch(*prefetchKeys...),
-        )
+		response, err := concurrency.NewSTM(
+			store.Client,
+			actionDeleteRecords,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
 
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 
-        if !response.Succeeded {
-            err = ErrStoreKeyDeleteFailure(recordSet.Label)
-            _ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-            return err
-        }
+		if !response.Succeeded {
+			err = ErrStoreKeyDeleteFailure(recordSet.Label)
+			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
 
-        revision = response.Header.Revision
+		revision = response.Header.Revision
 
-        return nil
-    })
+		return nil
+	})
 
-    return revision, err
+	return revision, err
 }
 
 //
@@ -1588,209 +1587,209 @@ func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpda
 // single txn so they form a (self-)consistent set.
 //
 func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Response, err error) {
-    err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        var prefetchKeys *[]string
+		var prefetchKeys *[]string
 
-        if prefetchKeys, err = getPrefetchKeys(request); err != nil {
-            return err
-        }
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
 
-        resp := &Response{
-            Revision: RevisionInvalid,
-            Records:  make(map[string]Record, len(request.Records)),
-        }
+		resp := &Response{
+			Revision: RevisionInvalid,
+			Records:  make(map[string]Record, len(request.Records)),
+		}
 
-        txnAction := func(stm concurrency.STM) error {
+		txnAction := func(stm concurrency.STM) error {
 
-            if err = chkConditions(stm, request); err != nil {
-                return err
-            }
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
 
-            // It is only now that we know the conditions have been
-            // met for all the keys that we take the time to process
-            // all the updates.
-            //
-            // If the revision is zero, we take that to mean the key
-            // does not actually exist.
-            //
-            // Note that a key might well exist even if the value is
-            // an empty string. At least I believe it can. We choose
-            // to use the revision instead as a more reliable
-            // indicator of existence.
-            //
-            for k := range request.Records {
+			// It is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			// If the revision is zero, we take that to mean the key
+			// does not actually exist.
+			//
+			// Note that a key might well exist even if the value is
+			// an empty string. At least I believe it can. We choose
+			// to use the revision instead as a more reliable
+			// indicator of existence.
+			//
+			for k := range request.Records {
 
-                rev := stm.Rev(k)
+				rev := stm.Rev(k)
 
-                if rev != 0 {
-                    resp.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
-                }
-            }
+				if rev != 0 {
+					resp.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+				}
+			}
 
-            return nil
-        }
+			return nil
+		}
 
-        txnResponse, err := concurrency.NewSTM(
-            store.Client,
-            txnAction,
-            concurrency.WithIsolation(concurrency.ReadCommitted),
-            concurrency.WithPrefetch(*prefetchKeys...),
-        )
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.ReadCommitted),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
 
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 
-        if !txnResponse.Succeeded {
-            err = ErrStoreKeyReadFailure(request.Reason)
-            _ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-            return err
-        }
+		if !txnResponse.Succeeded {
+			err = ErrStoreKeyReadFailure(request.Reason)
+			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
 
-        // And finally, the revision for the store as a whole.
-        //
-        resp.Revision = txnResponse.Header.GetRevision()
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
 
-        response = resp
+		response = resp
 
-        return nil
-    })
+		return nil
+	})
 
-    return response, err
+	return response, err
 }
 
 // WriteTxn is a method to write/update a set of arbitrary keys within a
 // single txn so they form a (self-)consistent set.
 //
 func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *Response, err error) {
-    err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        var prefetchKeys *[]string
+		var prefetchKeys *[]string
 
-        if prefetchKeys, err = getPrefetchKeys(request); err != nil {
-            return err
-        }
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
 
-        resp := &Response{
-            Revision: RevisionInvalid,
-            Records:  make(map[string]Record),
-        }
+		resp := &Response{
+			Revision: RevisionInvalid,
+			Records:  make(map[string]Record),
+		}
 
-        txnAction := func(stm concurrency.STM) error {
+		txnAction := func(stm concurrency.STM) error {
 
-            if err = chkConditions(stm, request); err != nil {
-                return err
-            }
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
 
-            // It is only now that we know the conditions have been
-            // met for all the keys that we take the time to process
-            // all the updates.
-            //
-            for k, r := range request.Records {
-                stm.Put(k, r.Value)
-            }
+			// It is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k, r := range request.Records {
+				stm.Put(k, r.Value)
+			}
 
-            return nil
-        }
+			return nil
+		}
 
-        txnResponse, err := concurrency.NewSTM(
-            store.Client,
-            txnAction,
-            concurrency.WithIsolation(concurrency.Serializable),
-            concurrency.WithPrefetch(*prefetchKeys...),
-        )
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
 
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 
-        if !txnResponse.Succeeded {
-            err = ErrStoreKeyWriteFailure(request.Reason)
-            _ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-            return err
-        }
+		if !txnResponse.Succeeded {
+			err = ErrStoreKeyWriteFailure(request.Reason)
+			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
 
-        // And finally, the revision for the store as a whole.
-        //
-        resp.Revision = txnResponse.Header.GetRevision()
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
 
-        response = resp
+		response = resp
 
-        return nil
-    })
+		return nil
+	})
 
-    return response, err
+	return response, err
 }
 
 // DeleteTxn is a method to delete a set of arbitrary keys within a
 // single txn so they form a (self-)consistent operation.
 //
 func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *Response, err error) {
-    err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-        if err = store.disconnected(ctx); err != nil {
-            return err
-        }
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
 
-        var prefetchKeys *[]string
+		var prefetchKeys *[]string
 
-        if prefetchKeys, err = getPrefetchKeys(request); err != nil {
-            return err
-        }
+		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+			return err
+		}
 
-        resp := &Response{
-            Revision: RevisionInvalid,
-            Records:  make(map[string]Record),
-        }
+		resp := &Response{
+			Revision: RevisionInvalid,
+			Records:  make(map[string]Record),
+		}
 
-        txnAction := func(stm concurrency.STM) error {
+		txnAction := func(stm concurrency.STM) error {
 
-            if err = chkConditions(stm, request); err != nil {
-                return err
-            }
+			if err = chkConditions(stm, request); err != nil {
+				return err
+			}
 
-            // it is only now that we know the conditions have been
-            // met for all the keys that we take the time to process
-            // all the updates.
-            //
-            for k := range request.Records {
-                stm.Del(k)
-            }
+			// it is only now that we know the conditions have been
+			// met for all the keys that we take the time to process
+			// all the updates.
+			//
+			for k := range request.Records {
+				stm.Del(k)
+			}
 
-            return nil
-        }
+			return nil
+		}
 
-        txnResponse, err := concurrency.NewSTM(
-            store.Client,
-            txnAction,
-            concurrency.WithIsolation(concurrency.Serializable),
-            concurrency.WithPrefetch(*prefetchKeys...),
-        )
+		txnResponse, err := concurrency.NewSTM(
+			store.Client,
+			txnAction,
+			concurrency.WithIsolation(concurrency.Serializable),
+			concurrency.WithPrefetch(*prefetchKeys...),
+		)
 
-        if err != nil {
-            return err
-        }
+		if err != nil {
+			return err
+		}
 
-        if !txnResponse.Succeeded {
-            err = ErrStoreKeyDeleteFailure(request.Reason)
-            _ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-            return err
-        }
+		if !txnResponse.Succeeded {
+			err = ErrStoreKeyDeleteFailure(request.Reason)
+			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
+			return err
+		}
 
-        // And finally, the revision for the store as a whole.
-        //
-        resp.Revision = txnResponse.Header.GetRevision()
+		// And finally, the revision for the store as a whole.
+		//
+		resp.Revision = txnResponse.Header.GetRevision()
 
-        response = resp
+		response = resp
 
-        return nil
-    })
+		return nil
+	})
 
-    return response, err
+	return response, err
 }
