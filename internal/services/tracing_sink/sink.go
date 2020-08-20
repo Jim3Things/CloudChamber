@@ -64,12 +64,35 @@ func Register(svc *grpc.Server) error {
     return nil
 }
 
+// LocalAppend adds a trace entry to list of known entries, but does so without
+// invoking the grpc channel, or any other feature that will itself produce new
+// trace entries.
+//
+// This is intended to provide a mechanism for the trace sink support services,
+// and other simulation support services, to trace their activity without
+// creating a recursive trace production stream.
 func LocalAppend(ctx context.Context, entry *log.Entry) error {
     return sink.LocalAppend(ctx, entry)
 }
 
+// LocalAppend is the trace sink instance's implementation of the global
+// function declared above.
+func (s *server) LocalAppend(_ context.Context, entry *log.Entry) error {
+    s.mutex.Lock()
+    defer s.mutex.Unlock()
+
+    s.addEntry(entry)
+
+    return nil
+}
+
+// Append adds a trace entry to the list of known entries.
 func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*pb.AppendResponse, error) {
     err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+        if err := request.Validate(); err != nil {
+            return err
+        }
+
         return s.LocalAppend(ctx, request.Entry)
     })
 
@@ -80,6 +103,10 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
     var resp waitResponse
 
     _ = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+        if err := request.Validate(); err != nil {
+            return err
+        }
+
         if !request.Wait {
             resp = s.processWaiter(request.Id, request.MaxEntries)
             return nil
@@ -98,15 +125,6 @@ func (s *server) GetPolicy(ctx context.Context, request *pb.GetPolicyRequest) (*
 
 func (s *server) SetPolicy(ctx context.Context, request *pb.SetPolicyRequest) (*pb.SetPolicyResponse, error) {
     return nil, fmt.Errorf("not yet implemented")
-}
-
-func (s *server) LocalAppend(ctx context.Context, entry *log.Entry) error {
-    s.mutex.Lock()
-    defer s.mutex.Unlock()
-
-    s.addEntry(entry)
-
-    return nil
 }
 
 func (s *server) addEntry(entry *log.Entry) {
@@ -143,6 +161,40 @@ func (s *server) wait(request *pb.GetAfterRequest) <- chan waitResponse{
     return ch
 }
 
-func (s *server) processWaiter(startId int64, maxEntries int64) waitResponse {
-    return waitResponse{}
+// processWaiter runs through the outstanding trace entries that are after the
+// startID, up to the maximum number.  It assembles and returns them in a reply
+// packet that can be sent back to the caller.
+func (s *server) processWaiter(startID int64, maxEntries int64) waitResponse {
+    resp := waitResponse{
+        err: nil,
+        res: &pb.GetAfterResponse{
+            LastId:  0,
+            Missed:  false,
+            Entries: []*pb.GetAfterResponseTraceEntry{},
+        },
+    }
+
+    var count int64 = 0
+
+    for e := s.entries.Front(); (e != nil) && (count <= maxEntries); e = e.Next() {
+        item, ok := e.Value.(*listEntry)
+        if !ok {
+            resp.err = fmt.Errorf("unexpected type in list: %v", e.Value)
+            return resp
+        }
+
+        id := int64(item.id)
+        if id > startID {
+            resp.res.Entries = append(resp.res.Entries, &pb.GetAfterResponseTraceEntry{
+                Id:    id,
+                Entry: item.entry,
+            })
+
+            count++
+        }
+
+        resp.res.LastId = id
+    }
+
+    return resp
 }
