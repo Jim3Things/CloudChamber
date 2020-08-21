@@ -19,7 +19,7 @@ func MethodName(skip int) string {
 	addresses := make([]uintptr, 1)
 
 	// Get the information up the stack (i.e. the caller of this method, or beyond)
-	runtime.Callers(1+skip, addresses)
+	runtime.Callers(1 + skip, addresses)
 	frames := runtime.CallersFrames(addresses)
 	frame, _ := frames.Next()
 
@@ -28,7 +28,7 @@ func MethodName(skip int) string {
 
 	idx := strings.LastIndex(name, "/")
 	if idx >= 0 {
-		name = name[idx+1:]
+		name = name[idx + 1:]
 	}
 
 	return name

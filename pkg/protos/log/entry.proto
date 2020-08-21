@@ -18,7 +18,7 @@ syntax = "proto3";
 
 package log;
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/log";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/log";
 
 // Describe the type of impact that this event has on a module.
 enum impact {

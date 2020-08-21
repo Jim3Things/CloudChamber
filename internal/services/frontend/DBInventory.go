@@ -40,7 +40,7 @@ type DBInventory struct {
 	Zone *pb.ExternalZone
 
 	MaxBladeCount int64
-	MaxCapacity *common.BladeCapacity
+	MaxCapacity   *common.BladeCapacity
 }
 
 var dbInventory *DBInventory
@@ -57,10 +57,10 @@ func InitDBInventory() error {
 		dbInventory = &DBInventory{
 			Mutex: sync.Mutex{},
 			Zone: &pb.ExternalZone{
-				Racks:       make(map[string]*pb.ExternalRack),
+				Racks: make(map[string]*pb.ExternalRack),
 			},
 			MaxBladeCount: 0,
-			MaxCapacity: &common.BladeCapacity{},
+			MaxCapacity:   &common.BladeCapacity{},
 		}
 
 		dbInventory.Zone.Racks["rack1"] = &pb.ExternalRack{

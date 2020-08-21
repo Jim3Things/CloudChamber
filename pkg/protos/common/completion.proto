@@ -4,8 +4,8 @@ syntax = "proto3";
 
 package common;
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/common";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/common";
 
 message Completion {
-  string error = 1;   // Completion error message
+    string error = 1;   // Completion error message
 }

@@ -4,7 +4,7 @@ package workload;
 
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/workload";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/workload";
 
 message external {
     // Define a disk volume

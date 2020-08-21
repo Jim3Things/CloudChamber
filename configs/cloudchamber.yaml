@@ -58,7 +58,7 @@ store:
     hostname: localhost
     port: 2379
 
-  # Test specific configuration. 
+  # Test specific configuration.
   #
   # Setting UseTestNamespace to 1 will instruct the store to use
   # a pre-defined test namespace which optionally can be deleted
