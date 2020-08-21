@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package admin;
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/admin";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/admin";
 
 // User is a representation of an individual user
 //
@@ -10,78 +10,78 @@ option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/admin";
 //     in a persisted store (Etcd)
 //
 message user {
-  // The username, held so as to preserve the original case
-  string name = 1;
+    // The username, held so as to preserve the original case
+    string name = 1;
 
-  bytes password_hash = 2;
-  int64 user_id = 3;
-  bool enabled = 4;
+    bytes password_hash = 2;
+    int64 user_id = 3;
+    bool enabled = 4;
 
-  // The rights this user has
-  bool can_manage_accounts = 5;
+    // The rights this user has
+    bool can_manage_accounts = 5;
 
-  // True, if this user entry can never be deleted.
-  bool never_delete = 6;
+    // True, if this user entry can never be deleted.
+    bool never_delete = 6;
 }
 
 // Limited exposure of user attributes for use when returning information
 // to a remote client.
 message user_public {
-  bool enabled = 1;
+    bool enabled = 1;
 
-  // The rights this user has
-  bool can_manage_accounts = 2;
+    // The rights this user has
+    bool can_manage_accounts = 2;
 
-  // True, if this user entry can never be deleted.
-  bool never_delete = 3;
+    // True, if this user entry can never be deleted.
+    bool never_delete = 3;
 }
 
 // Public definition for a user, sent by a remote client to the Cloud Chamber
 // controller when the user is created.
 message user_definition {
-  string password = 1;
-  bool enabled = 2;
+    string password = 1;
+    bool enabled = 2;
 
-  // The rights this user has
-  bool can_manage_accounts = 3;
+    // The rights this user has
+    bool can_manage_accounts = 3;
 }
 
 // Public definition for the fields for a user that can be mutated in an
 // update operation
 message user_update {
-  bool enabled = 2;
+    bool enabled = 2;
 
-  // The rights this user has
-  bool can_manage_accounts = 3;
+    // The rights this user has
+    bool can_manage_accounts = 3;
 }
 
 // Public definition for a request to set a new password for a user
 message user_password {
-  // The existing password, used to check that this is a legit request
-  string old_password = 1;
+    // The existing password, used to check that this is a legit request
+    string old_password = 1;
 
-  // The new password
-  string new_password = 2;
+    // The new password
+    string new_password = 2;
 
-  // An administrative flag to force the new password
-  bool force = 3;
+    // An administrative flag to force the new password
+    bool force = 3;
 }
 
 // User list response.
 message user_list {
 
-  // A single user entry
-  message entry {
-    // Name of the user
-    string name = 1;
+    // A single user entry
+    message entry {
+        // Name of the user
+        string name = 1;
 
-    // Uri to use to access the user
-    string uri = 2;
+        // Uri to use to access the user
+        string uri = 2;
 
-    // True, if the user is protected against changes
-    bool protected = 3;
-  }
+        // True, if the user is protected against changes
+        bool protected = 3;
+    }
 
-  // List of known users
-  repeated entry users = 1;
+    // List of known users
+    repeated entry users = 1;
 }

@@ -47,9 +47,9 @@ func SetPolicy(policy pb.StepperPolicy, delay *duration.Duration, match int64) e
 	_, err = client.SetPolicy(
 		ctx,
 		&pb.PolicyRequest{
-			Policy: policy,
+			Policy:        policy,
 			MeasuredDelay: delay,
-			MatchEpoch: match,
+			MatchEpoch:    match,
 		})
 
 	return err

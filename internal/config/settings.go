@@ -68,21 +68,21 @@ type Endpoint struct {
 // ControllerType is a helper type describes the controllerd configuration settings
 type ControllerType struct {
 	// Exposed GRPC endpoint
-	EP Endpoint
+	EP        Endpoint
 	TraceFile string
 }
 
 // InventoryType is a helper type that describes the inventoryd configuration settings
 type InventoryType struct {
 	// Exposed GRPC endpoint
-	EP Endpoint
+	EP        Endpoint
 	TraceFile string
 }
 
 // SimSupportType is a helper type that describes the sim_supportd configuration settings
 type SimSupportType struct {
 	// Exposed GRPC endpoint
-	EP Endpoint
+	EP        Endpoint
 	TraceFile string
 
 	// Name of the initial stepper policy to apply
@@ -118,7 +118,7 @@ type WebServerType struct {
 	FE Endpoint
 
 	// GPRC endpoint, used for internal notifications
-	BE Endpoint
+	BE        Endpoint
 	TraceFile string
 }
 
@@ -164,7 +164,7 @@ func newGlobalConfig() *GlobalConfig {
 				Hostname: DefaultHost,
 				Port:     SimSupportDefaultPort,
 			},
-			TraceFile: SimSupportDefaultTraceFile,
+			TraceFile:     SimSupportDefaultTraceFile,
 			StepperPolicy: DefaultStepperPolicy,
 		},
 		WebServer: WebServerType{
@@ -250,36 +250,36 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 func ToString(data *GlobalConfig) string {
 
 	return fmt.Sprintf(
-		"Controller:\n"+
-			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"Inventory:\n"+
-			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"SimSupport:\n"+
-			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"  StepperPolicy: %v\n"+
-			"Webserver:\n"+
-			"  FE:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  BE:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"  RootFilePath: %s\n"+
-			"  SystemAccount: %s\n"+
-			"  SystemAccountPassword: %s\n"+
-			"Store:"+
-			"  ConnectTimeout: %v\n"+
-			"  RequestTimeout: %v\n"+
-			"  TraceLevel: %v\n"+
-			"  Test:\n"+
-			"    UseTestNamespace: %v\n"+
-			"    UseUniqueInstance: %v\n"+
-			"    PreCleanStore: %v\n"+
+		"Controller:\n" +
+			"  EP:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"Inventory:\n" +
+			"  EP:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"SimSupport:\n" +
+			"  EP:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"  StepperPolicy: %v\n" +
+			"Webserver:\n" +
+			"  FE:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  BE:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"  RootFilePath: %s\n" +
+			"  SystemAccount: %s\n" +
+			"  SystemAccountPassword: %s\n" +
+			"Store:" +
+			"  ConnectTimeout: %v\n" +
+			"  RequestTimeout: %v\n" +
+			"  TraceLevel: %v\n" +
+			"  Test:\n" +
+			"    UseTestNamespace: %v\n" +
+			"    UseUniqueInstance: %v\n" +
+			"    PreCleanStore: %v\n" +
 			"",
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
 		data.Controller.TraceFile,

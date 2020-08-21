@@ -15,10 +15,10 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 	parentID := data.ParentSpanID.String()
 
 	entry := &log.Entry{
-		Name:     data.Name,
-		SpanID:   spanID,
-		ParentID: parentID,
-		Status:   fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
+		Name:       data.Name,
+		SpanID:     spanID,
+		ParentID:   parentID,
+		Status:     fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
 		StackTrace: "",
 	}
 
@@ -78,4 +78,3 @@ func SeverityFlag(severity log.Severity) string {
 
 	return t
 }
-

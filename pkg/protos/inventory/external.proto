@@ -10,7 +10,7 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
 
 package inventory;
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message external {
 
