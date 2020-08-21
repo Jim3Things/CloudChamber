@@ -873,7 +873,7 @@ func TestUsersUpdateNoUser(t *testing.T) {
 	r, err := toJSONReader(upd)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
 
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, userURI+"BadUser"), r)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, userURI + "BadUser"), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", "1"))
 
@@ -979,7 +979,7 @@ func TestUsersUpdateExpandRights(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now verify that the entry has not been changed
-	response, user := testUserRead(t, baseURI+alice, response.Cookies())
+	response, user := testUserRead(t, baseURI + alice, response.Cookies())
 	assert.False(t, user.CanManageAccounts)
 	assert.True(t, user.Enabled)
 	assert.False(t, user.NeverDelete)
@@ -1130,7 +1130,7 @@ func TestUsersSetPassword(t *testing.T) {
 	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = doLogin(t, "Alice", alicePassword+"xxx", response.Cookies())
+	response = doLogin(t, "Alice", alicePassword + "xxx", response.Cookies())
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
@@ -1175,7 +1175,7 @@ func TestUsersSetPasswordForce(t *testing.T) {
 	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = doLogin(t, "Alice", alicePassword+"xxx", response.Cookies())
+	response = doLogin(t, "Alice", alicePassword + "xxx", response.Cookies())
 	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
