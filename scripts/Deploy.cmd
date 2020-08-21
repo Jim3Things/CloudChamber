@@ -36,21 +36,21 @@ set DeployPackage=
 
 rem Check for requests for help without actually doing anything
 rem 
-if /i "%1" == ""       (goto :DeployHelp)
+if /i "%1" == ""       (goto :ScriptHelp)
 
 
 :DeployParseLoopStart
 
-if /i "%1" == "/?"     (goto :DeployHelp)
-if /i "%1" == "-?"     (goto :DeployHelp)
-if /i "%1" == "/h"     (goto :DeployHelp)
-if /i "%1" == "-h"     (goto :DeployHelp)
-if /i "%1" == "--help" (goto :DeployHelp)
+if /i "%1" == "/?"     (goto :ScriptHelp)
+if /i "%1" == "-?"     (goto :ScriptHelp)
+if /i "%1" == "/h"     (goto :ScriptHelp)
+if /i "%1" == "-h"     (goto :ScriptHelp)
+if /i "%1" == "--help" (goto :ScriptHelp)
 
 
 if /i "%1" == "%DEPLOY_PARAM_NAME_TARGETDIR%" (
 
-  if /i "%2" == "" (goto :DeployHelp)
+  if /i "%2" == "" (goto :ScriptHelp)
 
   set DeployTargetDir=%2
   shift
@@ -115,21 +115,7 @@ if /i "%DeployEtcd%" EQU "%DEPLOY_PARAM_VALUE_ETCD_INCLUDE%" (
   call :CopyEtcdBin etcdctl.exe %CloudChamberDir%\Files
 )
 
-goto :DeployExit
-
-
-
-
-:DeployHelp
-
-echo Deploy
-echo.
-echo Deploys a copy of Cloudchamber to the installation directory
-echo.
-echo   %DEPLOY_PARAM_NAME_TARGETDIR%          (defaults to %DEFAULT_PARAM_VALUE_DEPLOYMENT_DIR%)
-echo   %DEPLOY_PARAM_NAME_ETCD%  ^| %DEPLOY_PARAM_NAME_NOETCD%    (defaults to %DEFAULT_PARAM_VALUE_ETCD%
-
-goto :DeployExit
+goto :ScriptExit
 
 
 
@@ -169,7 +155,6 @@ if not exist "%TARGETBIN%" (
 xcopy %TARGETBIN% %2\
 
 
-
 :CopyEtcdBinExit
 
 goto :EOF
@@ -177,7 +162,34 @@ goto :EOF
 
 
 
-:DeployExit
+:ScriptHelp
+
+echo.
+echo Deploy [%DEPLOY_PARAM_NAME_TARGETDIR% ^<path^>] [%DEPLOY_PARAM_NAME_ETCD% ^| %DEPLOY_PARAM_NAME_NOETCD%]
+echo.
+echo Deploys a copy of Cloudchamber to the specified installation
+echo directory using files from
+echo.
+echo   %CLOUDCHAMBER_KIT%
+echo   %CLOUDCHAMBER_UI%
+echo.
+echo.
+echo   %DEPLOY_PARAM_NAME_TARGETDIR% ^<path^>   (defaults to %DEFAULT_PARAM_VALUE_DEPLOYMENT_DIR%)
+echo.
+echo    Identifies the target path for the deployment
+echo.
+echo   %DEPLOY_PARAM_NAME_ETCD%  ^| %DEPLOY_PARAM_NAME_NOETCD%    (defaults to %DEPLOY_PARAM_NAME_NOETCD%)
+echo.
+echo    Indicates whether or not a copy of the ectd binaries
+echo    should be included with the deployment.
+echo.
+
+goto :ScriptExit
+
+
+
+
+:ScriptExit
 
 ENDLOCAL
 goto :EOF

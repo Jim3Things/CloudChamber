@@ -77,7 +77,8 @@ goto :ScriptExit
 
 :ScriptHelp
 
-echo StartEtcd
+echo.
+echo MonitorEtcd
 echo.
 echo Starts a single etcdctl session to monitor an etcd instance.
 echo.
@@ -85,8 +86,8 @@ echo There are a number of (required on Windows) parameters which have default v
 echo which can be overridden by setting environment variables using the appropriate names along with the
 echo desired values.
 echo.
-echo ETCDNODEADDR (defaults to %DEFAULT_ETCDNODEADDR%) - IP address of the ETCD instance
-echo ETCDPORTCLNT (defaults to %DEFAULT_ETCDPORTCLNT%) - IP port to be used for communication with the client
+echo ETCDNODEADDR - IP address of the ETCD instance                       (defaults to %DEFAULT_ETCDNODEADDR%)
+echo ETCDPORTCLNT - IP port to be used for communication with the client  (defaults to %DEFAULT_ETCDPORTCLNT%) 
 echo.
 echo.
 

@@ -97,17 +97,16 @@ goto :EOF
 
 :ScriptHelp
 
-echo StartEtcd
 echo.
-echo Starts a single etcdctl session to monitor an etcd instance.
+echo StartCloudChamber
 echo.
-echo There are a number of (required on Windows) parameters which have default values as listed below but
-echo which can be overridden by setting environment variables using the appropriate names along with the
-echo desired values.
+echo Starts an instance of the CloudChamber services using the configuration file.
 echo.
-echo ETCDNODEADDR (defaults to %DEFAULT_ETCDNODEADDR%) - IP address of the ETCD instance
-echo ETCDPORTCLNT (defaults to %DEFAULT_ETCDPORTCLNT%) - IP port to be used for communication with the client
-echo.
+echo The service binaries are expected to be located either in a
+echo standard deployment directory or as a fallback, from the
+echo %GOPATH%\bin directory. The deployment directory is located
+echo based on the location of the StartCloudChamber.cmd script
+echo itself.
 echo.
 
 goto :ScriptExit

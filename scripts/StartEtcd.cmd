@@ -102,6 +102,7 @@ goto :ScriptExit
 
 :ScriptHelp
 
+echo.
 echo StartEtcd
 echo.
 echo Starts a single etcd instance.
@@ -110,10 +111,10 @@ echo There are a number of (required on Windows) parameters which have default v
 echo which can be overridden by setting environment variables using the appropriate names along with the
 echo desired values.
 echo.
-echo ETCDINSTANCE (defaults to %DEFAULT_ETCDINSTANCE%) - name of the ETCD instance
-echo ETCDNODEADDR (defaults to %DEFAULT_ETCDNODEADDR%) - IP address of the ETCD instance
-echo ETCDPORTCLNT (defaults to %DEFAULT_ETCDPORTCLNT%) - IP port to be used for communication with the client
-echo ETCDDATA     (defaults to %DEFAULT_ETCDDATA%)     - directory where the ETCD data files are to be placed
+echo ETCDINSTANCE - name of the ETCD instance                             (defaults to %DEFAULT_ETCDINSTANCE%)
+echo ETCDNODEADDR - IP address of the ETCD instance                       (defaults to %DEFAULT_ETCDNODEADDR%)
+echo ETCDPORTCLNT - IP port to be used for communication with the client  (defaults to %DEFAULT_ETCDPORTCLNT%)
+echo ETCDDATA     - directory where the ETCD data files are to be placed  (defaults to %DEFAULT_ETCDDATA%)
 echo.
 echo.
 
