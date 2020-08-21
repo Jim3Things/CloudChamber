@@ -326,11 +326,11 @@ func TestUsersLoginSessionBadPassword(t *testing.T) {
 	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword+"rubbish"))
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword + "rubbish"))
 	response := doHTTP(request, nil)
 	body, err := getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI+admin, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI + admin, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
@@ -349,11 +349,11 @@ func TestUsersLoginSessionNoUser(t *testing.T) {
 	defer unit_test.SetTesting(nil)
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin+"Bogus"), strings.NewReader(adminPassword))
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin + "Bogus"), strings.NewReader(adminPassword))
 	response := doHTTP(request, nil)
 	body, err := getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI+admin, err)
+	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI + admin, err)
 
 	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	t.Log(string(body))
@@ -549,7 +549,7 @@ func TestUsersList(t *testing.T) {
 
 	// .. and then verify that all following lines correctly consist of all the expected names
 	match := knownNames
-	match[baseURI+admin] = baseURI + admin
+	match[baseURI + admin] = baseURI + admin
 
 	// .. this involves converting the set of keys to an array for matching
 	keys := make([]string, 0, len(match))

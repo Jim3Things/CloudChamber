@@ -33,7 +33,7 @@ func testStepperSetManual(t *testing.T, match int64, cookies []*http.Cookie) []*
 	response := doHTTP(request, cookies)
 
 	assert.Equal(t, http.StatusOK, response.StatusCode)
-	assert.Equal(t, fmt.Sprintf("%v", match+1), response.Header.Get("ETag"))
+	assert.Equal(t, fmt.Sprintf("%v", match + 1), response.Header.Get("ETag"))
 
 	return response.Cookies()
 }
@@ -121,7 +121,7 @@ func TestStepperSetManual(t *testing.T) {
 	assert.Equal(t, int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
 	assert.Equal(t, int64(0), res.Now.Ticks, "Unexpected current time")
 	assert.Equal(t, int64(0), res.WaiterCount, "Unexpected active waiter count")
-	assert.Equal(t, stat.Epoch+1, res.Epoch, "Unexpected epoch value")
+	assert.Equal(t, stat.Epoch + 1, res.Epoch, "Unexpected epoch value")
 
 	doLogout(t, randomCase(adminAccountName), cookies)
 }
@@ -184,7 +184,7 @@ func TestStepperSetModeBadEpoch(t *testing.T) {
 	assert.Equal(t, int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
 	assert.Equal(t, int64(0), res.Now.Ticks, "Unexpected current time")
 	assert.Equal(t, int64(0), res.WaiterCount, "Unexpected active waiter count")
-	assert.Equal(t, stat.Epoch+1, res.Epoch, "Unexpected epoch")
+	assert.Equal(t, stat.Epoch + 1, res.Epoch, "Unexpected epoch")
 
 	doLogout(t, randomCase(adminAccountName), cookies)
 }

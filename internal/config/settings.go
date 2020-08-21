@@ -250,36 +250,36 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 func ToString(data *GlobalConfig) string {
 
 	return fmt.Sprintf(
-		"Controller:\n"+
-			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"Inventory:\n"+
-			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"SimSupport:\n"+
-			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"  StepperPolicy: %v\n"+
-			"Webserver:\n"+
-			"  FE:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  BE:\n"+
-			"    port: %v\n    hostname: %v\n"+
-			"  TraceFile: %s\n"+
-			"  RootFilePath: %s\n"+
-			"  SystemAccount: %s\n"+
-			"  SystemAccountPassword: %s\n"+
-			"Store:"+
-			"  ConnectTimeout: %v\n"+
-			"  RequestTimeout: %v\n"+
-			"  TraceLevel: %v\n"+
-			"  Test:\n"+
-			"    UseTestNamespace: %v\n"+
-			"    UseUniqueInstance: %v\n"+
-			"    PreCleanStore: %v\n"+
+		"Controller:\n" +
+			"  EP:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"Inventory:\n" +
+			"  EP:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"SimSupport:\n" +
+			"  EP:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"  StepperPolicy: %v\n" +
+			"Webserver:\n" +
+			"  FE:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  BE:\n" +
+			"    port: %v\n    hostname: %v\n" +
+			"  TraceFile: %s\n" +
+			"  RootFilePath: %s\n" +
+			"  SystemAccount: %s\n" +
+			"  SystemAccountPassword: %s\n" +
+			"Store:" +
+			"  ConnectTimeout: %v\n" +
+			"  RequestTimeout: %v\n" +
+			"  TraceLevel: %v\n" +
+			"  Test:\n" +
+			"    UseTestNamespace: %v\n" +
+			"    UseUniqueInstance: %v\n" +
+			"    PreCleanStore: %v\n" +
 			"",
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
 		data.Controller.TraceFile,
