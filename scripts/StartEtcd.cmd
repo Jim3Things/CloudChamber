@@ -103,19 +103,22 @@ goto :ScriptExit
 :ScriptHelp
 
 echo.
-echo StartEtcd
+echo StartEtcd [^<DataStorePath^>]
 echo.
 echo Starts a single etcd instance.
 echo.
-echo There are a number of (required on Windows) parameters which have default values as listed below but
-echo which can be overridden by setting environment variables using the appropriate names along with the
-echo desired values.
+echo There are a number of (required on Windows) parameters which have
+echo default values as listed below but which can be overridden by
+echo setting environment variables using the appropriate names along
+echo with the desired values.
 echo.
 echo ETCDINSTANCE - name of the ETCD instance                             (defaults to %DEFAULT_ETCDINSTANCE%)
 echo ETCDNODEADDR - IP address of the ETCD instance                       (defaults to %DEFAULT_ETCDNODEADDR%)
 echo ETCDPORTCLNT - IP port to be used for communication with the client  (defaults to %DEFAULT_ETCDPORTCLNT%)
 echo ETCDDATA     - directory where the ETCD data files are to be placed  (defaults to %DEFAULT_ETCDDATA%)
 echo.
+echo If the DataStorePath parameter is supplied, it will override
+echo current value of the ETCDDATA environment variable.
 echo.
 
 goto :ScriptExit
