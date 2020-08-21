@@ -13,10 +13,13 @@ SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 set CLOUDCHAMBER_KIT=%GOPATH%\src\github.com\Jim3Things\CloudChamber\deployments
 set CLOUDCHAMBER_UI=%GOPATH%\src\github.com\Jim3Things\cloud_chamber_react_ts\build
 
+set DEPLOY_PARAM_VALUE_ETCD_INCLUDE=Include
+set DEPLOY_PARAM_VALUE_ETCD_EXCLUDE=Exclude
+
+
 
 set DEFAULT_PARAM_VALUE_DEPLOYMENT_DIR=%SystemDrive%\CloudChamber
-set DEFAULT_PARAM_VALUE_ETCD=Exclude
-
+set DEFAULT_PARAM_VALUE_ETCD=%DEPLOY_PARAM_VALUE_ETCD_EXCLUDE%
 
 
 rem Parameters
@@ -26,20 +29,18 @@ set DEPLOY_PARAM_NAME_ETCD=-Etcd
 set DEPLOY_PARAM_NAME_NOETCD=-NoEtcd
 
 
-rem -NoEtcd
-rem -TargetDir
-rem -Package
-
 set DeployTargetDir=
 set DeployEtcd=
 set DeployPackage=
 
 
-:DeployParseLoopStart
-
 rem Check for requests for help without actually doing anything
 rem 
 if /i "%1" == ""       (goto :DeployHelp)
+
+
+:DeployParseLoopStart
+
 if /i "%1" == "/?"     (goto :DeployHelp)
 if /i "%1" == "-?"     (goto :DeployHelp)
 if /i "%1" == "/h"     (goto :DeployHelp)
@@ -49,18 +50,17 @@ if /i "%1" == "--help" (goto :DeployHelp)
 
 if /i "%1" == "%DEPLOY_PARAM_NAME_TARGETDIR%" (
 
-  shift
-
-  if /i "%1" == "" (goto :DeployHelp)
+  if /i "%2" == "" (goto :DeployHelp)
 
   set DeployTargetDir=%2
+  shift
   shift
 
   goto :DeployParseLoopStart
 
 ) else if /i "%1" == "%DEPLOY_PARAM_NAME_ETCD%" (
 
-  set DeployEtcd=Include
+  set DeployEtcd=%DEPLOY_PARAM_VALUE_ETCD_INCLUDE%
   shift
 
   goto :DeployParseLoopStart
@@ -78,7 +78,7 @@ if /i "%1" == "%DEPLOY_PARAM_NAME_TARGETDIR%" (
   
   goto :DeployParseLoopStart
 
-) else if /i "%1" != "" (
+) else if /i "%1" NEQ "" (
 
   goto :DeployParseLoopStart
 
@@ -104,36 +104,15 @@ if /i "%DeployTargetDir%" NEQ "" (
 )
 
 
-rem Decide on a whether or not the etcd.exe and etcdutl.exe binaries should be included
-rem
 
-if /i "%DeployEtcd%" == "" (
-
-  set DeployEtcd=%DEFAULT_PARAM_VALUE_ETCD%
-
-)
+xcopy /e /r /h /k %CLOUDCHAMBER_UI%\*  %CloudChamberDir%\Files\
+xcopy             %CLOUDCHAMBER_KIT%\* %CloudChamberDir%\Files\
 
 
-
-xcopy /e /r /h /k %CLOUDCHAMBER_UI%\*                      %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\cloudchamber.yaml     %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\controllerd.exe       %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\inventoryd.exe        %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\sim_supportd.exe      %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\web_server.exe        %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\StartAll.cmd          %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\StartCloudChamber.cmd %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\StartEtcd.cmd         %CloudChamberDir%\Files\
-xcopy             %CLOUDCHAMBER_KIT%\MonitorEtcd.cmd       %CloudChamberDir%\Files\
-
-
-if /i "%DeployEtcd%" EQU "Include" (
-
+if /i "%DeployEtcd%" EQU "%DEPLOY_PARAM_VALUE_ETCD_INCLUDE%" (
 
   call :CopyEtcdBin etcd.exe    %CloudChamberDir%\Files
   call :CopyEtcdBin etcdctl.exe %CloudChamberDir%\Files
-
-  echo %CloudChamberDir%\Data  >%CloudChamberDir%\Files\EtcDataDir.config
 )
 
 goto :DeployExit
@@ -147,8 +126,8 @@ echo Deploy
 echo.
 echo Deploys a copy of Cloudchamber to the installation directory
 echo.
-echo %DEPLOY_PARAM_NAME_TARGETDIR%        (defaults to %DEFAULT_PARAM_VALUE_DEPLOYMENT_DIR%)
-echo %DEPLOY_PARAM_NAME_ETCD% | %DEPLOY_PARAM_NAME_NOETCD%    (defaults to %DEFAULT_PARAM_VALUE_ETCD%
+echo   %DEPLOY_PARAM_NAME_TARGETDIR%          (defaults to %DEFAULT_PARAM_VALUE_DEPLOYMENT_DIR%)
+echo   %DEPLOY_PARAM_NAME_ETCD%  ^| %DEPLOY_PARAM_NAME_NOETCD%    (defaults to %DEFAULT_PARAM_VALUE_ETCD%
 
 goto :DeployExit
 

@@ -53,6 +53,7 @@ VERSION_MARKER = \
 ARTIFACTS = \
     deployments/readme.md \
     deployments/cloudchamber.yaml \
+    deployments/Deploy.cmd \
     deployments/StartAll.cmd \
     deployments/StartCloudChamber.cmd \
     deployments/StartEtcd.cmd \
@@ -64,7 +65,11 @@ INSTALL_KIT = $(SERVICES) $(ARTIFACTS)
 
 
 
-ifdef SYSTEMDRIVE
+ifdef CC_INSTALL_TARGET
+
+INSTALL_TARGET = $(CC_INSTALL_TARGET)/Files
+
+else ifdef SYSTEMDRIVE
 
 INSTALL_TARGET = $(SYSTEMDRIVE)/CloudChamber/Files
 
@@ -86,6 +91,8 @@ CP = cp
 CP-RECURSIVE = $(CP) -r
 
 MD = mkdir -p
+
+RM-RECURSIVE = $(RM) -r
 
 
 
@@ -109,6 +116,15 @@ install: $(INSTALL_KIT)
 	$(CP) $(INSTALL_KIT) $(INSTALL_TARGET)/
 	$(CP) $(PROJECT_UI)/*.* $(INSTALL_TARGET)/
 	$(CP-RECURSIVE) $(PROJECT_UI)/static $(INSTALL_TARGET)/
+
+
+.PHONY : install_clean
+
+install_clean:
+
+	$(RM-RECURSIVE) $(INSTALL_TARGET)/static
+	$(RM-RECURSIVE) $(INSTALL_TARGET)
+
 
 
 .PHONY : run_tests
@@ -166,6 +182,9 @@ deployments/readme.md: pkg/version/version_stamp.md
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/cloudchamber.yaml: configs/cloudchamber.yaml
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
+
+deployments/Deploy.cmd: scripts/Deploy.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/StartEtcd.cmd: scripts/StartEtcd.cmd

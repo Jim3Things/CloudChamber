@@ -9,6 +9,13 @@
 
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
+set SCRIPTDIR=%~dp0
+set CLOUDCHAMBERDIR=%SCRIPTDIR:~0,-7%
+set CLOUDCHAMBERFILE=%CLOUDCHAMBERDIR%\Files
+set CLOUDCHAMBERDATA=%CLOUDCHAMBERDIR%\Data
+
+
+
 rem Check for requests for help without actually doing anything
 rem 
 if /i "%1" == "/?"     (goto :ScriptHelp)
@@ -19,10 +26,19 @@ if /i "%1" == "--help" (goto :ScriptHelp)
 
 
 
-call :StartBinary controllerd.exe  . %~dp0 %GOPATH%\bin\
-call :StartBinary inventoryd.exe   . %~dp0 %GOPATH%\bin\
-call :StartBinary sim_supportd.exe . %~dp0 %GOPATH%\bin\
-call :StartBinary web_server.exe   . %~dp0 %GOPATH%\bin\
+rem To allow for the main config file cloudchamber.yaml to be location independant, all
+rem included paths are relative rather than absolute. This requires that we set the 
+rem current (working) directory to math the expectations of the config file.
+rem
+rem If at some point we can feed in the paths as arguments, this restriction can be relaxed
+rem 
+
+pushd %CLOUDCHAMBERFILE%
+call :StartBinary controllerd.exe  %CLOUDCHAMBERFILE% %CLOUDCHAMBERFILE% %GOPATH%\bin
+call :StartBinary inventoryd.exe   %CLOUDCHAMBERFILE% %CLOUDCHAMBERFILE% %GOPATH%\bin
+call :StartBinary sim_supportd.exe %CLOUDCHAMBERFILE% %CLOUDCHAMBERFILE% %GOPATH%\bin
+call :StartBinary web_server.exe   %CLOUDCHAMBERFILE% %CLOUDCHAMBERFILE% %GOPATH%\bin
+popd
 
 goto :ScriptExit
 
@@ -38,13 +54,13 @@ rem
 
 rem Find a binary to use
 rem
-if exist %3%1 (
+if exist %3\%1 (
 
-  set TARGETBIN=%3%1
+  set TARGETBIN=%3\%1
 
-) else if exist %4%1 (
+) else if exist %4\%1 (
 
-  set TARGETBIN=%4%1
+  set TARGETBIN=%4\%1
 
 ) else (
 

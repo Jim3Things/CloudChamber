@@ -9,6 +9,8 @@
 
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
+set SCRIPTDIR=%~dp0
+
 rem Check for requests for help without actually doing anything
 rem 
 if /i "%1" == "/?"     (goto :StartAllHelp)
@@ -17,15 +19,13 @@ if /i "%1" == "/h"     (goto :StartAllHelp)
 if /i "%1" == "-h"     (goto :StartAllHelp)
 if /i "%1" == "--help" (goto :StartAllHelp)
 
-set DEFAULT_DEPLOYMENT_ROOT=%SystemDrive%\CloudChamber
-
-set DEFAULT_DEPLOYMENT=%DEFAULT_DEPLOYMENT_ROOT%\Files
+set DEFAULT_DEPLOYMENT=%SystemDrive%\CloudChamber
 
 rem Decide on a path to the root to the deployment
 rem
-if /i "%1" NEQ "" (
+if /i "%1" == "" (
 
-  set CLOUDCHAMBERDIR=%1
+  set CLOUDCHAMBERDIR=%SCRIPTDIR:~0,-7%
 
 ) else if /i "%CLOUDCHAMBER%" NEQ "" (
 
@@ -37,12 +37,14 @@ if /i "%1" NEQ "" (
 
 )
 
+set CLOUDCHAMBERFILE=%CLOUDCHAMBERDIR%\Files
+set CLOUDCHAMBERDATA=%CLOUDCHAMBERDIR%\Data
 
 
 
-call %CLOUDCHAMBERDIR%\StartEtcd.cmd %CLOUDCHAMBERDIR%\..\Data
-call %CLOUDCHAMBERDIR%\MonitorEtcd.cmd
-call %CLOUDCHAMBERDIR%\StartCloudChamber.cmd
+call %CLOUDCHAMBERFILE%\StartEtcd.cmd %CLOUDCHAMBERDATA%
+call %CLOUDCHAMBERFILE%\MonitorEtcd.cmd
+call %CLOUDCHAMBERFILE%\StartCloudChamber.cmd
 
 :StartAllExit
 
