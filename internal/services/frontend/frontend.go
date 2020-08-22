@@ -40,7 +40,7 @@ import (
 // data fields.
 //
 type Server struct {
-	port         int
+	port         uint16
 	rootFilePath string
 
 	handler     http.Handler
