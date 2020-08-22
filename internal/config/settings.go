@@ -62,7 +62,7 @@ type GlobalConfig struct {
 // Endpoint is a helper type that defines a simple endpoint
 type Endpoint struct {
 	Hostname string
-	Port     int
+	Port     uint16
 }
 
 // ControllerType is a helper type describes the controllerd configuration settings

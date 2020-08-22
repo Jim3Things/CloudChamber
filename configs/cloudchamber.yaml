@@ -94,7 +94,7 @@ webServer:
   Tracefile: .\web_server_trace.txt
 
   # file system path to the static files and scripts
-  rootFilePath: c:\CloudChamber\Files
+  rootFilePath: .
 
   # pre-defined account
   systemAccount: admin
