@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -101,7 +102,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 				protected = " (protected)"
 			}
 
-			st.Infof(ctx, tick(), "   Listing user %q: %q%s", entry.Name, target, protected)
+			st.Infof(ctx, common.Tick(), "   Listing user %q: %q%s", entry.Name, target, protected)
 
 			users.Users = append(users.Users, &pb.UserListEntry{
 				Name:      entry.Name,
@@ -136,7 +137,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		st.Infof(ctx, tick(), "Creating user %q", username)
+		st.Infof(ctx, common.Tick(), "Creating user %q", username)
 
 		u := &pb.UserDefinition{}
 		if err = jsonpb.Unmarshal(r.Body, u); err != nil {
@@ -151,7 +152,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-		st.Infof(ctx, tick(), "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
+		st.Infof(ctx, common.Tick(), "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
 		_, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.CanManageAccounts)
 		return err
 	})
@@ -187,7 +188,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 			NeverDelete:       u.NeverDelete,
 		}
 
-		st.Infof(ctx, tick(), "Returning details for user %q: %v", username, u)
+		st.Infof(ctx, common.Tick(), "Returning details for user %q: %v", username, u)
 
 		// Get the user entry, and serialize it to json
 		// (export userPublic to json and return that as the body)
@@ -263,7 +264,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 			NeverDelete:       newVer.NeverDelete,
 		}
 
-		st.Infof(ctx, tick(), "Returning details for user %q: %v", username, upd)
+		st.Infof(ctx, common.Tick(), "Returning details for user %q: %v", username, upd)
 
 		p := jsonpb.Marshaler{}
 		return p.Marshal(w, ext)
@@ -305,7 +306,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 			vars := mux.Vars(r)
 			username := vars["username"]
 
-			st.Infof(ctx, tick(), "Operation %q, user %q, session %v", op, username, session)
+			st.Infof(ctx, common.Tick(), "Operation %q, user %q, session %v", op, username, session)
 
 			switch op {
 			case Login:
@@ -319,7 +320,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 			}
 
 			if err != nil {
-				_ = st.Error(ctx, tick(), dumpSessionState(session))
+				_ = st.Error(ctx, common.Tick(), dumpSessionState(session))
 			}
 			return err
 		})
@@ -379,7 +380,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-		st.Infof(ctx, tick(), "Password changed for user %q", username)
+		st.Infof(ctx, common.Tick(), "Password changed for user %q", username)
 		_, err = fmt.Fprintf(w, "Password changed for user %q", username)
 		return err
 	})

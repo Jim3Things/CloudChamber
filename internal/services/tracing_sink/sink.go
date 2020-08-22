@@ -11,8 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
@@ -87,7 +89,7 @@ func (s *server) LocalAppend(_ context.Context, entry *log.Entry) error {
 }
 
 // Append adds a trace entry to the list of known entries.
-func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*pb.AppendResponse, error) {
+func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*empty.Empty, error) {
 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
 		if err := request.Validate(); err != nil {
 			return err
@@ -96,35 +98,72 @@ func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*pb.App
 		return s.LocalAppend(ctx, request.Entry)
 	})
 
-	return &pb.AppendResponse{}, err
+	return &empty.Empty{}, err
 }
 
 func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
 	var resp waitResponse
 
-	_ = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
 		if err := request.Validate(); err != nil {
 			return err
 		}
 
 		if !request.Wait {
 			resp = s.processWaiter(request.Id, request.MaxEntries)
-			return nil
+			return resp.err
 		}
 
 		resp = <-s.wait(request)
+		return resp.err
+	})
+
+	if err != nil {
+		st.Infof(
+			ctx, common.Tick(),
+			"GetAfter failed with err=%v", err)
+	} else {
+		st.Infof(
+			ctx, common.Tick(),
+			"GetAfter returning; %d entries, missed=%v, lastID=%d",
+			len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
+	}
+
+	return resp.res, err
+}
+
+func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.GetPolicyResponse, error) {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	var resp *pb.GetPolicyResponse
+
+	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+		resp = &pb.GetPolicyResponse{
+			MaxEntriesHeld: int64(s.maxHeld),
+			FirstId:        int64(s.firstId),
+		}
+
 		return nil
 	})
 
-	return resp.res, resp.err
-}
-
-func (s *server) GetPolicy(ctx context.Context, request *pb.GetPolicyRequest) (*pb.GetPolicyResponse, error) {
-	return nil, fmt.Errorf("not yet implemented")
+	return resp, err
 }
 
 func (s *server) SetPolicy(ctx context.Context, request *pb.SetPolicyRequest) (*pb.SetPolicyResponse, error) {
 	return nil, fmt.Errorf("not yet implemented")
+}
+
+func (s *server) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, error)  {
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
+	s.entries = list.New()
+	s.lastId = 0
+	s.firstId = 0
+	s.waiters = make(map[int][]interface{})
+
+	return &empty.Empty{}, nil
 }
 
 func (s *server) addEntry(entry *log.Entry) {
@@ -167,7 +206,7 @@ func (s *server) processWaiter(startID int64, maxEntries int64) waitResponse {
 	resp := waitResponse{
 		err: nil,
 		res: &pb.GetAfterResponse{
-			LastId:  0,
+			LastId:  startID,
 			Missed:  false,
 			Entries: []*pb.GetAfterResponseTraceEntry{},
 		},
@@ -176,7 +215,7 @@ func (s *server) processWaiter(startID int64, maxEntries int64) waitResponse {
 	var count int64 = 0
 
 	for e := s.entries.Front(); (e != nil) && (count <= maxEntries); e = e.Next() {
-		item, ok := e.Value.(*listEntry)
+		item, ok := e.Value.(listEntry)
 		if !ok {
 			resp.err = fmt.Errorf("unexpected type in list: %v", e.Value)
 			return resp

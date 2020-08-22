@@ -4,6 +4,8 @@ package trace_sink;
 
 import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
 
+import "google/protobuf/empty.proto";
+
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink";
 
 // This service is a common collection point for trace entries across
@@ -13,7 +15,7 @@ option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink";
 // logical flow of action across the Cloud Chamber services.
 service TraceSink {
     // Append the specified entry to the set of traces held by the trace sink
-    rpc Append(AppendRequest) returns (AppendResponse);
+    rpc Append(AppendRequest) returns (google.protobuf.Empty);
 
     // Get the trace entries after the specified trace ID, up to the specified
     // limit.
@@ -26,15 +28,14 @@ service TraceSink {
     // Maybe?
     // Set the trace sink policy options
     rpc SetPolicy(SetPolicyRequest) returns (SetPolicyResponse);
+
+    rpc Reset(ResetRequest) returns (google.protobuf.Empty);
 }
 
 // Specify the trace entry to append to the trace sink's store
 message AppendRequest {
     // The trace entry
     log.entry entry = 1;
-}
-
-message AppendResponse {
 }
 
 // Specify what trace entries to receive
@@ -81,6 +82,8 @@ message GetPolicyRequest {
 message GetPolicyResponse {
     // The limit on the number of entries held in the trace sink
     int64 max_entries_held = 1;
+
+    int64 first_id = 2;
 }
 
 message SetPolicyRequest {
@@ -89,5 +92,9 @@ message SetPolicyRequest {
 }
 
 message SetPolicyResponse {
+
+}
+
+message ResetRequest {
 
 }

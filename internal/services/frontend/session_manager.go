@@ -11,7 +11,6 @@ import (
 
 	"github.com/gorilla/sessions"
 
-	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -217,13 +216,3 @@ func ensureEstablishedSession(session *sessions.Session) error {
 	return nil
 }
 
-// tick provides the current simulated time tick, or '-1' if the simulated time
-// cannot be retrieved (e.g. during startup)
-func tick() int64 {
-	now, err := ts.Now()
-	if err != nil {
-		return -1
-	}
-
-	return now.Ticks
-}
