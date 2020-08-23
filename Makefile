@@ -62,7 +62,7 @@ SRC_SM = \
 	$(call ProdFiles, internal/sm)
 
 SRC_STEPPER_ACTOR = \
-	$(SRC_SM) \
+    $(SRC_SM) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
 	$(call ProdFiles, internal/services/stepper_actor)

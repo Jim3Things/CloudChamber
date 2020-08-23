@@ -14,6 +14,8 @@
 package frontend
 
 import (
+	"fmt"
+	"math/rand"
 	"sync"
 
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
@@ -109,6 +111,52 @@ func InitDBInventory() error {
 			DiskInGb:               120,
 			NetworkBandwidthInMbps: 1024,
 			Arch:                   "X64",
+		}
+
+		// Add some more arbitrary inventory
+		//
+		for r := 3; r <= 4; r++ {
+
+			rack := fmt.Sprintf("test%d", r)
+
+			dbInventory.Zone.Racks[rack] = &pb.ExternalRack{
+				Tor:    &pb.ExternalTor{},
+				Pdu:    &pb.ExternalPdu{},
+				Blades: make(map[int64]*common.BladeCapacity),
+			}
+
+			for b := 1; b <= 8; b++ {
+
+				dbInventory.Zone.Racks[rack].Blades[int64(b)] = &common.BladeCapacity{
+					Cores:                  3 * rand.Int63n(16),
+					MemoryInMb:             1024 * rand.Int63n(128),
+					DiskInGb:               1024 * rand.Int63n(16),
+					NetworkBandwidthInMbps: 10 * 1024,
+					Arch:                   "X64",
+				}
+			}
+		}
+
+		for r := 5; r <= 8; r++ {
+
+			rack := fmt.Sprintf("test%d", r)
+
+			dbInventory.Zone.Racks[rack] = &pb.ExternalRack{
+				Tor:    &pb.ExternalTor{},
+				Pdu:    &pb.ExternalPdu{},
+				Blades: make(map[int64]*common.BladeCapacity),
+			}
+
+			for b := 1; b <= 8; b++ {
+
+				dbInventory.Zone.Racks[rack].Blades[int64(b)] = &common.BladeCapacity{
+					Cores:                  48,
+					MemoryInMb:             128 * 1024,
+					DiskInGb:               16 * 1024,
+					NetworkBandwidthInMbps: 10 * 1024,
+					Arch:                   "X64",
+				}
+			}
 		}
 
 		dbInventory.buildSummary()
