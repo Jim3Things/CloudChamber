@@ -1,5 +1,5 @@
 #defining a blade1 and blade2 for rack1
-Zone:
+ExternalZone:
  Racks:
  - rack1:
     Blades:
