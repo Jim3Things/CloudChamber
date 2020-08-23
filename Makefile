@@ -40,6 +40,112 @@ PROTO_GEN_FILES = \
     pkg/protos/trace_sink/trace_sink.pb.go
 
 
+ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
+
+SRC_CONFIG = \
+	$(call ProdFiles, internal/config)
+
+SRC_FRONTEND = \
+	$(SRC_CONFIG) \
+	$(SRC_STORE) \
+	$(SRC_TIMESTAMP) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_CLIENT) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, internal/services/frontend)
+
+SRC_MONITOR = \
+	$(call ProdFiles, internal/services/monitor)
+
+SRC_SM = \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, internal/sm)
+
+SRC_STEPPER_ACTOR = \
+	$(SRC_SM) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, internal/services/stepper_actor)
+
+SRC_STORE = \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, internal/clients/store)
+
+SRC_TIMESTAMP = \
+	$(call ProdFiles, internal/clients/timestamp)
+
+SRC_TRACINGSINK = \
+	$(call ProdFiles, internal/services/tracing_sink)
+
+SRC_TRACING = \
+	$(call ProdFiles, internal/tracing)
+
+SRC_TRACING_EXPORTERS_COMMON = \
+	$(SRC_TRACING) \
+	$(call ProdFiles, internal/tracing/exporters/common)
+
+SRC_TRACING_EXPORTERS_IO_WRITER = \
+	$(SRC_TRACING_EXPORTERS_COMMON) \
+	$(call ProdFiles, internal/tracing/exporters/io_writer)
+
+SRC_TRACING_EXPORTERS_PRODUCTION = \
+	$(SRC_TRACING_EXPORTERS_COMMON) \
+	$(call ProdFiles, internal/tracing/exporters/production)
+
+SRC_TRACING_EXPORTERS = \
+	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
+	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
+	$(call ProdFiles, internal/tracing/exporters)
+
+SRC_TRACING_SETUP = \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
+	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
+	$(call ProdFiles, internal/tracing/setup)
+
+SRC_TRACING_SERVER = \
+	$(SRC_TRACING) \
+	$(call ProdFiles, internal/tracing/server)
+
+SRC_TRACING_CLIENT = \
+	$(call ProdFiles, internal/tracing/client)
+
+SRC_VERSION = \
+	pkg/version/version.go
+
+
+SRC_CONTROLLER = \
+	$(call ProdFiles, cmd/controllerd) \
+	$(SRC_CONFIG) \
+	$(SRC_MONITOR) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SERVER) \
+	$(SRC_TRACING_SETUP)
+
+SRC_INVENTORY = \
+	$(call ProdFiles, cmd/inventoryd) \
+	$(SRC_CONFIG) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SETUP)
+
+SRC_SIMSUPPORT = \
+	$(call ProdFiles, cmd/sim_supportd) \
+	$(SRC_CONFIG) \
+	$(SRC_STEPPER_ACTOR) \
+	$(SRC_TRACINGSINK) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SERVER) \
+	$(SRC_TRACING_SETUP)
+
+SRC_WEBSERVER = \
+	$(call ProdFiles, cmd/web_server) \
+	$(SRC_CONFIG) \
+	$(SRC_FRONTEND) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SETUP)
+
+
 SERVICES = \
     deployments/controllerd.exe \
     deployments/inventoryd.exe \
@@ -163,19 +269,19 @@ pkg/protos/trace_sink/trace_sink.pb.go: pkg/protos/trace_sink/trace_sink.proto
 
 
 
-$(VERSION_MARKER) &: pkg/version/version.go
+$(VERSION_MARKER) &: $(SRC_VERSION)
 	go generate $(PROJECT)/$<
 
-deployments/controllerd.exe: cmd/controllerd/main.go   $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/controllerd.exe:  $(SRC_CONTROLLER) $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/inventoryd.exe: cmd/inventoryd/main.go     $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/inventoryd.exe:   $(SRC_INVENTORY)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/sim_supportd.exe: cmd/sim_supportd/main.go $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/sim_supportd.exe: $(SRC_SIMSUPPORT) $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/web_server.exe: cmd/web_server/main.go     $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/web_server.exe:   $(SRC_WEBSERVER)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
 deployments/readme.md: pkg/version/version_stamp.md
