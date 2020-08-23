@@ -44,12 +44,10 @@ func TestInventoryListRacks(t *testing.T) {
 
 	r, ok := list.Racks["rack1"]
 	assert.True(t, ok)
-	assert.Equal(t, "rack1", r.Name)
 	assert.Equal(t, "/api/racks/rack1", r.Uri)
 
 	r, ok = list.Racks["rack2"]
 	assert.True(t, ok)
-	assert.Equal(t, "rack2", r.Name)
 	assert.Equal(t, "/api/racks/rack2", r.Uri)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
@@ -123,6 +121,7 @@ func TestInventoryListBlades(t *testing.T) {
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
+
 func TestInventoryUnknownBlade(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -137,6 +136,7 @@ func TestInventoryUnknownBlade(t *testing.T) {
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
+
 func TestInventoryNegativeBlade(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -151,6 +151,7 @@ func TestInventoryNegativeBlade(t *testing.T) {
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
+
 func TestInventoryZeroBlade(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -165,6 +166,7 @@ func TestInventoryZeroBlade(t *testing.T) {
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
+
 func TestInventoryStringBlade(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -179,6 +181,7 @@ func TestInventoryStringBlade(t *testing.T) {
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
+
 func TestInventoryBadRackBlade(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -221,6 +224,7 @@ func TestInventoryBladeRead(t *testing.T) {
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 
 }
+
 func TestInventoryBlade2Read(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
@@ -256,5 +260,28 @@ func TestInventoryNoSession(t *testing.T) {
 	request := httptest.NewRequest("GET", "/api/racks/", nil)
 	response := doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusInternalServerError, response.StatusCode, "Handler returned Internal server error: %v", response.StatusCode)
+	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
+}
+
+func TestInventoryNoSessionRack(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", "/api/racks/rack1", nil)
+	response := doHTTP(request, nil)
+
+	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
+}
+
+func TestInventoryNoSessionBlade(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	request := httptest.NewRequest("GET", "/api/racks/rack1/Blades/1", nil)
+	response := doHTTP(request, nil)
+
+	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
 }

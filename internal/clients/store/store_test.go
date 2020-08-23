@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 )
 
 const revStoreInitial = int64(0)

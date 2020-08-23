@@ -29,12 +29,12 @@ const (
 )
 
 type BuildData struct {
-BuildVersion    string
-BuildHost       string
-BuildDate       string
-BuildBranch     string
-BuildBranchDate string
-BuildBranchHash string
+	BuildVersion    string
+	BuildHost       string
+	BuildDate       string
+	BuildBranch     string
+	BuildBranchDate string
+	BuildBranchHash string
 }
 
 func main() {
@@ -115,4 +115,3 @@ func runCommand(program string, args ...string) string {
 
 	return strings.TrimSuffix(out.String(), "\n")
 }
-

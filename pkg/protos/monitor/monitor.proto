@@ -10,7 +10,7 @@ import "google/protobuf/empty.proto";
 
 package monitor;
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/monitor";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/monitor";
 
 // Define the service implemented by the inventory monitor.
 service Monitor {

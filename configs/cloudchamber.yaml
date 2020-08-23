@@ -58,7 +58,7 @@ store:
     hostname: localhost
     port: 2379
 
-  # Test specific configuration. 
+  # Test specific configuration.
   #
   # Setting UseTestNamespace to 1 will instruct the store to use
   # a pre-defined test namespace which optionally can be deleted
@@ -94,7 +94,7 @@ webServer:
   Tracefile: .\web_server_trace.txt
 
   # file system path to the static files and scripts
-  rootFilePath: c:\CloudChamber\Files
+  rootFilePath: .
 
   # pre-defined account
   systemAccount: admin

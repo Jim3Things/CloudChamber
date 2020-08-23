@@ -12,7 +12,6 @@ import (
 	"github.com/gorilla/sessions"
 
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -206,11 +205,13 @@ func doSessionHeader(
 
 // ensureEstablishedSession verifies that the session is not new, and triggers
 // an error if it is.
-func ensureEstablishedSession(ctx context.Context, session *sessions.Session) error {
+func ensureEstablishedSession(session *sessions.Session) error {
 	if session.IsNew {
-		return st.Errorf(
-			ctx, -1,
-			"Unexpected new session, value=%s", dumpSessionState(session))
+		return NewErrNoSessionActive()
+	}
+
+	if _, ok := getSession(session); !ok {
+		return NewErrNoSessionActive()
 	}
 
 	return nil

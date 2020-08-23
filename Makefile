@@ -1,5 +1,7 @@
 PROJECT = $(GOPATH)/src/github.com/Jim3Things/CloudChamber
 
+PROJECT_UI = ../cloud_chamber_react_ts/build
+
 PROTO_FILES = \
     pkg/protos/admin/users.proto \
     pkg/protos/common/capacity.proto \
@@ -18,6 +20,7 @@ PROTO_FILES = \
     pkg/protos/Stepper/stepper.proto \
     pkg/protos/trace_sink/trace_sink.proto
 
+
 PROTO_GEN_FILES = \
     pkg/protos/admin/users.pb.go \
     pkg/protos/common/capacity.pb.go \
@@ -34,7 +37,8 @@ PROTO_GEN_FILES = \
     pkg/protos/workload/target.pb.go \
     pkg/protos/monitor/monitor.pb.go \
     pkg/protos/Stepper/stepper.pb.go \
-	pkg/protos/trace_sink/trace_sink.pb.go
+    pkg/protos/trace_sink/trace_sink.pb.go
+
 
 SERVICES = \
     deployments/controllerd.exe \
@@ -49,13 +53,46 @@ VERSION_MARKER = \
 ARTIFACTS = \
     deployments/readme.md \
     deployments/cloudchamber.yaml \
-    deployments/start_cloud_chamber.cmd \
-    deployments/startetcd.cmd
+    deployments/Deploy.cmd \
+    deployments/StartAll.cmd \
+    deployments/StartCloudChamber.cmd \
+    deployments/StartEtcd.cmd \
+    deployments/MonitorEtcd.cmd
 
-PROTOC = protoc --go_out=$(GOPATH)/src --proto_path=. --proto_path=$(GOPATH)/src
-GRPC_PROTOC = protoc --go_out=plugins=grpc:$(GOPATH)/src --proto_path=. --proto_path=$(GOPATH)/src
+
+
+INSTALL_KIT = $(SERVICES) $(ARTIFACTS)
+
+
+
+ifdef CC_INSTALL_TARGET
+
+INSTALL_TARGET = $(CC_INSTALL_TARGET)/Files
+
+else ifdef SYSTEMDRIVE
+
+INSTALL_TARGET = $(SYSTEMDRIVE)/CloudChamber/Files
+
+else
+
+INSTALL_TARGET = ~/CloudChamber/Files
+
+endif
+
+
+
+PROTOC_BASE = protoc --proto_path=. --proto_path=$(GOPATH)/src
+
+PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src 
+PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src 
+
 
 CP = cp
+CP-RECURSIVE = $(CP) -r
+
+MD = mkdir -p
+
+RM-RECURSIVE = $(RM) -r
 
 
 
@@ -70,6 +107,27 @@ version: $(VERSION_MARKER)
 service_build: $(SERVICES)
 
 copy_to: $(ARTIFACTS)
+
+
+.PHONY : install
+
+install: $(INSTALL_KIT)
+	$(MD) $(INSTALL_TARGET)
+	$(CP) $(INSTALL_KIT) $(INSTALL_TARGET)/
+	$(CP) $(PROJECT_UI)/*.* $(INSTALL_TARGET)/
+	$(CP-RECURSIVE) $(PROJECT_UI)/static $(INSTALL_TARGET)/
+
+
+.PHONY : install_clean
+
+install_clean:
+
+	$(RM-RECURSIVE) $(INSTALL_TARGET)/static
+	$(RM-RECURSIVE) $(INSTALL_TARGET)
+
+
+
+.PHONY : run_tests
 
 run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test $(PROJECT)/internal/clients/store
@@ -91,17 +149,17 @@ test: run_tests
 
 
 %.pb.go : %.proto
-	$(PROTOC) $(PROJECT)/$<
+	$(PROTOC_PBUF) $(PROJECT)/$<
 
 
 pkg/protos/monitor/monitor.pb.go: pkg/protos/monitor/monitor.proto
-	$(GRPC_PROTOC) $(PROJECT)/$<
+	$(PROTOC_GRPC) $(PROJECT)/$<
 
 pkg/protos/Stepper/stepper.pb.go: pkg/protos/Stepper/stepper.proto
-	$(GRPC_PROTOC) $(PROJECT)/$<
+	$(PROTOC_GRPC) $(PROJECT)/$<
 
 pkg/protos/trace_sink/trace_sink.pb.go: pkg/protos/trace_sink/trace_sink.proto
-	$(GRPC_PROTOC) $(PROJECT)/$<
+	$(PROTOC_GRPC) $(PROJECT)/$<
 
 
 
@@ -126,8 +184,17 @@ deployments/readme.md: pkg/version/version_stamp.md
 deployments/cloudchamber.yaml: configs/cloudchamber.yaml
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/start_cloud_chamber.cmd: scripts/start_cloud_chamber.cmd
+deployments/Deploy.cmd: scripts/Deploy.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/startetcd.cmd: scripts/startetcd.cmd
+deployments/StartEtcd.cmd: scripts/StartEtcd.cmd
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
+
+deployments/StartAll.cmd : scripts/StartAll.cmd
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
+
+deployments/StartCloudChamber.cmd : scripts/StartCloudChamber.cmd
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
+
+deployments/MonitorEtcd.cmd : scripts/MonitorEtcd.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@

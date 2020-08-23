@@ -11,14 +11,14 @@ syntax = "proto3";
 
 package common;
 
-option go_package="github.com/Jim3Things/CloudChamber/pkg/protos/common";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/common";
 
 // Describe the capabilities of a physical blade
 // TODO: Do we need anything about host system software, or is this purely physical attributes?
 
 // Define the set of known accelerators, such as GPUs or FPGAs.
 message accelerator {
-    message NVIDIA_V100 { }
+    message NVIDIA_V100 {}
 
     oneof accelerator_type {
         NVIDIA_V100 v100 = 1;

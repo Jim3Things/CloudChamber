@@ -18,7 +18,6 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -48,7 +47,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -76,13 +75,10 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 			b += "/"
 		}
 
-		err = dbInventory.Scan(func(name string, memo *common.BladeCapacity) (err error) {
+		err = dbInventory.Scan(func(name string) (err error) {
 			target := fmt.Sprintf("%s%s", b, name)
 
-			res.Racks[name] = &pb.ExternalRackSummary{
-				Name: name,
-				Uri:  target,
-			}
+			res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
 			st.Infof(ctx, tick(), "   Listing rack %q at %q", name, target)
 
@@ -100,7 +96,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -128,7 +124,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -160,7 +156,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(ctx, session)
+			return ensureEstablishedSession(session)
 		})
 		if err != nil {
 			return httpError(ctx, w, err)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	stdLog "log"
 
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
@@ -19,10 +20,10 @@ import (
 
 // Interceptor intercepts and extracts incoming trace data
 func Interceptor(
-		ctx context.Context,
-		req interface{},
-		info *grpc.UnaryServerInfo,
-		handler grpc.UnaryHandler) (resp interface{}, err error) {
+	ctx context.Context,
+	req interface{},
+	info *grpc.UnaryServerInfo,
+	handler grpc.UnaryHandler) (resp interface{}, err error) {
 	requestMetadata, _ := metadata.FromIncomingContext(ctx)
 	metadataCopy := requestMetadata.Copy()
 
@@ -112,6 +113,11 @@ func Error(ctx context.Context, tick int64, a interface{}) error {
 // Post an error trace with a complex string formatting
 func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
 	return logError(ctx, tick, fmt.Errorf(f, a...))
+}
+
+// Fatalf traces the error, and then terminates the process.
+func Fatalf(ctx context.Context, tick int64, f string, a ...interface{}) {
+	stdLog.Fatal(Errorf(ctx, tick, f, a...))
 }
 
 // --- Exported trace invocation methods

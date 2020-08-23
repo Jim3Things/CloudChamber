@@ -58,7 +58,7 @@ var (
 // SetLogFileWriter establishes the IO writer to use to output the trace entries.
 // Any deferred trace entries are written at this time.
 func SetLogFileWriter(writer io.Writer) error {
-	if state == notInitialized {
+	if state == noExporterRequested {
 		// This trace exporter has not been chosen, ignore this call
 		return nil
 	}

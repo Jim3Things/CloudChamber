@@ -1,4 +1,5 @@
-// This module contains the implementation of the service front end which establishes the http[s] endpoint to receive and handle incomging requests.
+// This module contains the implementation of the service front end which
+// establishes the http[s] endpoint to receive and handle incoming requests.
 //
 
 // Useful references
@@ -16,6 +17,7 @@
 package frontend
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -29,14 +31,16 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 // Server is the context structure for the frontend web service. It is used to
-// provide a convenient place to store all the long-lived server/service global data fields.
+// provide a convenient place to store all the long-lived server/service global
+// data fields.
 //
 type Server struct {
-	port         int
+	port         uint16
 	rootFilePath string
 
 	handler     http.Handler
@@ -51,14 +55,14 @@ var (
 	server Server
 )
 
-// normalize the URLs we process before handing them off to the normal route
-// processing.
+// normalizeURL standardizes the URL string before handing them to the normal
+// route processing.
 //
 // The rules for processing URLs are:
-//	a) any POST operation is lowercased, except for the last segment.  That
+//	a) any POST operation is lower-cased, except for the last segment.  That
 //	   segment has the case retained.
 //
-//	b) any other operation is lowercased fully.
+//	b) any other operation is lower-cased fully.
 //
 // This allows user casing choice for values they determine, such as user
 // names, while also allowing for case insensitive processing for all
@@ -85,6 +89,21 @@ func normalizeURL(next http.Handler) http.Handler {
 	})
 }
 
+// traceRequest is an interception handler that traces the request as it
+// arrives.  This is used, for example, to trace file access requests.
+func traceRequest(spanName string, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = st.WithSpan(
+			context.Background(),
+			spanName,
+			func(ctx context.Context) error {
+				st.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
+				next.ServeHTTP(w, r)
+				return nil
+			})
+	})
+}
+
 func initHandlers() error {
 
 	handler := mux.NewRouter()
@@ -96,6 +115,7 @@ func initHandlers() error {
 	workloadsAddRoutes(routeAPI)
 	inventoryAddRoutes(routeAPI)
 	stepperAddRoutes(routeAPI)
+	pingAddRoutes(routeAPI)
 
 	// TODO the following handler definitions are just temporary placeholders and
 	// should at some point be converted to follow the same pattern as for files,
@@ -107,7 +127,12 @@ func initHandlers() error {
 
 	// Add the file handling for any other paths.
 	handler.PathPrefix("/").
-		Handler(http.StripPrefix("/", http.FileServer(http.Dir(server.rootFilePath))))
+		Handler(
+			traceRequest(
+				"File Request",
+				http.StripPrefix(
+					"/",
+					http.FileServer(http.Dir(server.rootFilePath)))))
 
 	server.handler = normalizeURL(handler)
 
@@ -146,7 +171,7 @@ func initService(cfg *config.GlobalConfig) error {
 			cfg.SimSupport.EP.Hostname,
 			cfg.SimSupport.EP.Port),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ctrc.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor))
 
 	if err := initHandlers(); err != nil {
 		return err
@@ -181,12 +206,12 @@ func StartService(cfg *config.GlobalConfig) error {
 //   fmt.Fprintf(w, "Cloudchamber")
 // }
 
-func handlerLogsRoot(w http.ResponseWriter, r *http.Request) {
+func handlerLogsRoot(w http.ResponseWriter, _ *http.Request) {
 
-	fmt.Fprintf(w, "Logs (Root)")
+	_, _ = fmt.Fprintf(w, "Logs (Root)")
 }
 
-func handlerInjectorRoot(w http.ResponseWriter, r *http.Request) {
+func handlerInjectorRoot(w http.ResponseWriter, _ *http.Request) {
 
-	fmt.Fprintf(w, "Injector (Root)")
+	_, _ = fmt.Fprintf(w, "Injector (Root)")
 }
