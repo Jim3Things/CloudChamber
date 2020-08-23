@@ -40,8 +40,10 @@ PROTO_GEN_FILES = \
     pkg/protos/trace_sink/trace_sink.pb.go
 
 
+ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
+
 SRC_CONFIG = \
-	internal/config/settings.go
+	$(call ProdFiles, internal/config)
 
 SRC_FRONTEND = \
 	$(SRC_CONFIG) \
@@ -50,89 +52,71 @@ SRC_FRONTEND = \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_CLIENT) \
 	$(SRC_TRACING_SERVER) \
-	internal/services/frontend/DBInventory.go \
-	internal/services/frontend/DBUsers.go \
-	internal/services/frontend/errors.go \
-	internal/services/frontend/frontend.go \
-	internal/services/frontend/inventory.go \
-	internal/services/frontend/ping.go \
-	internal/services/frontend/session_manager.go \
-	internal/services/frontend/stepper.go \
-	internal/services/frontend/users.go \
-	internal/services/frontend/workloads.go
+	$(call ProdFiles, internal/services/frontend)
 
 SRC_MONITOR = \
-	internal/services/monitor/monitor.go
+	$(call ProdFiles, internal/services/monitor)
 
 SRC_SM = \
 	$(SRC_TRACING_SERVER) \
-	internal/sm/sm.go
+	$(call ProdFiles, internal/sm)
 
 SRC_STEPPER_ACTOR = \
     $(SRC_SM) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	internal/services/stepper_actor/actor.go \
-	internal/services/stepper_actor/adapter.go \
-	internal/services/stepper_actor/sm.go
+	$(call ProdFiles, internal/services/stepper_actor)
 
 SRC_STORE = \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	internal/clients/store/store.go \
-	internal/clients/store/storeapi.go \
-	internal/clients/store/errors.go
+	$(call ProdFiles, internal/clients/store)
 
 SRC_TIMESTAMP = \
-	internal/clients/timestamp/timestamp.go
+	$(call ProdFiles, internal/clients/timestamp)
 
 SRC_TRACINGSINK = \
-	internal/services/tracing_sink/sink.go
+	$(call ProdFiles, internal/services/tracing_sink)
 
 SRC_TRACING = \
-	internal/tracing/constants.go \
-	internal/tracing/StackData.go
+	$(call ProdFiles, internal/tracing)
 
 SRC_TRACING_EXPORTERS_COMMON = \
 	$(SRC_TRACING) \
-	internal/tracing/exporters/common/common.go \
-	internal/tracing/exporters/common/deferrable.go
+	$(call ProdFiles, internal/tracing/exporters/common)
 
 SRC_TRACING_EXPORTERS_IO_WRITER = \
 	$(SRC_TRACING_EXPORTERS_COMMON) \
-	internal/tracing/exporters/io_writer/exporter.go
+	$(call ProdFiles, internal/tracing/exporters/io_writer)
 
 SRC_TRACING_EXPORTERS_PRODUCTION = \
 	$(SRC_TRACING_EXPORTERS_COMMON) \
-	internal/tracing/exporters/production/exporter.go
+	$(call ProdFiles, internal/tracing/exporters/production)
 
 SRC_TRACING_EXPORTERS = \
 	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
 	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
-	internal/tracing/exporters/exporters.go \
-	internal/tracing/exporters/init.go 
+	$(call ProdFiles, internal/tracing/exporters)
 
 SRC_TRACING_SETUP = \
 	$(SRC_TRACING_EXPORTERS) \
 	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
 	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
-	internal/tracing/setup/config.go \
+	$(call ProdFiles, internal/tracing/setup)
 
 SRC_TRACING_SERVER = \
 	$(SRC_TRACING) \
-	internal/tracing/server/actor_interceptor.go \
-	internal/tracing/server/span_map.go \
-	internal/tracing/server/tracing.go
+	$(call ProdFiles, internal/tracing/server)
 
 SRC_TRACING_CLIENT = \
-	internal/tracing/client/tracing.go \
+	$(call ProdFiles, internal/tracing/client)
 
 SRC_VERSION = \
 	pkg/version/version.go
 
 
 SRC_CONTROLLER = \
-	cmd/controllerd/main.go \
+	$(call ProdFiles, cmd/controllerd) \
 	$(SRC_CONFIG) \
 	$(SRC_MONITOR) \
 	$(SRC_TRACING_EXPORTERS) \
@@ -140,13 +124,13 @@ SRC_CONTROLLER = \
 	$(SRC_TRACING_SETUP)
 
 SRC_INVENTORY = \
-	cmd/inventoryd/main.go \
+	$(call ProdFiles, cmd/inventoryd) \
 	$(SRC_CONFIG) \
 	$(SRC_TRACING_EXPORTERS) \
 	$(SRC_TRACING_SETUP)
 
 SRC_SIMSUPPORT = \
-	cmd/sim_supportd/main.go \
+	$(call ProdFiles, cmd/sim_supportd) \
 	$(SRC_CONFIG) \
 	$(SRC_STEPPER_ACTOR) \
 	$(SRC_TRACINGSINK) \
@@ -155,7 +139,7 @@ SRC_SIMSUPPORT = \
 	$(SRC_TRACING_SETUP)
 
 SRC_WEBSERVER = \
-	cmd/web_server/main.go \
+	$(call ProdFiles, cmd/web_server) \
 	$(SRC_CONFIG) \
 	$(SRC_FRONTEND) \
 	$(SRC_TRACING_EXPORTERS) \
