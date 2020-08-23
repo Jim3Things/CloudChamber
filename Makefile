@@ -43,7 +43,7 @@ PROTO_GEN_FILES = \
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
 
 SRC_CONFIG = \
-	$(filter-out %_test.go, $(wildcard internal/config/*.go))
+	$(call ProdFiles, internal/config)
 
 SRC_FRONTEND = \
 	$(SRC_CONFIG) \
