@@ -40,6 +40,128 @@ PROTO_GEN_FILES = \
     pkg/protos/trace_sink/trace_sink.pb.go
 
 
+SRC_CONFIG = \
+	internal/config/settings.go
+
+SRC_FRONTEND = \
+	$(SRC_CONFIG) \
+	$(SRC_STORE) \
+	$(SRC_TIMESTAMP) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_CLIENT) \
+	$(SRC_TRACING_SERVER) \
+	internal/services/frontend/DBInventory.go \
+	internal/services/frontend/DBUsers.go \
+	internal/services/frontend/errors.go \
+	internal/services/frontend/frontend.go \
+	internal/services/frontend/inventory.go \
+	internal/services/frontend/ping.go \
+	internal/services/frontend/session_manager.go \
+	internal/services/frontend/stepper.go \
+	internal/services/frontend/users.go \
+	internal/services/frontend/workloads.go
+
+SRC_MONITOR = \
+	internal/services/monitor/monitor.go
+
+SRC_SM = \
+	$(SRC_TRACING_SERVER) \
+	internal/sm/sm.go
+
+SRC_STEPPER_ACTOR = \
+    $(SRC_SM) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	internal/services/stepper_actor/actor.go \
+	internal/services/stepper_actor/adapter.go \
+	internal/services/stepper_actor/sm.go
+
+SRC_STORE = \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	internal/clients/store/store.go \
+	internal/clients/store/storeapi.go \
+	internal/clients/store/errors.go
+
+SRC_TIMESTAMP = \
+	internal/clients/timestamp/timestamp.go
+
+SRC_TRACINGSINK = \
+	internal/services/tracing_sink/sink.go
+
+SRC_TRACING = \
+	internal/tracing/constants.go \
+	internal/tracing/StackData.go
+
+SRC_TRACING_EXPORTERS_COMMON = \
+	$(SRC_TRACING) \
+	internal/tracing/exporters/common/common.go \
+	internal/tracing/exporters/common/deferrable.go
+
+SRC_TRACING_EXPORTERS_IO_WRITER = \
+	$(SRC_TRACING_EXPORTERS_COMMON) \
+	internal/tracing/exporters/io_writer/exporter.go
+
+SRC_TRACING_EXPORTERS_PRODUCTION = \
+	$(SRC_TRACING_EXPORTERS_COMMON) \
+	internal/tracing/exporters/production/exporter.go
+
+SRC_TRACING_EXPORTERS = \
+	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
+	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
+	internal/tracing/exporters/exporters.go \
+	internal/tracing/exporters/init.go 
+
+SRC_TRACING_SETUP = \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
+	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
+	internal/tracing/setup/config.go \
+
+SRC_TRACING_SERVER = \
+	$(SRC_TRACING) \
+	internal/tracing/server/actor_interceptor.go \
+	internal/tracing/server/span_map.go \
+	internal/tracing/server/tracing.go
+
+SRC_TRACING_CLIENT = \
+	internal/tracing/client/tracing.go \
+
+SRC_VERSION = \
+	pkg/version/version.go
+
+
+SRC_CONTROLLER = \
+	cmd/controllerd/main.go \
+	$(SRC_CONFIG) \
+	$(SRC_MONITOR) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SERVER) \
+	$(SRC_TRACING_SETUP)
+
+SRC_INVENTORY = \
+	cmd/inventoryd/main.go \
+	$(SRC_CONFIG) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SETUP)
+
+SRC_SIMSUPPORT = \
+	cmd/sim_supportd/main.go \
+	$(SRC_CONFIG) \
+	$(SRC_STEPPER_ACTOR) \
+	$(SRC_TRACINGSINK) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SERVER) \
+	$(SRC_TRACING_SETUP)
+
+SRC_WEBSERVER = \
+	cmd/web_server/main.go \
+	$(SRC_CONFIG) \
+	$(SRC_FRONTEND) \
+	$(SRC_TRACING_EXPORTERS) \
+	$(SRC_TRACING_SETUP)
+
+
 SERVICES = \
     deployments/controllerd.exe \
     deployments/inventoryd.exe \
@@ -163,19 +285,19 @@ pkg/protos/trace_sink/trace_sink.pb.go: pkg/protos/trace_sink/trace_sink.proto
 
 
 
-$(VERSION_MARKER) &: pkg/version/version.go
+$(VERSION_MARKER) &: $(SRC_VERSION)
 	go generate $(PROJECT)/$<
 
-deployments/controllerd.exe: cmd/controllerd/main.go   $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/controllerd.exe:  $(SRC_CONTROLLER) $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/inventoryd.exe: cmd/inventoryd/main.go     $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/inventoryd.exe:   $(SRC_INVENTORY)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/sim_supportd.exe: cmd/sim_supportd/main.go $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/sim_supportd.exe: $(SRC_SIMSUPPORT) $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/web_server.exe: cmd/web_server/main.go     $(PROTO_GEN_FILES) $(VERSION_MARKER)
+deployments/web_server.exe:   $(SRC_WEBSERVER)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
 deployments/readme.md: pkg/version/version_stamp.md
