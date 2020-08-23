@@ -41,7 +41,7 @@ PROTO_GEN_FILES = \
 
 
 SRC_CONFIG = \
-	internal/config/settings.go
+	$(filter-out %_test.go, $(wildcard internal/config/*.go))
 
 SRC_FRONTEND = \
 	$(SRC_CONFIG) \
@@ -50,82 +50,64 @@ SRC_FRONTEND = \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_CLIENT) \
 	$(SRC_TRACING_SERVER) \
-	internal/services/frontend/DBInventory.go \
-	internal/services/frontend/DBUsers.go \
-	internal/services/frontend/errors.go \
-	internal/services/frontend/frontend.go \
-	internal/services/frontend/inventory.go \
-	internal/services/frontend/ping.go \
-	internal/services/frontend/session_manager.go \
-	internal/services/frontend/stepper.go \
-	internal/services/frontend/users.go \
-	internal/services/frontend/workloads.go
+	$(filter-out %_test.go, $(wildcard internal/services/frontend/*.go))
 
 SRC_MONITOR = \
-	internal/services/monitor/monitor.go
+	$(filter-out %_test.go, $(wildcard internal/services/monitor/*.go))
 
 SRC_SM = \
 	$(SRC_TRACING_SERVER) \
-	internal/sm/sm.go
+	$(filter-out %_test.go, $(wildcard internal/sm/*.go))
 
 SRC_STEPPER_ACTOR = \
 	$(SRC_SM) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	internal/services/stepper_actor/actor.go \
-	internal/services/stepper_actor/adapter.go \
-	internal/services/stepper_actor/sm.go
+	$(filter-out %_test.go, $(wildcard internal/services/stepper_actor/*.go))
 
 SRC_STORE = \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	internal/clients/store/store.go \
-	internal/clients/store/storeapi.go \
-	internal/clients/store/errors.go
+	$(filter-out %_test.go, $(wildcard internal/clients/store/*.go))
 
 SRC_TIMESTAMP = \
-	internal/clients/timestamp/timestamp.go
+	$(filter-out %_test.go, $(wildcard internal/clients/timestamp/*.go))
 
 SRC_TRACINGSINK = \
-	internal/services/tracing_sink/sink.go
+	$(filter-out %_test.go, $(wildcard internal/services/tracing_sink/*.go))
 
 SRC_TRACING = \
-	internal/tracing/constants.go \
-	internal/tracing/StackData.go
+	$(filter-out %_test.go, $(wildcard internal/tracing/*.go))
 
 SRC_TRACING_EXPORTERS_COMMON = \
 	$(SRC_TRACING) \
-	internal/tracing/exporters/common/common.go \
-	internal/tracing/exporters/common/deferrable.go
+	$(filter-out %_test.go, $(wildcard internal/tracing/exporters/common/*.go))
 
 SRC_TRACING_EXPORTERS_IO_WRITER = \
 	$(SRC_TRACING_EXPORTERS_COMMON) \
-	internal/tracing/exporters/io_writer/exporter.go
+	$(filter-out %_test.go, $(wildcard internal/tracing/exporters/io_writer/*.go))
 
 SRC_TRACING_EXPORTERS_PRODUCTION = \
 	$(SRC_TRACING_EXPORTERS_COMMON) \
-	internal/tracing/exporters/production/exporter.go
+	$(filter-out %_test.go, $(wildcard internal/tracing/exporters/production/*.go))
 
 SRC_TRACING_EXPORTERS = \
 	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
 	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
-	internal/tracing/exporters/exporters.go \
-	internal/tracing/exporters/init.go 
+	$(filter-out %_test.go, $(wildcard internal/tracing/exporters/*.go))
 
 SRC_TRACING_SETUP = \
 	$(SRC_TRACING_EXPORTERS) \
 	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
 	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
-	internal/tracing/setup/config.go \
+	$(filter-out %_test.go, $(wildcard internal/tracing/setup/*.go))
 
 SRC_TRACING_SERVER = \
 	$(SRC_TRACING) \
-	internal/tracing/server/actor_interceptor.go \
-	internal/tracing/server/span_map.go \
-	internal/tracing/server/tracing.go
+	$(filter-out %_test.go, $(wildcard internal/tracing/server/*.go))
 
 SRC_TRACING_CLIENT = \
-	internal/tracing/client/tracing.go \
+	$(filter-out %_test.go, $(wildcard internal/tracing/client/*.go))
 
 SRC_VERSION = \
 	pkg/version/version.go
