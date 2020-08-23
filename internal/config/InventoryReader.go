@@ -17,10 +17,14 @@ const(
 	DefaultDefinitionFile = "inventory.yaml"
 )
 
+//The local variables below were created to meet the requirements that would enable us to read the YAML file
+//zone is a local struct with a field as a map of Racks
+
 type zone struct {
 	Racks []rack
 }
 
+//Similarly rack itself is a map of Blades, map of Tor and a map of Pdu
 type rack struct {
 	Name string
 	Blades []blade
@@ -28,6 +32,7 @@ type rack struct {
 	Pdu pdu
 }
 
+//Finally blade is the most basic struct in a zone with key value pairs as listed below
 type blade struct {
 	Index int64
 	Arch string
@@ -90,18 +95,20 @@ func ReadInventoryDefinition(path string) (*pb.ExternalZone, error){
 	return cfg, nil	
 }
 
+// Creating new function to convert array values into YAML readable maps
+
 func ToExternalZone (xfr *zone) *pb.ExternalZone{
-	cfg := &pb.ExternalZone{
+	cfg := &pb.ExternalZone{ //Capturing values from pb.externalZone into a new variable
 		Racks : make(map[string]*pb.ExternalRack),
 	}
-	for _, r := range xfr.Racks {
+	for _, r := range xfr.Racks { // Loop through all the racks and captures info about Tor, Pdu and blades for that rack
 		cfg.Racks [r.Name] = &pb.ExternalRack{
 			Tor: &pb.ExternalTor{},
 			Pdu: &pb.ExternalPdu{},
 			Blades: make(map[int64]*common.BladeCapacity),
 		}
-		for _, b := range r.Blades{
-			cfg.Racks [r.Name].Blades[b.Index] = &common.BladeCapacity{
+		for _, b := range r.Blades{//loop through each blade in a rack and capture infor in variable b about each key in that blade
+			cfg.Racks [r.Name].Blades[b.Index] = &common.BladeCapacity{//Pointer to &common.BladeCapacity is the value of Blade Index for a specific blade
 				Cores: b.Cores,
 				MemoryInMb: b.MemoryInMb,
 				DiskInGb: b.DiskInGb,
@@ -110,5 +117,5 @@ func ToExternalZone (xfr *zone) *pb.ExternalZone{
 			}
 		}
 	}
- return cfg
+ return cfg // return the values into the cfg variable 
 }
