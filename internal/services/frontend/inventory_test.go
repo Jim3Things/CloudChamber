@@ -35,12 +35,12 @@ func TestInventoryListRacks(t *testing.T) {
 	err := getJSONBody(response, list)
 	assert.Nilf(t, err, "Failed to convert racks list to valid json.  err: %v", err)
 
-	assert.Equal(t, int64(2), list.MaxBladeCount)
-	assert.Equal(t, int64(32), list.MaxCapacity.Cores)
-	assert.Equal(t, int64(16384), list.MaxCapacity.MemoryInMb)
-	assert.Equal(t, int64(240), list.MaxCapacity.DiskInGb)
-	assert.Equal(t, int64(2048), list.MaxCapacity.NetworkBandwidthInMbps)
-	assert.Equal(t, 2, len(list.Racks))
+	assert.Equal(t, int64(8), list.MaxBladeCount)
+	assert.Equal(t, int64(48), list.MaxCapacity.Cores)
+	assert.Equal(t, int64(128*1024), list.MaxCapacity.MemoryInMb)
+	assert.Equal(t, int64(16*1024), list.MaxCapacity.DiskInGb)
+	assert.Equal(t, int64(10*1024), list.MaxCapacity.NetworkBandwidthInMbps)
+	assert.Equal(t, 8, len(list.Racks))
 
 	r, ok := list.Racks["rack1"]
 	assert.True(t, ok)

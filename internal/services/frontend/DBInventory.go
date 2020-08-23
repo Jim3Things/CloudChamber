@@ -128,7 +128,7 @@ func InitDBInventory() error {
 			for b := 1; b <= 8; b++ {
 
 				dbInventory.Zone.Racks[rack].Blades[int64(b)] = &common.BladeCapacity{
-					Cores:                  4 * rand.Int63n(16),
+					Cores:                  3 * rand.Int63n(16),
 					MemoryInMb:             1024 * rand.Int63n(128),
 					DiskInGb:               1024 * rand.Int63n(16),
 					NetworkBandwidthInMbps: 10 * 1024,
@@ -152,7 +152,7 @@ func InitDBInventory() error {
 				dbInventory.Zone.Racks[rack].Blades[int64(b)] = &common.BladeCapacity{
 					Cores:                  48,
 					MemoryInMb:             128 * 1024,
-					DiskInGb:               8 * 1024,
+					DiskInGb:               16 * 1024,
 					NetworkBandwidthInMbps: 10 * 1024,
 					Arch:                   "X64",
 				}
