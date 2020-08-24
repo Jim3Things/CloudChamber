@@ -50,15 +50,12 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 			return err
 		}
 
-		_, err = dbUsers.Create(
-			ctx,
-			&pb.User{
-				Name:              cfg.WebServer.SystemAccount,
-				PasswordHash:      passwordHash,
-				Enabled:           true,
-				CanManageAccounts: true,
-				NeverDelete:       true,
-			})
+		_, err = dbUsers.Create(ctx, &pb.User{
+			Name:              cfg.WebServer.SystemAccount,
+			PasswordHash:      passwordHash,
+			Enabled:           true,
+			CanManageAccounts: true,
+			NeverDelete:       true})
 
 		// If the SystemAccount already exists we need to do a couple of things.
 		//

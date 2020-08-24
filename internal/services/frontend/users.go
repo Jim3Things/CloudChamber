@@ -482,15 +482,12 @@ func userAdd(ctx context.Context, name string, password string, accountManager b
 		return InvalidRev, err
 	}
 
-	revision, err := dbUsers.Create(
-		ctx,
-		&pb.User{
-			Name:              name,
-			PasswordHash:      passwordHash,
-			Enabled:           enabled,
-			CanManageAccounts: accountManager,
-			NeverDelete:       neverDelete,
-		})
+	revision, err := dbUsers.Create(ctx, &pb.User{
+		Name:              name,
+		PasswordHash:      passwordHash,
+		Enabled:           enabled,
+		CanManageAccounts: accountManager,
+		NeverDelete:       neverDelete})
 
 	if err == ErrUserAlreadyExists(name) {
 		return InvalidRev, NewErrUserAlreadyExists(name)
