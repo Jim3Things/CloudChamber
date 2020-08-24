@@ -177,7 +177,7 @@ func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
 		}
 	}
 
-	user, _, err := dbUsers.Read(entry.name)
+	user, _, err := dbUsers.Read(context.Background(), entry.name)
 	return user, err
 }
 

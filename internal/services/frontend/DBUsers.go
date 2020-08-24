@@ -31,9 +31,9 @@ type DBUsers struct {
 }
 
 // InitDBUsers is a method to initialize the users store.  For now this is only a map in memory.
-func InitDBUsers(cfg *config.GlobalConfig) (err error) {
+func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 
-	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 		if dbUsers == nil {
 			dbUsers = &DBUsers{
 				Store: store.NewStore(),
@@ -50,12 +50,14 @@ func InitDBUsers(cfg *config.GlobalConfig) (err error) {
 			return err
 		}
 
-		_, err = dbUsers.Create(&pb.User{
-			Name:              cfg.WebServer.SystemAccount,
-			PasswordHash:      passwordHash,
-			Enabled:           true,
-			CanManageAccounts: true,
-			NeverDelete:       true})
+		_, err = dbUsers.Create(ctx,
+			&pb.User{
+				Name:              cfg.WebServer.SystemAccount,
+				PasswordHash:      passwordHash,
+				Enabled:           true,
+				CanManageAccounts: true,
+				NeverDelete:       true,
+			})
 
 		// If the SystemAccount already exists we need to do a couple of things.
 		//
@@ -67,7 +69,7 @@ func InitDBUsers(cfg *config.GlobalConfig) (err error) {
 		//
 		if err == ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
 
-			existingUser, _, err := dbUsers.Read(cfg.WebServer.SystemAccount)
+			existingUser, _, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
 
 			if err != nil {
 				return st.Errorf(ctx, -1, "CloudChamber: unable to verify the standard %q account is using configured password - error %v", cfg.WebServer.SystemAccount, err)
@@ -88,7 +90,7 @@ func InitDBUsers(cfg *config.GlobalConfig) (err error) {
 
 // Create a new user in the store
 //
-func (m *DBUsers) Create(u *pb.User) (int64, error) {
+func (m *DBUsers) Create(ctx context.Context, u *pb.User) (int64, error) {
 
 	v, err := store.Encode(u)
 
@@ -96,7 +98,7 @@ func (m *DBUsers) Create(u *pb.User) (int64, error) {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.CreateNewValue(context.Background(), store.KeyRootUsers, u.Name, v)
+	rev, err := m.Store.CreateNewValue(ctx, store.KeyRootUsers, u.Name, v)
 
 	if err == store.ErrStoreAlreadyExists(u.Name) {
 		return InvalidRev, ErrUserAlreadyExists(u.Name)
@@ -111,9 +113,9 @@ func (m *DBUsers) Create(u *pb.User) (int64, error) {
 
 // Read the specified user from the store.
 //
-func (m *DBUsers) Read(name string) (*pb.User, int64, error) {
+func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error) {
 
-	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, name)
+	val, rev, err := m.Store.ReadNewValue(ctx, store.KeyRootUsers, name)
 
 	if err == store.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, ErrUserNotFound(name)
@@ -144,9 +146,9 @@ func (m *DBUsers) Read(name string) (*pb.User, int64, error) {
 //       Update() routine itself to allow the caller to selectively update
 //       individual fields from within the transaction.
 //
-func (m *DBUsers) Update(name string, u *pb.UserUpdate, match int64) (*pb.User, int64, error) {
+func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, match int64) (*pb.User, int64, error) {
 
-	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, name)
+	val, rev, err := m.Store.ReadNewValue(ctx, store.KeyRootUsers, name)
 
 	if err == store.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, ErrUserNotFound(name)
@@ -178,7 +180,7 @@ func (m *DBUsers) Update(name string, u *pb.UserUpdate, match int64) (*pb.User, 
 		NeverDelete:       old.GetNeverDelete(),
 	}
 
-	rev, err = m.Store.UpdateNew(context.Background(), store.KeyRootUsers, name, match, user)
+	rev, err = m.Store.UpdateNew(ctx, store.KeyRootUsers, name, match, user)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -192,9 +194,9 @@ func (m *DBUsers) Update(name string, u *pb.UserUpdate, match int64) (*pb.User, 
 //
 // That this is split out from Update reflects the usage patterns for updating
 // user entries.
-func (m *DBUsers) UpdatePassword(name string, hash []byte, match int64) (*pb.User, int64, error) {
+func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, match int64) (*pb.User, int64, error) {
 
-	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, name)
+	val, rev, err := m.Store.ReadNewValue(ctx, store.KeyRootUsers, name)
 
 	if err == store.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, ErrUserNotFound(name)
@@ -225,7 +227,7 @@ func (m *DBUsers) UpdatePassword(name string, hash []byte, match int64) (*pb.Use
 		NeverDelete:       old.GetNeverDelete(),
 	}
 
-	rev, err = m.Store.UpdateNew(context.Background(), store.KeyRootUsers, name, match, user)
+	rev, err = m.Store.UpdateNew(ctx, store.KeyRootUsers, name, match, user)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -236,11 +238,11 @@ func (m *DBUsers) UpdatePassword(name string, hash []byte, match int64) (*pb.Use
 
 // Delete the entry
 //
-func (m *DBUsers) Delete(name string, match int64) error {
+func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 
 	n := store.GetNormalizedName(name)
 
-	val, rev, err := m.Store.ReadNewValue(context.Background(), store.KeyRootUsers, n)
+	val, rev, err := m.Store.ReadNewValue(ctx, store.KeyRootUsers, n)
 
 	if err == store.ErrStoreKeyNotFound(n) {
 		return ErrUserNotFound(name)
@@ -275,7 +277,7 @@ func (m *DBUsers) Delete(name string, match int64) error {
 		return ErrUserStaleVersion(name)
 	}
 
-	_, err = m.Store.DeleteNew(context.Background(), store.KeyRootUsers, n, rev)
+	_, err = m.Store.DeleteNew(ctx, store.KeyRootUsers, n, rev)
 
 	if err == store.ErrStoreKeyNotFound(n) {
 		return ErrUserNotFound(name)
@@ -291,9 +293,9 @@ func (m *DBUsers) Delete(name string, match int64) error {
 // Scan the set of known users in the store, invoking the supplied
 // function with each entry.
 //
-func (m *DBUsers) Scan(action func(entry *pb.User) error) error {
+func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) error {
 
-	recs, _, err := m.Store.ListNew(context.Background(), store.KeyRootUsers)
+	recs, _, err := m.Store.ListNew(ctx, store.KeyRootUsers)
 
 	if err != nil {
 		return err
