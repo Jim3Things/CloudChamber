@@ -50,7 +50,8 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 			return err
 		}
 
-		_, err = dbUsers.Create(ctx,
+		_, err = dbUsers.Create(
+			ctx,
 			&pb.User{
 				Name:              cfg.WebServer.SystemAccount,
 				PasswordHash:      passwordHash,

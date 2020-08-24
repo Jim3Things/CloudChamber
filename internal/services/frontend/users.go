@@ -78,7 +78,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, "")
+				return canManageAccounts(ctx, session, "")
 			})
 
 		if err != nil {
@@ -129,7 +129,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, "")
+				return canManageAccounts(ctx, session, "")
 			})
 
 		if err != nil {
@@ -165,7 +165,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
@@ -207,12 +207,12 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) (err error) {
-				caller, err = getLoggedInUser(session)
+				caller, err = getLoggedInUser(ctx, session)
 				if err != nil {
 					return err
 				}
 
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
@@ -279,7 +279,7 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
@@ -343,7 +343,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) (err error) {
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
@@ -607,8 +607,8 @@ func userSetPassword(ctx context.Context, name string, changes *pb.UserPassword,
 
 // Determine if this session's active login has permission to change or
 // manage the targeted account.  Note that any account may manage itself.
-func canManageAccounts(session *sessions.Session, username string) error {
-	user, err := getLoggedInUser(session)
+func canManageAccounts(ctx context.Context, session *sessions.Session, username string) error {
+	user, err := getLoggedInUser(ctx, session)
 	if err != nil {
 		return NewErrUserPermissionDenied()
 	}

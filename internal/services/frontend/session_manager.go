@@ -168,7 +168,7 @@ func dumpSessionState(session *sessions.Session) string {
 
 // getLoggedInUser returns the user definition for the current session,
 // or an error, if no user can be found.
-func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
+func getLoggedInUser(ctx context.Context, session *sessions.Session) (*pb.User, error) {
 	entry, ok := getSession(session)
 	if !ok {
 		return nil, &HTTPError{
@@ -177,7 +177,7 @@ func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
 		}
 	}
 
-	user, _, err := dbUsers.Read(context.Background(), entry.name)
+	user, _, err := dbUsers.Read(ctx, entry.name)
 	return user, err
 }
 
