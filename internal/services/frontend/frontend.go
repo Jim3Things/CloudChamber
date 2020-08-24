@@ -186,7 +186,7 @@ func initService(cfg *config.GlobalConfig) error {
 	store.Initialize(cfg)
 
 	// Finally, initialize the user store
-	return InitDBUsers(cfg)
+	return InitDBUsers(context.Background(), cfg)
 }
 
 // StartService is the primary entry point to start the front-end web service.
