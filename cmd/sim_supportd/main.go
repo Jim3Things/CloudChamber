@@ -53,7 +53,7 @@ func main() {
 	}
 
 	// This will fail initially, as the grpc listener is not active yet.  But
-	// a failure to connect is aplanned condition and normal reconnection
+	// a failure to connect is a planned condition and normal reconnection
 	// handling will get this channel set up.
 	if err = setup.SetEndpoint(cfg.SimSupport.EP.Hostname, cfg.SimSupport.EP.Port); err != nil {
 		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)

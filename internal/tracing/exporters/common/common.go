@@ -81,7 +81,8 @@ func FormatEntry(entry *log.Entry, deferred bool) string {
 }
 
 // FormatEvent produces a string for a single event in a span that contains the
-// formatted information about that event.  Also used by exporters that
+// formatted information about that event.  Also used by exporters that emit
+// the trace events to a text-based stream.
 func FormatEvent(event *log.Event) string {
 	if event.GetTick() < 0 {
 		return fmt.Sprintf(

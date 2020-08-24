@@ -156,6 +156,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 			ctx, common.Tick(),
 			"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v",
 			username, u.Enabled, u.CanManageAccounts)
+
 		_, err = fmt.Fprintf(
 			w,
 			"User %q created.  enabled: %v, can manage accounts: %v",
