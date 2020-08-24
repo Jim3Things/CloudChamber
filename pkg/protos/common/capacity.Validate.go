@@ -1,5 +1,6 @@
-// Validation methods for the types from capacity.proto
 package common
+
+// Validation methods for the types from capacity.proto.
 
 import (
 	"fmt"
@@ -8,7 +9,7 @@ import (
 // Validate is a function to ensure that the blade capacity values are legal.
 // Note that since BladeCapacity is always used as a subfield, the Validate
 // function takes a prefix to use on the field name in order to place the
-// error correctly
+// error correctly.
 func (x *BladeCapacity) Validate(prefix string) error {
 	// A blade must have at least one core
 	if x.Cores < 1 {
