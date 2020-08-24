@@ -202,9 +202,7 @@ func setDefaultNamespaceSuffix(suffix string) {
 func (store *Store) connected(ctx context.Context) error {
 
 	if nil != store.Client {
-		err := ErrStoreConnected
-		_ = st.Errorf(ctx, -1, "unable to perform operation - store is connected - error: %v", err)
-		return err
+		return ErrStoreConnected("already connected")
 	}
 
 	return nil
@@ -213,9 +211,7 @@ func (store *Store) connected(ctx context.Context) error {
 func (store *Store) disconnected(ctx context.Context) error {
 
 	if nil == store.Client {
-		err := ErrStoreNotConnected
-		_ = st.Errorf(ctx, -1, "unable to perform operation - no current connection - error: %v", err)
-		return err
+		return ErrStoreNotConnected("already disconnected")
 	}
 
 	return nil
@@ -565,8 +561,7 @@ func (store *Store) Connect() error {
 		})
 
 		if err != nil {
-			_ = st.Errorf(ctx, -1, "Failed to establish connection to store - error: %v", err)
-			return err
+			return ErrStoreConnectionFailed{store.GetAddress(), err}
 		}
 
 		// Hookup the namespace prefixing mechanism
@@ -1442,9 +1437,7 @@ func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*
 		}
 
 		if !response.Succeeded {
-			err = ErrStoreKeyReadFailure(keySet.Label)
-			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-			return err
+			return ErrStoreKeyReadFailure(keySet.Label)
 		}
 
 		// And finally, the revision for the store as a whole.
@@ -1507,9 +1500,7 @@ func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdat
 		}
 
 		if !response.Succeeded {
-			err = ErrStoreKeyWriteFailure(recordSet.Label)
-			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-			return err
+			return ErrStoreKeyWriteFailure(recordSet.Label)
 		}
 
 		revision = response.Header.Revision
@@ -1566,9 +1557,7 @@ func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpda
 		}
 
 		if !response.Succeeded {
-			err = ErrStoreKeyDeleteFailure(recordSet.Label)
-			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-			return err
+			return ErrStoreKeyDeleteFailure(recordSet.Label)
 		}
 
 		revision = response.Header.Revision
@@ -1645,9 +1634,7 @@ func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Re
 		}
 
 		if !txnResponse.Succeeded {
-			err = ErrStoreKeyReadFailure(request.Reason)
-			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-			return err
+			return ErrStoreKeyReadFailure(request.Reason)
 		}
 
 		// And finally, the revision for the store as a whole.
@@ -1711,9 +1698,7 @@ func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *R
 		}
 
 		if !txnResponse.Succeeded {
-			err = ErrStoreKeyWriteFailure(request.Reason)
-			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-			return err
+			return ErrStoreKeyWriteFailure(request.Reason)
 		}
 
 		// And finally, the revision for the store as a whole.
@@ -1777,9 +1762,7 @@ func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *
 		}
 
 		if !txnResponse.Succeeded {
-			err = ErrStoreKeyDeleteFailure(request.Reason)
-			_ = st.Errorf(ctx, -1, "Unexpected failure of txn - error: %v", err)
-			return err
+			return ErrStoreKeyDeleteFailure(request.Reason)
 		}
 
 		// And finally, the revision for the store as a whole.
