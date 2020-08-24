@@ -4,6 +4,8 @@ package trace_sink;
 
 import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
 
+import "google/protobuf/empty.proto";
+
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink";
 
 // This service is a common collection point for trace entries across
@@ -13,28 +15,23 @@ option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink";
 // logical flow of action across the Cloud Chamber services.
 service TraceSink {
     // Append the specified entry to the set of traces held by the trace sink
-    rpc Append(AppendRequest) returns (AppendResponse);
+    rpc Append(AppendRequest) returns (google.protobuf.Empty);
 
     // Get the trace entries after the specified trace ID, up to the specified
     // limit.
     rpc GetAfter(GetAfterRequest) returns (GetAfterResponse);
 
-    // Maybe?
     // Get the active policy options in use by the trace sink
     rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
 
-    // Maybe?
-    // Set the trace sink policy options
-    rpc SetPolicy(SetPolicyRequest) returns (SetPolicyResponse);
+    // Reset the trace sink to its initial state.  Used for unit testing.
+    rpc Reset(ResetRequest) returns (google.protobuf.Empty);
 }
 
 // Specify the trace entry to append to the trace sink's store
 message AppendRequest {
     // The trace entry
     log.entry entry = 1;
-}
-
-message AppendResponse {
 }
 
 // Specify what trace entries to receive
@@ -74,20 +71,21 @@ message GetAfterResponse {
     repeated trace_entry entries = 3;
 }
 
+// (Empty) payload to request the current policy
 message GetPolicyRequest {
 
 }
 
+// Return the active policies for the trace sink service
 message GetPolicyResponse {
     // The limit on the number of entries held in the trace sink
     int64 max_entries_held = 1;
+
+    // Earliest trace entry currently held.
+    int64 first_id = 2;
 }
 
-message SetPolicyRequest {
-    // The limit on the number of entries to hold in the trace sink
-    int64 max_entries_held = 1;
-}
-
-message SetPolicyResponse {
+// (Empty) payload to request a service reset
+message ResetRequest {
 
 }
