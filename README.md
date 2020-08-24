@@ -6,6 +6,7 @@ provides the UI.
 
 Cloud Chamber provides a deep simulation experience with:
 
-- Direct control over the passage of simulated time.
-- Extensive support for injecting hard and intermittent faults into any component.
 - 
+- Direct control over the passage of simulated time.
+- Controlled injection of hard and intermittent faults into any component.
+- Tracing streams that show
