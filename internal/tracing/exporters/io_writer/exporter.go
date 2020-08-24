@@ -75,7 +75,7 @@ func SetLogFileWriter(writer io.Writer) error {
 
 	if outputWriter != nil {
 		_ = queue.Flush(context.Background(), func(ctx context.Context, item *log.Entry) error {
-			return processOneEntry(item)
+			return processOneEntry(item, true)
 		})
 	}
 
@@ -103,41 +103,17 @@ func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 	defer mutex.Unlock()
 
 	if state == active {
-		_ = processOneEntry(entry)
+		_ = processOneEntry(entry, false)
 	} else {
 		_ = queue.Defer(entry)
 	}
 }
 
-func processOneEntry(entry *log.Entry) error {
-	_, _ = outputWriter.Write([]byte(
-		fmt.Sprintf(
-			"[%s:%s] %s %s:\n%s\n\n",
-			entry.GetSpanID(),
-			entry.GetParentID(),
-			entry.GetStatus(),
-			entry.GetName(),
-			entry.GetStackTrace())))
+func processOneEntry(entry *log.Entry, deferred bool) error {
+	_, _ = outputWriter.Write([]byte(fmt.Sprintf("%s\n\n", common.FormatEntry(entry, deferred))))
 
 	for _, event := range entry.Event {
-		if event.GetTick() < 0 {
-			_, _ = outputWriter.Write([]byte(
-				fmt.Sprintf(
-					"       : [%s] (%s) %s\n%s\n\n",
-					common.SeverityFlag(event.GetSeverity()),
-					event.GetName(),
-					event.GetText(),
-					event.GetStackTrace())))
-		} else {
-			_, _ = outputWriter.Write([]byte(
-				fmt.Sprintf(
-					"  @%4d: [%s] (%s) %s\n%s\n\n",
-					event.GetTick(),
-					common.SeverityFlag(event.GetSeverity()),
-					event.GetName(),
-					event.GetText(),
-					event.GetStackTrace())))
-		}
+		_, _ = outputWriter.Write([]byte(fmt.Sprintf("%s\n\n", common.FormatEvent(event))))
 	}
 
 	return nil
