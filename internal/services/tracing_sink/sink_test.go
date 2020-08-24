@@ -76,12 +76,13 @@ func createEntry(events int) *log2.Entry {
 	tag := rand.Int()
 
 	entry := &log2.Entry{
-		Name:       fmt.Sprintf("test-%d", tag),
-		SpanID:     fmt.Sprintf("0000%d", tag),
-		ParentID:   fmt.Sprintf("0001%d", tag),
-		Status:     "ok",
-		StackTrace: fmt.Sprintf("xxxx%d", tag),
-		Event:      []*log2.Event{},
+		Name:           fmt.Sprintf("test-%d", tag),
+		SpanID:         fmt.Sprintf("0000%d", tag),
+		ParentID:       fmt.Sprintf("0001%d", tag),
+		Infrastructure: false,
+		Status:         "ok",
+		StackTrace:     fmt.Sprintf("xxxx%d", tag),
+		Event:          []*log2.Event{},
 	}
 
 	for i := 0; i < events; i++ {
@@ -118,11 +119,17 @@ func assertEntryMatches(t *testing.T, expected *log2.Entry, actual *log2.Entry) 
 	assert.Equal(t, len(expected.Event), len(actual.Event))
 
 	for i := 0; i < len(expected.Event); i++ {
-		assert.Equal(t, expected.Event[i].Name, actual.Event[i].Name)
-		assert.Equal(t, expected.Event[i].Tick, actual.Event[i].Tick)
-		assert.Equal(t, expected.Event[i].StackTrace, actual.Event[i].StackTrace)
-		assert.Equal(t, expected.Event[i].Severity, actual.Event[i].Severity)
+		assertEventMatches(t, expected.Event[i], actual.Event[i])
 	}
+}
+
+func assertEventMatches(t *testing.T, expected *log2.Event, actual *log2.Event) {
+	assert.Equal(t, expected.Name, actual.Name)
+	assert.Equal(t, expected.Tick, actual.Tick)
+	assert.Equal(t, expected.StackTrace, actual.StackTrace)
+	assert.Equal(t, expected.Severity, actual.Severity)
+	assert.Equal(t, expected.Text, actual.Text)
+	assert.Equal(t, len(expected.Impacted), len(actual.Impacted))
 }
 
 func TestGetAfterNoEntries(t *testing.T) {
@@ -286,10 +293,262 @@ func TestGetAfterMultipleEntries(t *testing.T) {
 	}
 }
 
-// Repeated append/getafter sequence
+func TestGetAfterMissed(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
 
-// getpolicy
-// append *105, getpolicy
-// getpolicy to drive getafter after some appends
+	ctx, conn := commonSetup(t)
+	defer func() { _ = conn.Close() }()
 
+	entries := createEntries(105, 1)
+	for i := 0; i < len(entries); i++ {
+		_, err := client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
+		require.Nilf(t, err, "unexpected error: %v", err)
+	}
 
+	res, err := client.GetAfter(ctx, &pb.GetAfterRequest{
+		Id:         -1,
+		MaxEntries: 10,
+		Wait:       false,
+	})
+
+	assert.Nilf(t, err, "unexpected error: %v", err)
+
+	require.NotNil(t, res)
+	assert.Equal(t, int64(14), res.LastId)
+	assert.True(t, res.Missed)
+
+	require.Equal(t, 10, len(res.Entries))
+
+	for i := 0; i < len(res.Entries); i++ {
+		id := res.Entries[i].Id
+		assertEntryMatches(t, entries[id], res.Entries[i].Entry)
+	}
+}
+
+func TestGetAfterRepeatedNewAppends(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	ctx, conn := commonSetup(t)
+	defer func() { _ = conn.Close() }()
+
+	entries := createEntries(5, 1)
+	for i := 0; i < len(entries); i++ {
+		_, err := client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
+		require.Nilf(t, err, "unexpected error: %v", err)
+	}
+
+	policy, err := client.GetPolicy(ctx, &pb.GetPolicyRequest{})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	assert.Equal(t, int64(-1), policy.FirstId)
+	assert.Equal(t, int64(100), policy.MaxEntriesHeld)
+
+	res, err := client.GetAfter(ctx, &pb.GetAfterRequest{
+		Id:         policy.FirstId,
+		MaxEntries: 10,
+		Wait:       false,
+	})
+
+	assert.Nilf(t, err, "unexpected error: %v", err)
+
+	require.NotNil(t, res)
+	assert.Equal(t, int64(4), res.LastId)
+	assert.False(t, res.Missed)
+
+	require.Equal(t, 5, len(res.Entries))
+
+	for i := 0; i < len(res.Entries); i++ {
+		assert.Equal(t, int64(i), res.Entries[i].Id)
+		assertEntryMatches(t, entries[i], res.Entries[i].Entry)
+	}
+
+	entries = createEntries(5, 1)
+	for i := 0; i < len(entries); i++ {
+		_, err = client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
+		require.Nilf(t, err, "unexpected error: %v", err)
+	}
+
+	res, err = client.GetAfter(ctx, &pb.GetAfterRequest{
+		Id:         res.LastId,
+		MaxEntries: 10,
+		Wait:       false,
+	})
+
+	assert.Nilf(t, err, "unexpected error: %v", err)
+
+	require.NotNil(t, res)
+	assert.Equal(t, int64(9), res.LastId)
+	assert.False(t, res.Missed)
+
+	require.Equal(t, 5, len(res.Entries))
+
+	for i := 0; i < len(res.Entries); i++ {
+		assert.Equal(t, int64(i + 5), res.Entries[i].Id)
+		assertEntryMatches(t, entries[i], res.Entries[i].Entry)
+	}
+}
+
+func TestGetPolicyOverflow(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	ctx, conn := commonSetup(t)
+	defer func() { _ = conn.Close() }()
+
+	policy, err := client.GetPolicy(ctx, &pb.GetPolicyRequest{})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	assert.Equal(t, int64(-1), policy.FirstId)
+	assert.Equal(t, int64(100), policy.MaxEntriesHeld)
+
+	entries := createEntries(105, 1)
+	for i := 0; i < len(entries); i++ {
+		_, err = client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
+		require.Nilf(t, err, "unexpected error: %v", err)
+	}
+
+	policy, err = client.GetPolicy(ctx, &pb.GetPolicyRequest{})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	assert.Equal(t, int64(4), policy.FirstId)
+	assert.Equal(t, int64(100), policy.MaxEntriesHeld)
+
+	res, err := client.GetAfter(ctx, &pb.GetAfterRequest{
+		Id:         policy.FirstId,
+		MaxEntries: 10,
+		Wait:       false,
+	})
+
+	assert.Nilf(t, err, "unexpected error: %v", err)
+
+	require.NotNil(t, res)
+	assert.Equal(t, int64(14), res.LastId)
+	assert.False(t, res.Missed)
+
+	require.Equal(t, 10, len(res.Entries))
+
+	for i := 0; i < len(res.Entries); i++ {
+		id := int64(i) + policy.FirstId + 1
+		assert.Equal(t, id, res.Entries[i].Id)
+		assertEntryMatches(t, entries[id], res.Entries[i].Entry)
+	}
+}
+
+func TestGetAfterWaitImmediateOneEntry(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	ctx, conn := commonSetup(t)
+	defer func() { _ = conn.Close() }()
+
+	entry := createEntry(0)
+
+	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	res, err := client.GetAfter(ctx, &pb.GetAfterRequest{
+		Id:         -1,
+		MaxEntries: 10,
+		Wait:       true,
+	})
+
+	assert.Nilf(t, err, "unexpected error: %v", err)
+
+	require.NotNil(t, res)
+	assert.Equal(t, int64(0), res.LastId)
+	assert.False(t, res.Missed)
+
+	require.Equal(t, 1, len(res.Entries))
+
+	assert.Equal(t, int64(0), res.Entries[0].Id)
+	assertEntryMatches(t, entry, res.Entries[0].Entry)
+}
+
+func TestGetAfterWaitOneEntry(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	ctx, conn := commonSetup(t)
+	defer func() { _ = conn.Close() }()
+
+	entry := createEntry(0)
+
+	hit := false
+	go func () {
+		res, err := client.GetAfter(ctx, &pb.GetAfterRequest{
+			Id:         -1,
+			MaxEntries: 10,
+			Wait:       true,
+		})
+
+		assert.Nilf(t, err, "unexpected error: %v", err)
+
+		require.NotNil(t, res)
+		assert.Equal(t, int64(0), res.LastId)
+		assert.False(t, res.Missed)
+
+		require.Equal(t, 1, len(res.Entries))
+
+		assert.Equal(t, int64(0), res.Entries[0].Id)
+		assertEntryMatches(t, entry, res.Entries[0].Entry)
+		hit = true
+	}()
+
+	assert.False(t, hit)
+
+	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	time.Sleep(1000 * time.Millisecond)
+
+	assert.True(t, hit)
+}
+
+func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	ctx, conn := commonSetup(t)
+	defer func() { _ = conn.Close() }()
+
+	entry := createEntry(0)
+	entry.Infrastructure = true
+
+	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	entry = createEntry(0)
+
+	hit := false
+	go func () {
+		res, err2 := client.GetAfter(ctx, &pb.GetAfterRequest{
+			Id:         -1,
+			MaxEntries: 10,
+			Wait:       true,
+		})
+
+		assert.Nilf(t, err2, "unexpected error: %v", err2)
+
+		require.NotNil(t, res)
+		assert.Equal(t, int64(1), res.LastId)
+		assert.False(t, res.Missed)
+
+		require.Equal(t, 2, len(res.Entries))
+
+		assert.Equal(t, int64(0), res.Entries[0].Id)
+		assertEntryMatches(t, entry, res.Entries[1].Entry)
+
+		hit = true
+	}()
+
+	time.Sleep(1000 * time.Millisecond)
+	assert.False(t, hit)
+
+	_, err = client.Append(ctx, &pb.AppendRequest{Entry: entry})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	time.Sleep(1000 * time.Millisecond)
+	assert.True(t, hit)
+}

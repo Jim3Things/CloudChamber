@@ -152,8 +152,14 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-		st.Infof(ctx, common.Tick(), "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
-		_, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.CanManageAccounts)
+		st.Infof(
+			ctx, common.Tick(),
+			"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v",
+			username, u.Enabled, u.CanManageAccounts)
+		_, err = fmt.Fprintf(
+			w,
+			"User %q created.  enabled: %v, can manage accounts: %v",
+			username, u.Enabled, u.CanManageAccounts)
 		return err
 	})
 }
@@ -241,7 +247,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		// Finally, check that no rights are being added that the logged in user does
 		// not have.  Since a user can modify their own entries, the canManageAccounts
 		// check is insufficient.
-		if err := verifyRightsAvailable(caller, upd); err != nil {
+		if err = verifyRightsAvailable(caller, upd); err != nil {
 			return httpError(ctx, w, err)
 		}
 
@@ -441,7 +447,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
 
 	// .. all passed.  So finally mark the session as logged in
 	//
-	if err = newSession(session, SessionState{name: username}); err != nil {
+	if err = newSession(session, sessionState{name: username}); err != nil {
 		return "", &HTTPError{
 			SC:   http.StatusBadRequest,
 			Base: err,

@@ -21,14 +21,10 @@ service TraceSink {
     // limit.
     rpc GetAfter(GetAfterRequest) returns (GetAfterResponse);
 
-    // Maybe?
     // Get the active policy options in use by the trace sink
     rpc GetPolicy(GetPolicyRequest) returns (GetPolicyResponse);
 
-    // Maybe?
-    // Set the trace sink policy options
-    rpc SetPolicy(SetPolicyRequest) returns (SetPolicyResponse);
-
+    // Reset the trace sink to its initial state.  Used for unit testing.
     rpc Reset(ResetRequest) returns (google.protobuf.Empty);
 }
 
@@ -75,26 +71,21 @@ message GetAfterResponse {
     repeated trace_entry entries = 3;
 }
 
+// (Empty) payload to request the current policy
 message GetPolicyRequest {
 
 }
 
+// Return the active policies for the trace sink service
 message GetPolicyResponse {
     // The limit on the number of entries held in the trace sink
     int64 max_entries_held = 1;
 
+    // Earliest trace entry currently held.
     int64 first_id = 2;
 }
 
-message SetPolicyRequest {
-    // The limit on the number of entries to hold in the trace sink
-    int64 max_entries_held = 1;
-}
-
-message SetPolicyResponse {
-
-}
-
+// (Empty) payload to request a service reset
 message ResetRequest {
 
 }

@@ -29,8 +29,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	// TODO: add exporters.LocalProduction when that is ready
-	setup.Init(exporters.IoWriter)
+	setup.Init(exporters.IoWriter, exporters.Production)
 
 	version.Trace()
 
@@ -51,6 +50,13 @@ func main() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.SimSupport.EP.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
+	}
+
+	// This will fail initially, as the grpc listener is not active yet.  But
+	// a failure to connect is aplanned condition and normal reconnection
+	// handling will get this channel set up.
+	if err = setup.SetEndpoint(cfg.SimSupport.EP.Hostname, cfg.SimSupport.EP.Port); err != nil {
+		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
 	}
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))

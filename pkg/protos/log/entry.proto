@@ -71,14 +71,22 @@ message event {
 
 // Describe a full correlated span, consisting of zero or more events.
 message entry {
+    // Name of the span
     string name = 1;
 
+    // The IDs for the span, and its parent
     string spanID = 2;
     string parentID = 3;
 
+    // Final status of the span
     string status = 4;
 
+    // Formatted stack trace
     string stack_trace = 5;
 
+    // The set of events emitted by this span
     repeated event event = 6;
+
+    // True, if this span represents internal-only operations.
+    bool infrastructure = 7;
 }

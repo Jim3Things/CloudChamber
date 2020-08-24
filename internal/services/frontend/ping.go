@@ -26,7 +26,7 @@ func pingAddRoutes(routeBase *mux.Router) {
 // time in the process.  If successful, it returns an OK status with the new
 // expiry time in the http header.
 func handlerPing(w http.ResponseWriter, r *http.Request) {
-	var ccSession SessionState
+	var ccSession sessionState
 
 	_ = st.WithSpan(
 		context.Background(),

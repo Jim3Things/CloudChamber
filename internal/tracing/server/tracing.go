@@ -47,13 +47,24 @@ func Interceptor(
 
 // +++ Exported trace invocation methods
 
-// Execute the supplied function within a span that conforms to the expected
-// tracing pattern
+// WithSpan executes the supplied function within a span that conforms to the
+// expected tracing pattern
 func WithSpan(ctx context.Context, spanName string, fn func(ctx context.Context) error) error {
 	tr := global.TraceProvider().Tracer("server")
 
 	return tr.WithSpan(ctx, spanName, fn,
 		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
+}
+
+// WithInfraSpan is a variant of WithSpan that marks the span as internal to
+// the simulation, and therefore of limited interest outside of development
+// or debugging use.
+func WithInfraSpan(ctx context.Context, spanName string, fn func(ctx context.Context) error) error {
+	tr := global.TraceProvider().Tracer("server")
+
+	return tr.WithSpan(ctx, spanName, fn,
+		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
 }
 
@@ -64,7 +75,7 @@ func WithSpan(ctx context.Context, spanName string, fn func(ctx context.Context)
 // Note: The set of methods that are implemented below are based on what is
 // currently needed.  Others will be added as required.
 
-// Post a simple informational trace entry
+// Info posts a simple informational trace event
 func Info(ctx context.Context, tick int64, msg string) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
@@ -75,7 +86,7 @@ func Info(ctx context.Context, tick int64, msg string) {
 		kv.String(tracing.MessageTextKey, msg))
 }
 
-// Post an informational trace entry with complex formatting
+// Infof posts an informational trace event with complex formatting
 func Infof(ctx context.Context, tick int64, f string, a ...interface{}) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
@@ -86,7 +97,8 @@ func Infof(ctx context.Context, tick int64, f string, a ...interface{}) {
 		kv.String(tracing.MessageTextKey, fmt.Sprintf(f, a...)))
 }
 
-// Post a method arrival informational trace entry
+// OnEnter posts an informational trace event describing the entry into a
+// function
 func OnEnter(ctx context.Context, tick int64, msg string) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
@@ -97,7 +109,7 @@ func OnEnter(ctx context.Context, tick int64, msg string) {
 		kv.String(tracing.MessageTextKey, msg))
 }
 
-// Post a simple error trace
+// Error posts a simple error trace event
 func Error(ctx context.Context, tick int64, a interface{}) error {
 	if msg, ok := a.(string); ok {
 		return logError(ctx, tick, errors.New(msg))
@@ -110,7 +122,7 @@ func Error(ctx context.Context, tick int64, a interface{}) error {
 	panic("Invalid Error call - no valid arguments found")
 }
 
-// Post an error trace with a complex string formatting
+// Errorf posts an error trace event with a complex string formatting
 func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
 	return logError(ctx, tick, fmt.Errorf(f, a...))
 }
@@ -124,7 +136,7 @@ func Fatalf(ctx context.Context, tick int64, f string, a ...interface{}) {
 
 // +++ Helper functions
 
-// Write a specific error entry
+// logError writes a specific error trace event
 func logError(ctx context.Context, tick int64, err error) error {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
