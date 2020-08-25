@@ -116,14 +116,8 @@ func initHandlers() error {
 	inventoryAddRoutes(routeAPI)
 	stepperAddRoutes(routeAPI)
 	pingAddRoutes(routeAPI)
-
-	// TODO the following handler definitions are just temporary placeholders and
-	// should at some point be converted to follow the same pattern as for files,
-	// users and workloads, namely moved to a separate file and defined/handler
-	// there.
-	//
-	routeAPI.HandleFunc("/logs", handlerLogsRoot).Methods("GET")
-	routeAPI.HandleFunc("/injector", handlerInjectorRoot).Methods("GET")
+	logsAddRoutes(routeAPI)
+	injectionAddRoutes(routeAPI)
 
 	// Add the file handling for any other paths.
 	handler.PathPrefix("/").
@@ -150,9 +144,15 @@ func initService(cfg *config.GlobalConfig) error {
 	// likely resolve the issue.
 	//
 	if nil == keyAuthentication {
-		log.Fatalf("Failed to generate required authentication key (Check system Random Number Generator and restart the service after 60s). Error: %v", ErrNotInitialized)
+		log.Fatalf(
+			"Failed to generate required authentication key (Check system " +
+				"Random Number Generator and restart the service after 60s). Error: %v",
+				ErrNotInitialized)
 	} else if nil == keyEncryption {
-		log.Fatalf("Failed to generate required encryption key (Check system Random Number Generator and restart the service after 60s). Error: %v", ErrNotInitialized)
+		log.Fatalf(
+			"Failed to generate required encryption key (Check system Random " +
+				"Number Generator and restart the service after 60s). Error: %v",
+				ErrNotInitialized)
 	}
 
 	server.rootFilePath = cfg.WebServer.RootFilePath
@@ -199,19 +199,4 @@ func StartService(cfg *config.GlobalConfig) error {
 	return http.ListenAndServe(
 		fmt.Sprintf(":%d", server.port),
 		server.handler)
-}
-
-// func handlerRoot(w http.ResponseWriter, r *http.Request) {
-//
-//   fmt.Fprintf(w, "Cloudchamber")
-// }
-
-func handlerLogsRoot(w http.ResponseWriter, _ *http.Request) {
-
-	_, _ = fmt.Fprintf(w, "Logs (Root)")
-}
-
-func handlerInjectorRoot(w http.ResponseWriter, _ *http.Request) {
-
-	_, _ = fmt.Fprintf(w, "Injector (Root)")
 }
