@@ -11,6 +11,8 @@ import (
 
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/trace"
+
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 //go:generate go run generator/generate.go
@@ -50,7 +52,7 @@ func Show() {
 func Trace() {
 	tr := global.TraceProvider().Tracer("")
 
-	_ = tr.WithSpan(context.Background(), "TraceVersion", func(ctx context.Context) (err error) {
+	_ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		span := trace.SpanFromContext(ctx)
 
 		span.AddEvent(
@@ -59,6 +61,7 @@ func Trace() {
 				"===== Starting %q at %s =====",
 				fmt.Sprint(os.Args),
 				time.Now().Format(time.RFC1123Z)))
+
 		span.AddEvent(ctx, toString())
 		return nil
 	})
