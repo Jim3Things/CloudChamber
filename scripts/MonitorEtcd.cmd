@@ -9,6 +9,12 @@
 
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
+set SCRIPTDIR=%~dp0
+set CLOUDCHAMBERDIR=%SCRIPTDIR:~0,-7%
+set CLOUDCHAMBERFILE=%CLOUDCHAMBERDIR%\Files
+set CLOUDCHAMBERDATA=%CLOUDCHAMBERDIR%\Data
+
+
 set LOCALHOST=127.0.0.1
 
 set BINARY=etcdctl.exe
@@ -37,28 +43,28 @@ if /i "%1" == "--help" (goto :ScriptHelp)
 
 rem Find a binary to use
 rem
-if exist %~dp0%BINARY% (
+if exist %CLOUDCHAMBERFILE%\etcdctl.exe (
 
-  set TARGETBIN=%~dp0%BINARY%
+  set TARGETBIN=%CLOUDCHAMBERFILE%\etcdctl.exe
 
-) else if exist %TARGETBINPATH%\%BINARY% (
+) else if exist %TARGETBINPATH%\etcdctl.exe (
 
-  set TARGETBIN=%TARGETBINPATH%\%BINARY%
+  set TARGETBIN=%TARGETBINPATH%\etcdctl.exe
 
-) else if exist %GOPATH%\bin\%BINARY% (
+) else if exist %GOPATH%\bin\etcdctl.exe (
 
-  set TARGETBIN=%GOPATH%\bin\%BINARY%
+  set TARGETBIN=%GOPATH%\bin\etcdctl.exe
 
 ) else (
 
-   for %%I in (%BINARY%) do set TARGETBIN=%%~$PATH:I
+   for %%I in (etcdctl.exe) do set TARGETBIN=%%~$PATH:I
 
 )
 
 
 if not exist "%TARGETBIN%" (
   echo.
-  echo Unable to find a copy of %BINARY%
+  echo Unable to find a copy of etcdctl.exe
   echo.
   goto :ScriptExit
 )

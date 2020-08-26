@@ -9,6 +9,12 @@
 
 SETLOCAL ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
 
+set SCRIPTDIR=%~dp0
+set CLOUDCHAMBERDIR=%SCRIPTDIR:~0,-7%
+set CLOUDCHAMBERFILE=%CLOUDCHAMBERDIR%\Files
+set CLOUDCHAMBERDATA=%CLOUDCHAMBERDIR%\Data
+
+
 set LOCALHOST=127.0.0.1
 
 
@@ -44,22 +50,22 @@ if /i "%1" NEQ "" (
 
   set ETCDDIR=%1
 
-) else if "%ETCDDATA%" == "" (
+) else if "%ETCDDATA%" NEQ "" (
 
-  set ETCDDIR=%DEFAULT_ETCDDATA%\%ETCDINSTANCE%.etcd
+  set ETCDDIR=%ETCDDATA%\%ETCDINSTANCE%.etcd
 
 ) else (
 
-  set ETCDDIR=%ETCDDATA%\%ETCDINSTANCE%.etcd
+  set ETCDDIR=%CLOUDCHAMBERDATA%
 
 )
 
 
 rem Find a etcd.exe to use
 rem
-if exist %~dp0etcd.exe (
+if exist %CLOUDCHAMBERFILE%\etcd.exe (
 
-  set TARGETBIN=%~dp0etcd.exe
+  set TARGETBIN=%CLOUDCHAMBERFILE%\etcd.exe
 
 ) else if exist %ETCDBINPATH%\etcd.exe (
 
