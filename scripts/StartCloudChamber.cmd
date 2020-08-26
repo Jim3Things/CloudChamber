@@ -13,7 +13,7 @@ set SCRIPTDIR=%~dp0
 set CLOUDCHAMBERDIR=%SCRIPTDIR:~0,-7%
 set CLOUDCHAMBERFILE=%CLOUDCHAMBERDIR%\Files
 set CLOUDCHAMBERDATA=%CLOUDCHAMBERDIR%\Data
-
+set CLOUDCHAMBERLOGS=%CLOUDCHAMBERDIR%\Logs
 
 
 rem Check for requests for help without actually doing anything
@@ -24,6 +24,29 @@ if /i "%1" == "/h"     (goto :ScriptHelp)
 if /i "%1" == "-h"     (goto :ScriptHelp)
 if /i "%1" == "--help" (goto :ScriptHelp)
 
+
+
+set UpdateDate=%date%
+set UpdateTime=%time%
+
+set UpdateYear=%UpdateDate:~10,4%
+set UpdateDay=%UpdateDate:~7,2%
+set UpdateMonth=%UpdateDate:~4,2%
+
+set UpdateHour=%UpdateTime:~0,2%
+set UpdateMinute=%UpdateTime:~3,2%
+set UpdateSecond=%UpdateTime:~6,2%
+
+
+rem Allow for some variants dumping the time var with a leading space rather than a leading zero.
+rem
+
+if " " == "%UpdateHour:~0,1%" set UpdateHour=0%UpdateHour:~1,1%
+
+set UpdateDateTime=%UpdateYear%%UpdateMonth%%UpdateDay%-%UpdateHour%%UpdateMinute%%UpdateSecond%
+
+
+if not exist "%CLOUDCHAMBERLOGS%" (mkdir "%CLOUDCHAMBERLOGS%")
 
 
 rem To allow for the main config file cloudchamber.yaml to be location independant, all
@@ -54,13 +77,16 @@ rem
 
 rem Find a binary to use
 rem
-if exist %3\%1 (
 
-  set TARGETBIN=%3\%1
+set BINARY=%1
 
-) else if exist %4\%1 (
+if exist %3\%BINARY% (
 
-  set TARGETBIN=%4\%1
+  set TARGETBIN=%3\%BINARY%
+
+) else if exist %4\%BINARY% (
+
+  set TARGETBIN=%4\%BINARY%
 
 ) else (
 
@@ -71,7 +97,7 @@ if exist %3\%1 (
 
 if not exist "%TARGETBIN%" (
   echo.
-  echo Unable to find a copy of %1
+  echo Unable to find a copy of %BINARY%
   echo.
   goto :StartBinaryExit
 )
@@ -82,7 +108,7 @@ rem
 echo.
 echo Starting %TARGETBIN%
 
-start %TARGETBIN% -config=%2
+start %TARGETBIN% -config=%2 2>&1 >%CLOUDCHAMBERLOGS%\%BINARY:~0,-4%-%UpdateDateTime%.log
 
 goto :StartBinaryExit
 
