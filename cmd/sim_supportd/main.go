@@ -38,13 +38,13 @@ func main() {
 		log.Fatalf("failed to process the global configuration: %v", err)
 	}
 
-	if err = setup.SetFileWriter(cfg.SimSupport.TraceFile); err != nil {
-		log.Fatalf("failed to set up the trace logger, err=%v", err)
-	}
-
 	if *showConfig {
 		fmt.Println(config.ToString(cfg))
 		os.Exit(0)
+	}
+
+	if err = setup.SetFileWriter(cfg.SimSupport.TraceFile); err != nil {
+		log.Fatalf("failed to set up the trace logger, err=%v", err)
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.SimSupport.EP.Port))
