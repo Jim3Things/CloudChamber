@@ -22,7 +22,7 @@ The initial version of Cloud Chamber focuses on a single cluster view and on the
 Later versions will broaden this, both to other parts of the control plane, such as network management, and to
 larger portions of a cloud, such as multi-cluster regions.
 
-Cloud Chamber is currently under development, and in it early milestones.
+Cloud Chamber is currently under development, and in its early milestones.
 
 
 ## Design Principles
