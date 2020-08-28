@@ -184,9 +184,10 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		afterTick, err := strconv.ParseInt(after, 10, 64)
-		if err != nil || afterTick < 0 {
-			return httpError(ctx, w, NewErrInvalidStepperAfter(after))
+
+		afterTick, err := ensurePositiveNumber("after", after)
+		if err != nil {
+			return httpError(ctx, w, err)
 		}
 
 		ch, err := clients.After(&ct.Timestamp{Ticks: afterTick + 1})

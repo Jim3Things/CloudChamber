@@ -73,6 +73,11 @@ type Endpoint struct {
 	Port     uint16
 }
 
+// String provides a formatted 'host:port' string for the endpoint
+func (e *Endpoint) String() string {
+	return fmt.Sprintf("%s:%d", e.Hostname, e.Port)
+}
+
 // ControllerType is a helper type describes the controllerd configuration settings
 type ControllerType struct {
 	// Exposed GRPC endpoint

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
@@ -133,6 +134,31 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
 	http.Error(w, he.Error(), he.StatusCode())
 
 	return err
+}
+
+// ensurePositiveNumber is a helper function that takes a query value as a
+// string, converts it, and range checks it.  If any of those operations fail
+// it returns the appropriate HTTPError.
+func ensurePositiveNumber(field string, value string) (int64, error) {
+	res, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || res < 0 {
+		return 0, NewErrInvalidPositiveNumber(field, value)
+	}
+
+	return res, nil
+}
+
+// ensurePositiveNumber is a helper function that takes a query value as a
+// string, and converts it.  If this fails, it returns the appropriate
+// HTTPError.
+func ensureNumber(field string, value string) (int64, error) {
+	res, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, NewErrInvalidNumber(field, value)
+	}
+
+	return res, nil
+
 }
 
 // +++ HTTPError specializations
@@ -276,12 +302,25 @@ func NewErrStepperFailedToSetPolicy() *HTTPError {
 	}
 }
 
-// NewErrInvalidStepperAfter indicates that the supplied ticks-per-second rate was
-// not recognized as a valid number.
-func NewErrInvalidStepperAfter(after string) *HTTPError {
+// NewErrInvalidNumber indicates that the specified value could not be
+// processed as a number.
+func NewErrInvalidNumber(field string, value string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusBadRequest,
-		Base: fmt.Errorf("CloudChamber: requested 'after' tick value %q could not be parsed as a positive decimal number", after),
+		Base: fmt.Errorf(
+			"CloudChamber: the %q field's value %q could not be parsed as a decimal number",
+			field, value),
+	}
+}
+
+// NewErrInvalidPositiveNumber indicates that the specified value could not be
+// processed as a positive number.
+func NewErrInvalidPositiveNumber(field string, value string) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusBadRequest,
+		Base: fmt.Errorf(
+			"CloudChamber: the %q field's value %q could not be parsed as a positive decimal number",
+			field, value),
 	}
 }
 

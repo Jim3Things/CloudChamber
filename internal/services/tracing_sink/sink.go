@@ -149,7 +149,12 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 			return resp.err
 		}
 
-		resp = <- s.wait(id, request.MaxEntries)
+		ch := s.wait(id, request.MaxEntries)
+
+		s.mutex.Unlock()
+		resp = <- ch
+		s.mutex.Lock()
+
 		return resp.err
 	})
 
