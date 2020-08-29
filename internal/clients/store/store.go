@@ -9,8 +9,8 @@
 //
 //		Write()
 //		WriteMultiple()
-//		Read()
-//		ReadMultiple()
+//		ReadOld()
+//		ReadMultipleOld()
 //		ReadWithPrefix()
 //		Delete()
 //		DeleteMultiple()
@@ -148,7 +148,7 @@ type KeyValueArg struct {
 }
 
 // KeyValueResponse is a struct used to describe one or more key/value pairs
-// returned from a call to the store such as a ReadMultiple() or ReadPrefix()
+// returned from a call to the store such as a ReadMultipleOld() or ReadPrefix()
 // call.
 //
 type KeyValueResponse struct {
@@ -319,7 +319,7 @@ func cleanNamespace(testNamespace string) error {
 		return err
 	}
 
-	if err := store.DeleteWithPrefix(testNamespace); err != nil {
+	if err := store.DeleteWithPrefixOld(testNamespace); err != nil {
 		return err
 	}
 
@@ -702,13 +702,13 @@ func (store *Store) UpdateClusterConnections() error {
 	})
 }
 
-// Write is a method to write a new value into the store or update an existing
+// WriteOld is a method to write a new value into the store or update an existing
 // value for the supplied key.
 //
 // It is expected that the store will already have been initialized and connected
 // to the backed db server.
 //
-func (store *Store) Write(key string, value string) error {
+func (store *Store) WriteOld(key string, value string) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -728,13 +728,13 @@ func (store *Store) Write(key string, value string) error {
 	})
 }
 
-// WriteMultiple is a method to write or update a set of values using a supplied
+// WriteMultipleOld is a method to write or update a set of values using a supplied
 // set of keys in a pair-wise fashion.
 //
 // This is essentially a convenience method to allow multiple values to be fetched
 // in a single call rather than repeating individual calls to the Write() method.
 //
-func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) error {
+func (store *Store) WriteMultipleOld(keyValueSet []KeyValueArg) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		var processedCount int
 
@@ -783,12 +783,12 @@ func (store *Store) WriteMultiple(keyValueSet []KeyValueArg) error {
 	})
 }
 
-// Read is a method to read a single value from the store using the supplied key.
+// ReadOld is a method to read a single value from the store using the supplied key.
 //
 // It is expected that the store will already have been initialized and connected
 // to the backed db server.
 //
-func (store *Store) Read(key string) (result []byte, err error) {
+func (store *Store) ReadOld(key string) (result []byte, err error) {
 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -821,13 +821,13 @@ func (store *Store) Read(key string) (result []byte, err error) {
 	return result, err
 }
 
-// ReadMultiple is a method to read a set of values from the store using a supplied
+// ReadMultipleOld is a method to read a set of values from the store using a supplied
 // set of keys is a pair-wise fashion.
 //
 // This is essentially a convenience method to allow multiple values to be fetched
-// in a single call rather than repeating individual calls to the Read() method.
+// in a single call rather than repeating individual calls to the ReadOld() method.
 //
-func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, err error) {
+func (store *Store) ReadMultipleOld(keySet []string) (results []KeyValueResponse, err error) {
 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		var processedCount int
 
@@ -888,7 +888,7 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 	return results, err
 }
 
-// ReadWithPrefix is a method used to query for a set of zero or more key/value pairs
+// ReadWithPrefixOld is a method used to query for a set of zero or more key/value pairs
 // which have a common prefix. The method will return all matching key/value pairs so
 // care should be taken with key naming to avoid attempting to fetch a large number
 // of key/value pairs.
@@ -898,7 +898,7 @@ func (store *Store) ReadMultiple(keySet []string) (results []KeyValueResponse, e
 // return an empty set of key/value pairs if there are no matches for the supplied key
 // prefix.
 //
-func (store *Store) ReadWithPrefix(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
+func (store *Store) ReadWithPrefixOld(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -950,9 +950,9 @@ func (store *Store) ReadWithPrefix(ctx context.Context, keyPrefix string) (rs *R
 	return rs, err
 }
 
-// Delete is a method used to remove a single key/value pair using the supplied name.
+// DeleteOld is a method used to remove a single key/value pair using the supplied name.
 //
-func (store *Store) Delete(key string) error {
+func (store *Store) DeleteOld(key string) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -978,12 +978,12 @@ func (store *Store) Delete(key string) error {
 	})
 }
 
-// DeleteMultiple is a method that can be used to remove a set of key/value pairs.
+// DeleteMultipleOld is a method that can be used to remove a set of key/value pairs.
 //
 // This is essentially a convenience method to allow multiple values to be removed
 // in a single call rather than repeating individual calls to the Delete() method.
 //
-func (store *Store) DeleteMultiple(keySet []string) error {
+func (store *Store) DeleteMultipleOld(keySet []string) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		var processedCount int
 
@@ -1022,10 +1022,10 @@ func (store *Store) DeleteMultiple(keySet []string) error {
 	})
 }
 
-// DeleteWithPrefix is a method used to remove an entire sub-tree of key/value
+// DeleteWithPrefixOld is a method used to remove an entire sub-tree of key/value
 // pairs which have a common key name prefix.
 //
-func (store *Store) DeleteWithPrefix(keyPrefix string) error {
+func (store *Store) DeleteWithPrefixOld(keyPrefix string) error {
 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
@@ -1383,6 +1383,41 @@ func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (respo
 		st.Infof(ctx, -1, "Processed %v items", len(resp.Records))
 
 		return nil
+	})
+
+	return response, err
+}
+
+// DeleteWithPrefix is a method used to remove an entire sub-tree of key/value
+// pairs which have a common key name prefix.
+//
+func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (response *Response, err error) {
+	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+		if err = store.disconnected(ctx); err != nil {
+			return err
+		}
+
+		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		opResponse, err := store.Client.Delete(opCtx, keyPrefix, clientv3.WithPrefix())
+		cancel()
+
+		if err != nil {
+			store.logEtcdResponseError(ctx, err)
+			return err
+		}
+
+		resp := &Response{
+			Revision: RevisionInvalid,
+			Records:  make(map[string]Record, 0),
+		}
+
+		resp.Revision = opResponse.Header.GetRevision()
+
+		response = resp
+
+		st.Infof(ctx, -1, "deleted %v keys under prefix %v", opResponse.Deleted, keyPrefix)
+
+		return err
 	})
 
 	return response, err

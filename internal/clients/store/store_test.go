@@ -255,7 +255,7 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 	return
 }
 
-func TestStoreWriteRead(t *testing.T) {
+func TestStoreWriteReadOld(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
@@ -268,20 +268,20 @@ func TestStoreWriteRead(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.Write(key, value)
+	err = store.WriteOld(key, value)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
 	// Look for a name we do not expect to be present
 	//
 	invalidKey := key + "invalidname"
-	response, err := store.Read(invalidKey)
+	response, err := store.ReadOld(invalidKey)
 	assert.NotNilf(t, err, "Succeeded to read non-existing key/value from store - error: %v key: %v value: %v", err, invalidKey, string(response))
 	assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
 	assert.Nilf(t, response, "Failed to get a nil response as expected - error: %v key: %v value: %v", err, invalidKey, string(response))
 
 	// Now try to read a key which should be there.
 	//
-	response, err = store.Read(key)
+	response, err = store.ReadOld(key)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
 	assert.Equal(t, value, string(response), "response does not match written value - value: %v response: %v", value, string(response))
@@ -293,7 +293,7 @@ func TestStoreWriteRead(t *testing.T) {
 	return
 }
 
-func TestStoreWriteReadMultiple(t *testing.T) {
+func TestStoreWriteReadMultipleOld(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
@@ -306,10 +306,10 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.WriteMultiple(keyValueSet)
+	err = store.WriteMultipleOld(keyValueSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
-	response, err := store.ReadMultiple(keySet)
+	response, err := store.ReadMultipleOld(keySet)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
 
@@ -345,7 +345,7 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.WriteMultiple(keyValueSet)
+	err = store.WriteMultipleOld(keyValueSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
 	// Look for a prefix name we do not expect to be present.
@@ -353,7 +353,7 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 	// We expect success with a non-nil but empty set.
 	//
 	invalidKey := prefixKey + "Invalidname"
-	response, err := store.ReadWithPrefix(context.Background(), invalidKey)
+	response, err := store.ReadWithPrefixOld(context.Background(), invalidKey)
 	assert.Nilf(t, err, "Succeeded to read non-existing prefix key from store - error: %v prefixKey: %v", err, invalidKey)
 	assert.NotNilf(t, response, "Failed to get a non-nil response as expected - error: %v prefixKey: %v", err, invalidKey)
 	assert.Equal(t, 0, len(response.Records), "Got more results than expected")
@@ -366,7 +366,7 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 
 	// Now look for a set of prefixed key/value pairs which we do expect to be present.
 	//
-	response, err = store.ReadWithPrefix(context.Background(), prefixKey)
+	response, err = store.ReadWithPrefixOld(context.Background(), prefixKey)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 	assert.NotNilf(t, response, "Failed to get a response as expected - error: %v", err)
 	assert.Equal(t, len(keyValueSet), len(response.Records), "Failed to get the expected number of response values")
@@ -417,24 +417,24 @@ func TestStoreWriteDelete(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.Write(key, value)
+	err = store.WriteOld(key, value)
 	assert.Nilf(t, err, "Failed to write to store - error: %v key: %v value: %v", err, key, value)
 
 	// Delete the key we just wrote
 	//
-	err = store.Delete(key)
+	err = store.DeleteOld(key)
 	assert.Nilf(t, err, "Failed to delete key from store - error: %v key: %v", err, key)
 
 	// Try to delete the key we just wrote a second time
 	//
-	err = store.Delete(key)
+	err = store.DeleteOld(key)
 	assert.NotNilf(t, err, "Unexpectedly deleted the key from store for a second time - error: %v key: %v", err, key)
 	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for a previously deleted key - error %v", err)
 
 	// Try to delete a name we do not expect to be present
 	//
 	invalidKey := key + "invalidname"
-	err = store.Delete(invalidKey)
+	err = store.DeleteOld(invalidKey)
 	assert.NotNilf(t, err, "Succeeded to delete a non-existing key/value from store - error: %v key: %v", err, invalidKey)
 	assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
 
@@ -458,10 +458,10 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.WriteMultiple(keyValueSet)
+	err = store.WriteMultipleOld(keyValueSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
-	err = store.DeleteMultiple(keySet)
+	err = store.DeleteMultipleOld(keySet)
 	assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 
 	store.Disconnect()
@@ -499,13 +499,13 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.WriteMultiple(keyValueSet)
+	err = store.WriteMultipleOld(keyValueSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v prefixKey: %v", err, prefixKey)
 
-	err = store.DeleteWithPrefix(prefixKey)
+	err = store.DeleteWithPrefixOld(prefixKey)
 	assert.Nilf(t, err, "Failed to delete the prefix keys from the store - error: %v prefixKey: %v", err, prefixKey)
 
-	err = store.DeleteWithPrefix(prefixKey)
+	err = store.DeleteWithPrefixOld(prefixKey)
 	assert.Nilf(t, err, "Unexpected error when attmepting to delete prefix keys from store for a second - error: %v prefixKey: %v", err, prefixKey)
 
 	store.Disconnect()
@@ -532,35 +532,35 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
-	err := store.Write(key, value)
+	err := store.WriteOld(key, value)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to write to store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
-	err = store.WriteMultiple(keyValueSet)
+	err = store.WriteMultipleOld(keyValueSet)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to write to store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
-	_, err = store.Read(key)
+	_, err = store.ReadOld(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to read from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
-	_, err = store.ReadMultiple(keySet)
+	_, err = store.ReadMultipleOld(keySet)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to read from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
-	_, err = store.ReadWithPrefix(context.Background(), key)
+	_, err = store.ReadWithPrefixOld(context.Background(), key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to read from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
-	err = store.Delete(key)
+	err = store.DeleteOld(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to delete from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
-	err = store.DeleteMultiple(keySet)
+	err = store.DeleteMultipleOld(keySet)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to delete from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
-	err = store.DeleteWithPrefix(key)
+	err = store.DeleteWithPrefixOld(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to delete from store - error: %v", err)
 	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
 
@@ -703,7 +703,7 @@ func TestStoreWriteReadMultipleTxn(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.WriteMultiple(keyValueSet)
+	err = store.WriteMultipleOld(keyValueSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
 	recordKeySet := RecordKeySet{"TestStoreWriteReadMultipleTxn", keySet}
@@ -1010,7 +1010,7 @@ func TestStoreListWithPrefix(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.WriteMultiple(keyValueSet)
+	err = store.WriteMultipleOld(keyValueSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
 	// Look for a prefix name we do not expect to be present.
