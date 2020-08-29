@@ -87,7 +87,7 @@ func Now() (*ct.Timestamp, error) {
 
 // Delay until the simulated time meets or exceeds the specified deadline.
 // Completion is asynchronous, even if no delay is required.
-func After(deadline *ct.Timestamp) (<-chan TimeData, error) {
+func After(deadline *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 
 	go func(res chan<- TimeData) {
@@ -113,7 +113,7 @@ func After(deadline *ct.Timestamp) (<-chan TimeData, error) {
 		res <- TimeData{Time: rsp, Err: nil}
 	}(ch)
 
-	return ch, nil
+	return ch
 }
 
 func Status() (*pb.StatusResponse, error) {

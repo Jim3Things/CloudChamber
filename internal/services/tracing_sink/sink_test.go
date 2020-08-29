@@ -15,6 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
+	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
@@ -475,8 +476,9 @@ func TestGetAfterWaitOneEntry(t *testing.T) {
 
 	entry := createEntry(0)
 
-	hit := false
-	go func () {
+	ch := make(chan bool)
+
+	go func (ch chan<- bool) {
 		res, err := client.GetAfter(ctx, &pb.GetAfterRequest{
 			Id:         -1,
 			MaxEntries: 10,
@@ -493,17 +495,15 @@ func TestGetAfterWaitOneEntry(t *testing.T) {
 
 		assert.Equal(t, int64(0), res.Entries[0].Id)
 		assertEntryMatches(t, entry, res.Entries[0].Entry)
-		hit = true
-	}()
+		ch <- true
+	}(ch)
 
-	assert.False(t, hit)
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100) * time.Millisecond))
 
 	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
 	require.Nilf(t, err, "unexpected error: %v", err)
 
-	time.Sleep(1000 * time.Millisecond)
-
-	assert.True(t, hit)
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
 }
 
 func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
@@ -521,8 +521,9 @@ func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
 
 	entry = createEntry(0)
 
-	hit := false
-	go func () {
+	ch := make(chan bool)
+
+	go func (ch chan<- bool) {
 		res, err2 := client.GetAfter(ctx, &pb.GetAfterRequest{
 			Id:         -1,
 			MaxEntries: 10,
@@ -540,15 +541,13 @@ func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
 		assert.Equal(t, int64(0), res.Entries[0].Id)
 		assertEntryMatches(t, entry, res.Entries[1].Entry)
 
-		hit = true
-	}()
+		ch <- true
+	}(ch)
 
-	time.Sleep(1000 * time.Millisecond)
-	assert.False(t, hit)
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100) * time.Millisecond))
 
 	_, err = client.Append(ctx, &pb.AppendRequest{Entry: entry})
 	require.Nilf(t, err, "unexpected error: %v", err)
 
-	time.Sleep(1000 * time.Millisecond)
-	assert.True(t, hit)
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
 }

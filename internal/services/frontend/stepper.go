@@ -177,27 +177,27 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		after := vars["after"]
 
+		var data clients.TimeData
+
 		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			if err := ensureEstablishedSession(session); err != nil {
+				return err
+			}
+
+			afterTick, err := ensurePositiveNumber("after", after)
+			if err != nil {
+				return err
+			}
+
+			data = <- clients.After(&ct.Timestamp{Ticks: afterTick + 1})
+			if data.Err != nil {
+				return data.Err
+			}
+
+			return nil
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
-		}
-
-
-		afterTick, err := ensurePositiveNumber("after", after)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		ch, err := clients.After(&ct.Timestamp{Ticks: afterTick + 1})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		data := <-ch
-		if data.Err != nil {
-			return httpError(ctx, w, data.Err)
 		}
 
 		w.Header().Set("Content-Type", "application/json")

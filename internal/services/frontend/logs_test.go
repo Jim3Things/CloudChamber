@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
+	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
@@ -36,19 +37,23 @@ func testLogsGetPolicy(t *testing.T, cookies []*http.Cookie) (*pb.GetPolicyRespo
 	return res, response.Cookies()
 }
 
-func testLogsGetAfter(t *testing.T, start int64, maxCount int64, cookies []*http.Cookie) (*pb.GetAfterResponse, []*http.Cookie) {
-	path := fmt.Sprintf("%s?from=%d&for=%d", testLogsPath(), start, maxCount)
-	request := httptest.NewRequest("GET", path, nil)
-	response := doHTTP(request, cookies)
+func testLogsGetAfter(
+	t *testing.T,
+	start int64,
+	maxCount int64,
+	cookies []*http.Cookie) (*pb.GetAfterResponse, []*http.Cookie) {
+		path := fmt.Sprintf("%s?from=%d&for=%d", testLogsPath(), start, maxCount)
+		request := httptest.NewRequest("GET", path, nil)
+		response := doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+		assert.Equal(t, http.StatusOK, response.StatusCode)
 
-	res := &pb.GetAfterResponse{}
-	err := getJSONBody(response, res)
+		res := &pb.GetAfterResponse{}
+		err := getJSONBody(response, res)
 
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
+		assert.Nilf(t, err, "Unexpected error, err: %v", err)
 
-	return res, response.Cookies()
+		return res, response.Cookies()
 }
 
 func TestLogsGetPolicy(t *testing.T) {
@@ -161,9 +166,10 @@ func TestLogsGetAfter(t *testing.T) {
 	require.Nil(t, err)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-	afterHit := false
 
-	go func(cookies []*http.Cookie) {
+	ch := make(chan bool)
+
+	go func(ch chan<- bool, cookies []*http.Cookie) {
 		var res *pb.GetAfterResponse
 
 		res, cookies2 = testLogsGetAfter(t, -1, 10, response.Cookies())
@@ -192,17 +198,15 @@ func TestLogsGetAfter(t *testing.T) {
 		assert.Equal(t, event.Tick, resEvent.Tick)
 		assert.Equal(t, event.Severity, resEvent.Severity)
 
-		afterHit = true
-	}(response.Cookies())
+		ch <- true
+	}(ch, response.Cookies())
 
-	time.Sleep(time.Duration(100) * time.Millisecond)
-	assert.False(t, afterHit)
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100) * time.Millisecond))
 
 	err = tsc.Append(entry)
 	require.Nil(t, err)
 
-	time.Sleep(time.Duration(1) * time.Second)
-	assert.True(t, afterHit)
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
 
 	doLogout(t, randomCase(adminAccountName), cookies2)
 }

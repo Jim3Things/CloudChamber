@@ -189,8 +189,8 @@ endif
 
 PROTOC_BASE = protoc --proto_path=. --proto_path=$(GOPATH)/src
 
-PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src 
-PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src 
+PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src
+PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
 
 
 CP = cp
@@ -240,6 +240,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test $(PROJECT)/internal/clients/timestamp
 	go test $(PROJECT)/internal/services/frontend
 	go test $(PROJECT)/internal/services/stepper_actor
+	go test $(PROJECT)/internal/services/tracing_sink
 	go test $(PROJECT)/internal/tracing/exporters/common
 
 

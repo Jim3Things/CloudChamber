@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -102,41 +103,15 @@ func commonSetup() {
 		grpc.WithUnaryInterceptor(ctrc.InfraInterceptor))
 
 	// Finally, start the test web service, which all tests will use
-	if err := initService(&config.GlobalConfig{
-		Controller: config.ControllerType{},
-		Inventory:  config.InventoryType{},
-		SimSupport: config.SimSupportType{
-			EP: config.Endpoint{
-				Hostname: "localhost",
-				Port:     8083,
-			},
-			StepperPolicy: "manual",
-		},
-		WebServer: config.WebServerType{
-			RootFilePath:          "C:\\CloudChamber",
-			SystemAccount:         adminAccountName,
-			SystemAccountPassword: adminPassword,
-			FE: config.Endpoint{
-				Hostname: "localhost",
-				Port:     8080,
-			},
-			BE: config.Endpoint{},
-		},
-		Store: config.StoreType{
-			ConnectTimeout: config.StoreDefaultConnectTimeout,
-			RequestTimeout: config.StoreDefaultRequestTimeout,
-			TraceLevel:     config.StoreDefaultTraceLevel,
-			EtcdService: config.Endpoint{
-				Hostname: config.StoreDefaultEtcdSvcHostname,
-				Port:     config.StoreDefaultEtcdSvcPort,
-			},
-			Test: config.StoreTypeTest{
-				UseTestNamespace:  true,
-				UseUniqueInstance: false,
-				PreCleanStore:     true,
-			},
-		},
-	}); err != nil {
+	configPath := flag.String("config", ".", "path to the configuration file")
+	flag.Parse()
+
+	cfg, err := config.ReadGlobalConfig(*configPath)
+	if err != nil {
+		log.Fatalf("failed to process the global configuration: %v", err)
+	}
+
+	if err = initService(cfg); err != nil {
 		log.Fatalf("Error initializing service: %v", err)
 	}
 
