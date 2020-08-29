@@ -11,7 +11,6 @@ import (
 
 	"github.com/gorilla/sessions"
 
-	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -23,9 +22,9 @@ const (
 	expirationTimeout = time.Duration(1) * time.Hour
 )
 
-// SessionState holds the current state for the session
+// sessionState holds the current state for the session
 //
-type SessionState struct {
+type sessionState struct {
 	name    string
 	timeout time.Time
 }
@@ -35,7 +34,7 @@ var mutex = sync.Mutex{}
 // activeSessions is the set of currently active logged in sessions, indexed
 // by an id.  timeouts holds the mapping from expiration time to the active
 // session id, and is used for purging stale sessions from the server.
-var activeSessions = map[int64]SessionState{}
+var activeSessions = map[int64]sessionState{}
 var timeouts = map[time.Time]int64{}
 
 // lastID contains the last session ID used by this server
@@ -43,7 +42,7 @@ var lastID int64 = 0
 
 // newSession is a function that creates a new login session, so long as
 // one is not currently active
-func newSession(session *sessions.Session, state SessionState) error {
+func newSession(session *sessions.Session, state sessionState) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 
@@ -76,7 +75,7 @@ func removeSession(session *sessions.Session) {
 	purgeStaleSessions()
 
 	if id, ok := session.Values[sessionIDKey].(int64); ok {
-		if entry, ok := activeSessions[id]; ok {
+		if entry, ok2 := activeSessions[id]; ok2 {
 			delete(activeSessions, id)
 			delete(timeouts, entry.timeout)
 
@@ -88,14 +87,14 @@ func removeSession(session *sessions.Session) {
 // getSession is a function that returns the state associated with the current
 // session.  It also returns a true/false flag indicating if the state was
 // found in the active sessions, much like map lookup does.
-func getSession(session *sessions.Session) (SessionState, bool) {
+func getSession(session *sessions.Session) (sessionState, bool) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
 	purgeStaleSessions()
 
 	if id, ok := session.Values[sessionIDKey].(int64); ok {
-		if entry, ok := activeSessions[id]; ok {
+		if entry, ok2 := activeSessions[id]; ok2 {
 			// Bump timeout to account for the usage of the session
 			delete(timeouts, entry.timeout)
 
@@ -113,7 +112,7 @@ func getSession(session *sessions.Session) (SessionState, bool) {
 
 	}
 
-	return SessionState{}, false
+	return sessionState{}, false
 }
 
 // purgeStaleSessions removes stale sessions from the active session list.  It
@@ -168,7 +167,7 @@ func dumpSessionState(session *sessions.Session) string {
 
 // getLoggedInUser returns the user definition for the current session,
 // or an error, if no user can be found.
-func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
+func getLoggedInUser(ctx context.Context, session *sessions.Session) (*pb.User, error) {
 	entry, ok := getSession(session)
 	if !ok {
 		return nil, &HTTPError{
@@ -177,7 +176,7 @@ func getLoggedInUser(session *sessions.Session) (*pb.User, error) {
 		}
 	}
 
-	user, _, err := dbUsers.Read(entry.name)
+	user, _, err := dbUsers.Read(ctx, entry.name)
 	return user, err
 }
 
@@ -193,10 +192,10 @@ func doSessionHeader(
 
 	err := action(ctx, session)
 
-	if errx := session.Save(r, w); errx != nil {
+	if err2 := session.Save(r, w); err2 != nil {
 		return &HTTPError{
 			SC:   http.StatusInternalServerError,
-			Base: errx,
+			Base: err2,
 		}
 	}
 
@@ -217,13 +216,3 @@ func ensureEstablishedSession(session *sessions.Session) error {
 	return nil
 }
 
-// tick provides the current simulated time tick, or '-1' if the simulated time
-// cannot be retrieved (e.g. during startup)
-func tick() int64 {
-	now, err := ts.Now()
-	if err != nil {
-		return -1
-	}
-
-	return now.Ticks
-}

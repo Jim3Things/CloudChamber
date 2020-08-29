@@ -13,17 +13,37 @@ var (
 	// to create a client.
 	//
 	ErrStoreUnableToCreateClient = errors.New("CloudChamber: unable to create a new client")
-
-	// ErrStoreNotConnected indicates the store instance does not have a
-	// currently active client. The Connect() method can be used to establist a client.
-	//
-	ErrStoreNotConnected = errors.New("CloudChamber: client not currently connected")
-
-	// ErrStoreConnected indicates the request failed as the store is currently
-	// connected and the request is not possible in that condition.
-	//
-	ErrStoreConnected = errors.New("CloudChamber: client currently connected")
 )
+
+// ErrStoreNotConnected indicates the store instance does not have a
+// currently active client. The Connect() method can be used to establist a client.
+//
+type ErrStoreNotConnected string
+
+func (esnc ErrStoreNotConnected) Error() string {
+	return fmt.Sprintf("CloudChamber: client not currently connected - %s", string(esnc))
+}
+
+// ErrStoreConnected indicates the request failed as the store is currently
+// connected and the request is not possible in that condition.
+//
+type ErrStoreConnected string
+
+func (esc ErrStoreConnected) Error() string {
+	return fmt.Sprintf("CloudChamber: client currently connected - %s", string(esc))
+}
+
+// ErrStoreConnectionFailed indicates that the attempt to extablish a connection
+// from this client to the store failed
+//
+type ErrStoreConnectionFailed struct {
+	endpoints []string
+	reason    error
+}
+
+func (escf ErrStoreConnectionFailed) Error() string {
+	return fmt.Sprintf("CloudChamber: failed to establish connection to store - endpoints: %q reason: %q", escf.endpoints, escf.reason)
+}
 
 // ErrStoreKeyNotFound indicates the request key was not found when the store
 // lookup/fetch was attempted.

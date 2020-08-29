@@ -20,31 +20,39 @@ import (
 // Default values for the configurable parameters
 //
 const (
-	DefaultGlobalConfigFile     = "cloudchamber.yaml"
-	DefaultConfigType           = "yaml"
-	ControllerDefaultPort       = 8081
-	ControllerDefaultTraceFile  = ".\\controller_trace.txt"
-	InventoryDefaultPort        = 8082
-	InventoryDefaultTraceFile   = ".\\inventory_trace.txt"
-	SimSupportDefaultPort       = 8083
-	SimSupportDefaultTraceFile  = ".\\sim_support_trace.txt"
-	WebServerDefaultPort        = 8084
-	WebServerFEDefaultPort      = 8080
-	WebServerDefaultTraceFile   = ".\\web_server_trace.txt"
-	DefaultHost                 = ""
-	DefaultStepperPolicy        = ""
-	DefaultRootFilePath         = "."
-	DefaultSystemAccount        = "Admin"
-	DefaultSystemPassword       = "SystemPassword"
+	defaultGlobalConfigFile = "cloudchamber.yaml"
+	defaultConfigType       = "yaml"
+
+	controllerDefaultPort      = 8081
+	controllerDefaultTraceFile = ".\\controller_trace.txt"
+
+	inventoryDefaultPort      = 8082
+	inventoryDefaultTraceFile = ".\\inventory_trace.txt"
+
+	simSupportDefaultPort      = 8083
+	simSupportDefaultTraceFile = ".\\sim_support_trace.txt"
+
+	webServerDefaultPort      = 8084
+	webServerFEDefaultPort    = 8080
+	webServerDefaultTraceFile = ".\\web_server_trace.txt"
+	defaultHost               = ""
+
+	stepperDefaultPolicy = ""
+
+	defaultRootFilePath = "."
+
+	defaultSystemAccount  = "Admin"
+	defaultSystemPassword = "SystemPassword"
+
 	StoreDefaultTraceLevel      = 1
 	StoreDefaultConnectTimeout  = 5
 	StoreDefaultRequestTimeout  = 5
 	StoreDefaultEtcdSvcHostname = "localhost"
 	StoreDefaultEtcdSvcPort     = 2379
 
-	StoreDefaultTestUseTestNamespace  = false
-	StoreDefaultTestUseUniqueInstance = false
-	StoreDefaultTestPreCleanStore     = false
+	storeDefaultTestUseTestNamespace  = false
+	storeDefaultTestUseUniqueInstance = false
+	storeDefaultTestPreCleanStore     = false
 )
 
 // GlobalConfig defines the global configuration structure produced from reading
@@ -147,39 +155,39 @@ func newGlobalConfig() *GlobalConfig {
 	return &GlobalConfig{
 		Controller: ControllerType{
 			EP: Endpoint{
-				Hostname: DefaultHost,
-				Port:     ControllerDefaultPort,
+				Hostname: defaultHost,
+				Port:     controllerDefaultPort,
 			},
-			TraceFile: ControllerDefaultTraceFile,
+			TraceFile: controllerDefaultTraceFile,
 		},
 		Inventory: InventoryType{
 			EP: Endpoint{
-				Hostname: DefaultHost,
-				Port:     InventoryDefaultPort,
+				Hostname: defaultHost,
+				Port:     inventoryDefaultPort,
 			},
-			TraceFile: InventoryDefaultTraceFile,
+			TraceFile: inventoryDefaultTraceFile,
 		},
 		SimSupport: SimSupportType{
 			EP: Endpoint{
-				Hostname: DefaultHost,
-				Port:     SimSupportDefaultPort,
+				Hostname: defaultHost,
+				Port:     simSupportDefaultPort,
 			},
-			TraceFile:     SimSupportDefaultTraceFile,
-			StepperPolicy: DefaultStepperPolicy,
+			TraceFile:     simSupportDefaultTraceFile,
+			StepperPolicy: stepperDefaultPolicy,
 		},
 		WebServer: WebServerType{
-			RootFilePath:          DefaultRootFilePath,
-			SystemAccount:         DefaultSystemAccount,
-			SystemAccountPassword: DefaultSystemPassword,
+			RootFilePath:          defaultRootFilePath,
+			SystemAccount:         defaultSystemAccount,
+			SystemAccountPassword: defaultSystemPassword,
 			FE: Endpoint{
-				Hostname: DefaultHost,
-				Port:     WebServerFEDefaultPort,
+				Hostname: defaultHost,
+				Port:     webServerFEDefaultPort,
 			},
 			BE: Endpoint{
-				Hostname: DefaultHost,
-				Port:     WebServerDefaultPort,
+				Hostname: defaultHost,
+				Port:     webServerDefaultPort,
 			},
-			TraceFile: WebServerDefaultTraceFile,
+			TraceFile: webServerDefaultTraceFile,
 		},
 		Store: StoreType{
 			ConnectTimeout: StoreDefaultConnectTimeout,
@@ -190,9 +198,9 @@ func newGlobalConfig() *GlobalConfig {
 				Port:     StoreDefaultEtcdSvcPort,
 			},
 			Test: StoreTypeTest{
-				UseTestNamespace:  StoreDefaultTestUseTestNamespace,
-				UseUniqueInstance: StoreDefaultTestUseUniqueInstance,
-				PreCleanStore:     StoreDefaultTestPreCleanStore,
+				UseTestNamespace:  storeDefaultTestUseTestNamespace,
+				UseUniqueInstance: storeDefaultTestUseUniqueInstance,
+				PreCleanStore:     storeDefaultTestPreCleanStore,
 			},
 		},
 	}
@@ -202,9 +210,9 @@ func newGlobalConfig() *GlobalConfig {
 //
 // The configuration file is parsed, and the result returned as a typed object
 func ReadGlobalConfig(path string) (*GlobalConfig, error) {
-	viper.SetConfigName(DefaultGlobalConfigFile)
+	viper.SetConfigName(defaultGlobalConfigFile)
 	viper.AddConfigPath(path)
-	viper.SetConfigType(DefaultConfigType)
+	viper.SetConfigType(defaultConfigType)
 
 	cfg := newGlobalConfig()
 
@@ -223,8 +231,8 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 				fmt.Sprintf(
 					"No config file found at %s/%s (%s), applying defaults.",
 					path,
-					DefaultGlobalConfigFile,
-					DefaultConfigType))
+					defaultGlobalConfigFile,
+					defaultConfigType))
 		} else {
 			// Config file was found but another error was produced
 			err = fmt.Errorf("fatal error reading config file: %s", err)

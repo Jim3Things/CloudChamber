@@ -19,6 +19,10 @@ import (
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
+const (
+	nanosPerSecond = 1_000_000_000
+)
+
 func stepperAddRoutes(routeBase *mux.Router) {
 	routeStepper := routeBase.PathPrefix("/stepper").Subrouter()
 
@@ -83,7 +87,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 
 		// Advance the time the request number of ticks
 		for i := 0; i < count; i++ {
-			if err := clients.Advance(); err != nil {
+			if err = clients.Advance(); err != nil {
 				return httpError(ctx, w, err)
 			}
 		}
@@ -145,7 +149,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 
 				if tps > 1 {
 					delay.Seconds = 0
-					delay.Nanos = int32(1_000_000_000 / tps)
+					delay.Nanos = int32(nanosPerSecond / tps)
 				}
 			}
 
@@ -155,7 +159,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, NewErrInvalidStepperMode(args[0]))
 		}
 
-		if err := clients.SetPolicy(policy, delay, match); err != nil {
+		if err = clients.SetPolicy(policy, delay, match); err != nil {
 			return httpError(ctx, w, NewErrStepperFailedToSetPolicy())
 		}
 
@@ -192,7 +196,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 
 		data := <-ch
 		if data.Err != nil {
-			return httpError(ctx, w, err)
+			return httpError(ctx, w, data.Err)
 		}
 
 		w.Header().Set("Content-Type", "application/json")

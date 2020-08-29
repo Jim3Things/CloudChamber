@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -78,7 +79,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, "")
+				return canManageAccounts(ctx, session, "")
 			})
 
 		if err != nil {
@@ -94,14 +95,14 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 
 		users := &pb.UserList{}
 
-		err = dbUsers.Scan(func(entry *pb.User) (err error) {
+		err = dbUsers.Scan(ctx, func(entry *pb.User) (err error) {
 			target := fmt.Sprintf("%s%s", b, entry.Name)
 			protected := ""
 			if entry.NeverDelete {
 				protected = " (protected)"
 			}
 
-			st.Infof(ctx, tick(), "   Listing user %q: %q%s", entry.Name, target, protected)
+			st.Infof(ctx, common.Tick(), "   Listing user %q: %q%s", entry.Name, target, protected)
 
 			users.Users = append(users.Users, &pb.UserListEntry{
 				Name:      entry.Name,
@@ -129,14 +130,14 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, "")
+				return canManageAccounts(ctx, session, "")
 			})
 
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
 
-		st.Infof(ctx, tick(), "Creating user %q", username)
+		st.Infof(ctx, common.Tick(), "Creating user %q", username)
 
 		u := &pb.UserDefinition{}
 		if err = jsonpb.Unmarshal(r.Body, u); err != nil {
@@ -145,14 +146,21 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 
 		var rev int64
 
-		if rev, err = userAdd(username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
+		if rev, err = userAdd(ctx, username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
 			return httpError(ctx, w, err)
 		}
 
 		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-		st.Infof(ctx, tick(), "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
-		_, err = fmt.Fprintf(w, "User %q created.  enabled: %v, can manage accounts: %v", username, u.Enabled, u.CanManageAccounts)
+		st.Infof(
+			ctx, common.Tick(),
+			"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v",
+			username, u.Enabled, u.CanManageAccounts)
+
+		_, err = fmt.Fprintf(
+			w,
+			"User %q created.  enabled: %v, can manage accounts: %v",
+			username, u.Enabled, u.CanManageAccounts)
 		return err
 	})
 }
@@ -165,14 +173,14 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
 
-		u, rev, err := userRead(username)
+		u, rev, err := userRead(ctx, username)
 
 		if err != nil {
 			return httpError(ctx, w, err)
@@ -187,7 +195,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 			NeverDelete:       u.NeverDelete,
 		}
 
-		st.Infof(ctx, tick(), "Returning details for user %q: %v", username, u)
+		st.Infof(ctx, common.Tick(), "Returning details for user %q: %v", username, u)
 
 		// Get the user entry, and serialize it to json
 		// (export userPublic to json and return that as the body)
@@ -207,12 +215,12 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) (err error) {
-				caller, err = getLoggedInUser(session)
+				caller, err = getLoggedInUser(ctx, session)
 				if err != nil {
 					return err
 				}
 
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
@@ -240,7 +248,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		// Finally, check that no rights are being added that the logged in user does
 		// not have.  Since a user can modify their own entries, the canManageAccounts
 		// check is insufficient.
-		if err := verifyRightsAvailable(caller, upd); err != nil {
+		if err = verifyRightsAvailable(caller, upd); err != nil {
 			return httpError(ctx, w, err)
 		}
 
@@ -250,7 +258,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		var rev int64
 		var newVer *pb.User
 
-		if newVer, rev, err = userUpdate(username, upd, match); err != nil {
+		if newVer, rev, err = userUpdate(ctx, username, upd, match); err != nil {
 			return httpError(ctx, w, err)
 		}
 
@@ -263,7 +271,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 			NeverDelete:       newVer.NeverDelete,
 		}
 
-		st.Infof(ctx, tick(), "Returning details for user %q: %v", username, upd)
+		st.Infof(ctx, common.Tick(), "Returning details for user %q: %v", username, upd)
 
 		p := jsonpb.Marshaler{}
 		return p.Marshal(w, ext)
@@ -279,14 +287,14 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
 
-		if err = userRemove(username); err != nil {
+		if err = userRemove(ctx, username); err != nil {
 			return httpError(ctx, w, err)
 		}
 
@@ -305,21 +313,21 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 			vars := mux.Vars(r)
 			username := vars["username"]
 
-			st.Infof(ctx, tick(), "Operation %q, user %q, session %v", op, username, session)
+			st.Infof(ctx, common.Tick(), "Operation %q, user %q, session %v", op, username, session)
 
 			switch op {
 			case Login:
-				s, err = login(session, r)
+				s, err = login(ctx, session, r)
 
 			case Logout:
-				s, err = logout(session, r)
+				s, err = logout(ctx, session, r)
 
 			default:
 				err = NewErrUserInvalidOperation(op)
 			}
 
 			if err != nil {
-				_ = st.Error(ctx, tick(), dumpSessionState(session))
+				_ = st.Error(ctx, common.Tick(), dumpSessionState(session))
 			}
 			return err
 		})
@@ -343,7 +351,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) (err error) {
-				return canManageAccounts(session, username)
+				return canManageAccounts(ctx, session, username)
 			})
 
 		if err != nil {
@@ -373,13 +381,13 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		// match.
 		var rev int64
 
-		if rev, err = userSetPassword(username, upd, match); err != nil {
+		if rev, err = userSetPassword(ctx, username, upd, match); err != nil {
 			return httpError(ctx, w, err)
 		}
 
 		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-		st.Infof(ctx, tick(), "Password changed for user %q", username)
+		st.Infof(ctx, common.Tick(), "Password changed for user %q", username)
 		_, err = fmt.Fprintf(w, "Password changed for user %q", username)
 		return err
 	})
@@ -395,7 +403,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 // applied to the response body.
 
 // Process a login request (?op=login)
-func login(session *sessions.Session, r *http.Request) (_ string, err error) {
+func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ string, err error) {
 	var pwd []byte
 
 	vars := mux.Vars(r)
@@ -414,7 +422,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
 
 	// First, verify that this is an actual user account, and that account is
 	// enabled for login operations.
-	if u, _, err := userRead(username); err != nil || !u.Enabled {
+	if u, _, err := userRead(ctx, username); err != nil || !u.Enabled {
 		return "", &HTTPError{
 			SC:   http.StatusNotFound,
 			Base: ErrUserAuthFailed,
@@ -431,7 +439,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
 
 	// .. finally, let's confirm that this password matches the one for the
 	// designated user account.
-	if userVerifyPassword(username, pwd) != nil {
+	if userVerifyPassword(ctx, username, pwd) != nil {
 		return "", &HTTPError{
 			SC:   http.StatusForbidden,
 			Base: ErrUserAuthFailed,
@@ -440,7 +448,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
 
 	// .. all passed.  So finally mark the session as logged in
 	//
-	if err = newSession(session, SessionState{name: username}); err != nil {
+	if err = newSession(session, sessionState{name: username}); err != nil {
 		return "", &HTTPError{
 			SC:   http.StatusBadRequest,
 			Base: err,
@@ -451,7 +459,7 @@ func login(session *sessions.Session, r *http.Request) (_ string, err error) {
 }
 
 // Process a logout request (?op=logout)
-func logout(session *sessions.Session, r *http.Request) (_ string, err error) {
+func logout(ctx context.Context, session *sessions.Session, r *http.Request) (_ string, err error) {
 	vars := mux.Vars(r)
 	username := vars["username"]
 
@@ -475,14 +483,14 @@ func logout(session *sessions.Session, r *http.Request) (_ string, err error) {
 // attributes that are understood by the route handlers to the internal user
 // attributes understood by the storage system.
 
-func userAdd(name string, password string, accountManager bool, enabled bool, neverDelete bool) (int64, error) {
+func userAdd(ctx context.Context, name string, password string, accountManager bool, enabled bool, neverDelete bool) (int64, error) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	revision, err := dbUsers.Create(&pb.User{
+	revision, err := dbUsers.Create(ctx, &pb.User{
 		Name:              name,
 		PasswordHash:      passwordHash,
 		Enabled:           enabled,
@@ -500,8 +508,8 @@ func userAdd(name string, password string, accountManager bool, enabled bool, ne
 	return revision, nil
 }
 
-func userUpdate(name string, u *pb.UserUpdate, rev int64) (*pb.User, int64, error) {
-	upd, revision, err := dbUsers.Update(name, u, rev)
+func userUpdate(ctx context.Context, name string, u *pb.UserUpdate, rev int64) (*pb.User, int64, error) {
+	upd, revision, err := dbUsers.Update(ctx, name, u, rev)
 
 	if err == ErrUserNotFound(name) {
 		return nil, InvalidRev, NewErrUserNotFound(name)
@@ -518,9 +526,9 @@ func userUpdate(name string, u *pb.UserUpdate, rev int64) (*pb.User, int64, erro
 	return upd, revision, nil
 }
 
-func userRead(name string) (*pb.User, int64, error) {
+func userRead(ctx context.Context, name string) (*pb.User, int64, error) {
 
-	u, rev, err := dbUsers.Read(name)
+	u, rev, err := dbUsers.Read(ctx, name)
 
 	if err == ErrUserNotFound(name) {
 		return nil, InvalidRev, NewErrUserNotFound(name)
@@ -533,8 +541,8 @@ func userRead(name string) (*pb.User, int64, error) {
 	return u, rev, nil
 }
 
-func userRemove(name string) error {
-	err := dbUsers.Delete(name, InvalidRev)
+func userRemove(ctx context.Context, name string) error {
+	err := dbUsers.Delete(ctx, name, InvalidRev)
 
 	if err == ErrUserProtected(name) {
 		return NewErrUserProtected(name)
@@ -554,9 +562,9 @@ func userRemove(name string) error {
 // TODO: Figure out how to better protect leakage of the password in memory.
 
 // Verify that the password matches the user's current hashed password
-func userVerifyPassword(name string, password []byte) error {
+func userVerifyPassword(ctx context.Context, name string, password []byte) error {
 
-	entry, _, err := userRead(name)
+	entry, _, err := userRead(ctx, name)
 
 	if err != nil {
 		return err
@@ -567,9 +575,9 @@ func userVerifyPassword(name string, password []byte) error {
 
 // Set the password for a given user account, after first verifying that
 // the current password was correctly provided (or an override was in place)
-func userSetPassword(name string, changes *pb.UserPassword, rev int64) (int64, error) {
+func userSetPassword(ctx context.Context, name string, changes *pb.UserPassword, rev int64) (int64, error) {
 	if !changes.Force {
-		if err := userVerifyPassword(name, []byte(changes.OldPassword)); err != nil {
+		if err := userVerifyPassword(ctx, name, []byte(changes.OldPassword)); err != nil {
 			return InvalidRev, NewErrUserPermissionDenied()
 		}
 	}
@@ -580,7 +588,7 @@ func userSetPassword(name string, changes *pb.UserPassword, rev int64) (int64, e
 		return InvalidRev, err
 	}
 
-	_, revision, err := dbUsers.UpdatePassword(name, passwordHash, rev)
+	_, revision, err := dbUsers.UpdatePassword(ctx, name, passwordHash, rev)
 
 	if err == ErrUserNotFound(name) {
 		return InvalidRev, NewErrUserNotFound(name)
@@ -604,8 +612,8 @@ func userSetPassword(name string, changes *pb.UserPassword, rev int64) (int64, e
 
 // Determine if this session's active login has permission to change or
 // manage the targeted account.  Note that any account may manage itself.
-func canManageAccounts(session *sessions.Session, username string) error {
-	user, err := getLoggedInUser(session)
+func canManageAccounts(ctx context.Context, session *sessions.Session, username string) error {
+	user, err := getLoggedInUser(ctx, session)
 	if err != nil {
 		return NewErrUserPermissionDenied()
 	}

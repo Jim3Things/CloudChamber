@@ -11,15 +11,15 @@ import (
 )
 
 const (
-	StackDepth = 5
+	stackDepth = 5
 )
 
-// Return the caller's method name, without the leading directory paths
+// MethodName returns the caller's method name, without the leading directory paths.
 func MethodName(skip int) string {
 	addresses := make([]uintptr, 1)
 
 	// Get the information up the stack (i.e. the caller of this method, or beyond)
-	runtime.Callers(1 + skip, addresses)
+	runtime.Callers(skip + 1, addresses)
 	frames := runtime.CallersFrames(addresses)
 	frame, _ := frames.Next()
 
@@ -34,12 +34,12 @@ func MethodName(skip int) string {
 	return name
 }
 
-// Return the formatted call stack, in the form of filename and line number.
-// A newline splits each entry.
+// StackTrace produces a formatted call stack, in the form of filename and line
+// number.  A newline splits each entry.
 func StackTrace() string {
 	res := ""
 
-	addresses := make([]uintptr, StackDepth)
+	addresses := make([]uintptr, stackDepth)
 	runtime.Callers(1, addresses)
 	frames := runtime.CallersFrames(addresses)
 

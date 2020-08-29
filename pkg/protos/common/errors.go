@@ -1,12 +1,14 @@
-// This module contains the common errors used by the Validate methods for the
-// proto files defined in Cloud Chamber
 package common
+
+// This module contains the common errors used by the Validate methods for the
+// proto files defined in Cloud Chamber.
 
 import (
 	"fmt"
 )
 
-// The field must be greater than or equal to a designated value
+// ErrMustBeGTE signals that the specified field must be greater than or equal
+// to a designated value.
 type ErrMustBeGTE struct {
 	Field    string
 	Actual   int64
@@ -21,7 +23,8 @@ func (e ErrMustBeGTE) Error() string {
 		e.Actual)
 }
 
-// The field must contain a recognized enum value
+// ErrInvalidEnum signals that the specified field does not contain a valid
+// enum value.
 type ErrInvalidEnum struct {
 	Field  string
 	Actual int64
@@ -34,7 +37,8 @@ func (e ErrInvalidEnum) Error() string {
 		e.Actual)
 }
 
-// The supplied map must contain at least a designated number of entries
+// ErrMinLenMap signals that the specified map field does not contain at least
+// the minimum required number of entries.
 type ErrMinLenMap struct {
 	Field    string
 	Actual   int64
