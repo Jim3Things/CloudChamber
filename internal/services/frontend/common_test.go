@@ -82,7 +82,7 @@ func commonSetup() {
 	}
 
 	if err := tracing_sink.Register(s); err != nil {
-		log.Fatalf("Failed to register tracking sink: %v", err)
+		log.Fatalf("Failed to register tracing sink: %v", err)
 	}
 
 	go func() {
