@@ -36,7 +36,7 @@ func main() {
 		log.Fatalf("failed to set up the trace logger, err=%v", err)
 	}
 
-	if err = setup.SetEndpoint(cfg.SimSupport.EP.Hostname, cfg.SimSupport.EP.Port); err != nil {
+	if err = setup.SetEndpoint(cfg.SimSupport.EP.String()); err != nil {
 		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
 	}
 

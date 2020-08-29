@@ -131,9 +131,6 @@ func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*empty.
 // caller also specifies the maximum number of entries to return in one call,
 // and whether or not to wait if there are not entries currently outstanding.
 func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	var resp waitResponse
 
 	err := st.WithInfraSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
@@ -141,15 +138,25 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 			return err
 		}
 
+		s.mutex.Lock()
+
 		// If we either can't wait, or there are active traces to return,
 		// do so now.
 		id := request.Id + 1
 		if !request.Wait || (id < int64(s.nextNonInternalId)) {
 			resp = s.processWaiter(request.Id + 1, request.MaxEntries)
+
+			s.mutex.Unlock()
+
 			return resp.err
 		}
 
-		resp = <- s.wait(id, request.MaxEntries)
+		ch := s.wait(id, request.MaxEntries)
+
+		s.mutex.Unlock()
+
+		resp = <- ch
+
 		return resp.err
 	})
 

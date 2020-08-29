@@ -30,6 +30,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
@@ -164,14 +165,16 @@ func initService(cfg *config.GlobalConfig) error {
 	server.cookieStore.Options.Secure = false
 	server.cookieStore.Options.HttpOnly = false
 
-	// Initialize the simulated time (stepper) service client
+	// Initialize the service clients
 	ts.InitTimestamp(
-		fmt.Sprintf(
-			"%s:%d",
-			cfg.SimSupport.EP.Hostname,
-			cfg.SimSupport.EP.Port),
+		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ct.Interceptor))
+
+	tsc.InitSinkClient(
+		cfg.SimSupport.EP.String(),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(ct.InfraInterceptor))
 
 	if err := initHandlers(); err != nil {
 		return err
