@@ -1,4 +1,4 @@
-package trace_sink
+package services
 
 import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"

@@ -10,8 +10,8 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/grpc/metadata"
 
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
 )

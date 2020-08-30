@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/api/global"
 
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // Default values for the configurable parameters

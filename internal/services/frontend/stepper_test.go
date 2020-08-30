@@ -12,7 +12,7 @@ import (
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 

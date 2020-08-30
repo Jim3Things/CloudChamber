@@ -17,7 +17,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // server defines the interface and associated state for a trace sink instance

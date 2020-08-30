@@ -8,7 +8,7 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 var (

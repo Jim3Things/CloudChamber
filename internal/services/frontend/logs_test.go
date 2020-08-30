@@ -14,7 +14,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (

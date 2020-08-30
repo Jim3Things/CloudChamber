@@ -1,5 +1,5 @@
 // Validation methods for the types from Stepper.proto
-package Stepper
+package services
 
 import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"

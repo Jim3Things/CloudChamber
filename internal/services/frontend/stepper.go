@@ -15,7 +15,7 @@ import (
 	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
