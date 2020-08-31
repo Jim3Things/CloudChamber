@@ -1,44 +1,22 @@
 syntax = "proto3";
 
-package stepper;
+package services;
 
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
 
-import "google/protobuf/empty.proto";
 import "google/protobuf/duration.proto";
 
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
 
-// This service manages the overall passage of time.
-//
-// Simulated time is described in terms of arbitrary 'ticks', that
-// are not necessarily congruent with any particular time period, such
-// as 'seconds' or 'milliseconds'.  They are simply points in time when
-// the significant changes happen.
-//
-service Stepper {
-    // Set the stepper's policy governing the rate and conditions
-    // for the simulated time to move forward.
-    rpc SetPolicy(PolicyRequest) returns (google.protobuf.Empty);
+// +++ Shared messages
 
-    // When the stepper policy is for manual single-stepping, this
-    // function forces a single step forward in simulated time.
-    rpc Step(StepRequest) returns (google.protobuf.Empty);
+// Define the request associated with a forcible reset
+message ResetRequest {}
 
-    // Get the current simulated time.
-    rpc Now(NowRequest) returns (common.Timestamp);
+// --- Shared messages
 
-    // Delay the simulated time by a specified amount +/- an allowed variance.
-    // Do not return until that new time is current.
-    rpc Delay(DelayRequest) returns (common.Timestamp);
-
-    // Forcibly reset the stepper's internal state back to its starting
-    // point.
-    rpc Reset(ResetRequest) returns (google.protobuf.Empty);
-
-    // Get the current status for the stepper service
-    rpc GetStatus(GetStatusRequest) returns (StatusResponse);
-}
+// +++ Stepper specific messages
 
 // Define the various simulated time stepping policies
 enum StepperPolicy {
@@ -94,9 +72,6 @@ message DelayRequest {
     int64 jitter = 2;
 }
 
-// Define the request associated with a forcible reset
-message ResetRequest {}
-
 // Define the request associated with a status request
 message GetStatusRequest {}
 
@@ -125,3 +100,66 @@ message StatusResponse {
     // Current policy version number
     int64 epoch = 5;
 }
+
+// --- Stepper specific messages
+
+// +++ trace sink specific messages
+
+// Specify the trace entry to append to the trace sink's store
+message AppendRequest {
+    // The trace entry
+    log.entry entry = 1;
+}
+
+// Specify what trace entries to receive
+message GetAfterRequest {
+    // The last id that has been previously seen.  Note that '-1' will cause the
+    // earliest traces to be returned
+    int64 id = 1;
+
+    // The maximum number of entries to return in in the reply.
+    int64 max_entries = 2;
+
+    // True, if the call should wait for new trace entries if there are none
+    // that are later than the specified id when the call arrives.  If false,
+    // the call returns immediately with no entries.
+    bool wait = 3;
+}
+
+// Return the traces for the request
+message GetAfterResponse {
+    // The highest trace id returned.  Use this as the id on the next GetAfter
+    // call in order to start returning the traces that immediately follow.
+    int64 lastId = 1;
+
+    // True, if some entries were skipped - probably due to removal at the
+    // trace sink in order to stay within the retention limit
+    bool missed = 2;
+
+    message trace_entry {
+        // Sequential id for this trace
+        int64 id = 1;
+
+        // Contents of the trace entry
+        log.entry entry = 2;
+    }
+
+    // Set of trace entries we're returning
+    repeated trace_entry entries = 3;
+}
+
+// (Empty) payload to request the current policy
+message GetPolicyRequest {
+
+}
+
+// Return the active policies for the trace sink service
+message GetPolicyResponse {
+    // The limit on the number of entries held in the trace sink
+    int64 max_entries_held = 1;
+
+    // Earliest trace entry currently held.
+    int64 first_id = 2;
+}
+
+// --- trace sink specific messages

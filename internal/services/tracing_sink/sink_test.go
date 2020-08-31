@@ -22,7 +22,7 @@ import (
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	log2 "github.com/Jim3Things/CloudChamber/pkg/protos/log"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const bufSize = 1024 * 1024

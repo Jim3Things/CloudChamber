@@ -17,8 +17,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"

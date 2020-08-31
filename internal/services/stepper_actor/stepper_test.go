@@ -20,7 +20,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"

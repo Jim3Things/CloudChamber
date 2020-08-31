@@ -3,14 +3,14 @@
 
 syntax = "proto3";
 
+package services;
+
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 
 import "google/protobuf/empty.proto";
 
-package monitor;
-
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/monitor";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
 
 // Define the service implemented by the inventory monitor.
 service Monitor {

@@ -36,7 +36,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // The constants and global variables here are limited to items that needed by

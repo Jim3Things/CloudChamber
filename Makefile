@@ -16,9 +16,10 @@ PROTO_FILES = \
     pkg/protos/workload/external.proto \
     pkg/protos/workload/internal.proto \
     pkg/protos/workload/target.proto \
-    pkg/protos/monitor/monitor.proto \
-    pkg/protos/Stepper/stepper.proto \
-    pkg/protos/trace_sink/trace_sink.proto
+    pkg/protos/services/monitor.proto \
+    pkg/protos/services/requests.proto \
+    pkg/protos/services/stepper.proto \
+    pkg/protos/services/trace_sink.proto
 
 
 PROTO_GEN_FILES = \
@@ -35,9 +36,10 @@ PROTO_GEN_FILES = \
     pkg/protos/workload/external.pb.go \
     pkg/protos/workload/internal.pb.go \
     pkg/protos/workload/target.pb.go \
-    pkg/protos/monitor/monitor.pb.go \
-    pkg/protos/Stepper/stepper.pb.go \
-    pkg/protos/trace_sink/trace_sink.pb.go
+    pkg/protos/services/monitor.pb.go \
+    pkg/protos/services/requests.pb.go \
+    pkg/protos/services/stepper.pb.go \
+    pkg/protos/services/trace_sink.pb.go
 
 
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
@@ -259,13 +261,13 @@ test: run_tests
 	$(PROTOC_PBUF) $(PROJECT)/$<
 
 
-pkg/protos/monitor/monitor.pb.go: pkg/protos/monitor/monitor.proto
+pkg/protos/services/monitor.pb.go: pkg/protos/services/monitor.proto
 	$(PROTOC_GRPC) $(PROJECT)/$<
 
-pkg/protos/Stepper/stepper.pb.go: pkg/protos/Stepper/stepper.proto
+pkg/protos/services/stepper.pb.go: pkg/protos/services/stepper.proto
 	$(PROTOC_GRPC) $(PROJECT)/$<
 
-pkg/protos/trace_sink/trace_sink.pb.go: pkg/protos/trace_sink/trace_sink.proto
+pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
 	$(PROTOC_GRPC) $(PROJECT)/$<
 
 

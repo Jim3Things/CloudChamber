@@ -12,8 +12,8 @@ import (
 	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (

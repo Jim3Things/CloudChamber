@@ -12,7 +12,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/common"
 	pbl "github.com/Jim3Things/CloudChamber/pkg/protos/log"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // Note well: This exporter type assumes that the exporter is a singleton.  That is
