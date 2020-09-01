@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -45,7 +44,7 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 }
 
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
@@ -95,7 +94,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
@@ -123,7 +122,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
@@ -155,7 +154,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})

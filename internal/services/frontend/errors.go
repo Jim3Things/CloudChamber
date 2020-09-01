@@ -82,9 +82,23 @@ type ErrUserBadRecordContent struct {
 }
 
 func (eubrc ErrUserBadRecordContent) Error() string {
-	return fmt.Sprintf("CloudChamber: discovered record for user %q where the content does not match key %q", eubrc.name, eubrc.value)
+	return fmt.Sprintf(
+		"CloudChamber: discovered record for user %q where the content does not match key %q",
+		eubrc.name, eubrc.value)
 }
 
+// ErrUnableToVerifySystemAccount indicates that the system account has changed
+// from what is defined in the configuration
+type ErrUnableToVerifySystemAccount struct {
+	Name string
+	Err error
+}
+
+func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: unable to verify the standard %q account is using configured password - error %v",
+		eutvsa.Name, eutvsa.Err)
+}
 // HTTPError is a custom common HTTP error type that includes the status code
 // to use in a response.
 type HTTPError struct {
