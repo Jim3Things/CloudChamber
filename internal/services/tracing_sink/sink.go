@@ -143,7 +143,7 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 		// do so now.
 		id := request.Id + 1
 		if !request.Wait || (id < int64(s.nextNonInternalId)) {
-			resp = s.processWaiter(request.Id+1, request.MaxEntries)
+			resp = s.processWaiter(id, request.MaxEntries)
 
 			s.mutex.Unlock()
 
