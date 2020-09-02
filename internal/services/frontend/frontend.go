@@ -94,14 +94,11 @@ func normalizeURL(next http.Handler) http.Handler {
 // arrives.  This is used, for example, to trace file access requests.
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = st.WithSpan(
-			context.Background(),
-			spanName,
-			func(ctx context.Context) error {
-				st.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
-				next.ServeHTTP(w, r)
-				return nil
-			})
+		_ = st.WithNamedSpan(context.Background(), spanName, func(ctx context.Context) error {
+			st.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
+			next.ServeHTTP(w, r)
+			return nil
+		})
 	})
 }
 

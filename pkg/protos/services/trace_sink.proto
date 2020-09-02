@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package services;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/services/requests.proto";
 
 import "google/protobuf/empty.proto";

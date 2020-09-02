@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/sessions"
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
@@ -23,7 +22,7 @@ func logsAddRoutes(routeBase *mux.Router) {
 // handlerLogsGetAfter processes an incoming REST request to retrieve trace
 // entries within the specified range.
 func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithInfraSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	_ = st.WithInfraSpan(context.Background(), func(ctx context.Context) error {
 
 		vars := mux.Vars(r)
 		from := vars["from"]
@@ -51,7 +50,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 
 		ch := tsc.GetTraces(fromId, maxSize)
 
-		data := <- ch
+		data := <-ch
 		if data.Err != nil {
 			return httpError(ctx, w, data.Err)
 		}
@@ -66,7 +65,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 // handlerLogsGetPolicy processes an incoming REST request to obtain the
 // current trace_sink policy.
 func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithInfraSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	_ = st.WithInfraSpan(context.Background(), func(ctx context.Context) error {
 
 		err := doSessionHeader(
 			ctx, w, r,
