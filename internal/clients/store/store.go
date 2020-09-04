@@ -75,7 +75,6 @@ import (
 	"time"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 
 	"go.etcd.io/etcd/clientv3"
@@ -221,7 +220,7 @@ func (store *Store) disconnected(ctx context.Context) error {
 // the back-end db service.
 //
 func Initialize(cfg *config.GlobalConfig) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		storeRoot.DefaultEndpoints = []string{
 			fmt.Sprintf("%s:%d", cfg.Store.EtcdService.Hostname, cfg.Store.EtcdService.Port),
 		}
@@ -380,7 +379,7 @@ func (store *Store) Initialize(
 	timeoutRequest time.Duration,
 	traceFlags TraceFlags,
 	namespaceSuffix string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		if err = store.connected(ctx); err != nil {
 			return err
 		}
@@ -442,7 +441,7 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 // store object.
 //
 func (store *Store) SetTraceFlags(traceLevel TraceFlags) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
 		store.TraceFlags = traceLevel
 		st.Infof(ctx, -1, "TraceFlags: %v", store.GetTraceFlags())
 		return nil
@@ -459,7 +458,7 @@ func (store *Store) GetTraceFlags() TraceFlags { return store.TraceFlags }
 // This method can only be used when the store object is not connected.
 //
 func (store *Store) SetAddress(endpoints []string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	return st.WithSpan(context.Background(), func(ctx context.Context) error {
 		if err := store.connected(ctx); err != nil {
 			return err
 		}
@@ -482,7 +481,7 @@ func (store *Store) GetAddress() []string { return store.Endpoints }
 // This method can only be used when the store object is not connected.
 //
 func (store *Store) SetTimeoutConnect(timeout time.Duration) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	return st.WithSpan(context.Background(), func(ctx context.Context) error {
 		if err := store.connected(ctx); err != nil {
 			return err
 		}
@@ -506,7 +505,7 @@ func (store *Store) GetTimeoutConnect() time.Duration { return store.TimeoutConn
 // store object, although it will only affect IO initiated after the method has returned.
 //
 func (store *Store) SetTimeoutRequest(timeout time.Duration) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	return st.WithSpan(context.Background(), func(ctx context.Context) error {
 		store.TimeoutRequest = timeout
 
 		st.Infof(ctx, -1, "TimeoutRequest: %v", store.GetTimeoutRequest())
@@ -526,7 +525,7 @@ func (store *Store) GetTimeoutRequest() time.Duration { return store.TimeoutRequ
 // old temporary test data.
 //
 func (store *Store) SetNamespaceSuffix(suffix string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	return st.WithSpan(context.Background(), func(ctx context.Context) error {
 		if err := store.connected(ctx); err != nil {
 			return err
 		}
@@ -550,7 +549,7 @@ func (store *Store) GetNamespaceSuffix() string { return store.NamespaceSuffix }
 // attempted.
 //
 func (store *Store) Connect() error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		if err = store.connected(ctx); err != nil {
 			return err
 		}
@@ -594,7 +593,7 @@ func (store *Store) Connect() error {
 // no further IO should be attempted.
 //
 func (store *Store) Disconnect() {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		if nil == store.Client {
 			st.Infof(ctx, -1, "Store is already disconnected. No action taken")
 			return nil
@@ -631,7 +630,7 @@ type ClusterMember struct {
 // object is currently connected.
 //
 func (store *Store) GetClusterMembers() (result *Cluster, err error) {
-	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -685,7 +684,7 @@ func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 // to the connected underlying store according to the currently available connections
 //
 func (store *Store) UpdateClusterConnections() error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -709,7 +708,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // to the backed db server.
 // //
 // func (store *Store) WriteOld(key string, value string) error {
-// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -735,7 +734,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // in a single call rather than repeating individual calls to the Write() method.
 // //
 // func (store *Store) WriteMultipleOld(keyValueSet []KeyValueArg) error {
-// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 // 		var processedCount int
 
 // 		if err = store.disconnected(ctx); err != nil {
@@ -789,7 +788,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // to the backed db server.
 // //
 // func (store *Store) ReadOld(key string) (result []byte, err error) {
-// 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	err = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -828,7 +827,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // in a single call rather than repeating individual calls to the ReadOld() method.
 // //
 // func (store *Store) ReadMultipleOld(keySet []string) (results []KeyValueResponse, err error) {
-// 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	err = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 // 		var processedCount int
 
 // 		if err = store.disconnected(ctx); err != nil {
@@ -899,7 +898,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // prefix.
 // //
 // func (store *Store) ReadWithPrefixOld(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
-// 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -953,7 +952,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // DeleteOld is a method used to remove a single key/value pair using the supplied name.
 // //
 // func (store *Store) DeleteOld(key string) error {
-// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -984,7 +983,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // in a single call rather than repeating individual calls to the Delete() method.
 // //
 // func (store *Store) DeleteMultipleOld(keySet []string) error {
-// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 // 		var processedCount int
 
 // 		if err = store.disconnected(ctx); err != nil {
@@ -1026,7 +1025,7 @@ func (store *Store) UpdateClusterConnections() error {
 // // pairs which have a common key name prefix.
 // //
 // func (store *Store) DeleteWithPrefixOld(keyPrefix string) error {
-// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -1048,7 +1047,7 @@ func (store *Store) UpdateClusterConnections() error {
 // SetWatch is a method used to establish a watchpoint on a single key/value pari
 //
 func (store *Store) SetWatch(key string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		return ErrStoreNotImplemented("SetWatch")
 	})
 }
@@ -1060,7 +1059,7 @@ func (store *Store) SetWatch(key string) error {
 // in a single call rather than repeating individual calls to the SetWatch() method.
 //
 func (store *Store) SetWatchMultiple(key []string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		return ErrStoreNotImplemented("SetWatchMultiple")
 	})
 }
@@ -1069,7 +1068,7 @@ func (store *Store) SetWatchMultiple(key []string) error {
 // sub-tree of key/value pairs which have a common key name prefix/
 //
 func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	return st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		return ErrStoreNotImplemented("SetWatchWithPrefix")
 	})
 }
@@ -1337,7 +1336,7 @@ func chkConditions(stm concurrency.STM, req *Request) error {
 // prefix.
 //
 func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (response *Response, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -1397,7 +1396,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 			return err
 		}
 
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+	err := st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		opResponse, err := store.Client.Delete(opCtx, keyPrefix, clientv3.WithPrefix())
 		cancel()
 
@@ -1432,7 +1431,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 // 		Records:  make(map[string]Record),
 // 	}
 
-// 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	err := st.WithSpan(ctx, func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -1495,7 +1494,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 // func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
 // 	revision := RevisionInvalid
 
-// 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	err := st.WithSpan(ctx, func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -1552,7 +1551,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 // func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
 // 	revision := RevisionInvalid
 
-// 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 	err := st.WithSpan(ctx, func(ctx context.Context) (err error) {
 // 		if err = store.disconnected(ctx); err != nil {
 // 			return err
 // 		}
@@ -1611,7 +1610,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 // single txn so they form a (self-)consistent set.
 //
 func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Response, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -1688,7 +1687,7 @@ func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Re
 // single txn so they form a (self-)consistent set.
 //
 func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *Response, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}
@@ -1752,7 +1751,7 @@ func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *R
 // single txn so they form a (self-)consistent operation.
 //
 func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *Response, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		if err = store.disconnected(ctx); err != nil {
 			return err
 		}

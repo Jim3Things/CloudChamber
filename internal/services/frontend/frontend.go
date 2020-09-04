@@ -30,6 +30,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
@@ -93,14 +94,11 @@ func normalizeURL(next http.Handler) http.Handler {
 // arrives.  This is used, for example, to trace file access requests.
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = st.WithSpan(
-			context.Background(),
-			spanName,
-			func(ctx context.Context) error {
-				st.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
-				next.ServeHTTP(w, r)
-				return nil
-			})
+		_ = st.WithNamedSpan(context.Background(), spanName, func(ctx context.Context) error {
+			st.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
+			next.ServeHTTP(w, r)
+			return nil
+		})
 	})
 }
 
@@ -164,14 +162,16 @@ func initService(cfg *config.GlobalConfig) error {
 	server.cookieStore.Options.Secure = false
 	server.cookieStore.Options.HttpOnly = false
 
-	// Initialize the simulated time (stepper) service client
+	// Initialize the service clients
 	ts.InitTimestamp(
-		fmt.Sprintf(
-			"%s:%d",
-			cfg.SimSupport.EP.Hostname,
-			cfg.SimSupport.EP.Port),
+		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ct.Interceptor))
+
+	tsc.InitSinkClient(
+		cfg.SimSupport.EP.String(),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(ct.InfraInterceptor))
 
 	if err := initHandlers(); err != nil {
 		return err

@@ -7,7 +7,6 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 
 	"google.golang.org/protobuf/runtime/protoiface"
@@ -115,7 +114,7 @@ func (store *Store) CreateNew(
 	r KeyRoot,
 	n string,
 	m protoiface.MessageV1) (revision int64, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
@@ -165,7 +164,7 @@ func (store *Store) CreateNew(
 // CreateNewValue is a function to create a single key, value record pair
 //
 func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v string) (revision int64, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
@@ -223,7 +222,7 @@ func (store *Store) ReadNew(
 	m protoiface.MessageV1) (revision int64, err error) {
 	revision = RevisionInvalid
 
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		prefix := getNamespacePrefixFromKeyRoot(kr)
 
 		st.Infof(ctx, -1, "Request to read and decode %q under prefix %q", n, prefix)
@@ -297,7 +296,7 @@ func (store *Store) ReadNew(
 func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (value *string, revision int64, err error) {
 	revision = RevisionInvalid
 
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to read value of %q under prefix %q", n, prefix)
@@ -359,7 +358,7 @@ func (store *Store) UpdateNew(
 	n string,
 	rev int64,
 	m protoiface.MessageV1) (revision int64, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		prefix := getNamespacePrefixFromKeyRoot(kr)
 
 		st.Infof(ctx, -1, "Request to update %q under prefix %q", n, prefix)
@@ -413,7 +412,7 @@ func (store *Store) UpdateNew(
 // DeleteNew is a function to delete a single key, value record pair
 //
 func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int64) (revision int64, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to delete %q under prefix %q", n, prefix)
@@ -478,7 +477,7 @@ func (store *Store) DeleteNew(ctx context.Context, r KeyRoot, n string, rev int6
 //		 an essentially infinite number of records.
 //
 func (store *Store) ListNew(ctx context.Context, r KeyRoot) (records *map[string]Record, revision int64, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		prefix := getNamespacePrefixFromKeyRoot(r)
 
 		st.Infof(ctx, -1, "Request to list keys under prefix %q", prefix)

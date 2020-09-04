@@ -18,7 +18,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
@@ -75,7 +74,7 @@ func usersAddRoutes(routeBase *mux.Router) {
 // Process an http request for the list of users.  Response should contain a document of links to the
 // details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		err = doSessionHeader(
 			ctx, w, r,
 			func(ctx context.Context, session *sessions.Session) error {
@@ -123,7 +122,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
@@ -166,7 +165,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUserRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
@@ -206,7 +205,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 
 // Update the user entry
 func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
@@ -280,7 +279,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 
 // Delete the user entry
 func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
@@ -305,7 +304,7 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 
 // Perform an admin operation (login, logout, enable, disable) on an account
 func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		var s string
 
 		err = doSessionHeader(ctx, w, r, func(ctx context.Context, session *sessions.Session) (err error) {
@@ -344,7 +343,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 
 // Set a new password on the specified account
 func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
@@ -459,7 +458,7 @@ func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ s
 }
 
 // Process a logout request (?op=logout)
-func logout(ctx context.Context, session *sessions.Session, r *http.Request) (_ string, err error) {
+func logout(_ context.Context, session *sessions.Session, r *http.Request) (_ string, err error) {
 	vars := mux.Vars(r)
 	username := vars["username"]
 
@@ -483,29 +482,35 @@ func logout(ctx context.Context, session *sessions.Session, r *http.Request) (_ 
 // attributes that are understood by the route handlers to the internal user
 // attributes understood by the storage system.
 
-func userAdd(ctx context.Context, name string, password string, accountManager bool, enabled bool, neverDelete bool) (int64, error) {
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+func userAdd(
+	ctx context.Context,
+	name string,
+	password string,
+	accountManager bool,
+	enabled bool,
+	neverDelete bool) (int64, error) {
+		passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
-	if err != nil {
-		return InvalidRev, err
-	}
+		if err != nil {
+			return InvalidRev, err
+		}
 
-	revision, err := dbUsers.Create(ctx, &pb.User{
-		Name:              name,
-		PasswordHash:      passwordHash,
-		Enabled:           enabled,
-		CanManageAccounts: accountManager,
-		NeverDelete:       neverDelete})
+		revision, err := dbUsers.Create(ctx, &pb.User{
+			Name:              name,
+			PasswordHash:      passwordHash,
+			Enabled:           enabled,
+			CanManageAccounts: accountManager,
+			NeverDelete:       neverDelete})
 
-	if err == ErrUserAlreadyExists(name) {
-		return InvalidRev, NewErrUserAlreadyExists(name)
-	}
+		if err == ErrUserAlreadyExists(name) {
+			return InvalidRev, NewErrUserAlreadyExists(name)
+		}
 
-	if err != nil {
-		return InvalidRev, err
-	}
+		if err != nil {
+			return InvalidRev, err
+		}
 
-	return revision, nil
+		return revision, nil
 }
 
 func userUpdate(ctx context.Context, name string, u *pb.UserUpdate, rev int64) (*pb.User, int64, error) {

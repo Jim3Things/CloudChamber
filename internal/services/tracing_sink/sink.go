@@ -14,10 +14,9 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // server defines the interface and associated state for a trace sink instance
@@ -98,7 +97,7 @@ func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*empty.
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	err := st.WithInfraSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+	err := st.WithInfraSpan(ctx, func(ctx context.Context) error {
 		if err := request.Validate(); err != nil {
 			return err
 		}
@@ -131,25 +130,32 @@ func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*empty.
 // caller also specifies the maximum number of entries to return in one call,
 // and whether or not to wait if there are not entries currently outstanding.
 func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	var resp waitResponse
 
-	err := st.WithInfraSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+	err := st.WithInfraSpan(ctx, func(ctx context.Context) error {
 		if err := request.Validate(); err != nil {
 			return err
 		}
+
+		s.mutex.Lock()
 
 		// If we either can't wait, or there are active traces to return,
 		// do so now.
 		id := request.Id + 1
 		if !request.Wait || (id < int64(s.nextNonInternalId)) {
-			resp = s.processWaiter(request.Id + 1, request.MaxEntries)
+			resp = s.processWaiter(id, request.MaxEntries)
+
+			s.mutex.Unlock()
+
 			return resp.err
 		}
 
-		resp = <- s.wait(id, request.MaxEntries)
+		ch := s.wait(id, request.MaxEntries)
+
+		s.mutex.Unlock()
+
+		resp = <-ch
+
 		return resp.err
 	})
 
@@ -173,7 +179,7 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 
 	var resp *pb.GetPolicyResponse
 
-	err := st.WithInfraSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+	err := st.WithInfraSpan(ctx, func(ctx context.Context) error {
 		resp = &pb.GetPolicyResponse{
 			MaxEntriesHeld: int64(s.maxHeld),
 			FirstId:        int64(s.getFirstId() - 1),

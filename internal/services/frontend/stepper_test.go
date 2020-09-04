@@ -10,8 +10,9 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
@@ -292,7 +293,6 @@ func TestStepperSetManualBadRate(t *testing.T) {
 }
 
 func TestStepperAfter(t *testing.T) {
-	var afterHit = false
 	var cookies2 []*http.Cookie
 
 	unit_test.SetTesting(t)
@@ -305,16 +305,18 @@ func TestStepperAfter(t *testing.T) {
 
 	res, cookies := testStepperGetNow(t, cookies)
 
-	go func(after int64, cookies []*http.Cookie) {
+	ch := make(chan bool)
+
+	go func(ch chan<- bool, after int64, cookies []*http.Cookie) {
 		res, cookies2 = testStepperAfter(t, after, cookies)
 
 		assert.Less(t, after, res.Ticks)
-		afterHit = true
-	}(res.Ticks, cookies)
+		ch <- true
+	}(ch, res.Ticks, cookies)
 
 	_, _ = testStepperAdvance(t, cookies)
-	time.Sleep(time.Duration(2) * time.Second)
-	assert.True(t, afterHit)
+
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(2) * time.Second))
 
 	doLogout(t, randomCase(adminAccountName), cookies2)
 }

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
@@ -81,9 +82,23 @@ type ErrUserBadRecordContent struct {
 }
 
 func (eubrc ErrUserBadRecordContent) Error() string {
-	return fmt.Sprintf("CloudChamber: discovered record for user %q where the content does not match key %q", eubrc.name, eubrc.value)
+	return fmt.Sprintf(
+		"CloudChamber: discovered record for user %q where the content does not match key %q",
+		eubrc.name, eubrc.value)
 }
 
+// ErrUnableToVerifySystemAccount indicates that the system account has changed
+// from what is defined in the configuration
+type ErrUnableToVerifySystemAccount struct {
+	Name string
+	Err error
+}
+
+func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: unable to verify the standard %q account is using configured password - error %v",
+		eutvsa.Name, eutvsa.Err)
+}
 // HTTPError is a custom common HTTP error type that includes the status code
 // to use in a response.
 type HTTPError struct {
@@ -133,6 +148,31 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
 	http.Error(w, he.Error(), he.StatusCode())
 
 	return err
+}
+
+// ensurePositiveNumber is a helper function that takes a query value as a
+// string, converts it, and range checks it.  If any of those operations fail
+// it returns the appropriate HTTPError.
+func ensurePositiveNumber(field string, value string) (int64, error) {
+	res, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || res < 0 {
+		return 0, NewErrInvalidPositiveNumber(field, value)
+	}
+
+	return res, nil
+}
+
+// ensurePositiveNumber is a helper function that takes a query value as a
+// string, and converts it.  If this fails, it returns the appropriate
+// HTTPError.
+func ensureNumber(field string, value string) (int64, error) {
+	res, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return 0, NewErrInvalidNumber(field, value)
+	}
+
+	return res, nil
+
 }
 
 // +++ HTTPError specializations
@@ -276,12 +316,25 @@ func NewErrStepperFailedToSetPolicy() *HTTPError {
 	}
 }
 
-// NewErrInvalidStepperAfter indicates that the supplied ticks-per-second rate was
-// not recognized as a valid number.
-func NewErrInvalidStepperAfter(after string) *HTTPError {
+// NewErrInvalidNumber indicates that the specified value could not be
+// processed as a number.
+func NewErrInvalidNumber(field string, value string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusBadRequest,
-		Base: fmt.Errorf("CloudChamber: requested 'after' tick value %q could not be parsed as a positive decimal number", after),
+		Base: fmt.Errorf(
+			"CloudChamber: the %q field's value %q could not be parsed as a decimal number",
+			field, value),
+	}
+}
+
+// NewErrInvalidPositiveNumber indicates that the specified value could not be
+// processed as a positive number.
+func NewErrInvalidPositiveNumber(field string, value string) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusBadRequest,
+		Base: fmt.Errorf(
+			"CloudChamber: the %q field's value %q could not be parsed as a positive decimal number",
+			field, value),
 	}
 }
 

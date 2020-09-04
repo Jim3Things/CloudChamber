@@ -48,8 +48,18 @@ func Interceptor(
 // +++ Exported trace invocation methods
 
 // WithSpan executes the supplied function within a span that conforms to the
-// expected tracing pattern
-func WithSpan(ctx context.Context, spanName string, fn func(ctx context.Context) error) error {
+// expected tracing pattern.
+func WithSpan(ctx context.Context, fn func(ctx context.Context) error) error {
+	tr := global.TraceProvider().Tracer("server")
+
+	return tr.WithSpan(ctx, tracing.MethodName(2), fn,
+		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
+}
+
+// WithNamedSpan executes the supplied function within a span that conforms to
+// the expected tracing pattern, and with a custom span name.
+func WithNamedSpan(ctx context.Context, spanName string, fn func(ctx context.Context) error) error {
 	tr := global.TraceProvider().Tracer("server")
 
 	return tr.WithSpan(ctx, spanName, fn,
@@ -60,10 +70,10 @@ func WithSpan(ctx context.Context, spanName string, fn func(ctx context.Context)
 // WithInfraSpan is a variant of WithSpan that marks the span as internal to
 // the simulation, and therefore of limited interest outside of development
 // or debugging use.
-func WithInfraSpan(ctx context.Context, spanName string, fn func(ctx context.Context) error) error {
+func WithInfraSpan(ctx context.Context, fn func(ctx context.Context) error) error {
 	tr := global.TraceProvider().Tracer("server")
 
-	return tr.WithSpan(ctx, spanName, fn,
+	return tr.WithSpan(ctx, tracing.MethodName(2), fn,
 		trace.WithSpanKind(trace.SpanKindInternal),
 		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
 }

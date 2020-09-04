@@ -14,7 +14,7 @@ import (
 	"github.com/spf13/viper"
 	"go.opentelemetry.io/otel/api/global"
 
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // Default values for the configurable parameters
@@ -71,6 +71,11 @@ type GlobalConfig struct {
 type Endpoint struct {
 	Hostname string
 	Port     uint16
+}
+
+// String provides a formatted 'host:port' string for the endpoint
+func (e *Endpoint) String() string {
+	return fmt.Sprintf("%s:%d", e.Hostname, e.Port)
 }
 
 // ControllerType is a helper type describes the controllerd configuration settings

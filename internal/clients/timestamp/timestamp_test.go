@@ -10,14 +10,15 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -93,28 +94,23 @@ func TestTimestamp_After(t *testing.T) {
 	now, err := Now()
 	assert.Nil(t, err)
 	assert.Equal(t, int64(0), now.Ticks)
-	afterHit := false
 
-	go func(deadline int64) {
-		ch, err := After(&ct.Timestamp{Ticks: deadline})
-		assert.Nil(t, err)
+	ch := make(chan bool)
 
-		data := <-ch
-		afterHit = true
+	go func(deadline int64, res chan<- bool) {
+		data := <- After(&ct.Timestamp{Ticks: deadline})
 
 		assert.Nil(t, data.Err)
 		assert.GreaterOrEqual(t, deadline, data.Time.Ticks)
-	}(3)
+		res <- true
+	}(3, ch)
 
 	assert.Nil(t, Advance())
-	time.Sleep(time.Duration(2) * time.Second)
-	assert.False(t, afterHit)
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(2) * time.Second))
 
 	assert.Nil(t, Advance())
-	time.Sleep(time.Duration(2) * time.Second)
-	assert.False(t, afterHit)
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(2) * time.Second))
 
 	assert.Nil(t, Advance())
-	time.Sleep(time.Duration(2) * time.Second)
-	assert.True(t, afterHit)
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(2) * time.Second))
 }
