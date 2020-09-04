@@ -64,7 +64,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 		st.Infof(
 			ctx,
-			common.Tick(),
+			common.Tick(ctx),
 			"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
 			len(res.Racks),
 			res.MaxBladeCount,
@@ -80,7 +80,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 			res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
-			st.Infof(ctx, common.Tick(), "   Listing rack %q at %q", name, target)
+			st.Infof(ctx, common.Tick(ctx), "   Listing rack %q at %q", name, target)
 
 			return nil
 		})
@@ -112,7 +112,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		st.Infof(ctx, common.Tick(), "Returning details for rack %q: %v", rackID, u)
+		st.Infof(ctx, common.Tick(ctx), "Returning details for rack %q: %v", rackID, u)
 
 		// Get the user entry, and serialize it to json
 		// (export userPublic to json and return that as the body)
@@ -143,7 +143,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 		return dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
 
 			target := fmt.Sprintf("%s%d", b, bladeID)
-			st.Infof(ctx, common.Tick(), " Listing blades '%d' at %q", bladeID, target)
+			st.Infof(ctx, common.Tick(ctx), " Listing blades '%d' at %q", bladeID, target)
 
 			if _, err = fmt.Fprintln(w, target); err != nil {
 				return httpError(ctx, w, err)
@@ -179,7 +179,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
-		st.Infof(ctx, common.Tick(), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+		st.Infof(ctx, common.Tick(ctx), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
 
 		p := jsonpb.Marshaler{}
 		return p.Marshal(w, blade)
