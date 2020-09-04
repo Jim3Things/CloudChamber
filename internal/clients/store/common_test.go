@@ -10,6 +10,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // A number of tests use a pre-computed set of keys for the purposes of
@@ -40,7 +42,118 @@ func commonSetup() {
 	Initialize(cfg)
 }
 
-func testGenerateKeyValueSet(setSize int, setName string) []KeyValueArg {
+func testGenerateRequestForRead(setSize int, setName string) *Request {
+	req := &Request{
+		Records:    make(map[string]Record, setSize),
+		Conditions: make(map[string]Condition, setSize),
+	}
+
+	for i := 0; i < setSize; i++ {
+		key := fmt.Sprintf("%s/Key%04d", setName, i)
+		req.Records[key] = Record{Revision: RevisionInvalid}
+		req.Conditions[key] = ConditionUnconditional
+	}
+
+	return req
+}
+
+func testGenerateRequestForWrite(setSize int, setName string) *Request {
+	req := &Request{
+		Records:    make(map[string]Record, setSize),
+		Conditions: make(map[string]Condition, setSize),
+	}
+
+	for i := 0; i < setSize; i++ {
+		key := fmt.Sprintf("%s/Key%04d", setName, i)
+		val := fmt.Sprintf("%s/Val%04d", setName, i)
+		req.Records[key] = Record{Revision: RevisionInvalid, Value: val}
+		req.Conditions[key] = ConditionUnconditional
+	}
+
+	return req
+}
+
+func testCompareReadRecordToWriteRecord(rRec *Record, wRec *Record, wRev int64) bool {
+
+	if rRec.Value != wRec.Value {
+		return false
+	}
+
+	if rRec.Revision != wRev {
+		return false
+	}
+
+	return true
+}
+
+func testCompareReadResponseToWrite(
+	t *testing.T,
+	readResponse *Response,
+	writeRequest *Request,
+	writeResponse *Response,
+) {
+
+	// Fist check that we have the same number of records in the
+	// response as in the request
+	//
+	assert.Equalf(
+		t,
+		len(writeRequest.Records),
+		len(readResponse.Records),
+		"record count mismatch",
+	)
+
+	// Now, check that we have a matching read response value and
+	// revision for each record in the write request/response pair
+	//
+	for k, w := range writeRequest.Records {
+
+		r, ok := readResponse.Records[k]
+
+		require.Truef(t, ok, "No read response record to match request record for key: %s val:, %s", k, w.Value)
+
+		ok = testCompareReadRecordToWriteRecord(&r, &w, writeResponse.Revision)
+
+		assert.Truef(
+			t,
+			ok,
+			"read response does not match write request - key: %s wVal: %s wRev %v rVal %s rRev: %v",
+			k,
+			w.Value,
+			writeResponse.Revision,
+			r.Value,
+			r.Revision,
+		)
+	}
+
+	// Finally, do we have a write request/response pair for each
+	// record in the read response
+	//
+	for k, r := range readResponse.Records {
+
+		wReq, ok := writeRequest.Records[k]
+
+		require.Truef(t, ok, "No write request record to match read response record")
+
+		wRes, ok := writeResponse.Records[k]
+
+		require.Truef(t, ok, "No write response record to match read response record")
+
+		ok = testCompareReadRecordToWriteRecord(&r, &wReq, wRes.Revision)
+
+		assert.Truef(
+			t,
+			ok,
+			"read response does not match write request - key: %s wVal: %s wRev %v rVal %s rRev: %v",
+			k,
+			wReq.Value,
+			wRes.Revision,
+			r.Value,
+			r.Revision)
+	}
+}
+
+func testGenerateKeyValueSetOld(setSize int, setName string) []KeyValueArg {
 
 	keyValueSet := make([]KeyValueArg, setSize)
 
@@ -52,7 +165,7 @@ func testGenerateKeyValueSet(setSize int, setName string) []KeyValueArg {
 	return keyValueSet
 }
 
-func testGenerateKeyValueMapFromKeyValueSet(keyValueSet []KeyValueArg) map[string]string {
+func testGenerateKeyValueMapFromKeyValueSetOld(keyValueSet []KeyValueArg) map[string]string {
 
 	keyValueMap := make(map[string]string, len(keyValueSet))
 
@@ -76,7 +189,7 @@ func testGenerateKeySetFromKeyValueSet(keyValueSet []KeyValueArg) []string {
 
 // Build a set of key,value pairs to be created unconditionally in the store.
 //
-func testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet []KeyValueArg, label string, condition Condition) RecordUpdateSet {
+func testGenerateRecordUpdateSetFromKeyValueSetOld(keyValueSet []KeyValueArg, label string, condition Condition) RecordUpdateSet {
 
 	recordUpdateSet := RecordUpdateSet{Label: label, Records: make(map[string]RecordUpdate)}
 

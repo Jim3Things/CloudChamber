@@ -702,348 +702,348 @@ func (store *Store) UpdateClusterConnections() error {
 	})
 }
 
-// WriteOld is a method to write a new value into the store or update an existing
-// value for the supplied key.
-//
-// It is expected that the store will already have been initialized and connected
-// to the backed db server.
-//
-func (store *Store) WriteOld(key string, value string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// // WriteOld is a method to write a new value into the store or update an existing
+// // value for the supplied key.
+// //
+// // It is expected that the store will already have been initialized and connected
+// // to the backed db server.
+// //
+// func (store *Store) WriteOld(key string, value string) error {
+// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-		_, err = store.Client.Put(opCtx, key, value)
-		cancel()
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+// 		_, err = store.Client.Put(opCtx, key, value)
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-		} else {
-			st.Infof(ctx, -1, "wrote/updated key: %v value: %v", key, value)
-		}
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 		} else {
+// 			st.Infof(ctx, -1, "wrote/updated key: %v value: %v", key, value)
+// 		}
 
-		return err
-	})
-}
+// 		return err
+// 	})
+// }
 
-// WriteMultipleOld is a method to write or update a set of values using a supplied
-// set of keys in a pair-wise fashion.
-//
-// This is essentially a convenience method to allow multiple values to be fetched
-// in a single call rather than repeating individual calls to the Write() method.
-//
-func (store *Store) WriteMultipleOld(keyValueSet []KeyValueArg) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		var processedCount int
+// // WriteMultipleOld is a method to write or update a set of values using a supplied
+// // set of keys in a pair-wise fashion.
+// //
+// // This is essentially a convenience method to allow multiple values to be fetched
+// // in a single call rather than repeating individual calls to the Write() method.
+// //
+// func (store *Store) WriteMultipleOld(keyValueSet []KeyValueArg) error {
+// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		var processedCount int
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		// The timeout multiplier (5) is arbitrary. May not even be necessary.
-		//
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
+// 		// The timeout multiplier (5) is arbitrary. May not even be necessary.
+// 		//
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
-		for _, vp := range keyValueSet {
-			_, err = store.Client.Put(opCtx, vp.key, vp.value)
-			if err != nil {
-				break
-			}
-			processedCount++
-		}
+// 		for _, vp := range keyValueSet {
+// 			_, err = store.Client.Put(opCtx, vp.key, vp.value)
+// 			if err != nil {
+// 				break
+// 			}
+// 			processedCount++
+// 		}
 
-		cancel()
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-			_ = st.Errorf(
-				ctx, -1,
-				"Unable to write all the key/value pairs - requested: %v achieved: %v",
-				len(keyValueSet), processedCount)
-		}
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 			_ = st.Errorf(
+// 				ctx, -1,
+// 				"Unable to write all the key/value pairs - requested: %v achieved: %v",
+// 				len(keyValueSet), processedCount)
+// 		}
 
-		if store.trace(traceFlagExpandResults) {
-			for i := 0; i < processedCount; i++ {
-				if store.trace(traceFlagTraceKeyAndValue) {
-					st.Infof(
-						ctx, -1,
-						"wrote/updated [%v/%v] key: %v value: %v",
-						i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
-				} else if store.trace(traceFlagTraceKey) {
-					st.Infof(ctx, -1, "wrote/updated [%v/%v] key: %v", i, processedCount, keyValueSet[i].key)
-				}
-			}
-		}
+// 		if store.trace(traceFlagExpandResults) {
+// 			for i := 0; i < processedCount; i++ {
+// 				if store.trace(traceFlagTraceKeyAndValue) {
+// 					st.Infof(
+// 						ctx, -1,
+// 						"wrote/updated [%v/%v] key: %v value: %v",
+// 						i, processedCount, keyValueSet[i].key, keyValueSet[i].value)
+// 				} else if store.trace(traceFlagTraceKey) {
+// 					st.Infof(ctx, -1, "wrote/updated [%v/%v] key: %v", i, processedCount, keyValueSet[i].key)
+// 				}
+// 			}
+// 		}
 
-		st.Infof(ctx, -1, "Processed %v items", processedCount)
+// 		st.Infof(ctx, -1, "Processed %v items", processedCount)
 
-		return err
-	})
-}
+// 		return err
+// 	})
+// }
 
-// ReadOld is a method to read a single value from the store using the supplied key.
-//
-// It is expected that the store will already have been initialized and connected
-// to the backed db server.
-//
-func (store *Store) ReadOld(key string) (result []byte, err error) {
-	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// // ReadOld is a method to read a single value from the store using the supplied key.
+// //
+// // It is expected that the store will already have been initialized and connected
+// // to the backed db server.
+// //
+// func (store *Store) ReadOld(key string) (result []byte, err error) {
+// 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-		response, err := store.Client.Get(opCtx, key)
-		cancel()
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+// 		response, err := store.Client.Get(opCtx, key)
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-		} else if 0 == len(response.Kvs) {
-			err = ErrStoreKeyNotFound(key)
-			_ = st.Errorf(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
-		} else if 1 != len(response.Kvs) {
-			err = ErrStoreBadRecordCount{key, 1, len(response.Kvs)}
-			_ = st.Errorf(ctx, -1, "expected a single result and instead received something else - error: %v", err)
-		} else {
-			result = response.Kvs[0].Value
-			if store.trace(traceFlagTraceKeyAndValue) {
-				st.Infof(ctx, -1, "read key: %v value: %v", key, string(result))
-			} else if store.trace(traceFlagTraceKey) {
-				st.Infof(ctx, -1, "read key: %v", key)
-			}
-		}
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 		} else if 0 == len(response.Kvs) {
+// 			err = ErrStoreKeyNotFound(key)
+// 			_ = st.Errorf(ctx, -1, "unable to read the requested key/value pair - error: %v", err)
+// 		} else if 1 != len(response.Kvs) {
+// 			err = ErrStoreBadRecordCount{key, 1, len(response.Kvs)}
+// 			_ = st.Errorf(ctx, -1, "expected a single result and instead received something else - error: %v", err)
+// 		} else {
+// 			result = response.Kvs[0].Value
+// 			if store.trace(traceFlagTraceKeyAndValue) {
+// 				st.Infof(ctx, -1, "read key: %v value: %v", key, string(result))
+// 			} else if store.trace(traceFlagTraceKey) {
+// 				st.Infof(ctx, -1, "read key: %v", key)
+// 			}
+// 		}
 
-		return err
-	})
+// 		return err
+// 	})
 
-	return result, err
-}
+// 	return result, err
+// }
 
-// ReadMultipleOld is a method to read a set of values from the store using a supplied
-// set of keys is a pair-wise fashion.
-//
-// This is essentially a convenience method to allow multiple values to be fetched
-// in a single call rather than repeating individual calls to the ReadOld() method.
-//
-func (store *Store) ReadMultipleOld(keySet []string) (results []KeyValueResponse, err error) {
-	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		var processedCount int
+// // ReadMultipleOld is a method to read a set of values from the store using a supplied
+// // set of keys is a pair-wise fashion.
+// //
+// // This is essentially a convenience method to allow multiple values to be fetched
+// // in a single call rather than repeating individual calls to the ReadOld() method.
+// //
+// func (store *Store) ReadMultipleOld(keySet []string) (results []KeyValueResponse, err error) {
+// 	err = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		var processedCount int
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		responses := make([]*clientv3.GetResponse, len(keySet))
+// 		responses := make([]*clientv3.GetResponse, len(keySet))
 
-		// The timeout multiplier (5) is arbitrary. May not even be necessary.
-		//
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
+// 		// The timeout multiplier (5) is arbitrary. May not even be necessary.
+// 		//
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
-		for i, key := range keySet {
-			responses[i], err = store.Client.Get(opCtx, key)
-			if err != nil {
-				break
-			}
-			processedCount++
-		}
+// 		for i, key := range keySet {
+// 			responses[i], err = store.Client.Get(opCtx, key)
+// 			if err != nil {
+// 				break
+// 			}
+// 			processedCount++
+// 		}
 
-		cancel()
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-			_ = st.Errorf(
-				ctx, -1,
-				"Unable to read all the key/value pairs - requested: %v achieved: %v",
-				len(keySet), processedCount)
-		} else {
-			results = make([]KeyValueResponse, processedCount)
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 			_ = st.Errorf(
+// 				ctx, -1,
+// 				"Unable to read all the key/value pairs - requested: %v achieved: %v",
+// 				len(keySet), processedCount)
+// 		} else {
+// 			results = make([]KeyValueResponse, processedCount)
 
-			for i := 0; i < processedCount; i++ {
-				if 1 != len(responses[i].Kvs) {
-					err = ErrStoreBadRecordCount{string(responses[i].Kvs[0].Key), 1, len(responses[i].Kvs)}
-					_ = st.Errorf(ctx, -1, "number of responses did not match expectations - error: %v", err)
-				} else {
-					results[i].key = string(responses[i].Kvs[0].Key)
-					results[i].value = responses[i].Kvs[0].Value
-				}
-			}
-		}
+// 			for i := 0; i < processedCount; i++ {
+// 				if 1 != len(responses[i].Kvs) {
+// 					err = ErrStoreBadRecordCount{string(responses[i].Kvs[0].Key), 1, len(responses[i].Kvs)}
+// 					_ = st.Errorf(ctx, -1, "number of responses did not match expectations - error: %v", err)
+// 				} else {
+// 					results[i].key = string(responses[i].Kvs[0].Key)
+// 					results[i].value = responses[i].Kvs[0].Value
+// 				}
+// 			}
+// 		}
 
-		if store.trace(traceFlagExpandResults) {
-			for i := 0; i < processedCount; i++ {
-				if store.trace(traceFlagTraceKeyAndValue) {
-					st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, processedCount, results[i].key, string(results[i].value))
-				} else if store.trace(traceFlagTraceKey) {
-					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, processedCount, results[i].key)
-				}
-			}
-		}
+// 		if store.trace(traceFlagExpandResults) {
+// 			for i := 0; i < processedCount; i++ {
+// 				if store.trace(traceFlagTraceKeyAndValue) {
+// 					st.Infof(ctx, -1, "read [%v/%v] key: %v value: %v", i, processedCount, results[i].key, string(results[i].value))
+// 				} else if store.trace(traceFlagTraceKey) {
+// 					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, processedCount, results[i].key)
+// 				}
+// 			}
+// 		}
 
-		st.Infof(ctx, -1, "Processed %v items", processedCount)
-		return err
-	})
+// 		st.Infof(ctx, -1, "Processed %v items", processedCount)
+// 		return err
+// 	})
 
-	return results, err
-}
+// 	return results, err
+// }
 
-// ReadWithPrefixOld is a method used to query for a set of zero or more key/value pairs
-// which have a common prefix. The method will return all matching key/value pairs so
-// care should be taken with key naming to avoid attempting to fetch a large number
-// of key/value pairs.
-//
-// It is not an error to attempt to retrieve an empty set. For example, when querying
-// for the presence of a set of values, this method can be used which would successfully
-// return an empty set of key/value pairs if there are no matches for the supplied key
-// prefix.
-//
-func (store *Store) ReadWithPrefixOld(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// // ReadWithPrefixOld is a method used to query for a set of zero or more key/value pairs
+// // which have a common prefix. The method will return all matching key/value pairs so
+// // care should be taken with key naming to avoid attempting to fetch a large number
+// // of key/value pairs.
+// //
+// // It is not an error to attempt to retrieve an empty set. For example, when querying
+// // for the presence of a set of values, this method can be used which would successfully
+// // return an empty set of key/value pairs if there are no matches for the supplied key
+// // prefix.
+// //
+// func (store *Store) ReadWithPrefixOld(ctx context.Context, keyPrefix string) (rs *RecordSet, err error) {
+// 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-		response, err := store.Client.Get(
-			opCtx,
-			keyPrefix,
-			clientv3.WithPrefix(),
-			clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
-		cancel()
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+// 		response, err := store.Client.Get(
+// 			opCtx,
+// 			keyPrefix,
+// 			clientv3.WithPrefix(),
+// 			clientv3.WithSort(clientv3.SortByKey, clientv3.SortAscend))
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-			return err
-		}
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 			return err
+// 		}
 
-		resultSet := &RecordSet{
-			Revision: 0,
-			Records:  make(map[string]Record, len(response.Kvs)),
-		}
+// 		resultSet := &RecordSet{
+// 			Revision: 0,
+// 			Records:  make(map[string]Record, len(response.Kvs)),
+// 		}
 
-		for i, kv := range response.Kvs {
-			key := string(kv.Key)
-			val := string(kv.Value)
-			rev := kv.ModRevision
+// 		for i, kv := range response.Kvs {
+// 			key := string(kv.Key)
+// 			val := string(kv.Value)
+// 			rev := kv.ModRevision
 
-			resultSet.Records[key] = Record{Revision: rev, Value: val}
+// 			resultSet.Records[key] = Record{Revision: rev, Value: val}
 
-			if store.trace(traceFlagExpandResults) {
-				if store.trace(traceFlagTraceKeyAndValue) {
-					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(response.Kvs), key, rev, val)
-				} else if store.trace(traceFlagTraceKey) {
-					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(response.Kvs), key)
-				}
-			}
-		}
+// 			if store.trace(traceFlagExpandResults) {
+// 				if store.trace(traceFlagTraceKeyAndValue) {
+// 					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(response.Kvs), key, rev, val)
+// 				} else if store.trace(traceFlagTraceKey) {
+// 					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(response.Kvs), key)
+// 				}
+// 			}
+// 		}
 
-		resultSet.Revision = response.Header.Revision
+// 		resultSet.Revision = response.Header.Revision
 
-		rs = resultSet
+// 		rs = resultSet
 
-		st.Infof(ctx, -1, "Processed %v items", len(resultSet.Records))
+// 		st.Infof(ctx, -1, "Processed %v items", len(resultSet.Records))
 
-		return nil
-	})
+// 		return nil
+// 	})
 
-	return rs, err
-}
+// 	return rs, err
+// }
 
-// DeleteOld is a method used to remove a single key/value pair using the supplied name.
-//
-func (store *Store) DeleteOld(key string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// // DeleteOld is a method used to remove a single key/value pair using the supplied name.
+// //
+// func (store *Store) DeleteOld(key string) error {
+// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-		response, err := store.Client.Delete(opCtx, key)
-		cancel()
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+// 		response, err := store.Client.Delete(opCtx, key)
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-		} else if 0 == response.Deleted {
-			err = ErrStoreKeyNotFound(key)
-			_ = st.Errorf(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
-		} else if 1 != response.Deleted {
-			err = ErrStoreBadRecordCount{key, 1, int(response.Deleted)}
-			_ = st.Errorf(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
-		} else {
-			st.Infof(ctx, -1, "deleted key: %v", key)
-		}
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 		} else if 0 == response.Deleted {
+// 			err = ErrStoreKeyNotFound(key)
+// 			_ = st.Errorf(ctx, -1, "failed to delete the requested key/value pair - error: %v", err)
+// 		} else if 1 != response.Deleted {
+// 			err = ErrStoreBadRecordCount{key, 1, int(response.Deleted)}
+// 			_ = st.Errorf(ctx, -1, "expected a single deletion and instead received something else - error: %v", err)
+// 		} else {
+// 			st.Infof(ctx, -1, "deleted key: %v", key)
+// 		}
 
-		return err
-	})
-}
+// 		return err
+// 	})
+// }
 
-// DeleteMultipleOld is a method that can be used to remove a set of key/value pairs.
-//
-// This is essentially a convenience method to allow multiple values to be removed
-// in a single call rather than repeating individual calls to the Delete() method.
-//
-func (store *Store) DeleteMultipleOld(keySet []string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		var processedCount int
+// // DeleteMultipleOld is a method that can be used to remove a set of key/value pairs.
+// //
+// // This is essentially a convenience method to allow multiple values to be removed
+// // in a single call rather than repeating individual calls to the Delete() method.
+// //
+// func (store *Store) DeleteMultipleOld(keySet []string) error {
+// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		var processedCount int
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		// The timeout multiplier (5) is arbitrary. May not even be necessary.
-		//
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
+// 		// The timeout multiplier (5) is arbitrary. May not even be necessary.
+// 		//
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest*5)
 
-		for _, key := range keySet {
-			_, err = store.Client.Delete(opCtx, key)
-			if err != nil {
-				break
-			}
-			processedCount++
-		}
+// 		for _, key := range keySet {
+// 			_, err = store.Client.Delete(opCtx, key)
+// 			if err != nil {
+// 				break
+// 			}
+// 			processedCount++
+// 		}
 
-		cancel()
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-			_ = st.Errorf(ctx, -1, "Unable to delete all the keys - requested: %v achieved: %v", len(keySet), processedCount)
-		}
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 			_ = st.Errorf(ctx, -1, "Unable to delete all the keys - requested: %v achieved: %v", len(keySet), processedCount)
+// 		}
 
-		if store.trace(traceFlagExpandResults) {
-			for i := 0; i < processedCount; i++ {
-				st.Infof(ctx, -1, "deleted [%v/%v] key: %v", i, processedCount, keySet[i])
-			}
-		}
+// 		if store.trace(traceFlagExpandResults) {
+// 			for i := 0; i < processedCount; i++ {
+// 				st.Infof(ctx, -1, "deleted [%v/%v] key: %v", i, processedCount, keySet[i])
+// 			}
+// 		}
 
-		st.Infof(ctx, -1, "Processed %v items", processedCount)
+// 		st.Infof(ctx, -1, "Processed %v items", processedCount)
 
-		return err
-	})
-}
+// 		return err
+// 	})
+// }
 
-// DeleteWithPrefixOld is a method used to remove an entire sub-tree of key/value
-// pairs which have a common key name prefix.
-//
-func (store *Store) DeleteWithPrefixOld(keyPrefix string) error {
-	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// // DeleteWithPrefixOld is a method used to remove an entire sub-tree of key/value
+// // pairs which have a common key name prefix.
+// //
+// func (store *Store) DeleteWithPrefixOld(keyPrefix string) error {
+// 	return st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
-		response, err := store.Client.Delete(opCtx, keyPrefix, clientv3.WithPrefix())
-		cancel()
+// 		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+// 		response, err := store.Client.Delete(opCtx, keyPrefix, clientv3.WithPrefix())
+// 		cancel()
 
-		if err != nil {
-			store.logEtcdResponseError(ctx, err)
-		} else {
-			st.Infof(ctx, -1, "deleted %v keys under prefix %v", response.Deleted, keyPrefix)
-		}
+// 		if err != nil {
+// 			store.logEtcdResponseError(ctx, err)
+// 		} else {
+// 			st.Infof(ctx, -1, "deleted %v keys under prefix %v", response.Deleted, keyPrefix)
+// 		}
 
-		return err
-	})
-}
+// 		return err
+// 	})
+// }
 
 // SetWatch is a method used to establish a watchpoint on a single key/value pari
 //
@@ -1423,185 +1423,185 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 	return response, err
 }
 
-// ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
-// single txn so they form a (self-)consistent set.
-//
-func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*RecordSet, error) {
-	resultSet := RecordSet{
-		Revision: 0,
-		Records:  make(map[string]Record),
-	}
+// // ReadMultipleTxn is a method to fetch a set of arbitrary keys within a
+// // single txn so they form a (self-)consistent set.
+// //
+// func (store *Store) ReadMultipleTxn(ctx context.Context, keySet RecordKeySet) (*RecordSet, error) {
+// 	resultSet := RecordSet{
+// 		Revision: 0,
+// 		Records:  make(map[string]Record),
+// 	}
 
-	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		actionReadRecords := func(stm concurrency.STM) error {
-			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
+// 		actionReadRecords := func(stm concurrency.STM) error {
+// 			st.Infof(ctx, -1, "Inside action for %q with %v keys", keySet.Label, len(keySet.Keys))
 
-			for _, k := range keySet.Keys {
+// 			for _, k := range keySet.Keys {
 
-				rev := stm.Rev(k)
+// 				rev := stm.Rev(k)
 
-				// If the revision is zero, we take that to mean the key
-				// does not actually exist.
-				//
-				// Note that a key might well exist even if the value is
-				// an empty string. At least I believe it can. We choose
-				// to use the revision instead as a more reliable
-				// indicator of existence.
-				//
-				if rev != 0 {
-					resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
-				}
-			}
+// 				// If the revision is zero, we take that to mean the key
+// 				// does not actually exist.
+// 				//
+// 				// Note that a key might well exist even if the value is
+// 				// an empty string. At least I believe it can. We choose
+// 				// to use the revision instead as a more reliable
+// 				// indicator of existence.
+// 				//
+// 				if rev != 0 {
+// 					resultSet.Records[k] = Record{Revision: rev, Value: stm.Get(k)}
+// 				}
+// 			}
 
-			return nil
-		}
+// 			return nil
+// 		}
 
-		response, err := concurrency.NewSTM(
-			store.Client,
-			actionReadRecords,
-			concurrency.WithIsolation(concurrency.ReadCommitted),
-			concurrency.WithPrefetch(keySet.Keys...),
-		)
+// 		response, err := concurrency.NewSTM(
+// 			store.Client,
+// 			actionReadRecords,
+// 			concurrency.WithIsolation(concurrency.ReadCommitted),
+// 			concurrency.WithPrefetch(keySet.Keys...),
+// 		)
 
-		if err != nil {
-			return err
-		}
+// 		if err != nil {
+// 			return err
+// 		}
 
-		if !response.Succeeded {
-			return ErrStoreKeyReadFailure(keySet.Label)
-		}
+// 		if !response.Succeeded {
+// 			return ErrStoreKeyReadFailure(keySet.Label)
+// 		}
 
-		// And finally, the revision for the store as a whole.
-		//
-		resultSet.Revision = response.Header.Revision
+// 		// And finally, the revision for the store as a whole.
+// 		//
+// 		resultSet.Revision = response.Header.Revision
 
-		return nil
-	})
+// 		return nil
+// 	})
 
-	if err != nil {
-		return nil, err
-	}
+// 	if err != nil {
+// 		return nil, err
+// 	}
 
-	return &resultSet, nil
-}
+// 	return &resultSet, nil
+// }
 
-// WriteMultipleTxn is a method to write/update a set of arbitrary keys within a
-// single txn so they form a (self-)consistent set.
-//
-func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
-	revision := RevisionInvalid
+// // WriteMultipleTxn is a method to write/update a set of arbitrary keys within a
+// // single txn so they form a (self-)consistent set.
+// //
+// func (store *Store) WriteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
+// 	revision := RevisionInvalid
 
-	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		var prefetchKeys *[]string
+// 		var prefetchKeys *[]string
 
-		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
-			return err
-		}
+// 		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+// 			return err
+// 		}
 
-		actionWriteRecords := func(stm concurrency.STM) error {
+// 		actionWriteRecords := func(stm concurrency.STM) error {
 
-			if err = checkConditions(stm, recordSet); err != nil {
-				return err
-			}
+// 			if err = checkConditions(stm, recordSet); err != nil {
+// 				return err
+// 			}
 
-			// it is only now that we know the conditions have been
-			// met for all the keys that we take the time to process
-			// all the updates.
-			//
-			for k, ru := range recordSet.Records {
-				stm.Put(k, ru.Record.Value)
-			}
+// 			// it is only now that we know the conditions have been
+// 			// met for all the keys that we take the time to process
+// 			// all the updates.
+// 			//
+// 			for k, ru := range recordSet.Records {
+// 				stm.Put(k, ru.Record.Value)
+// 			}
 
-			return nil
-		}
+// 			return nil
+// 		}
 
-		response, err := concurrency.NewSTM(
-			store.Client,
-			actionWriteRecords,
-			concurrency.WithIsolation(concurrency.Serializable),
-			concurrency.WithPrefetch(*prefetchKeys...),
-		)
+// 		response, err := concurrency.NewSTM(
+// 			store.Client,
+// 			actionWriteRecords,
+// 			concurrency.WithIsolation(concurrency.Serializable),
+// 			concurrency.WithPrefetch(*prefetchKeys...),
+// 		)
 
-		if err != nil {
-			return err
-		}
+// 		if err != nil {
+// 			return err
+// 		}
 
-		if !response.Succeeded {
-			return ErrStoreKeyWriteFailure(recordSet.Label)
-		}
+// 		if !response.Succeeded {
+// 			return ErrStoreKeyWriteFailure(recordSet.Label)
+// 		}
 
-		revision = response.Header.Revision
+// 		revision = response.Header.Revision
 
-		return nil
-	})
+// 		return nil
+// 	})
 
-	return revision, err
-}
+// 	return revision, err
+// }
 
-// DeleteMultipleTxn is a method to delete a set of arbitrary keys within a
-// single txn so they form a (self-)consistent operation.
-//
-func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
-	revision := RevisionInvalid
+// // DeleteMultipleTxn is a method to delete a set of arbitrary keys within a
+// // single txn so they form a (self-)consistent operation.
+// //
+// func (store *Store) DeleteMultipleTxn(ctx context.Context, recordSet *RecordUpdateSet) (int64, error) {
+// 	revision := RevisionInvalid
 
-	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+// 	err := st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+// 		if err = store.disconnected(ctx); err != nil {
+// 			return err
+// 		}
 
-		var prefetchKeys *[]string
+// 		var prefetchKeys *[]string
 
-		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
-			return err
-		}
+// 		if prefetchKeys, err = generatePrefetchKeys(recordSet); err != nil {
+// 			return err
+// 		}
 
-		actionDeleteRecords := func(stm concurrency.STM) error {
+// 		actionDeleteRecords := func(stm concurrency.STM) error {
 
-			if err = checkConditions(stm, recordSet); err != nil {
-				return err
-			}
+// 			if err = checkConditions(stm, recordSet); err != nil {
+// 				return err
+// 			}
 
-			// it is only now that we know the conditions have been
-			// met for all the keys that we take the time to process
-			// all the updates.
-			//
-			for k := range recordSet.Records {
-				stm.Del(k)
-			}
+// 			// it is only now that we know the conditions have been
+// 			// met for all the keys that we take the time to process
+// 			// all the updates.
+// 			//
+// 			for k := range recordSet.Records {
+// 				stm.Del(k)
+// 			}
 
-			return nil
-		}
+// 			return nil
+// 		}
 
-		response, err := concurrency.NewSTM(
-			store.Client,
-			actionDeleteRecords,
-			concurrency.WithIsolation(concurrency.Serializable),
-			concurrency.WithPrefetch(*prefetchKeys...),
-		)
+// 		response, err := concurrency.NewSTM(
+// 			store.Client,
+// 			actionDeleteRecords,
+// 			concurrency.WithIsolation(concurrency.Serializable),
+// 			concurrency.WithPrefetch(*prefetchKeys...),
+// 		)
 
-		if err != nil {
-			return err
-		}
+// 		if err != nil {
+// 			return err
+// 		}
 
-		if !response.Succeeded {
-			return ErrStoreKeyDeleteFailure(recordSet.Label)
-		}
+// 		if !response.Succeeded {
+// 			return ErrStoreKeyDeleteFailure(recordSet.Label)
+// 		}
 
-		revision = response.Header.Revision
+// 		revision = response.Header.Revision
 
-		return nil
-	})
+// 		return nil
+// 	})
 
-	return revision, err
-}
+// 	return revision, err
+// }
 
 //
 // ToDo: need to add WithAction(actionRoutine) and WithRawValue() options.

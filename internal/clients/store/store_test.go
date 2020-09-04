@@ -255,12 +255,19 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 	return
 }
 
-func TestStoreWriteReadOld(t *testing.T) {
+func TestStoreWriteReadTxn(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	key := "TestStoreWriteRead/Key"
-	value := "TestStoreWriteRead/Value"
+	key := "TestStoreWriteReadTxn/Key"
+	value := "TestStoreWriteReadTxn/Value"
+
+	testName := "TestStoreWriteMultipleTxn"
+
+	keyValueSet := testGenerateKeyValueSet(keySetSize, testName)
+	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
+	recordUpdateSet := testGenerateRecordUpdateSetFromKeyValueSet(keyValueSet, testName, ConditionUnconditional)
+	recordReadSet := RecordKeySet{Label: testName, Keys: keySet}
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -268,7 +275,7 @@ func TestStoreWriteReadOld(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.WriteOld(key, value)
+	writeResponse, err = store.WriteTxn(context.Background(), &recordUpdateSet)
 	assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 
 	// Look for a name we do not expect to be present

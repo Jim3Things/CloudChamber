@@ -218,13 +218,13 @@ func (store *Store) CreateNewValue(ctx context.Context, r KeyRoot, n string, v s
 //
 func (store *Store) ReadNew(
 	ctx context.Context,
-	r KeyRoot,
+	kr KeyRoot,
 	n string,
 	m protoiface.MessageV1) (revision int64, err error) {
 	revision = RevisionInvalid
 
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(r)
+		prefix := getNamespacePrefixFromKeyRoot(kr)
 
 		st.Infof(ctx, -1, "Request to read and decode %q under prefix %q", n, prefix)
 
@@ -245,7 +245,7 @@ func (store *Store) ReadNew(
 			Conditions: make(map[string]Condition),
 		}
 
-		k := getKeyFromKeyRootAndName(r, n)
+		k := getKeyFromKeyRootAndName(kr, n)
 		request.Records[k] = Record{Revision: RevisionInvalid}
 		request.Conditions[k] = ConditionUnconditional
 
@@ -319,7 +319,7 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 			Conditions: make(map[string]Condition),
 		}
 
-		k := getKeyFromKeyRootAndName(r, n)
+		k := getKeyFromKeyRootAndName(kr, n)
 		request.Records[k] = Record{Revision: RevisionInvalid}
 		request.Conditions[k] = ConditionUnconditional
 
@@ -355,12 +355,12 @@ func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (valu
 //
 func (store *Store) UpdateNew(
 	ctx context.Context,
-	r KeyRoot,
+	kr KeyRoot,
 	n string,
 	rev int64,
 	m protoiface.MessageV1) (revision int64, err error) {
 	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(r)
+		prefix := getNamespacePrefixFromKeyRoot(kr)
 
 		st.Infof(ctx, -1, "Request to update %q under prefix %q", n, prefix)
 
