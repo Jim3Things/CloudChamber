@@ -2,6 +2,7 @@
 package config
 
 import (
+	"github.com/spf13/viper"
 	"os"
 	"testing"
 
@@ -65,6 +66,7 @@ func TestReadInventoryDefinition (t *testing.T) {
 func TestReadInventoryBogusPath (t *testing.T){
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
+	viper.Reset()
 
 	response, err := ReadInventoryDefinition("C://Users//Waheguru") 
 	require.NotNil(t, err) 
@@ -76,6 +78,7 @@ func TestInventoryUniquRack (t *testing.T) {
 
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
+	viper.Reset()
 
 	_, err := ReadInventoryDefinition(".//BadYaml")
 	require.NotNil(t, err)
@@ -86,6 +89,7 @@ func TestInventoryUniqueBlade (t *testing.T){
 
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
+	viper.Reset()
 
 	_, err := ReadInventoryDefinition(".//BadYamlBlade")
 	require.NotNil(t, err)
@@ -96,6 +100,7 @@ func TestInventoryValidateBlade (t *testing.T){
 
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
+	viper.Reset()
 
 	_, err := ReadInventoryDefinition(".//BadYamlValidate")
 	require.NotNil(t, err)

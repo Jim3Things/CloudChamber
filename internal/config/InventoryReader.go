@@ -52,6 +52,33 @@ type pdu struct {
 
 // --- Intermediate binary format
 
+// ErrDuplicateRack indicates duplicates rack names found
+type ErrDuplicateRack string
+
+func (edr ErrDuplicateRack) Error() string {
+	return fmt.Sprintf("Duplicate rack %q detected", string(edr))
+}
+
+// ErrDuplicateBlade indicates duplicates blade indexes found
+type ErrDuplicateBlade struct{
+	rack string
+	blade int64
+}
+
+func (edb ErrDuplicateBlade) Error() string {
+	return fmt.Sprintf("Duplicate Blade %d in Rack %q detected", edb.blade, edb.rack)
+}
+
+// ErrValidationFailure indicates validation failure in blades 
+type ErrValidationFailure struct {
+	rack string
+	err error
+}
+
+func (evf ErrValidationFailure) Error() string{
+	return fmt.Sprintf("In rack %q: %v", evf.rack, evf.err)
+}
+
 // ReadInventoryDefinition imports the inventory from 
 // external YAML file and transforms it into the
 // internal Cloud chamber binary format.
@@ -113,8 +140,9 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error){
 
 	for _, r := range xfr.Racks { 
 		if _, ok := cfg.Racks [r.Name]; ok { 
-			return nil, fmt.Errorf("Duplicate rack %q detected", r.Name)
+			return nil, ErrDuplicateRack(r.Name)
 		}
+
 		cfg.Racks [r.Name] = &pb.ExternalRack{
 			Tor: &pb.ExternalTor{},
 			Pdu: &pb.ExternalPdu{},
@@ -123,8 +151,12 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error){
 
 		for _, b := range r.Blades{
 			if _, ok := cfg.Racks[r.Name].Blades[b.Index]; ok{
-				return nil, fmt.Errorf("Duplicate Blade %d in Rack %q detected", b.Index, r.Name)
+				return nil, ErrDuplicateBlade{
+					blade: b.Index,
+					rack: r.Name,
+				}
 			}
+			
 			cfg.Racks [r.Name].Blades[b.Index] = &common.BladeCapacity{
 				Cores: b.Cores,
 				MemoryInMb: b.MemoryInMb,
@@ -133,19 +165,15 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error){
 				Arch: b.Arch,
 			}
 		}
+
 		if err := cfg.Racks[r.Name].Validate(); err != nil {
-			return nil, fmt.Errorf ("In rack %q: %v", r.Name, err)
+			return nil, ErrValidationFailure{
+				rack: r.Name,
+				err: err,
+			}
 		}
 	}
 
  	return cfg, nil
 }
 
-// to check that the unique rack value is returned or 
-// unique blade value for a rack is returned
-//  before creating a new rack check that rack name is 
-// not already in the map
-// before creating  a new blade make sure that its index
-// is not already in the map
-// once we have created a rack call validate on that rack 
-// and returns if that gets an error
