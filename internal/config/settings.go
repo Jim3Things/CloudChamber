@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/spf13/viper"
-	"go.opentelemetry.io/otel/api/global"
 
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
@@ -221,78 +221,75 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 
 	cfg := newGlobalConfig()
 
-	tr := global.TraceProvider().Tracer("")
-
-	ctx, span := tr.Start(
-		context.Background(),
-		"ReadGlobalConfig")
-	defer span.End()
-
-	if err := viper.ReadInConfig(); err != nil {
-		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			// Config file not found; we'll just use the default values
-			span.AddEvent(
-				ctx,
-				fmt.Sprintf(
+	err := st.WithNamedSpan(context.Background(), "ReadGlobalConfig", func(ctx context.Context) error {
+		if err := viper.ReadInConfig(); err != nil {
+			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+				// Config file not found; we'll just use the default values
+				st.Infof(
+					ctx,
+					-1,
 					"No config file found at %s/%s (%s), applying defaults.",
 					path,
 					defaultGlobalConfigFile,
-					defaultConfigType))
+					defaultConfigType)
+			} else {
+				// Config file was found but another error was produced
+				return st.Errorf(ctx, -1, "fatal error reading config file: %s", err)
+			}
 		} else {
-			// Config file was found but another error was produced
-			err = fmt.Errorf("fatal error reading config file: %s", err)
-			span.AddEvent(ctx, err.Error())
-			return nil, err
+			// Fill in the global configuration object from the configuration file
+			if err = viper.UnmarshalExact(cfg); err != nil {
+				return st.Errorf(ctx, -1, "unable to decode into struct, %v", err)
+			}
 		}
-	} else {
-		// Fill in the global configuration object from the configuration file
-		if err = viper.UnmarshalExact(cfg); err != nil {
-			err = fmt.Errorf("unable to decode into struct, %v", err)
-			span.AddEvent(ctx, err.Error())
-			return nil, err
-		}
-	}
 
-	span.AddEvent(ctx,
-		fmt.Sprintf("Configuration Read: \n%v", ToString(cfg)))
+		st.Infof(ctx, -1,
+			"Configuration Read: \n%v", cfg)
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
 
 	return cfg, nil
 }
 
 // ToString is a function to format the configuration data as a returned string.
-func ToString(data *GlobalConfig) string {
+func (data *GlobalConfig) String() string {
 
 	return fmt.Sprintf(
-		"Controller:\n" +
-			"  EP:\n" +
-			"    port: %v\n    hostname: %v\n" +
-			"  TraceFile: %s\n" +
-			"Inventory:\n" +
-			"  EP:\n" +
-			"    port: %v\n    hostname: %v\n" +
-			"  TraceFile: %s\n" +
-			"SimSupport:\n" +
-			"  EP:\n" +
-			"    port: %v\n    hostname: %v\n" +
-			"  TraceFile: %s\n" +
-			"  StepperPolicy: %v\n" +
-			"Webserver:\n" +
-			"  FE:\n" +
-			"    port: %v\n    hostname: %v\n" +
-			"  BE:\n" +
-			"    port: %v\n    hostname: %v\n" +
-			"  TraceFile: %s\n" +
-			"  RootFilePath: %s\n" +
-			"  SystemAccount: %s\n" +
-			"  SystemAccountPassword: %s\n" +
-			"Store:" +
-			"  ConnectTimeout: %v\n" +
-			"  RequestTimeout: %v\n" +
-			"  TraceLevel: %v\n" +
-			"  Test:\n" +
-			"    UseTestNamespace: %v\n" +
-			"    UseUniqueInstance: %v\n" +
-			"    PreCleanStore: %v\n" +
+		"Controller:\n"+
+			"  EP:\n"+
+			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
+			"Inventory:\n"+
+			"  EP:\n"+
+			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
+			"SimSupport:\n"+
+			"  EP:\n"+
+			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
+			"  StepperPolicy: %v\n"+
+			"Webserver:\n"+
+			"  FE:\n"+
+			"    port: %v\n    hostname: %v\n"+
+			"  BE:\n"+
+			"    port: %v\n    hostname: %v\n"+
+			"  TraceFile: %s\n"+
+			"  RootFilePath: %s\n"+
+			"  SystemAccount: %s\n"+
+			"  SystemAccountPassword: %s\n"+
+			"Store:"+
+			"  ConnectTimeout: %v\n"+
+			"  RequestTimeout: %v\n"+
+			"  TraceLevel: %v\n"+
+			"  Test:\n"+
+			"    UseTestNamespace: %v\n"+
+			"    UseUniqueInstance: %v\n"+
+			"    PreCleanStore: %v\n"+
 			"",
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
 		data.Controller.TraceFile,

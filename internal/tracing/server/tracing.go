@@ -50,32 +50,41 @@ func Interceptor(
 // WithSpan executes the supplied function within a span that conforms to the
 // expected tracing pattern.
 func WithSpan(ctx context.Context, fn func(ctx context.Context) error) error {
-	tr := global.TraceProvider().Tracer("server")
-
-	return tr.WithSpan(ctx, tracing.MethodName(2), fn,
-		trace.WithSpanKind(trace.SpanKindServer),
-		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
+	return doSpan(ctx, tracing.MethodName(2), trace.SpanKindServer, fn)
 }
 
 // WithNamedSpan executes the supplied function within a span that conforms to
 // the expected tracing pattern, and with a custom span name.
 func WithNamedSpan(ctx context.Context, spanName string, fn func(ctx context.Context) error) error {
-	tr := global.TraceProvider().Tracer("server")
-
-	return tr.WithSpan(ctx, spanName, fn,
-		trace.WithSpanKind(trace.SpanKindServer),
-		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
+	return doSpan(ctx, spanName, trace.SpanKindServer, fn)
 }
 
 // WithInfraSpan is a variant of WithSpan that marks the span as internal to
 // the simulation, and therefore of limited interest outside of development
 // or debugging use.
 func WithInfraSpan(ctx context.Context, fn func(ctx context.Context) error) error {
+	return doSpan(ctx, tracing.MethodName(2), trace.SpanKindInternal, fn)
+}
+
+func doSpan(ctxIn context.Context, spanName string, spanKind trace.SpanKind, fn func(ctx context.Context) error) error {
+	parent := trace.SpanFromContext(ctxIn)
+
 	tr := global.TraceProvider().Tracer("server")
 
-	return tr.WithSpan(ctx, tracing.MethodName(2), fn,
-		trace.WithSpanKind(trace.SpanKindInternal),
+	ctx, span := tr.Start(ctxIn, spanName,
+		trace.WithSpanKind(spanKind),
 		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
+	defer span.End()
+
+	if parent.SpanContext().HasSpanID() {
+		parent.AddEvent(
+			ctx,
+			tracing.MethodName(2),
+			kv.String(tracing.StackTraceKey, tracing.StackTrace()),
+			kv.String(tracing.ChildSpanKey, span.SpanContext().SpanID.String()))
+	}
+
+	return fn(ctx)
 }
 
 // There should be an Xxx and Xxxf method for every severity level, plus some

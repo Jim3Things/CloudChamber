@@ -24,7 +24,7 @@ type server struct {
 	pb.UnimplementedTraceSinkServer
 
 	// mutex protects access to the rest of the state
-	mutex   sync.Mutex
+	mutex sync.Mutex
 
 	// entries is the set of known trace entries, ordered by arrival
 	entries *list.List
@@ -37,10 +37,10 @@ type server struct {
 	// maxHeld contains the maximum number of trace entries that are kept.  As
 	// more arrive, the oldest ones are removed in order stay within this
 	// limit.
-	maxHeld           int
+	maxHeld int
 
 	// nextId is the trace entry id that will be used on the next Append call
-	nextId            int
+	nextId int
 
 	// nextNonInternalId is the trace entry id that immediately follows the
 	// last trace entry that was not marked internal.
@@ -160,10 +160,10 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 	})
 
 	if err != nil {
-		st.Infof(ctx, common.Tick(), "GetAfter failed with err=%v", err)
+		st.Infof(ctx, common.Tick(ctx), "GetAfter failed with err=%v", err)
 	} else {
 		st.Infof(
-			ctx, common.Tick(),
+			ctx, common.Tick(ctx),
 			"GetAfter returning; %d entries, missed=%v, lastID=%d",
 			len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
 	}
@@ -186,7 +186,7 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 		}
 
 		st.Infof(
-			ctx, common.Tick(),
+			ctx, common.Tick(ctx),
 			"GetPolicy returning; firstId=%d, maxEntriesHeld=%d",
 			resp.FirstId, resp.MaxEntriesHeld)
 
@@ -198,7 +198,7 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 
 // Reset is a test support function that forcibly resets the instance's state
 // to its initial values.
-func (s *server) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, error)  {
+func (s *server) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

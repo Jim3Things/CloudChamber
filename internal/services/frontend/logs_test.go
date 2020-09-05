@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -42,25 +43,25 @@ func testLogsGetAfter(
 	start int64,
 	maxCount int64,
 	cookies []*http.Cookie) (*pb.GetAfterResponse, []*http.Cookie) {
-		path := fmt.Sprintf("%s?from=%d&for=%d", testLogsPath(), start, maxCount)
-		request := httptest.NewRequest("GET", path, nil)
-		response := doHTTP(request, cookies)
+	path := fmt.Sprintf("%s?from=%d&for=%d", testLogsPath(), start, maxCount)
+	request := httptest.NewRequest("GET", path, nil)
+	response := doHTTP(request, cookies)
 
-		assert.Equal(t, http.StatusOK, response.StatusCode)
+	assert.Equal(t, http.StatusOK, response.StatusCode)
 
-		res := &pb.GetAfterResponse{}
-		err := getJSONBody(response, res)
+	res := &pb.GetAfterResponse{}
+	err := getJSONBody(response, res)
 
-		assert.Nilf(t, err, "Unexpected error, err: %v", err)
+	assert.Nilf(t, err, "Unexpected error, err: %v", err)
 
-		return res, response.Cookies()
+	return res, response.Cookies()
 }
 
 func TestLogsGetPolicy(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	err := tsc.Reset()
+	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -76,7 +77,7 @@ func TestLogsGetPolicyNoSession(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	err := tsc.Reset()
+	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", testLogsPath(), "/policy"), nil)
@@ -90,7 +91,7 @@ func TestLogsGetAfterNoSession(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	err := tsc.Reset()
+	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
 
 	path := fmt.Sprintf("%s?from=0&for=100", testLogsPath())
@@ -105,7 +106,7 @@ func TestLogsGetAfterBadStart(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	err := tsc.Reset()
+	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -123,7 +124,7 @@ func TestLogsGetAfterBadCount(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
-	err := tsc.Reset()
+	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -144,12 +145,12 @@ func TestLogsGetAfter(t *testing.T) {
 	defer unit_test.SetTesting(nil)
 
 	entry := &log.Entry{
-		Name:           "test",
-		SpanID:         "0000",
-		ParentID:       "1111",
-		Status:         "ok",
-		StackTrace:     "yyyy",
-		Event:          []*log.Event {
+		Name:       "test",
+		SpanID:     "0000",
+		ParentID:   "1111",
+		Status:     "ok",
+		StackTrace: "yyyy",
+		Event: []*log.Event{
 			{
 				Tick:       0,
 				Severity:   1,
@@ -162,7 +163,7 @@ func TestLogsGetAfter(t *testing.T) {
 		Infrastructure: false,
 	}
 
-	err := tsc.Reset()
+	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -201,12 +202,12 @@ func TestLogsGetAfter(t *testing.T) {
 		ch <- true
 	}(ch, response.Cookies())
 
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100) * time.Millisecond))
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
 
-	err = tsc.Append(entry)
+	err = tsc.Append(context.Background(), entry)
 	require.Nil(t, err)
 
-	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(1)*time.Second))
 
 	doLogout(t, randomCase(adminAccountName), cookies2)
 }

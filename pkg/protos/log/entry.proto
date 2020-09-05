@@ -67,6 +67,12 @@ message event {
 
     // The set of modules impacted, and the type of impact.
     repeated module impacted = 6;
+
+    // True, if this event denotes a start child span
+    bool span_start = 7;
+
+    // Child's span ID.  Ignored if span_start is false.
+    string span_id = 8;
 }
 
 // Describe a full correlated span, consisting of zero or more events.
@@ -77,16 +83,17 @@ message entry {
     // The IDs for the span, and its parent
     string spanID = 2;
     string parentID = 3;
+    string traceID = 4;
 
     // Final status of the span
-    string status = 4;
+    string status = 5;
 
     // Formatted stack trace
-    string stack_trace = 5;
+    string stack_trace = 6;
 
     // The set of events emitted by this span
-    repeated event event = 6;
+    repeated event event = 7;
 
     // True, if this span represents internal-only operations.
-    bool infrastructure = 7;
+    bool infrastructure = 8;
 }
