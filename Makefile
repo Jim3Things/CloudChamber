@@ -245,6 +245,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test $(PROJECT)/internal/services/tracing_sink
 	go test $(PROJECT)/internal/tracing/exporters/common
 	go test $(PROJECT)/internal/tracing/exporters/io_writer
+	go test $(PROJECT)/internal/config
 
 
 .PHONY : clean
