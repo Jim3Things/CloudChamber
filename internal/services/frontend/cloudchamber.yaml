@@ -1,0 +1,86 @@
+# Cloud Chamber service configuration values
+
+# control management service (controllerd)
+controller:
+  # GRPC endpoint
+  EP:
+    Port: 8081
+    Hostname: localhost
+
+# simulated inventory service (inventoryd)
+inventory:
+  # GRPC endpoint
+  EP:
+    port: 8082
+    hostname: localhost
+
+# simulation support services (sim_supportd)
+simSupport:
+  # GRPC endpoint
+  EP:
+    port: 8083
+    hostname: localhost
+
+# store interactions and etcd instance connection parameters
+store:
+  # trace level to use for interactions with the store and
+  # etcd
+  traceLevel: 1
+
+  # timeout in seconds to allow when attempting to establish
+  # a connection to the etcd instance
+  connectTimeout: 5
+
+  # timeout in seconds to allow when sending a request to
+  # etcd instance
+  requestTimeout: 5
+
+  # Client and peer endpoint addresses and ports for an external
+  # instance of etcd.
+  #
+  # Currently the use of an etcd cluster is not supported. When
+  # they are, this will become a list/array of endpoints.
+  etcdService:
+    hostname: localhost
+    port: 2379
+
+  # Test specific configuration.
+  #
+  # Setting UseTestNamespace to 1 will instruct the store to use
+  # a pre-defined test namespace which optionally can be deleted
+  # prior to running the any tests. Only the test namespace is
+  # affected by any cleanining.
+  #
+  # If UseUniqueInstance is set to 1, the tests will write to a
+  # unique namespace to isolate test results from run to run.
+  #
+  # If PreCleanStore is set to 1, the test will clean the store
+  # of existing tests using the same namespace. Effectively this
+  # means just the standard namespace as any unique namespaces
+  # will not match.
+  #
+  Test:
+    UseTestNamespace: 1
+    UseUniqueInstance: 0
+    PreCleanStore: 1
+
+# front end service, client web server
+webServer:
+  # front end (exposed http) endpoint
+  fe:
+    port: 8080
+    hostname: localhost
+
+  # back end (GRPC internal notifications) endpoint
+  be:
+    port: 8084
+    hostname: localhost
+
+  # file system path to the static files and scripts
+  rootFilePath: c:\CloudChamber\Files
+
+  # pre-defined account
+  systemAccount: Admin
+
+  # .. and its password (a really bad pattern here, but we'll use it for now)
+  systemAccountPassword: AdminPassword

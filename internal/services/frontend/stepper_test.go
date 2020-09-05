@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,9 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (
@@ -22,7 +24,7 @@ const (
 func testStepperPath() string { return baseURI + stepperURI }
 
 func testStepperReset(t *testing.T) {
-	err := ts.Reset()
+	err := ts.Reset(context.Background())
 	assert.Nilf(t, err, "Unexpected error when resetting the stepper service)")
 }
 
@@ -33,7 +35,7 @@ func testStepperSetManual(t *testing.T, match int64, cookies []*http.Cookie) []*
 	response := doHTTP(request, cookies)
 
 	assert.Equal(t, http.StatusOK, response.StatusCode)
-	assert.Equal(t, fmt.Sprintf("%v", match + 1), response.Header.Get("ETag"))
+	assert.Equal(t, fmt.Sprintf("%v", match+1), response.Header.Get("ETag"))
 
 	return response.Cookies()
 }
@@ -121,7 +123,7 @@ func TestStepperSetManual(t *testing.T) {
 	assert.Equal(t, int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
 	assert.Equal(t, int64(0), res.Now.Ticks, "Unexpected current time")
 	assert.Equal(t, int64(0), res.WaiterCount, "Unexpected active waiter count")
-	assert.Equal(t, stat.Epoch + 1, res.Epoch, "Unexpected epoch value")
+	assert.Equal(t, stat.Epoch+1, res.Epoch, "Unexpected epoch value")
 
 	doLogout(t, randomCase(adminAccountName), cookies)
 }
@@ -145,7 +147,10 @@ func TestStepperSetModeInvalid(t *testing.T) {
 
 	body, err := getBody(response)
 	assert.Nil(t, err)
-	assert.Equal(t, "CloudChamber: mode \"badChoice\" is invalid.  Supported modes are 'manual' and 'automatic'\n", string(body))
+	assert.Equal(
+		t,
+		"CloudChamber: mode \"badChoice\" is invalid.  Supported modes are 'manual' and 'automatic'\n",
+		string(body))
 
 	res, cookies = testStepperGetStatus(t, response.Cookies())
 	assert.Equal(t, pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
@@ -184,7 +189,7 @@ func TestStepperSetModeBadEpoch(t *testing.T) {
 	assert.Equal(t, int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
 	assert.Equal(t, int64(0), res.Now.Ticks, "Unexpected current time")
 	assert.Equal(t, int64(0), res.WaiterCount, "Unexpected active waiter count")
-	assert.Equal(t, stat.Epoch + 1, res.Epoch, "Unexpected epoch")
+	assert.Equal(t, stat.Epoch+1, res.Epoch, "Unexpected epoch")
 
 	doLogout(t, randomCase(adminAccountName), cookies)
 }
@@ -204,7 +209,11 @@ func TestStepperAdvanceOne(t *testing.T) {
 
 	res2, cookies := testStepperAdvance(t, cookies)
 
-	assert.Equal(t, int64(1), res2.Ticks-res.Ticks, "time expected to advance by 1, old: %d, new: %d", res.Ticks, res2.Ticks)
+	assert.Equal(
+		t,
+		int64(1), res2.Ticks-res.Ticks,
+		"time expected to advance by 1, old: %d, new: %d",
+		res.Ticks, res2.Ticks)
 
 	doLogout(t, randomCase(adminAccountName), cookies)
 }
@@ -229,7 +238,11 @@ func TestStepperAdvanceTwo(t *testing.T) {
 
 	assert.Nilf(t, err, "Unexpected error, err: %v", err)
 
-	assert.Equal(t, int64(2), res2.Ticks-res.Ticks, "time expected to advance by 1, old: %d, new: %d", res.Ticks, res2.Ticks)
+	assert.Equal(
+		t,
+		int64(2), res2.Ticks-res.Ticks,
+		"time expected to advance by 2, old: %d, new: %d",
+		res.Ticks, res2.Ticks)
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
@@ -250,7 +263,10 @@ func TestStepperAdvanceNotANumber(t *testing.T) {
 	body, err := getBody(response)
 
 	assert.Nil(t, err)
-	assert.Equal(t, "CloudChamber: requested rate \"two\" could not be parsed as a positive decimal number\n", string(body))
+	assert.Equal(
+		t,
+		"CloudChamber: requested rate \"two\" could not be parsed as a positive decimal number\n",
+		string(body))
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
 }
@@ -292,7 +308,6 @@ func TestStepperSetManualBadRate(t *testing.T) {
 }
 
 func TestStepperAfter(t *testing.T) {
-	var afterHit = false
 	var cookies2 []*http.Cookie
 
 	unit_test.SetTesting(t)
@@ -305,16 +320,18 @@ func TestStepperAfter(t *testing.T) {
 
 	res, cookies := testStepperGetNow(t, cookies)
 
-	go func(after int64, cookies []*http.Cookie) {
+	ch := make(chan bool)
+
+	go func(ch chan<- bool, after int64, cookies []*http.Cookie) {
 		res, cookies2 = testStepperAfter(t, after, cookies)
 
 		assert.Less(t, after, res.Ticks)
-		afterHit = true
-	}(res.Ticks, cookies)
+		ch <- true
+	}(ch, res.Ticks, cookies)
 
 	_, _ = testStepperAdvance(t, cookies)
-	time.Sleep(time.Duration(2) * time.Second)
-	assert.True(t, afterHit)
+
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(2)*time.Second))
 
 	doLogout(t, randomCase(adminAccountName), cookies2)
 }

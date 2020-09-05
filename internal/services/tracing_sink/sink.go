@@ -14,10 +14,9 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/trace_sink"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // server defines the interface and associated state for a trace sink instance
@@ -25,7 +24,7 @@ type server struct {
 	pb.UnimplementedTraceSinkServer
 
 	// mutex protects access to the rest of the state
-	mutex   sync.Mutex
+	mutex sync.Mutex
 
 	// entries is the set of known trace entries, ordered by arrival
 	entries *list.List
@@ -38,10 +37,10 @@ type server struct {
 	// maxHeld contains the maximum number of trace entries that are kept.  As
 	// more arrive, the oldest ones are removed in order stay within this
 	// limit.
-	maxHeld           int
+	maxHeld int
 
 	// nextId is the trace entry id that will be used on the next Append call
-	nextId            int
+	nextId int
 
 	// nextNonInternalId is the trace entry id that immediately follows the
 	// last trace entry that was not marked internal.
@@ -98,7 +97,7 @@ func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*empty.
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
-	err := st.WithInfraSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+	err := st.WithInfraSpan(ctx, func(ctx context.Context) error {
 		if err := request.Validate(); err != nil {
 			return err
 		}
@@ -131,33 +130,40 @@ func (s *server) Append(ctx context.Context, request *pb.AppendRequest) (*empty.
 // caller also specifies the maximum number of entries to return in one call,
 // and whether or not to wait if there are not entries currently outstanding.
 func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
 	var resp waitResponse
 
-	err := st.WithInfraSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+	err := st.WithInfraSpan(ctx, func(ctx context.Context) error {
 		if err := request.Validate(); err != nil {
 			return err
 		}
+
+		s.mutex.Lock()
 
 		// If we either can't wait, or there are active traces to return,
 		// do so now.
 		id := request.Id + 1
 		if !request.Wait || (id < int64(s.nextNonInternalId)) {
-			resp = s.processWaiter(request.Id + 1, request.MaxEntries)
+			resp = s.processWaiter(id, request.MaxEntries)
+
+			s.mutex.Unlock()
+
 			return resp.err
 		}
 
-		resp = <- s.wait(id, request.MaxEntries)
+		ch := s.wait(id, request.MaxEntries)
+
+		s.mutex.Unlock()
+
+		resp = <-ch
+
 		return resp.err
 	})
 
 	if err != nil {
-		st.Infof(ctx, common.Tick(), "GetAfter failed with err=%v", err)
+		st.Infof(ctx, common.Tick(ctx), "GetAfter failed with err=%v", err)
 	} else {
 		st.Infof(
-			ctx, common.Tick(),
+			ctx, common.Tick(ctx),
 			"GetAfter returning; %d entries, missed=%v, lastID=%d",
 			len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
 	}
@@ -173,14 +179,14 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 
 	var resp *pb.GetPolicyResponse
 
-	err := st.WithInfraSpan(ctx, tracing.MethodName(1), func(ctx context.Context) error {
+	err := st.WithInfraSpan(ctx, func(ctx context.Context) error {
 		resp = &pb.GetPolicyResponse{
 			MaxEntriesHeld: int64(s.maxHeld),
 			FirstId:        int64(s.getFirstId() - 1),
 		}
 
 		st.Infof(
-			ctx, common.Tick(),
+			ctx, common.Tick(ctx),
 			"GetPolicy returning; firstId=%d, maxEntriesHeld=%d",
 			resp.FirstId, resp.MaxEntriesHeld)
 
@@ -192,7 +198,7 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 
 // Reset is a test support function that forcibly resets the instance's state
 // to its initial values.
-func (s *server) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, error)  {
+func (s *server) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 

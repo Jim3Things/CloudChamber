@@ -3,6 +3,7 @@ package common
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	trace2 "go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/sdk/export/trace"
@@ -11,20 +12,26 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
+const (
+	indent = "    "
+)
+
 // ExtractEntry transforms the incoming information about an OpenTelemetry span
 // into the entry / event structure is understood by Cloud Chamber's tracing
 // consumers, including the UI.
 func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 	spanID := data.SpanContext.SpanID.String()
+	traceID := data.SpanContext.TraceID.String()
 	parentID := data.ParentSpanID.String()
 
 	entry := &log.Entry{
-		Name:       data.Name,
-		SpanID:     spanID,
-		ParentID:   parentID,
+		Name:           data.Name,
+		SpanID:         spanID,
+		ParentID:       parentID,
+		TraceID:        traceID,
 		Infrastructure: data.SpanKind == trace2.SpanKindInternal,
-		Status:     fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
-		StackTrace: "",
+		Status:         fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
+		StackTrace:     "",
 	}
 
 	for _, attr := range data.Attributes {
@@ -53,10 +60,10 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 			case tracing.MessageTextKey:
 				item.Text = attr.Value.AsString()
-			}
 
-			if attr.Key == tracing.StackTraceKey {
-				item.StackTrace = attr.Value.AsString()
+			case tracing.ChildSpanKey:
+				item.SpanId = attr.Value.AsString()
+				item.SpanStart = true
 			}
 		}
 
@@ -69,37 +76,71 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 // FormatEntry produces a string containing the information in the span-level
 // data.  This is used by exporters that emit the trace to a text-based stream.
 func FormatEntry(entry *log.Entry, deferred bool) string {
+	stack := indent + strings.ReplaceAll(entry.GetStackTrace(), "\n", "\n"+indent)
 	return fmt.Sprintf(
-		"[%s:%s]%s%s %s %s:\n%s",
+		"[%s:%s]%s%s %s %s:\n%s\n",
 		entry.GetSpanID(),
 		entry.GetParentID(),
 		deferredFlag(deferred),
 		infraFlag(entry.GetInfrastructure()),
 		entry.GetStatus(),
 		entry.GetName(),
-		entry.GetStackTrace())
+		stack)
 }
 
 // FormatEvent produces a string for a single event in a span that contains the
 // formatted information about that event.  Also used by exporters that emit
 // the trace events to a text-based stream.
-func FormatEvent(event *log.Event) string {
+func FormatEvent(event *log.Event, leader string) string {
+	if event.SpanStart {
+		return formatSpanStart(event, leader)
+	}
+
+	return formatNormalEvent(event, leader)
+}
+
+// formatSpanStart produces a string for a 'create child span' event
+func formatSpanStart(event *log.Event, leader string) string {
+	stack := indent + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+indent)
+
 	if event.GetTick() < 0 {
-		return fmt.Sprintf(
-			"       : [%s] (%s) %s\n%s",
+		return strings.ReplaceAll(fmt.Sprintf(
+			"%s       : Start Child Span: %s\n%s\n",
+			leader,
+			event.GetSpanId(),
+			stack), "\n", "\n"+leader)
+	}
+
+	return strings.ReplaceAll(fmt.Sprintf(
+		"%s  @%4d: Start Child Span: %s\n%s\n",
+		leader,
+		event.GetTick(),
+		event.GetSpanId(),
+		stack), "\n", "\n"+leader)
+}
+
+// formatNormalEvent produces a string for all other events
+func formatNormalEvent(event *log.Event, leader string) string {
+	stack := indent + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+indent)
+
+	if event.GetTick() < 0 {
+		return strings.ReplaceAll(fmt.Sprintf(
+			"%s       : [%s] (%s) %s\n%s\n",
+			leader,
 			severityFlag(event.GetSeverity()),
 			event.GetName(),
 			event.GetText(),
-			event.GetStackTrace())
+			stack), "\n", "\n"+leader)
 	}
 
-	return fmt.Sprintf(
-		"  @%4d: [%s] (%s) %s\n%s",
+	return strings.ReplaceAll(fmt.Sprintf(
+		"%s  @%4d: [%s] (%s) %s\n%s\n",
+		leader,
 		event.GetTick(),
 		severityFlag(event.GetSeverity()),
 		event.GetName(),
 		event.GetText(),
-		event.GetStackTrace())
+		stack), "\n", "\n"+leader)
 }
 
 // +++ helper functions that format specific fields

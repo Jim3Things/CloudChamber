@@ -18,7 +18,6 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
@@ -32,8 +31,7 @@ type DBUsers struct {
 
 // InitDBUsers is a method to initialize the users store.  For now this is only a map in memory.
 func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
-
-	err = st.WithSpan(ctx, tracing.MethodName(1), func(ctx context.Context) (err error) {
+	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
 		if dbUsers == nil {
 			dbUsers = &DBUsers{
 				Store: store.NewStore(),
@@ -66,15 +64,22 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 		// if the account is already present.
 		//
 		if err == ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
-
 			existingUser, _, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
 
 			if err != nil {
-				return st.Errorf(ctx, -1, "CloudChamber: unable to verify the standard %q account is using configured password - error %v", cfg.WebServer.SystemAccount, err)
+				return st.Error(ctx, -1, ErrUnableToVerifySystemAccount{
+					Name: cfg.WebServer.SystemAccount,
+					Err: err,
+				})
 			}
 
-			if err := bcrypt.CompareHashAndPassword(existingUser.GetPasswordHash(), []byte(cfg.WebServer.SystemAccountPassword)); err != nil {
-				st.Infof(ctx, -1, "CloudChamber: standard %q account is not using using configured password - error %v", cfg.WebServer.SystemAccount, err)
+			if err = bcrypt.CompareHashAndPassword(
+				existingUser.GetPasswordHash(),
+				[]byte(cfg.WebServer.SystemAccountPassword)); err != nil {
+					st.Infof(
+						ctx, -1,
+						"CloudChamber: standard %q account is not using using configured password - error %v",
+						cfg.WebServer.SystemAccount, err)
 			}
 
 			return nil
@@ -311,7 +316,7 @@ func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) e
 			return ErrUserBadRecordContent{n, r.Value}
 		}
 
-		if err := action(u); err != nil {
+		if err = action(u); err != nil {
 			return err
 		}
 	}

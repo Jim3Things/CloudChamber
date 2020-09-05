@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc/metadata"
 
+	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
@@ -19,7 +20,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -48,22 +49,6 @@ func init() {
 
 func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 	return lis.Dial()
-}
-
-func checkForEarlyCompletion(t *testing.T, ch <-chan bool, delay int, name string) {
-	select {
-	case <-ch:
-		assert.Failf(t, "%s completed early", name)
-	case <-time.After(time.Duration(delay) * time.Second):
-	}
-}
-
-func checkForLateCompletion(t *testing.T, ch <-chan bool, delay int, name string) {
-	select {
-	case <-ch:
-	case <-time.After(time.Duration(delay) * time.Second):
-		assert.Failf(t, "%s did not complete on time", name)
-	}
 }
 
 func callNow(t *testing.T, ctx context.Context) int64 {
@@ -331,14 +316,15 @@ func TestStepper_Manual(t *testing.T) {
 		res <- true
 	}(ch)
 
-	checkForEarlyCompletion(t, ch, 1, "Delay")
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(1) * time.Second))
 	testGetStatus(t, ctx, 1, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
 
 	callStep(t, ctx, 2)
-	checkForEarlyCompletion(t, ch, 1, "Delay")
+	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(1) * time.Second))
 
 	callStep(t, ctx, 3)
-	checkForLateCompletion(t, ch, 1, "Delay")
+	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
+
 	testGetStatus(t, ctx, 3, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
 
 	t.Log("DelayManual subtest complete")

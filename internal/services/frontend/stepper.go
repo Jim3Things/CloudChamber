@@ -13,10 +13,9 @@ import (
 	"github.com/gorilla/sessions"
 
 	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (
@@ -38,7 +37,7 @@ func stepperAddRoutes(routeBase *mux.Router) {
 
 // Process an http request for the current Stepper service status.
 func handleGetStatus(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
 
 		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
@@ -47,7 +46,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		stat, err := clients.Status()
+		stat, err := clients.Status(ctx)
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
@@ -63,7 +62,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 // Process an http request to advance the simulated time by a specified number
 // of ticks.  The number defaults to 1.
 func handleAdvance(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		var count int
 
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
@@ -87,13 +86,13 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 
 		// Advance the time the request number of ticks
 		for i := 0; i < count; i++ {
-			if err = clients.Advance(); err != nil {
+			if err = clients.Advance(ctx); err != nil {
 				return httpError(ctx, w, err)
 			}
 		}
 
 		// .. and get the current time to return in the body of the response
-		now, err := clients.Now()
+		now, err := clients.Now(ctx)
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
@@ -110,7 +109,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 // request, or it may advance at some number of ticks per second.  If the
 // latter, the default rate is 1 tick per second.
 func handleSetMode(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
 		vars := mux.Vars(r)
 		args := strings.Split(strings.Replace(vars["type"], "=", ":", 1), ":")
 
@@ -159,7 +158,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, NewErrInvalidStepperMode(args[0]))
 		}
 
-		if err = clients.SetPolicy(policy, delay, match); err != nil {
+		if err = clients.SetPolicy(ctx, policy, delay, match); err != nil {
 			return httpError(ctx, w, NewErrStepperFailedToSetPolicy())
 		}
 
@@ -173,30 +172,31 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 // This can be used to be notified of time changes when the simulated time is
 // in the 'automatic' state.
 func handleWaitFor(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
 		vars := mux.Vars(r)
 		after := vars["after"]
 
+		var data clients.TimeData
+
 		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			if err := ensureEstablishedSession(session); err != nil {
+				return err
+			}
+
+			afterTick, err := ensurePositiveNumber("after", after)
+			if err != nil {
+				return err
+			}
+
+			data = <-clients.After(ctx, &ct.Timestamp{Ticks: afterTick + 1})
+			if data.Err != nil {
+				return data.Err
+			}
+
+			return nil
 		})
 		if err != nil {
 			return httpError(ctx, w, err)
-		}
-
-		afterTick, err := strconv.ParseInt(after, 10, 64)
-		if err != nil || afterTick < 0 {
-			return httpError(ctx, w, NewErrInvalidStepperAfter(after))
-		}
-
-		ch, err := clients.After(&ct.Timestamp{Ticks: afterTick + 1})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		data := <-ch
-		if data.Err != nil {
-			return httpError(ctx, w, data.Err)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -208,7 +208,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 
 // Process an http request to get the current simulated time.
 func handleGetNow(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) error {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
 		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
@@ -216,7 +216,7 @@ func handleGetNow(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		now, err := clients.Now()
+		now, err := clients.Now(ctx)
 		if err != nil {
 			return httpError(ctx, w, err)
 		}

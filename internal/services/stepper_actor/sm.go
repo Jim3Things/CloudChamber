@@ -15,7 +15,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	trace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 

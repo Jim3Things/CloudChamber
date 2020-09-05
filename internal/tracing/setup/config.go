@@ -61,7 +61,6 @@ func SetFileWriter(name string) error {
 
 // SetEndpoint supplies the endpoint to the trace sink service for the
 // 'production' trace exporter variant
-func SetEndpoint(host string, port uint16) error {
-	endpoint := fmt.Sprintf("%s:%d", host, port)
+func SetEndpoint(endpoint string) error {
 	return production.SetEndpoint(endpoint, grpc.WithInsecure())
 }

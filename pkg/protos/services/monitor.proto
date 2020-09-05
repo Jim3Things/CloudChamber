@@ -1,0 +1,142 @@
+// This file contains the definitions of the messages exchanged between the
+// inventory monitor and the inventory.
+
+syntax = "proto3";
+
+package services;
+
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
+
+// Define the service implemented by the inventory monitor.
+service Monitor {
+
+    // Report the health of a set of inventory items to the monitor
+    rpc ReportHealth(actual) returns (google.protobuf.Empty);
+}
+
+// Define the service implemented by the inventory itself
+service Inventory {
+
+    // Set the configuration options for reporting health
+    rpc SetConfig(google.protobuf.Empty) returns (google.protobuf.Empty);
+
+    // Set the desired states for various inventory items.  Provide the
+    // current actual state as informative return values.
+    rpc SetTargets(desired) returns (actual);
+}
+
+// This message describes a health report from the inventory
+
+// NOTE: There is an aspect of this structure that I'm unhappy with - I'd like
+//       the message structure to be sure that invalid combinations cannot be
+//       created.  In other words, it is structurally impossible to create a
+//       message that has an invalid combination of items.
+//
+//       This does not do that.  For example, capacity does not make sense if
+//       the health is not 'Healthy'.  But it can be specified.
+//
+//       I considered extensive use of oneof to limit the options, but that
+//       looked even worse.  Open to suggestions.
+message actual {
+    enum health {
+        Invalid = 0;
+        Unavailable = 1;
+        Draining = 2;
+        Healthy = 3;
+        Removing = 4;
+    }
+
+    message rack {
+        string name = 1;
+
+        message base_status {
+            health health = 1;
+            common.Timestamp last_start = 2;
+        }
+
+        message blade_details {
+            base_status status = 1;
+
+            common.blade_capacity present = 2;
+            common.blade_capacity used = 3;
+
+            // TODO: We will probably want a list of the scheduling decision IDs that
+            //       are represented in the used capacity.
+        }
+
+        message pdu_details {
+            base_status status = 1;
+
+            bool tor_cable = 2;
+            map<int64, bool> cables = 3;
+        }
+
+        message tor_details {
+            base_status status = 1;
+
+            map<int64, bool> cables = 2;
+        }
+
+        pdu_details pdu = 2;
+        tor_details tor = 3;
+
+        map<int64, blade_details> blades = 4;
+    }
+
+    repeated rack racks = 1;
+}
+
+// This message describes a command from the monitor to the inventory.  These
+// take the form of desired states for specific items.  Any item not mentioned
+// has no actions to take.
+//
+// NOTE: This message has an even more obvious issue with legal-but-invalid
+//       structures: teh last start time is not valid for several of the
+//       health states.
+message desired {
+    enum health {
+        Invalid = 0;
+        Draining = 1;
+        Stopped = 2;
+        Healthy = 3;
+        Removed = 4;
+    }
+
+    message rack {
+        string name = 1;
+
+        message base_status {
+            health health = 1;
+            common.Timestamp last_start = 2;
+        }
+
+        message blade_details {
+            base_status status = 1;
+        }
+
+        message pdu_details {
+            base_status status = 1;
+
+            bool tor_cable = 2;
+            map<int64, bool> cables = 3;
+        }
+
+        message tor_details {
+            base_status status = 1;
+
+            map<int64, bool> cables = 2;
+        }
+
+        pdu_details pdu = 2;
+        tor_details tor = 3;
+
+        map<int64, blade_details> blades = 4;
+    }
+
+    repeated rack racks = 1;
+}

@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -27,13 +28,15 @@ import (
 	"google.golang.org/grpc/test/bufconn"
 
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	stepper "github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
+	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/Stepper"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -79,6 +82,10 @@ func commonSetup() {
 		log.Fatalf("Failed to register stepper actor: %v", err)
 	}
 
+	if err := tracing_sink.Register(s); err != nil {
+		log.Fatalf("Failed to register tracing sink: %v", err)
+	}
+
 	go func() {
 		if err := s.Serve(lis); err != nil {
 			log.Fatalf("Server exited with error: %v", err)
@@ -90,42 +97,21 @@ func commonSetup() {
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ctrc.Interceptor))
 
+	tsc.InitSinkClient("bufnet",
+		grpc.WithContextDialer(bufDialer),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(ctrc.InfraInterceptor))
+
 	// Finally, start the test web service, which all tests will use
-	if err := initService(&config.GlobalConfig{
-		Controller: config.ControllerType{},
-		Inventory:  config.InventoryType{},
-		SimSupport: config.SimSupportType{
-			EP: config.Endpoint{
-				Hostname: "localhost",
-				Port:     8083,
-			},
-			StepperPolicy: "manual",
-		},
-		WebServer: config.WebServerType{
-			RootFilePath:          "C:\\CloudChamber",
-			SystemAccount:         adminAccountName,
-			SystemAccountPassword: adminPassword,
-			FE: config.Endpoint{
-				Hostname: "localhost",
-				Port:     8080,
-			},
-			BE: config.Endpoint{},
-		},
-		Store: config.StoreType{
-			ConnectTimeout: config.StoreDefaultConnectTimeout,
-			RequestTimeout: config.StoreDefaultRequestTimeout,
-			TraceLevel:     config.StoreDefaultTraceLevel,
-			EtcdService: config.Endpoint{
-				Hostname: config.StoreDefaultEtcdSvcHostname,
-				Port:     config.StoreDefaultEtcdSvcPort,
-			},
-			Test: config.StoreTypeTest{
-				UseTestNamespace:  true,
-				UseUniqueInstance: false,
-				PreCleanStore:     true,
-			},
-		},
-	}); err != nil {
+	configPath := flag.String("config", ".", "path to the configuration file")
+	flag.Parse()
+
+	cfg, err := config.ReadGlobalConfig(*configPath)
+	if err != nil {
+		log.Fatalf("failed to process the global configuration: %v", err)
+	}
+
+	if err = initService(cfg); err != nil {
 		log.Fatalf("Error initializing service: %v", err)
 	}
 

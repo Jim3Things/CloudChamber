@@ -17,7 +17,6 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -45,7 +44,7 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 }
 
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
@@ -65,7 +64,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 		st.Infof(
 			ctx,
-			common.Tick(),
+			common.Tick(ctx),
 			"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
 			len(res.Racks),
 			res.MaxBladeCount,
@@ -81,7 +80,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 			res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
-			st.Infof(ctx, common.Tick(), "   Listing rack %q at %q", name, target)
+			st.Infof(ctx, common.Tick(ctx), "   Listing rack %q at %q", name, target)
 
 			return nil
 		})
@@ -95,7 +94,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
@@ -113,7 +112,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		st.Infof(ctx, common.Tick(), "Returning details for rack %q: %v", rackID, u)
+		st.Infof(ctx, common.Tick(ctx), "Returning details for rack %q: %v", rackID, u)
 
 		// Get the user entry, and serialize it to json
 		// (export userPublic to json and return that as the body)
@@ -123,7 +122,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
@@ -144,7 +143,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 		return dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
 
 			target := fmt.Sprintf("%s%d", b, bladeID)
-			st.Infof(ctx, common.Tick(), " Listing blades '%d' at %q", bladeID, target)
+			st.Infof(ctx, common.Tick(ctx), " Listing blades '%d' at %q", bladeID, target)
 
 			if _, err = fmt.Fprintln(w, target); err != nil {
 				return httpError(ctx, w, err)
@@ -155,7 +154,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
@@ -180,7 +179,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
-		st.Infof(ctx, common.Tick(), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+		st.Infof(ctx, common.Tick(ctx), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
 
 		p := jsonpb.Marshaler{}
 		return p.Marshal(w, blade)

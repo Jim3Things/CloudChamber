@@ -9,10 +9,7 @@ import (
 	"os"
 	"time"
 
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/trace"
-
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 //go:generate go run generator/generate.go
@@ -50,19 +47,15 @@ func Show() {
 // startup of the service, and the version information associated with it.
 //
 func Trace() {
-	tr := global.TraceProvider().Tracer("")
-
-	_ = tr.WithSpan(context.Background(), tracing.MethodName(1), func(ctx context.Context) (err error) {
-		span := trace.SpanFromContext(ctx)
-
-		span.AddEvent(
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		st.Infof(
 			ctx,
-			fmt.Sprintf(
-				"===== Starting %q at %s =====",
-				fmt.Sprint(os.Args),
-				time.Now().Format(time.RFC1123Z)))
+			-1,
+			"===== Starting %q at %s =====",
+			fmt.Sprint(os.Args),
+			time.Now().Format(time.RFC1123Z))
 
-		span.AddEvent(ctx, toString())
+		st.Info(ctx, -1, toString())
 		return nil
 	})
 }

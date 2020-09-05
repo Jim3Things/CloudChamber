@@ -110,10 +110,10 @@ func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 }
 
 func processOneEntry(entry *log.Entry, deferred bool) error {
-	_, _ = outputWriter.Write([]byte(fmt.Sprintf("%s\n\n", common.FormatEntry(entry, deferred))))
+	_, _ = outputWriter.Write([]byte(fmt.Sprintf("\n%s\n", common.FormatEntry(entry, deferred))))
 
 	for _, event := range entry.Event {
-		_, _ = outputWriter.Write([]byte(fmt.Sprintf("%s\n\n", common.FormatEvent(event))))
+		_, _ = outputWriter.Write([]byte(fmt.Sprintf("%s    \n", common.FormatEvent(event, "    "))))
 	}
 
 	return nil
