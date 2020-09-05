@@ -3,6 +3,7 @@ package io_writer
 import (
 	"fmt"
 	"io"
+	stdLog "log"
 	"sync"
 
 	"go.opentelemetry.io/otel/api/trace"
@@ -14,12 +15,6 @@ import (
 const (
 	tab = "    "
 )
-
-type activeEntry struct {
-	root string
-	open map[string]bool
-	closed map[string]bool
-}
 
 type spans struct {
 	m sync.Mutex
@@ -34,6 +29,29 @@ type spans struct {
 	known map[string]*log.Entry
 }
 
+// activeEntry defines the set of spans associated with a given TraceID.  It
+// manages enough state to determine when the information set is complete and
+// the entries for that TraceID can be emitted.
+//
+// A SpanIDs is introduced as 'open' as soon as it is seen.  It is then moved
+// to 'closed' as it completes its export operation.  Since all span IDs must
+// be seen prior to its export completing, once the 'open' set is empty, all
+// spans for the given TraceID must have been processed, and we can emit the
+// functionally ordered traces.
+type activeEntry struct {
+	// root is the span ID that started the sequence for the traceID
+	root string
+
+	// open are the SpanIDs that have been found for this traceID, but have not
+	// yet completed an export operation.
+	open map[string]bool
+
+	// closed as the SpanIDs that have been found an have completed their
+	// export operation
+	closed map[string]bool
+}
+
+// newSpan creates a new, empty, spans instance
 func newSpans() *spans {
 	return &spans{
 		m:      sync.Mutex{},
@@ -42,6 +60,8 @@ func newSpans() *spans {
 	}
 }
 
+// getOrAddActive either retrieves an existing activeEntry for the given
+// TraceID, or a new one is created and returned.
 func (s *spans) getOrAddActive(traceID string) *activeEntry {
 	entry, ok := s.active[traceID]
 	if ok {
@@ -59,14 +79,25 @@ func (s *spans) getOrAddActive(traceID string) *activeEntry {
 	return entry
 }
 
+// emit processes the indicated span, sending the formatted output to the
+// supplied writer.  It will recursively process child spans, and manages the
+// line indent amount to indicate descent level
 func (s *spans) emit(a *activeEntry, spanID string, io io.Writer, indent string) {
 	entry, ok := s.known[spanID]
-	if !ok { panic(fmt.Sprintf("Missing span: %q", spanID))}
+	if !ok {
+		stdLog.Fatalf("Missing span: %q", spanID)
+	}
 
-	spanHeader := fmt.Sprintf("\n%s\n", common.FormatEntry(entry, false, indent))
-	_, _ = io.Write([]byte(spanHeader))
+	// Spans are set off by surrounding blank lines
+	_, _ = io.Write([]byte(
+		fmt.Sprintf(
+			"\n%s\n",
+			common.FormatEntry(entry, false, indent))))
+
 	for _, e := range entry.Event {
 		if e.SpanStart {
+			// This entry is for a child span creation event.
+			// Recursively process it.
 			s.emit(a, e.SpanId, io, indent + tab)
 			delete(s.known, e.SpanId)
 			delete(a.closed, e.SpanId)
@@ -93,7 +124,7 @@ func (s *spans) add(entry *log.Entry, io io.Writer) {
 	// First, let's record this span as a known span
 	s.known[spanID] = entry
 
-	// Then, let's see if we have an active trace.  Create one if not.
+	// Then, get the active entries for its traceID
 	a := s.getOrAddActive(traceID)
 
 	// add this entry, if not already present to the active entry's open list
@@ -108,11 +139,11 @@ func (s *spans) add(entry *log.Entry, io io.Writer) {
 		}
 	}
 
-	// go through the full set of entries.  For each span start:
-	// - add that child ID to the trace ID set, if not already known
+	// go through the full set of entries.  For each span start, add that
+	// child ID to the trace ID set, if not already known
 	for _, e := range entry.Event {
 		if e.SpanStart {
-			if _, ok := a.closed[e.SpanId]; !ok {
+			if _, ok := s.known[e.SpanId]; !ok {
 				a.open[e.SpanId] = true
 			}
 		}
@@ -123,15 +154,17 @@ func (s *spans) add(entry *log.Entry, io io.Writer) {
 	a.closed[spanID] = true
 
 	if len(a.open) == 0 {
-		// if active entry's open list is now empty:
-		// - issue emit on it
-		// - remove the trace ID when emit returns
+		// if active entry's open list is now empty, we're done.  So format
+		// the tree of traces.
 		s.emit(a, a.root, io, "")
 		delete(s.known, a.root)
 		delete(a.closed, a.root)
 
 		// Ensure that the closed list is empty
-		if len(a.closed) != 0 { panic(fmt.Sprintf("Expected all closed, %v", a))}
+		if len(a.closed) != 0 {
+			stdLog.Fatalf("Expected all closed, %v", a)
+		}
+
 		delete(s.active, traceID)
 	}
 }
