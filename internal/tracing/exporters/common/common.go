@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	indent = "    "
+	tab = "    "
 )
 
 // ExtractEntry transforms the incoming information about an OpenTelemetry span
@@ -75,17 +75,21 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 // FormatEntry produces a string containing the information in the span-level
 // data.  This is used by exporters that emit the trace to a text-based stream.
-func FormatEntry(entry *log.Entry, deferred bool) string {
-	stack := indent + strings.ReplaceAll(entry.GetStackTrace(), "\n", "\n"+indent)
-	return fmt.Sprintf(
-		"[%s:%s]%s%s %s %s:\n%s\n",
+func FormatEntry(entry *log.Entry, deferred bool, leader string) string {
+	stack := tab + strings.ReplaceAll(entry.GetStackTrace(), "\n", "\n"+tab)
+	indented := strings.ReplaceAll(fmt.Sprintf(
+		"%s[%s:%s]%s%s %s %s:\n%s\n",
+		leader,
 		entry.GetSpanID(),
 		entry.GetParentID(),
 		deferredFlag(deferred),
 		infraFlag(entry.GetInfrastructure()),
 		entry.GetStatus(),
 		entry.GetName(),
-		stack)
+		stack), "\n", "\n"+leader)
+	trimmed := strings.TrimSuffix(indented, leader)
+
+	return trimmed
 }
 
 // FormatEvent produces a string for a single event in a span that contains the
@@ -93,15 +97,15 @@ func FormatEntry(entry *log.Entry, deferred bool) string {
 // the trace events to a text-based stream.
 func FormatEvent(event *log.Event, leader string) string {
 	if event.SpanStart {
-		return formatSpanStart(event, leader)
+		return strings.TrimSuffix(formatSpanStart(event, leader), leader)
 	}
 
-	return formatNormalEvent(event, leader)
+	return strings.TrimSuffix(formatNormalEvent(event, leader), leader)
 }
 
 // formatSpanStart produces a string for a 'create child span' event
 func formatSpanStart(event *log.Event, leader string) string {
-	stack := indent + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+indent)
+	stack := tab + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+tab)
 
 	if event.GetTick() < 0 {
 		return strings.ReplaceAll(fmt.Sprintf(
@@ -121,7 +125,7 @@ func formatSpanStart(event *log.Event, leader string) string {
 
 // formatNormalEvent produces a string for all other events
 func formatNormalEvent(event *log.Event, leader string) string {
-	stack := indent + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+indent)
+	stack := tab + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+tab)
 
 	if event.GetTick() < 0 {
 		return strings.ReplaceAll(fmt.Sprintf(
