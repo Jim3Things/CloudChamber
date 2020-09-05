@@ -96,7 +96,7 @@ func ReadInventoryDefinition(path string) (*pb.ExternalZone, error){
 		span.AddEvent(ctx, err.Error())
 		return nil, err
 	}
-	
+
 	span.AddEvent(ctx,
 		fmt.Sprintf("Inventory definition Read: \n%v", cfg))
 	return cfg, nil	
@@ -122,6 +122,9 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error){
 		}
 
 		for _, b := range r.Blades{
+			if _, ok := cfg.Racks[r.Name].Blades[b.Index]; ok{
+				return nil, fmt.Errorf("Duplicate Blade %d in Rack %q detected", b.Index, r.Name)
+			}
 			cfg.Racks [r.Name].Blades[b.Index] = &common.BladeCapacity{
 				Cores: b.Cores,
 				MemoryInMb: b.MemoryInMb,
@@ -130,7 +133,9 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error){
 				Arch: b.Arch,
 			}
 		}
-		
+		if err := cfg.Racks[r.Name].Validate(); err != nil {
+			return nil, fmt.Errorf ("In rack %q: %v", r.Name, err)
+		}
 	}
 
  	return cfg, nil

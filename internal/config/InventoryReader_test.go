@@ -79,4 +79,25 @@ func TestInventoryUniquRack (t *testing.T) {
 
 	_, err := ReadInventoryDefinition(".//BadYaml")
 	require.NotNil(t, err)
+	assert.Equal (t, "Duplicate rack \"rack1\" detected", err.Error() )
+}
+
+func TestInventoryUniqueBlade (t *testing.T){
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_, err := ReadInventoryDefinition(".//BadYamlBlade")
+	require.NotNil(t, err)
+	assert.Equal (t, "Duplicate Blade 1 in Rack \"rack1\" detected", err.Error() )
+}
+
+func TestInventoryValidateBlade (t *testing.T){
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_, err := ReadInventoryDefinition(".//BadYamlValidate")
+	require.NotNil(t, err)
+	assert.Equal (t,  "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid", err.Error() )
 }
