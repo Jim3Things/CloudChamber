@@ -42,6 +42,38 @@ func commonSetup() {
 	Initialize(cfg)
 }
 
+func testGenerateKeyFromNames(prefix string, name string) string {
+	return fmt.Sprintf("%s/Key%s", prefix, name)
+}
+
+func testGenerateKeyFromNameAndIndex(name string, index int) string {
+	return fmt.Sprintf("%s/Key%04d", name, index)
+}
+
+func testGenerateValFromNameAndIndex(name string, index int) string {
+	return fmt.Sprintf("%s/Val%04d", name, index)
+}
+
+func testGenerateRequestForWriteWithCondition(setSize int, setName string, condition Condition) *Request {
+	req := &Request{
+		Records:    make(map[string]Record, setSize),
+		Conditions: make(map[string]Condition, setSize),
+	}
+
+	for i := 0; i < setSize; i++ {
+		key := testGenerateKeyFromNameAndIndex(setName, i)
+		val := testGenerateValFromNameAndIndex(setName, i)
+		req.Records[key] = Record{Revision: RevisionInvalid, Value: val}
+		req.Conditions[key] = condition
+	}
+
+	return req
+}
+
+func testGenerateRequestForWrite(setSize int, setName string) *Request {
+	return testGenerateRequestForWriteWithCondition(setSize, setName, ConditionUnconditional)
+}
+
 func testGenerateRequestForRead(setSize int, setName string) *Request {
 	req := &Request{
 		Records:    make(map[string]Record, setSize),
@@ -49,7 +81,7 @@ func testGenerateRequestForRead(setSize int, setName string) *Request {
 	}
 
 	for i := 0; i < setSize; i++ {
-		key := fmt.Sprintf("%s/Key%04d", setName, i)
+		key := testGenerateKeyFromNameAndIndex(setName, i)
 		req.Records[key] = Record{Revision: RevisionInvalid}
 		req.Conditions[key] = ConditionUnconditional
 	}
@@ -57,17 +89,61 @@ func testGenerateRequestForRead(setSize int, setName string) *Request {
 	return req
 }
 
-func testGenerateRequestForWrite(setSize int, setName string) *Request {
+func testGenerateRequestForDelete(setSize int, setName string) *Request {
 	req := &Request{
 		Records:    make(map[string]Record, setSize),
 		Conditions: make(map[string]Condition, setSize),
 	}
 
 	for i := 0; i < setSize; i++ {
-		key := fmt.Sprintf("%s/Key%04d", setName, i)
-		val := fmt.Sprintf("%s/Val%04d", setName, i)
-		req.Records[key] = Record{Revision: RevisionInvalid, Value: val}
+		key := testGenerateKeyFromNameAndIndex(setName, i)
+		req.Records[key] = Record{Revision: RevisionInvalid}
 		req.Conditions[key] = ConditionUnconditional
+	}
+
+	return req
+}
+
+func testGenerateRequestFromWriteRequest(request *Request) *Request {
+	setSize := len(request.Records)
+	req := &Request{
+		Records:    make(map[string]Record, setSize),
+		Conditions: make(map[string]Condition, setSize),
+	}
+
+	for k, r := range request.Records {
+		req.Records[k] = Record{Revision: r.Revision}
+		req.Conditions[k] = ConditionUnconditional
+	}
+
+	return req
+}
+
+func testGenerateRequestForOverwriteFromWriteRequest(request *Request, condition Condition) *Request {
+	setSize := len(request.Records)
+	req := &Request{
+		Records:    make(map[string]Record, setSize),
+		Conditions: make(map[string]Condition, setSize),
+	}
+
+	for k, r := range request.Records {
+		req.Records[k] = Record{Revision: r.Revision, Value: r.Value + "Overwrite"}
+		req.Conditions[k] = condition
+	}
+
+	return req
+}
+
+func testGenerateRequestFromWriteResponse(response *Response) *Request {
+	setSize := len(response.Records)
+	req := &Request{
+		Records:    make(map[string]Record, setSize),
+		Conditions: make(map[string]Condition, setSize),
+	}
+
+	for k, r := range response.Records {
+		req.Records[k] = Record{Revision: r.Revision}
+		req.Conditions[k] = ConditionRevisionEqual
 	}
 
 	return req
@@ -153,29 +229,6 @@ func testCompareReadResponseToWrite(
 	}
 }
 
-func testGenerateKeyValueSetOld(setSize int, setName string) []KeyValueArg {
-
-	keyValueSet := make([]KeyValueArg, setSize)
-
-	for i := range keyValueSet {
-		keyValueSet[i].key = fmt.Sprintf("%s/Key%04d", setName, i)
-		keyValueSet[i].value = fmt.Sprintf("%s/Val%04d", setName, i)
-	}
-
-	return keyValueSet
-}
-
-func testGenerateKeyValueMapFromKeyValueSetOld(keyValueSet []KeyValueArg) map[string]string {
-
-	keyValueMap := make(map[string]string, len(keyValueSet))
-
-	for _, kv := range keyValueSet {
-		keyValueMap[kv.key] = kv.value
-	}
-
-	return keyValueMap
-}
-
 func testGenerateKeySetFromKeyValueSet(keyValueSet []KeyValueArg) []string {
 
 	keySet := make([]string, len(keyValueSet))
@@ -185,26 +238,6 @@ func testGenerateKeySetFromKeyValueSet(keyValueSet []KeyValueArg) []string {
 	}
 
 	return keySet
-}
-
-// Build a set of key,value pairs to be created unconditionally in the store.
-//
-func testGenerateRecordUpdateSetFromKeyValueSetOld(keyValueSet []KeyValueArg, label string, condition Condition) RecordUpdateSet {
-
-	recordUpdateSet := RecordUpdateSet{Label: label, Records: make(map[string]RecordUpdate)}
-
-	for _, kv := range keyValueSet {
-		recordUpdateSet.Records[kv.key] =
-			RecordUpdate{
-				Condition: condition,
-				Record: Record{
-					Revision: RevisionInvalid,
-					Value:    kv.value,
-				},
-			}
-	}
-
-	return recordUpdateSet
 }
 
 // TestMain is the Common test startup method.  This is the _only_ Test* function in this

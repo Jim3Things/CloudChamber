@@ -293,11 +293,11 @@ func (store *Store) ReadNew(
 //       the keys used to persist the callers records but not have to worry
 //       about the encode/decode formats or indeed the target record itself.
 //
-func (store *Store) ReadNewValue(ctx context.Context, r KeyRoot, n string) (value *string, revision int64, err error) {
+func (store *Store) ReadNewValue(ctx context.Context, kr KeyRoot, n string) (value *string, revision int64, err error) {
 	revision = RevisionInvalid
 
 	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(r)
+		prefix := getNamespacePrefixFromKeyRoot(kr)
 
 		st.Infof(ctx, -1, "Request to read value of %q under prefix %q", n, prefix)
 
@@ -386,7 +386,7 @@ func (store *Store) UpdateNew(
 			Records:    make(map[string]Record),
 			Conditions: make(map[string]Condition)}
 
-		k := getKeyFromKeyRootAndName(r, n)
+		k := getKeyFromKeyRootAndName(kr, n)
 		request.Records[k] = Record{Revision: rev, Value: v}
 		request.Conditions[k] = condition
 
