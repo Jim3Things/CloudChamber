@@ -59,7 +59,7 @@ func ReadInventoryDefinition(path string) (*pb.ExternalZone, error){
 
 	viper.SetConfigName(defaultDefinitionFile)
 	viper.AddConfigPath(path)
-	viper.SetConfigType(DefaultConfigType)
+	viper.SetConfigType(defaultConfigType)
 
 	tr := global.TraceProvider().Tracer("")
 
@@ -73,7 +73,7 @@ func ReadInventoryDefinition(path string) (*pb.ExternalZone, error){
 			err = fmt.Errorf("No inventory definition found at %s/%s (%s)",
 					path,
 					defaultDefinitionFile,
-					DefaultConfigType)
+					defaultConfigType)
 		} else {
 			err = fmt.Errorf("fatal error reading definition file: %s", err)
 		}
@@ -91,8 +91,12 @@ func ReadInventoryDefinition(path string) (*pb.ExternalZone, error){
 	}
 
 	// Now convert it into its final form
-	cfg := toExternalZone(xfr)
-
+	cfg, err := toExternalZone(xfr)
+	if err != nil{
+		span.AddEvent(ctx, err.Error())
+		return nil, err
+	}
+	
 	span.AddEvent(ctx,
 		fmt.Sprintf("Inventory definition Read: \n%v", cfg))
 	return cfg, nil	
@@ -102,12 +106,15 @@ func ReadInventoryDefinition(path string) (*pb.ExternalZone, error){
 // One important differnce is that the intermediate is array based.
 // The final format is map based using specific fields in array 
 // enteries as the map keys
-func toExternalZone(xfr *zone) *pb.ExternalZone{
+func toExternalZone(xfr *zone) (*pb.ExternalZone, error){
 	cfg := &pb.ExternalZone{ 
 		Racks : make(map[string]*pb.ExternalRack),
 	}
 
 	for _, r := range xfr.Racks { 
+		if _, ok := cfg.Racks [r.Name]; ok { 
+			return nil, fmt.Errorf("Duplicate rack %q detected", r.Name)
+		}
 		cfg.Racks [r.Name] = &pb.ExternalRack{
 			Tor: &pb.ExternalTor{},
 			Pdu: &pb.ExternalPdu{},
@@ -123,7 +130,17 @@ func toExternalZone(xfr *zone) *pb.ExternalZone{
 				Arch: b.Arch,
 			}
 		}
+		
 	}
 
- 	return cfg 
+ 	return cfg, nil
 }
+
+// to check that the unique rack value is returned or 
+// unique blade value for a rack is returned
+//  before creating a new rack check that rack name is 
+// not already in the map
+// before creating  a new blade make sure that its index
+// is not already in the map
+// once we have created a rack call validate on that rack 
+// and returns if that gets an error
