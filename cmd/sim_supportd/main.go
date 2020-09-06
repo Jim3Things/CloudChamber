@@ -29,7 +29,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.IoWriter, exporters.Production)
+	setup.Init(exporters.IoWriter)
 
 	version.Trace()
 

@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	indent = "    "
+	tab = "    "
 )
 
 // ExtractEntry transforms the incoming information about an OpenTelemetry span
@@ -75,9 +75,10 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 // FormatEntry produces a string containing the information in the span-level
 // data.  This is used by exporters that emit the trace to a text-based stream.
-func FormatEntry(entry *log.Entry, deferred bool) string {
-	stack := indent + strings.ReplaceAll(entry.GetStackTrace(), "\n", "\n"+indent)
-	return fmt.Sprintf(
+func FormatEntry(entry *log.Entry, deferred bool, leader string) string {
+	stack := tab + strings.ReplaceAll(entry.GetStackTrace(), "\n", "\n"+tab)
+
+	return doIndent(fmt.Sprintf(
 		"[%s:%s]%s%s %s %s:\n%s\n",
 		entry.GetSpanID(),
 		entry.GetParentID(),
@@ -85,7 +86,7 @@ func FormatEntry(entry *log.Entry, deferred bool) string {
 		infraFlag(entry.GetInfrastructure()),
 		entry.GetStatus(),
 		entry.GetName(),
-		stack)
+		stack), leader)
 }
 
 // FormatEvent produces a string for a single event in a span that contains the
@@ -93,57 +94,59 @@ func FormatEntry(entry *log.Entry, deferred bool) string {
 // the trace events to a text-based stream.
 func FormatEvent(event *log.Event, leader string) string {
 	if event.SpanStart {
-		return formatSpanStart(event, leader)
+		return strings.TrimSuffix(formatSpanStart(event, leader), leader)
 	}
 
-	return formatNormalEvent(event, leader)
+	return strings.TrimSuffix(formatNormalEvent(event, leader), leader)
 }
 
 // formatSpanStart produces a string for a 'create child span' event
 func formatSpanStart(event *log.Event, leader string) string {
-	stack := indent + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+indent)
+	stack := tab + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+tab)
 
 	if event.GetTick() < 0 {
-		return strings.ReplaceAll(fmt.Sprintf(
-			"%s       : Start Child Span: %s\n%s\n",
-			leader,
+		return doIndent(fmt.Sprintf(
+			"       : Start Child Span: %s\n%s\n",
 			event.GetSpanId(),
-			stack), "\n", "\n"+leader)
+			stack), leader)
 	}
 
-	return strings.ReplaceAll(fmt.Sprintf(
-		"%s  @%4d: Start Child Span: %s\n%s\n",
-		leader,
+	return doIndent(fmt.Sprintf(
+		"  @%4d: Start Child Span: %s\n%s\n",
 		event.GetTick(),
 		event.GetSpanId(),
-		stack), "\n", "\n"+leader)
+		stack), leader)
 }
 
 // formatNormalEvent produces a string for all other events
 func formatNormalEvent(event *log.Event, leader string) string {
-	stack := indent + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+indent)
+	stack := tab + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+tab)
 
 	if event.GetTick() < 0 {
-		return strings.ReplaceAll(fmt.Sprintf(
-			"%s       : [%s] (%s) %s\n%s\n",
-			leader,
+		return doIndent(fmt.Sprintf(
+			"       : [%s] (%s) %s\n%s\n",
 			severityFlag(event.GetSeverity()),
 			event.GetName(),
 			event.GetText(),
-			stack), "\n", "\n"+leader)
+			stack), leader)
 	}
 
-	return strings.ReplaceAll(fmt.Sprintf(
-		"%s  @%4d: [%s] (%s) %s\n%s\n",
-		leader,
+	return doIndent(fmt.Sprintf(
+		"  @%4d: [%s] (%s) %s\n%s\n",
 		event.GetTick(),
 		severityFlag(event.GetSeverity()),
 		event.GetName(),
 		event.GetText(),
-		stack), "\n", "\n"+leader)
+		stack), leader)
 }
 
-// +++ helper functions that format specific fields
+// +++ helper functions
+
+func doIndent(s string, indent string) string {
+	return strings.TrimSuffix(
+		strings.ReplaceAll(indent + s, "\n", "\n"+indent),
+		indent)
+}
 
 func severityFlag(severity log.Severity) string {
 	var severityToText = map[log.Severity]string{

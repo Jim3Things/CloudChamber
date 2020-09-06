@@ -223,6 +223,7 @@ func scheduleReconnect() {
 			log.Fatalf("unexpected change in state while waiting for the backoff interval.  State is %v", state)
 		}
 
+		state = disconnected
 		attemptConnection()
 	})
 }
