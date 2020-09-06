@@ -46,7 +46,7 @@ func main() {
 	}
 
 	if *showConfig {
-		fmt.Println(config.ToString(cfg))
+		fmt.Println(cfg)
 		os.Exit(0)
 	}
 
