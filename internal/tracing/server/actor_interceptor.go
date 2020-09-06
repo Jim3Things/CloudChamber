@@ -25,10 +25,14 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 	return func(c actor.ReceiverContext, envelope *actor.MessageEnvelope) {
 		tr := global.TraceProvider().Tracer("server")
 
+		ctxIn := annotatedContext(context.Background(), envelope)
+
 		ctx, span := tr.Start(
-			annotatedContext(context.Background(), envelope),
+			ctxIn,
 			fmt.Sprintf("Actor %q/Receive", c.Self()),
 			trc.WithSpanKind(trc.SpanKindServer),
+			trc.WithNewRoot(),
+			trc.LinkedTo(spanContextFromEnvelope(envelope)),
 			trc.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
 		)
 
@@ -41,7 +45,7 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 
 		hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-		Info(ctx, -1, fmt.Sprintf("Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
+		Infof(ctx, -1, "Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg))
 
 		next(c, envelope)
 	}
@@ -143,8 +147,14 @@ func dumpMessage(msg interface{}) string {
 	}
 }
 
-func annotatedContext(ctx context.Context, envelope *actor.MessageEnvelope) context.Context {
-	parent := trc.SpanContext{
+func spanContextFromEnvelope(envelope *actor.MessageEnvelope) trc.SpanContext {
+	noop := trc.SpanContext{
+		TraceID:    trc.ID{},
+		SpanID:     trc.SpanID{},
+		TraceFlags: 0,
+	}
+
+	res := trc.SpanContext{
 		TraceID:    trc.ID{},
 		SpanID:     trc.SpanID{},
 		TraceFlags: 0,
@@ -152,24 +162,34 @@ func annotatedContext(ctx context.Context, envelope *actor.MessageEnvelope) cont
 
 	id, err := trc.SpanIDFromHex(envelope.Header.Get(tracing.SourceSpanID))
 	if err == nil {
-		parent.SpanID = id
+		res.SpanID = id
 	} else {
-		return ctx
+		return noop
 	}
 
 	traceID, err := trc.IDFromHex(envelope.Header.Get(tracing.SourceTraceID))
 	if err == nil {
-		parent.TraceID = traceID
+		res.TraceID = traceID
 	} else {
-		return ctx
+		return noop
 	}
 
 	flg, err := strconv.Atoi(envelope.Header.Get(tracing.SourceTraceFlgs))
 	if err == nil {
-		parent.TraceFlags = byte(flg)
+		res.TraceFlags = byte(flg)
 	} else {
-		return ctx
+		return noop
 	}
+
+	if res.IsValid() {
+		return res
+	}
+
+	return noop
+}
+
+func annotatedContext(ctx context.Context, envelope *actor.MessageEnvelope) context.Context {
+	parent := spanContextFromEnvelope(envelope)
 
 	if parent.IsValid() {
 		return trc.ContextWithRemoteSpanContext(ctx, parent)

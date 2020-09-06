@@ -162,7 +162,13 @@ func (s *spans) add(entry *log.Entry, io io.Writer) {
 
 		// Ensure that the closed list is empty
 		if len(a.closed) != 0 {
-			stdLog.Fatalf("Expected all closed, %v", a)
+			msg := fmt.Sprintf("Expected all closed, %v: ", a)
+			for id, _ := range a.closed {
+				sp, ok := s.known[id]
+				msg = fmt.Sprintf("%s (%v)%v ", msg, ok, sp)
+			}
+
+			stdLog.Fatal(msg)
 		}
 
 		delete(s.active, traceID)
