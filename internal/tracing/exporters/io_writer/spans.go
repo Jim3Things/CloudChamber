@@ -46,7 +46,7 @@ type activeEntry struct {
 	// yet completed an export operation.
 	open map[string]bool
 
-	// closed as the SpanIDs that have been found an have completed their
+	// closed are the SpanIDs that have been found an have completed their
 	// export operation
 	closed map[string]bool
 }

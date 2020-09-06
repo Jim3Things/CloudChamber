@@ -57,7 +57,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 		rackCount, maxBlades, maxCapacity := dbInventory.GetMemoData()
 		res := &pb.ExternalZoneSummary{
-			Racks:         make(map[string]*pb.ExternalRackSummary),
+			Racks:         make(map[string]*pb.ExternalRackSummary, rackCount),
 			MaxBladeCount: maxBlades,
 			MaxCapacity:   maxCapacity,
 		}
