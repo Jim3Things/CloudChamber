@@ -3,7 +3,6 @@ package io_writer
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 	"sync"
 
@@ -53,6 +52,8 @@ var (
 	// queue holds the trace entries that have arrived prior to establishing
 	// the IO writer to use.
 	queue = common.NewDeferrable(0)
+
+	spanSet = newSpans()
 )
 
 // SetLogFileWriter establishes the IO writer to use to output the trace entries.
@@ -109,12 +110,8 @@ func (e *Exporter) ExportSpan(ctx context.Context, data *export.SpanData) {
 	}
 }
 
-func processOneEntry(entry *log.Entry, deferred bool) error {
-	_, _ = outputWriter.Write([]byte(fmt.Sprintf("%s\n\n", common.FormatEntry(entry, deferred))))
-
-	for _, event := range entry.Event {
-		_, _ = outputWriter.Write([]byte(fmt.Sprintf("%s\n\n", common.FormatEvent(event))))
-	}
+func processOneEntry(entry *log.Entry, _ bool) error {
+	spanSet.add(entry, outputWriter)
 
 	return nil
 }

@@ -55,18 +55,21 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		maxBlades, maxCapacity := dbInventory.GetMemoData()
+		rackCount, maxBlades, maxCapacity := dbInventory.GetMemoData()
 		res := &pb.ExternalZoneSummary{
-			Racks:         make(map[string]*pb.ExternalRackSummary),
+			Racks:         make(map[string]*pb.ExternalRackSummary, rackCount),
 			MaxBladeCount: maxBlades,
 			MaxCapacity:   maxCapacity,
 		}
 
+		// Pick up the current time to avoid repeatedly fetching the same value
+		tick := common.Tick(ctx)
+
 		st.Infof(
 			ctx,
-			common.Tick(),
+			tick,
 			"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
-			len(res.Racks),
+			rackCount,
 			res.MaxBladeCount,
 			res.MaxCapacity)
 
@@ -80,7 +83,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 			res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
-			st.Infof(ctx, common.Tick(), "   Listing rack %q at %q", name, target)
+			st.Infof(ctx, tick, "   Listing rack %q at %q", name, target)
 
 			return nil
 		})
@@ -112,7 +115,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		st.Infof(ctx, common.Tick(), "Returning details for rack %q: %v", rackID, u)
+		st.Infof(ctx, common.Tick(ctx), "Returning details for rack %q: %v", rackID, u)
 
 		// Get the user entry, and serialize it to json
 		// (export userPublic to json and return that as the body)
@@ -133,21 +136,27 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		rackID := vars["rackID"] // captured the key value in rackID variable
 
+		// Pick up the current time to avoid repeatedly fetching the same value
+		tick := common.Tick(ctx)
+
 		if _, err = fmt.Fprintf(w, "Blades in %q (List)\n", rackID); err != nil {
 			return httpError(ctx, w, err)
 		}
+
 		b := r.URL.String()
 		if !strings.HasSuffix(b, "/") {
 			b += "/"
 		}
+
 		return dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
 
 			target := fmt.Sprintf("%s%d", b, bladeID)
-			st.Infof(ctx, common.Tick(), " Listing blades '%d' at %q", bladeID, target)
+			st.Infof(ctx, tick, " Listing blades '%d' at %q", bladeID, target)
 
 			if _, err = fmt.Fprintln(w, target); err != nil {
 				return httpError(ctx, w, err)
 			}
+
 			return nil
 		})
 	})
@@ -179,9 +188,11 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
-		st.Infof(ctx, common.Tick(), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+
+		st.Infof(ctx, common.Tick(ctx), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
 
 		p := jsonpb.Marshaler{}
 		return p.Marshal(w, blade)
 	})
 }
+

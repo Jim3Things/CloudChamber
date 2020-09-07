@@ -167,11 +167,11 @@ func InitDBInventory() error {
 
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
-func (m *DBInventory) GetMemoData() (int64, *common.BladeCapacity) {
+func (m *DBInventory) GetMemoData() (int, int64, *common.BladeCapacity) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	return m.MaxBladeCount, m.MaxCapacity
+	return len(m.Zone.Racks), m.MaxBladeCount, m.MaxCapacity
 }
 
 // Scan the set of known blades the store, invoking the supplied

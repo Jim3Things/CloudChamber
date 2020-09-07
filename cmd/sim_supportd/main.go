@@ -29,7 +29,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.IoWriter, exporters.Production)
+	setup.Init(exporters.IoWriter)
 
 	version.Trace()
 
@@ -39,7 +39,7 @@ func main() {
 	}
 
 	if *showConfig {
-		fmt.Println(config.ToString(cfg))
+		fmt.Println(cfg)
 		os.Exit(0)
 	}
 

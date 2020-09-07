@@ -48,7 +48,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		ch := tsc.GetTraces(fromId, maxSize)
+		ch := tsc.GetTraces(ctx, fromId, maxSize)
 
 		data := <-ch
 		if data.Err != nil {
@@ -77,7 +77,7 @@ func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		policy, err := tsc.GetPolicy()
+		policy, err := tsc.GetPolicy(ctx)
 		if err != nil {
 			return httpError(ctx, w, err)
 		}

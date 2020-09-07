@@ -34,8 +34,8 @@ func InitTimestamp(name string, opts ...grpc.DialOption) {
 }
 
 // Set the stepper policy
-func SetPolicy(policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
-	ctx, conn, err := connect()
+func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
+	ctx, conn, err := connect(ctx)
 	if err != nil {
 		return err
 	}
@@ -56,8 +56,8 @@ func SetPolicy(policy pb.StepperPolicy, delay *duration.Duration, match int64) e
 }
 
 // Advance the simulated time, assuming that the policy mode is manual
-func Advance() error {
-	ctx, conn, err := connect()
+func Advance(ctx context.Context) error {
+	ctx, conn, err := connect(ctx)
 	if err != nil {
 		return err
 	}
@@ -72,8 +72,8 @@ func Advance() error {
 }
 
 // Get the current simulated time.
-func Now() (*ct.Timestamp, error) {
-	ctx, conn, err := connect()
+func Now(ctx context.Context) (*ct.Timestamp, error) {
+	ctx, conn, err := connect(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -87,11 +87,11 @@ func Now() (*ct.Timestamp, error) {
 
 // Delay until the simulated time meets or exceeds the specified deadline.
 // Completion is asynchronous, even if no delay is required.
-func After(deadline *ct.Timestamp) <-chan TimeData {
+func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 
 	go func(res chan<- TimeData) {
-		ctx, conn, err := connect()
+		ctx, conn, err := connect(ctx)
 		if err != nil {
 			res <- TimeData{
 				Time: nil,
@@ -116,8 +116,8 @@ func After(deadline *ct.Timestamp) <-chan TimeData {
 	return ch
 }
 
-func Status() (*pb.StatusResponse, error) {
-	ctx, conn, err := connect()
+func Status(ctx context.Context) (*pb.StatusResponse, error) {
+	ctx, conn, err := connect(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -132,8 +132,8 @@ func Status() (*pb.StatusResponse, error) {
 // Reset the simulated time back to its starting state, including reverting all
 // policies back to their default.  This is used by unit tests to ensure a well
 // known starting state for a test.
-func Reset() error {
-	ctx, conn, err := connect()
+func Reset(ctx context.Context) error {
+	ctx, conn, err := connect(ctx)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func Reset() error {
 }
 
 // Helper function to connect to the stepper client.
-func connect() (context.Context, *grpc.ClientConn, error) {
+func connect(ctx context.Context) (context.Context, *grpc.ClientConn, error) {
 	conn, err := grpc.Dial(dialName, dialOpts...)
 
 	if err != nil {
@@ -161,7 +161,6 @@ func connect() (context.Context, *grpc.ClientConn, error) {
 		"client-id", "web-api-client-us-east-1",
 		"user-id", "some-test-user-id",
 	)
-	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
-	return ctx, conn, nil
+	return metadata.NewOutgoingContext(ctx, md), conn, nil
 }

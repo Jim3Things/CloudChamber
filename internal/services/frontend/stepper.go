@@ -46,7 +46,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		stat, err := clients.Status()
+		stat, err := clients.Status(ctx)
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
@@ -86,13 +86,13 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 
 		// Advance the time the request number of ticks
 		for i := 0; i < count; i++ {
-			if err = clients.Advance(); err != nil {
+			if err = clients.Advance(ctx); err != nil {
 				return httpError(ctx, w, err)
 			}
 		}
 
 		// .. and get the current time to return in the body of the response
-		now, err := clients.Now()
+		now, err := clients.Now(ctx)
 		if err != nil {
 			return httpError(ctx, w, err)
 		}
@@ -158,7 +158,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, NewErrInvalidStepperMode(args[0]))
 		}
 
-		if err = clients.SetPolicy(policy, delay, match); err != nil {
+		if err = clients.SetPolicy(ctx, policy, delay, match); err != nil {
 			return httpError(ctx, w, NewErrStepperFailedToSetPolicy())
 		}
 
@@ -188,7 +188,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
-			data = <-clients.After(&ct.Timestamp{Ticks: afterTick + 1})
+			data = <-clients.After(ctx, &ct.Timestamp{Ticks: afterTick + 1})
 			if data.Err != nil {
 				return data.Err
 			}
@@ -216,7 +216,7 @@ func handleGetNow(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		now, err := clients.Now()
+		now, err := clients.Now(ctx)
 		if err != nil {
 			return httpError(ctx, w, err)
 		}

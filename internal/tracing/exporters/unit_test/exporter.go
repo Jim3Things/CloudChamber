@@ -75,9 +75,9 @@ func flushSaved(ctx context.Context) {
 
 // Send one entry to the output channel
 func processOneEntry(entry *log.Entry, deferred bool) {
-	testContext.Log(common.FormatEntry(entry, deferred))
+	testContext.Log(common.FormatEntry(entry, deferred, ""))
 
 	for _, event := range entry.Event {
-		testContext.Log(common.FormatEvent(event))
+		testContext.Log(common.FormatEvent(event, ""))
 	}
 }
