@@ -300,65 +300,6 @@ func TestStoreWriteReadTxn(t *testing.T) {
 	return
 }
 
-// func TestStoreWriteReadTxnInvalid(t *testing.T) {
-// 	unit_test.SetTesting(t)
-// 	defer unit_test.SetTesting(nil)
-
-// 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-// 		testName := "TestStoreWriteReadTxnInvalid"
-// 		key := testGenerateKeyFromName(testName)
-
-// 		invalidName := "InvalidName"
-// 		invalidKey := testGenerateKeyFromNames(testName, "InvalidName")
-
-// 		writeRequest := testGenerateRequestForWrite(1, key)
-// 		readRequest := testGenerateRequestForRead(1, key)
-
-// 		readInvalidRequest := testGenerateRequestForSimpleRead(invalidName)
-
-// 		assert.Equal(t, 1, len(writeRequest.Records))
-// 		assert.Equal(t, 1, len(readRequest.Records))
-// 		assert.Equal(t, 1, len(readInvalidRequest.Records))
-
-// 		store := NewStore()
-// 		assert.NotNilf(t, store, "Failed to get the store as expected")
-
-// 		err = store.Connect()
-// 		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
-
-// 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
-// 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
-// 		require.NotNil(t, writeResponse)
-// 		assert.Equal(t, 0, len(writeResponse.Records))
-// 		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
-
-// 		// Look for a name we do not expect to be present
-// 		//
-// 		readResponse, err := store.ReadTxn(ctx, readInvalidRequest)
-// 		assert.NotNilf(t, err, "Succeeded to read non-existing key/value from store - error: %v key: %v", err, invalidKey)
-// 		assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
-// 		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, invalidKey)
-
-// 		// Now try to read a key which should be there.
-// 		//
-// 		readResponse, err = store.ReadTxn(ctx, readRequest)
-// 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
-// 		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
-// 		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
-// 		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
-
-// 		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
-
-// 		store.Disconnect()
-
-// 		store = nil
-
-// 		return nil
-// 	})
-
-// 	return
-// }
-
 func TestStoreWriteReadTxnRequired(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
