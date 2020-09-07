@@ -20,7 +20,7 @@ import (
 // large may lead to problems with values to /from the underlying store,
 // so be reasonable.
 //
-const keySetSize = 100
+const keySetSize = 10
 
 var (
 	initialized bool
@@ -46,63 +46,135 @@ func testGenerateKeyFromNames(prefix string, name string) string {
 	return fmt.Sprintf("%s/Key%s", prefix, name)
 }
 
+func testGenerateKeyFromName(prefix string) string {
+	return fmt.Sprintf("%s/Key", prefix)
+}
+
 func testGenerateKeyFromNameAndIndex(name string, index int) string {
-	return fmt.Sprintf("%s/Key%04d", name, index)
+	return fmt.Sprintf("%s/Index%04d", name, index)
+}
+
+func testGenerateValFromName(name string) string {
+	return fmt.Sprintf("%s/Value", name)
 }
 
 func testGenerateValFromNameAndIndex(name string, index int) string {
-	return fmt.Sprintf("%s/Val%04d", name, index)
+	return fmt.Sprintf("%s/Value%04d", name, index)
 }
 
-func testGenerateRequestForWriteWithCondition(setSize int, setName string, condition Condition) *Request {
-	req := &Request{
-		Records:    make(map[string]Record, setSize),
-		Conditions: make(map[string]Condition, setSize),
+func testgenerateGenericInitializedRecord(withValue bool, val string) (rec Record) {
+	if withValue {
+		rec = Record{Revision: RevisionInvalid, Value: val}
+	} else {
+		rec = Record{Revision: RevisionInvalid}
 	}
 
-	for i := 0; i < setSize; i++ {
-		key := testGenerateKeyFromNameAndIndex(setName, i)
-		val := testGenerateValFromNameAndIndex(setName, i)
-		req.Records[key] = Record{Revision: RevisionInvalid, Value: val}
+	return rec
+}
+
+func testGenerateGenericRequest(size int, name string, withValue bool, condition Condition) (req *Request) {
+	if size == 0 {
+		req = &Request{
+			Records:    make(map[string]Record, 1),
+			Conditions: make(map[string]Condition, 1),
+		}
+
+		key := name
+		val := testGenerateValFromName(name)
+
 		req.Conditions[key] = condition
+		req.Records[key] = testgenerateGenericInitializedRecord(withValue, val)
+	} else {
+		req = &Request{
+			Records:    make(map[string]Record, size),
+			Conditions: make(map[string]Condition, size),
+		}
+
+		for i := 0; i < size; i++ {
+			key := testGenerateKeyFromNameAndIndex(name, i)
+			val := testGenerateValFromNameAndIndex(name, i)
+
+			req.Conditions[key] = condition
+			req.Records[key] = testgenerateGenericInitializedRecord(withValue, val)
+		}
 	}
 
 	return req
 }
 
-func testGenerateRequestForWrite(setSize int, setName string) *Request {
-	return testGenerateRequestForWriteWithCondition(setSize, setName, ConditionUnconditional)
+// +++ Helper functions to generate assorted write requests
+
+func testGenerateRequestForWriteInternal(size int, name string, condition Condition) (req *Request) {
+	return testGenerateGenericRequest(size, name, true, condition)
 }
 
-func testGenerateRequestForRead(setSize int, setName string) *Request {
-	req := &Request{
-		Records:    make(map[string]Record, setSize),
-		Conditions: make(map[string]Condition, setSize),
-	}
-
-	for i := 0; i < setSize; i++ {
-		key := testGenerateKeyFromNameAndIndex(setName, i)
-		req.Records[key] = Record{Revision: RevisionInvalid}
-		req.Conditions[key] = ConditionUnconditional
-	}
-
-	return req
+func testGenerateRequestForWrite(size int, name string) *Request {
+	return testGenerateRequestForWriteInternal(size, name, ConditionUnconditional)
 }
 
-func testGenerateRequestForDelete(setSize int, setName string) *Request {
-	req := &Request{
-		Records:    make(map[string]Record, setSize),
-		Conditions: make(map[string]Condition, setSize),
-	}
-
-	for i := 0; i < setSize; i++ {
-		key := testGenerateKeyFromNameAndIndex(setName, i)
-		req.Records[key] = Record{Revision: RevisionInvalid}
-		req.Conditions[key] = ConditionUnconditional
-	}
-
-	return req
+func testGenerateRequestForWriteCreate(size int, name string) *Request {
+	return testGenerateRequestForWriteInternal(size, name, ConditionCreate)
 }
+
+func testGenerateRequestForWriteUpdate(size int, name string) *Request {
+	return testGenerateRequestForWriteInternal(size, name, ConditionRevisionEqual)
+}
+
+func testGenerateRequestForSimpleWrite(name string) *Request {
+	return testGenerateRequestForWriteInternal(0, name, ConditionUnconditional)
+}
+
+// --- Helper functions to generate assorted write requests
+
+// +++ Helper functions to generate assorted read requests
+
+func testGenerateRequestForReadInternal(size int, name string, condition Condition) (req *Request) {
+	return testGenerateGenericRequest(size, name, false, condition)
+}
+
+func testGenerateRequestForReadWithCondition(size int, name string, condition Condition) *Request {
+	return testGenerateRequestForReadInternal(size, name, condition)
+}
+
+func testGenerateRequestForRead(size int, name string) *Request {
+	return testGenerateRequestForReadInternal(size, name, ConditionRequired)
+}
+
+func testGenerateRequestForSimpleReadWithCondition(name string, condition Condition) *Request {
+	return testGenerateRequestForReadInternal(0, name, condition)
+}
+
+func testGenerateRequestForSimpleRead(name string) *Request {
+	return testGenerateRequestForReadInternal(0, name, ConditionRequired)
+}
+
+// --- Helper functions to generate assorted read requests
+
+// +++ Helper functions to generate assorted delete requests
+
+func testGenerateRequestForDeleteInternal(size int, name string, condition Condition) *Request {
+	return testGenerateGenericRequest(size, name, false, condition)
+}
+
+func testGenerateRequestForDeleteWithCondition(size int, name string, condition Condition) *Request {
+	return testGenerateRequestForDeleteInternal(size, name, condition)
+}
+
+func testGenerateRequestForDelete(size int, name string) *Request {
+	return testGenerateRequestForDeleteInternal(size, name, ConditionUnconditional)
+}
+
+func testGenerateRequestForSimpleDeleteWithCondition(name string, condition Condition) *Request {
+	return testGenerateRequestForDeleteInternal(0, name, condition)
+}
+
+func testGenerateRequestForSimpleDelete(name string) *Request {
+	return testGenerateRequestForDeleteInternal(0, name, ConditionRequired)
+}
+
+// --- Helper functions to generate assorted delete requests
+
+// +++ Helper functions to generate assorted requests for chained operations
 
 func testGenerateRequestFromWriteRequest(request *Request) *Request {
 	setSize := len(request.Records)
@@ -111,42 +183,38 @@ func testGenerateRequestFromWriteRequest(request *Request) *Request {
 		Conditions: make(map[string]Condition, setSize),
 	}
 
-	for k, r := range request.Records {
-		req.Records[k] = Record{Revision: r.Revision}
+	for k := range request.Records {
+		req.Records[k] = Record{Revision: RevisionInvalid}
 		req.Conditions[k] = ConditionUnconditional
 	}
 
 	return req
 }
 
-func testGenerateRequestForOverwriteFromWriteRequest(request *Request, condition Condition) *Request {
-	setSize := len(request.Records)
+func testGenerateRequestFromWReadResponseWithCondition(response *Response, condition Condition) *Request {
+	size := len(response.Records)
 	req := &Request{
-		Records:    make(map[string]Record, setSize),
-		Conditions: make(map[string]Condition, setSize),
+		Records:    make(map[string]Record, size),
+		Conditions: make(map[string]Condition, size),
 	}
 
-	for k, r := range request.Records {
-		req.Records[k] = Record{Revision: r.Revision, Value: r.Value + "Overwrite"}
+	for k, r := range response.Records {
+		val := r.Value + "Update"
+		rev := r.Revision
+
+		if condition == ConditionUnconditional {
+			rev = RevisionInvalid
+		}
+
+		req.Records[k] = Record{Revision: rev, Value: val}
 		req.Conditions[k] = condition
 	}
 
 	return req
 }
 
-func testGenerateRequestFromWriteResponse(response *Response) *Request {
-	setSize := len(response.Records)
-	req := &Request{
-		Records:    make(map[string]Record, setSize),
-		Conditions: make(map[string]Condition, setSize),
-	}
-
-	for k, r := range response.Records {
-		req.Records[k] = Record{Revision: r.Revision}
-		req.Conditions[k] = ConditionRevisionEqual
-	}
-
-	return req
+func testGenerateRequestFromReadResponse(response *Response) *Request {
+	return testGenerateRequestFromWReadResponseWithCondition(response, ConditionUnconditional)
 }
 
 func testCompareReadRecordToWriteRecord(rRec *Record, wRec *Record, wRev int64) bool {
@@ -211,19 +279,15 @@ func testCompareReadResponseToWrite(
 
 		require.Truef(t, ok, "No write request record to match read response record")
 
-		wRes, ok := writeResponse.Records[k]
-
-		require.Truef(t, ok, "No write response record to match read response record")
-
-		ok = testCompareReadRecordToWriteRecord(&r, &wReq, wRes.Revision)
+		ok = testCompareReadRecordToWriteRecord(&r, &wReq, writeResponse.Revision)
 
 		assert.Truef(
 			t,
 			ok,
-			"read response does not match write request - key: %s wVal: %s wRev %v rVal %s rRev: %v",
+			"write request does not match read response - key: %s wVal: %s wRev %v rVal %s rRev: %v",
 			k,
 			wReq.Value,
-			wRes.Revision,
+			writeResponse.Revision,
 			r.Value,
 			r.Revision)
 	}

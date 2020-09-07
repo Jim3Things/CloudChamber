@@ -745,6 +745,7 @@ type Condition string
 //
 const (
 	ConditionCreate                 = Condition("new")
+	ConditionRequired               = Condition("req")
 	ConditionUnconditional          = Condition("*")
 	ConditionRevisionNotEqual       = Condition("!=")
 	ConditionRevisionLess           = Condition("<")
@@ -754,136 +755,12 @@ const (
 	ConditionRevisionGreater        = Condition(">")
 )
 
-// RecordKeySet is a struct defining the set of keys to be read along with an arbitrary
-// label to tag the transaction.
-//
-type RecordKeySet struct {
-	Label string
-	Keys  []string
-}
-
 // Record is a struct defining a single value and the associated revision describing
 // the store revision when the value was last updated.
 //
 type Record struct {
 	Revision int64
 	Value    string
-}
-
-// RecordSet is a struct defining a set of k,v pairs along with the revision of the
-// store at the time the values were retrieved.
-//
-type RecordSet struct {
-	Revision int64
-	Records  map[string]Record
-}
-
-// RecordUpdate is a struct defining a single value and it's revision along with
-// a condition based upon that revision which will permit an update to be attempted.
-//
-type RecordUpdate struct {
-	Condition Condition
-	Record    Record
-}
-
-// RecordUpdateSet is a struct defining the set of key value pairs to be updated
-// within a transaction along with conditions for a successful update based upon
-// the current revision of the k,v pair
-//
-type RecordUpdateSet struct {
-	Label   string
-	Records map[string]RecordUpdate
-}
-
-func generatePrefetchKeys(recordSet *RecordUpdateSet) (*[]string, error) {
-	prefetchKeys := make([]string, 0, len(recordSet.Records))
-
-	// Build an array of keys to supply as the arg to prefetch
-	// on the WithPrefetch() option below
-	//
-	for k, ru := range recordSet.Records {
-		switch ru.Condition {
-		case ConditionUnconditional:
-			// No need to prefetch if not comparing anything
-			break
-
-		case ConditionRevisionNotEqual:
-			fallthrough
-
-		case ConditionRevisionLess:
-			fallthrough
-
-		case ConditionRevisionLessOrEqual:
-			fallthrough
-
-		case ConditionRevisionEqual:
-			fallthrough
-
-		case ConditionRevisionEqualOrGreater:
-			fallthrough
-
-		case ConditionRevisionGreater:
-			if ru.Record.Revision == RevisionInvalid {
-				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, ru.Record.Revision}
-			}
-
-			fallthrough
-
-		case ConditionCreate:
-			prefetchKeys = append(prefetchKeys, k)
-
-		default:
-			return nil, ErrStoreBadArgCondition{k, ru.Condition}
-		}
-	}
-
-	return &prefetchKeys, nil
-}
-
-func checkConditions(stm concurrency.STM, recordSet *RecordUpdateSet) error {
-	for k, ru := range recordSet.Records {
-		if ru.Condition == ConditionCreate {
-			if stm.Get(k) != "" {
-				return ErrStoreAlreadyExists(k)
-			}
-		} else if ru.Condition != ConditionUnconditional {
-			rev := stm.Rev(k)
-
-			switch ru.Condition {
-			case ConditionRevisionLess:
-				if rev >= ru.Record.Revision {
-					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-				}
-
-			case ConditionRevisionLessOrEqual:
-				if rev > ru.Record.Revision {
-					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-				}
-
-			case ConditionRevisionEqual:
-				if rev != ru.Record.Revision {
-					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-				}
-
-			case ConditionRevisionNotEqual:
-				if rev == ru.Record.Revision {
-					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-				}
-
-			case ConditionRevisionEqualOrGreater:
-				if rev < ru.Record.Revision {
-					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-				}
-
-			case ConditionRevisionGreater:
-				if rev <= ru.Record.Revision {
-					return ErrStoreConditionFail{k, ru.Record.Revision, ru.Condition, rev}
-				}
-			}
-		}
-	}
-
-	return nil
 }
 
 func getPrefetchKeys(req *Request) (*[]string, error) {
@@ -921,6 +798,9 @@ func getPrefetchKeys(req *Request) (*[]string, error) {
 
 			fallthrough
 
+		case ConditionRequired:
+			fallthrough
+
 		case ConditionCreate:
 			prefetchKeys = append(prefetchKeys, k)
 
@@ -935,44 +815,63 @@ func getPrefetchKeys(req *Request) (*[]string, error) {
 func chkConditions(stm concurrency.STM, req *Request) error {
 	for k, r := range req.Records {
 		c := req.Conditions[k]
-		if c == ConditionCreate {
-			if stm.Get(k) != "" {
+
+		// If the revision is zero, we take that to mean the key
+		// does not actually exist.
+		//
+		// Note that a key might well exist even if the value is
+		// an empty string. At least I believe it can. We choose
+		// to use the revision instead as a more reliable
+		// indicator of existence.
+		//
+		rev := stm.Rev(k)
+
+		switch c {
+		case ConditionCreate:
+			if rev != 0 {
 				return ErrStoreAlreadyExists(k)
 			}
-		} else if c != ConditionUnconditional {
-			rev := stm.Rev(k)
 
-			switch c {
-			case ConditionRevisionLess:
-				if rev >= r.Revision {
-					return ErrStoreConditionFail{k, r.Revision, c, rev}
-				}
-
-			case ConditionRevisionLessOrEqual:
-				if rev > r.Revision {
-					return ErrStoreConditionFail{k, r.Revision, c, rev}
-				}
-
-			case ConditionRevisionEqual:
-				if rev != r.Revision {
-					return ErrStoreConditionFail{k, r.Revision, c, rev}
-				}
-
-			case ConditionRevisionNotEqual:
-				if rev == r.Revision {
-					return ErrStoreConditionFail{k, r.Revision, c, rev}
-				}
-
-			case ConditionRevisionEqualOrGreater:
-				if rev < r.Revision {
-					return ErrStoreConditionFail{k, r.Revision, c, rev}
-				}
-
-			case ConditionRevisionGreater:
-				if rev <= r.Revision {
-					return ErrStoreConditionFail{k, r.Revision, c, rev}
-				}
+		case ConditionRequired:
+			if rev == 0 {
+				return ErrStoreKeyNotFound(k)
 			}
+
+		case ConditionRevisionLess:
+			if rev >= r.Revision {
+				return ErrStoreConditionFail{k, r.Revision, c, rev}
+			}
+
+		case ConditionRevisionLessOrEqual:
+			if rev > r.Revision {
+				return ErrStoreConditionFail{k, r.Revision, c, rev}
+			}
+
+		case ConditionRevisionEqual:
+			if rev != r.Revision {
+				return ErrStoreConditionFail{k, r.Revision, c, rev}
+			}
+
+		case ConditionRevisionNotEqual:
+			if rev == r.Revision {
+				return ErrStoreConditionFail{k, r.Revision, c, rev}
+			}
+
+		case ConditionRevisionEqualOrGreater:
+			if rev < r.Revision {
+				return ErrStoreConditionFail{k, r.Revision, c, rev}
+			}
+
+		case ConditionRevisionGreater:
+			if rev <= r.Revision {
+				return ErrStoreConditionFail{k, r.Revision, c, rev}
+			}
+
+		case ConditionUnconditional:
+			// do nothing
+
+		default:
+			return ErrStoreBadArgCondition{key: k, condition: c}
 		}
 	}
 

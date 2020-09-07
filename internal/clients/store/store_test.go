@@ -262,15 +262,13 @@ func TestStoreWriteReadTxn(t *testing.T) {
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadTxn"
-		invalidKey := testGenerateKeyFromNames(testName, "InvalidName")
+		key := testGenerateKeyFromName(testName)
 
-		writeRequest := testGenerateRequestForWrite(1, testName)
-		readRequest := testGenerateRequestForRead(1, testName)
-		readInvalidRequest := testGenerateRequestForRead(1, invalidKey)
+		writeRequest := testGenerateRequestForWrite(1, key)
+		readRequest := testGenerateRequestForRead(1, key)
 
 		assert.Equal(t, 1, len(writeRequest.Records))
 		assert.Equal(t, 1, len(readRequest.Records))
-		assert.Equal(t, 1, len(readInvalidRequest.Records))
 
 		store := NewStore()
 		assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -281,21 +279,188 @@ func TestStoreWriteReadTxn(t *testing.T) {
 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, writeResponse)
-		require.Equal(t, len(writeRequest.Records), len(writeResponse.Records))
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
 
-		// Look for a name we do not expect to be present
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+// func TestStoreWriteReadTxnInvalid(t *testing.T) {
+// 	unit_test.SetTesting(t)
+// 	defer unit_test.SetTesting(nil)
+
+// 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+// 		testName := "TestStoreWriteReadTxnInvalid"
+// 		key := testGenerateKeyFromName(testName)
+
+// 		invalidName := "InvalidName"
+// 		invalidKey := testGenerateKeyFromNames(testName, "InvalidName")
+
+// 		writeRequest := testGenerateRequestForWrite(1, key)
+// 		readRequest := testGenerateRequestForRead(1, key)
+
+// 		readInvalidRequest := testGenerateRequestForSimpleRead(invalidName)
+
+// 		assert.Equal(t, 1, len(writeRequest.Records))
+// 		assert.Equal(t, 1, len(readRequest.Records))
+// 		assert.Equal(t, 1, len(readInvalidRequest.Records))
+
+// 		store := NewStore()
+// 		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+// 		err = store.Connect()
+// 		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+// 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+// 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+// 		require.NotNil(t, writeResponse)
+// 		assert.Equal(t, 0, len(writeResponse.Records))
+// 		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+// 		// Look for a name we do not expect to be present
+// 		//
+// 		readResponse, err := store.ReadTxn(ctx, readInvalidRequest)
+// 		assert.NotNilf(t, err, "Succeeded to read non-existing key/value from store - error: %v key: %v", err, invalidKey)
+// 		assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
+// 		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, invalidKey)
+
+// 		// Now try to read a key which should be there.
+// 		//
+// 		readResponse, err = store.ReadTxn(ctx, readRequest)
+// 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+// 		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+// 		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+// 		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+// 		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+// 		store.Disconnect()
+
+// 		store = nil
+
+// 		return nil
+// 	})
+
+// 	return
+// }
+
+func TestStoreWriteReadTxnRequired(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteReadTxnRequired"
+		missingName := "MissingName"
+		key := testGenerateKeyFromNames(testName, missingName)
+
+		writeRequest := testGenerateRequestForSimpleWrite(key)
+		readRequest := testGenerateRequestForSimpleReadWithCondition(key, ConditionRequired)
+
+		assert.Equal(t, 1, len(writeRequest.Records))
+		assert.Equal(t, 1, len(readRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Attempt to read the key before it exists. As this is a "ConditionRequired" read
+		// request, it should fail and produce no response.
 		//
-		readResponse, err := store.ReadTxn(ctx, readInvalidRequest)
-		assert.NotNilf(t, err, "Succeeded to read non-existing key/value from store - error: %v key: %v", err, invalidKey)
-		assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
-		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, invalidKey)
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
+		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 
-		// Now try to read a key which should be there.
+		// Now write the key
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Now try to read the key which should now be there.
 		//
 		readResponse, err = store.ReadTxn(ctx, readRequest)
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
 		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteReadTxnOptional(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteReadTxnOptional"
+		missingName := "MissingName"
+		key := testGenerateKeyFromNames(testName, missingName)
+
+		writeRequest := testGenerateRequestForSimpleWrite(key)
+		readRequest := testGenerateRequestForSimpleReadWithCondition(key, ConditionUnconditional)
+
+		assert.Equal(t, 1, len(writeRequest.Records))
+		assert.Equal(t, 1, len(readRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Attempt to read the key before it exists. As this is a "ConditionUnconditional" read
+		// request, it should succeed and produce an empty response.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Unexpected failure unconditionally reading key supposedly absent - error: %v key: %v", err, key)
+		require.NotNilf(t, readResponse, "Unexpected missing response for unconditional read of absent key - error: %v key: %v", err, key)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Now write the key
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Now try to read a key which should now be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Unexpected failure unconditionally reading key supposedly present - error: %v key: %v", err, key)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
 
 		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
 
@@ -315,15 +480,13 @@ func TestStoreWriteReadMultipleTxn(t *testing.T) {
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadMultipleTxn"
-		invalidKey := testGenerateKeyFromNames(testName, "InvalidName")
+		key := testGenerateKeyFromName(testName)
 
-		writeRequest := testGenerateRequestForWrite(keySetSize, testName)
-		readRequest := testGenerateRequestForRead(keySetSize, testName)
-		readInvalidRequest := testGenerateRequestForRead(1, invalidKey)
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+		readRequest := testGenerateRequestForRead(keySetSize, key)
 
 		assert.Equal(t, keySetSize, len(writeRequest.Records))
 		assert.Equal(t, keySetSize, len(readRequest.Records))
-		assert.Equal(t, 1, len(readInvalidRequest.Records))
 
 		store := NewStore()
 		assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -334,23 +497,223 @@ func TestStoreWriteReadMultipleTxn(t *testing.T) {
 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, writeResponse)
-		require.Equal(t, len(writeRequest.Records), len(writeResponse.Records))
-
-		// Look for a name we do not expect to be present
-		//
-		readResponse, err := store.ReadTxn(ctx, readInvalidRequest)
-		assert.NotNilf(t, err, "Succeeded to read non-existing key/value from store - error: %v key: %v", err, invalidKey)
-		assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
-		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, invalidKey)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
 
 		// Now try to read the key/value pairs which should be there.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteReadMultipleTxnRequired(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteReadMultipleTxnRequired"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+		readRequest := testGenerateRequestForReadWithCondition(keySetSize, key, ConditionRequired)
+
+		assert.Equal(t, keySetSize, len(writeRequest.Records))
+		assert.Equal(t, keySetSize, len(readRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Attempt to read from the set of keys before they exist. As this is a "ConditionRequired" read
+		// request, it should fail and produce no response.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.NotNilf(t, err, "Unexpectedly succeeded reading from store - error: %v", err)
+
+		// We have a slight problem here in that we do not know which key of the set will be reported
+		// in the error. That means it could be any of them, so we need to check for them all and only
+		// assert if none of them match.
+		//
+		var foundError bool
+
+		for k := range readRequest.Records {
+			if err == ErrStoreKeyNotFound(k) {
+				foundError = true
+				break
+			}
+		}
+
+		assert.Truef(t, foundError, "Returned error failed to match any of the expected values - err: %v", err)
+		assert.Nilf(t, readResponse, "Unexpected response for read of absent keys - error: %v", err)
+
+		// Now write the keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Finally try to read the key/value pairs which should now be there.
 		//
 		readResponse, err = store.ReadTxn(ctx, readRequest)
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
 		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
 
 		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteReadMultipleTxnOptional(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteReadMultipleTxnOptional"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+		readRequest := testGenerateRequestForReadWithCondition(keySetSize, key, ConditionUnconditional)
+
+		assert.Equal(t, keySetSize, len(writeRequest.Records))
+		assert.Equal(t, keySetSize, len(readRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Attempt to read from the set of keys before they exist. As this is a "ConditionUnconditional" read
+		// request, it should succeed and produce an empty response.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Now write the keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Finally try to read the key/value pairs which should now be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteReadMultipleTxnPartial(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteReadMultipleTxnPartial"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequestPartial := testGenerateRequestForWrite(1, key)
+		writeRequestComplete := testGenerateRequestForWrite(2, key)
+
+		readRequest := testGenerateRequestForReadWithCondition(len(writeRequestComplete.Records), key, ConditionUnconditional)
+
+		assert.Equal(t, 1, len(writeRequestPartial.Records))
+		assert.Equal(t, 2, len(writeRequestComplete.Records))
+		assert.Equal(t, len(writeRequestComplete.Records), len(readRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Attempt to read from the set of keys before they exist. As this is a "ConditionUnconditional" read
+		// request, it should succeed and produce an empty response.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Now write a partial set of keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequestPartial)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Try to read the complete set of key/value pairs, only some of which should be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequestPartial.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequestPartial, writeResponse)
+
+		// Now write a complete set of keys
+		//
+		writeResponse, err = store.WriteTxn(ctx, writeRequestComplete)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Finally try to read the complete set of key/value pairs all of which should now be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequestComplete, writeResponse)
 
 		store.Disconnect()
 
@@ -367,14 +730,16 @@ func TestStoreWriteDeleteTxn(t *testing.T) {
 	defer unit_test.SetTesting(nil)
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		testName := "TestStoreWriteReadMultipleTxn"
-		invalidKey := testGenerateKeyFromNames(testName, "InvalidName")
+		testName := "TestStoreWriteDeleteTxn"
+		key := testGenerateKeyFromName(testName)
 
-		writeRequest := testGenerateRequestForWrite(1, testName)
-		deleteRequest := testGenerateRequestForDelete(1, testName)
-		deleteInvalidRequest := testGenerateRequestForDelete(1, invalidKey)
+		writeRequest := testGenerateRequestForSimpleWrite(key)
+		readRequest := testGenerateRequestForSimpleRead(key)
+		deleteRequest := testGenerateRequestForSimpleDelete(key)
 
 		assert.Equal(t, 1, len(writeRequest.Records))
+		assert.Equal(t, 1, len(readRequest.Records))
+		assert.Equal(t, 1, len(deleteRequest.Records))
 
 		store := NewStore()
 		assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -382,35 +747,46 @@ func TestStoreWriteDeleteTxn(t *testing.T) {
 		err = store.Connect()
 		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
+		// Attempt to read the key before it exists. As this is a "ConditionRequired" read
+		// request, it should fail and produce no response.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
+		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
+
+		// Now write the key
+		//
 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, writeResponse)
-		require.Equal(t, len(writeRequest.Records), len(writeResponse.Records))
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Verify the key is now there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
 
 		// Delete the key we just wrote
 		//
-		var key string
-
-		for key = range deleteRequest.Records {
-		}
-
 		deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
 		assert.Nilf(t, err, "Failed to delete key from store - error: %v key: %v", err, key)
 		require.NotNil(t, deleteResponse)
-		require.Equal(t, len(deleteRequest.Records), len(deleteResponse.Records))
+		assert.Equal(t, 0, len(deleteResponse.Records))
+		assert.Less(t, writeResponse.Revision, deleteResponse.Revision)
 
-		// Try to delete the key we just wrote a second time
+		// Attempt to re-read the key which once again should be absent.
 		//
-		deleteResponse, err = store.DeleteTxn(ctx, deleteRequest)
-		assert.NotNilf(t, err, "Unexpectedly deleted the key from store for a second time - error: %v key: %v", err, key)
-		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for a previously deleted key - error %v", err)
-
-		// Try to delete a name we do not expect to be present
-		//
-		deleteResponse, err = store.DeleteTxn(ctx, deleteInvalidRequest)
-		assert.NotNilf(t, err, "Succeeded to delete a non-existing key/value from store - error: %v key: %v", err, invalidKey)
-		assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
-		assert.Nil(t, deleteResponse)
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
+		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 
 		store.Disconnect()
 
@@ -422,21 +798,21 @@ func TestStoreWriteDeleteTxn(t *testing.T) {
 	return
 }
 
-func TestStoreWriteDeleteMultipleTxn(t *testing.T) {
+func TestStoreWriteDeleteTxnDeleteAbsent(t *testing.T) {
 	unit_test.SetTesting(t)
 	defer unit_test.SetTesting(nil)
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		testName := "TestStoreWriteDeleteMultipleTxn"
-		invalidKey := testGenerateKeyFromNames(testName, "InvalidName")
+		testName := "TestStoreWriteDeleteTxnDeleteAbsent"
+		key := testGenerateKeyFromName(testName)
 
-		writeRequest := testGenerateRequestForWrite(1, testName)
-		deleteRequest := testGenerateRequestForDelete(1, testName)
-		deleteInvalidRequest := testGenerateRequestForDelete(1, invalidKey)
+		writeRequest := testGenerateRequestForSimpleWrite(key)
+		readRequest := testGenerateRequestForSimpleRead(key)
+		deleteRequest := testGenerateRequestForSimpleDelete(key)
 
 		assert.Equal(t, 1, len(writeRequest.Records))
+		assert.Equal(t, 1, len(readRequest.Records))
 		assert.Equal(t, 1, len(deleteRequest.Records))
-		assert.Equal(t, 1, len(deleteInvalidRequest.Records))
 
 		store := NewStore()
 		assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -444,35 +820,443 @@ func TestStoreWriteDeleteMultipleTxn(t *testing.T) {
 		err = store.Connect()
 		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
+		// Attempt to read the key before it exists. As this is a "ConditionRequired" read
+		// request, it should fail and produce no response.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
+		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
+
+		// Try to delete the key we just verified is absent
+		//
+		deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+		assert.NotNilf(t, err, "Unexpectedly deleted the key from store for a second time - error: %v key: %v", err, key)
+		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for a previously deleted key - error %v", err)
+		assert.Nil(t, deleteResponse)
+
+		// Now write the key
+		//
 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, writeResponse)
-		require.Equal(t, len(writeRequest.Records), len(writeResponse.Records))
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Verify the key is now there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
 
 		// Delete the key we just wrote
 		//
-		var key string
-
-		for key = range deleteRequest.Records {
-		}
-
-		deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+		deleteResponse, err = store.DeleteTxn(ctx, deleteRequest)
 		assert.Nilf(t, err, "Failed to delete key from store - error: %v key: %v", err, key)
 		require.NotNil(t, deleteResponse)
-		require.Equal(t, len(deleteRequest.Records), len(deleteResponse.Records))
+		assert.Equal(t, 0, len(deleteResponse.Records))
+		assert.Less(t, readResponse.Revision, deleteResponse.Revision)
 
-		// Try to delete the key we just wrote a second time
+		// Attempt to re-read the key which once again should be absent.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
+		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+		assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteDeleteMultipleTxnRequired(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteDeleteMultipleTxnRequired"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+		readRequest := testGenerateRequestForReadWithCondition(keySetSize, key, ConditionUnconditional)
+		deleteRequest := testGenerateRequestForDeleteWithCondition(keySetSize, key, ConditionRequired)
+
+		assert.Equal(t, keySetSize, len(writeRequest.Records))
+		assert.Equal(t, keySetSize, len(readRequest.Records))
+		assert.Equal(t, keySetSize, len(deleteRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Verify none of the keys exist.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Attempt to delete the non-existent set of keys
+		//
+		deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+		assert.NotNilf(t, err, "Failed to read from store - error: %v", err)
+
+		// We have a slight problem here in that we do not know which key of the set will be reported
+		// in the error. That means it could be any of them, so we need to check for them all and only
+		// assert if none of them match.
+		//
+		var foundError bool
+
+		for k := range readRequest.Records {
+			if err == ErrStoreKeyNotFound(k) {
+				foundError = true
+				break
+			}
+		}
+
+		assert.Truef(t, foundError, "Returned error failed to match any of the expected values - err: %v", err)
+		assert.Nilf(t, deleteResponse, "Unexpected response for read of absent keys - error: %v", err)
+
+		// Now write the keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Verify all the expected keys are present
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		// Delete the keys we just wrote
 		//
 		deleteResponse, err = store.DeleteTxn(ctx, deleteRequest)
-		assert.NotNilf(t, err, "Unexpectedly deleted the key from store for a second time - error: %v key: %v", err, key)
-		assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for a previously deleted key - error %v", err)
+		assert.Nilf(t, err, "Failed to delete one or more keys from store - error: %v key: %v", err)
+		require.NotNil(t, deleteResponse)
+		require.Equal(t, 0, len(deleteResponse.Records))
+		assert.Less(t, readResponse.Revision, deleteResponse.Revision)
 
-		// Try to delete a name we do not expect to be present
+		// and finally, verify none of the keys remain after the delete.
 		//
-		deleteResponse, err = store.DeleteTxn(ctx, deleteInvalidRequest)
-		assert.NotNilf(t, err, "Succeeded to delete a non-existing key/value from store - error: %v key: %v", err, invalidKey)
-		assert.Equal(t, ErrStoreKeyNotFound(invalidKey), err, "unexpected failure when looking for an invalid key - error %v", err)
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Equalf(t, deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteDeleteMultipleTxnOptional(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteDeleteMultipleTxnOptional"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+		readRequest := testGenerateRequestForReadWithCondition(keySetSize, key, ConditionUnconditional)
+		deleteRequest := testGenerateRequestForDeleteWithCondition(keySetSize, key, ConditionUnconditional)
+
+		assert.Equal(t, keySetSize, len(writeRequest.Records))
+		assert.Equal(t, keySetSize, len(readRequest.Records))
+		assert.Equal(t, keySetSize, len(deleteRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Verify none of the keys exist.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Attempt to delete the non-existent set of keys. This is an unconditional request and so
+		// should succeed regardless of the presence or absence of the listed keys.
+		//
+		deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+		assert.Nilf(t, err, "Unexpected failure in unconditionally deleting absent keys - error: %v", err)
+		require.NotNilf(t, deleteResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, deleteResponse.Revision, deleteResponse.Revision)
+
+		// Now write the keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, deleteResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Verify all the expected keys are present
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		// Delete the keys we just wrote
+		//
+		deleteResponse, err = store.DeleteTxn(ctx, deleteRequest)
+		assert.Nilf(t, err, "Failed to delete one or more keys from store - error: %v key: %v", err)
+		require.NotNil(t, deleteResponse)
+		require.Equal(t, 0, len(deleteResponse.Records))
+		assert.Less(t, readResponse.Revision, deleteResponse.Revision)
+
+		// and finally, verify none of the keys remain after the delete.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Equalf(t, deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteDeleteMultipleTxnPartialRequired(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteDeleteMultipleTxnPartial"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequestPartial := testGenerateRequestForWrite(1, key)
+		writeRequestComplete := testGenerateRequestForWrite(2, key)
+
+		readRequest := testGenerateRequestForReadWithCondition(len(writeRequestComplete.Records), key, ConditionUnconditional)
+		deleteRequest := testGenerateRequestForDeleteWithCondition(len(writeRequestComplete.Records), key, ConditionRequired)
+
+		assert.Equal(t, 1, len(writeRequestPartial.Records))
+		assert.Equal(t, 2, len(writeRequestComplete.Records))
+		assert.Equal(t, len(writeRequestComplete.Records), len(readRequest.Records))
+		assert.Equal(t, len(writeRequestComplete.Records), len(deleteRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Verify none of the keys exist.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Now write a partial set of keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequestPartial)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Verify we have what we expect by trying to read the complete set of
+		// key/value pairs, only some of which should be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequestPartial.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequestPartial, writeResponse)
+
+		// Determine which key is in both the partial and complete write
+		// request (keyPartial), and which key is only in the complete
+		// write set (keyComplete)
+		//
+		var keyPartial string
+		var keyComplete string
+
+		for k := range writeRequestPartial.Records {
+			keyPartial = k
+			break
+		}
+
+		for k := range writeRequestComplete.Records {
+			if k != keyPartial {
+				keyComplete = k
+				break
+			}
+		}
+
+		// Attempt to delete the full set of keys. This should fail, with no
+		// response, and all the keys should remain
+		//
+		deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+		assert.NotNilf(t, err, "Failed to delete one or more keys from store - error: %v key: %v", err)
+		assert.Equal(t, ErrStoreKeyNotFound(keyComplete), err)
 		assert.Nil(t, deleteResponse)
+
+		// Verify we still have what we expect by trying to read the complete set of
+		// key/value pairs, only some of which should be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequestPartial.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequestPartial, writeResponse)
+
+		// Now write a complete set of keys
+		//
+		writeResponse, err = store.WriteTxn(ctx, writeRequestComplete)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Verify we have the complete set of key/value pairs all of which should now be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequestComplete.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequestComplete, writeResponse)
+
+		// Once again attempt to delete the complete set of keys and this time, the delete should succeed.
+		//
+		deleteResponse, err = store.DeleteTxn(ctx, deleteRequest)
+		assert.Nilf(t, err, "Failed to delete one or more keys from store - error: %v key: %v", err)
+		require.NotNil(t, deleteResponse)
+		require.Equal(t, 0, len(deleteResponse.Records))
+		assert.Less(t, readResponse.Revision, deleteResponse.Revision)
+
+		// and finally, verify none of the keys remain after the delete.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Equalf(t, deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreWriteDeleteMultipleTxnPartialOptional(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreWriteDeleteMultipleTxnPartialOptional"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequestPartial := testGenerateRequestForWrite(1, key)
+		writeRequestComplete := testGenerateRequestForWrite(2, key)
+
+		readRequest := testGenerateRequestForReadWithCondition(len(writeRequestComplete.Records), key, ConditionUnconditional)
+		deleteRequest := testGenerateRequestForDeleteWithCondition(len(writeRequestComplete.Records), key, ConditionUnconditional)
+
+		assert.Equal(t, 1, len(writeRequestPartial.Records))
+		assert.Equal(t, 2, len(writeRequestComplete.Records))
+		assert.Equal(t, len(writeRequestComplete.Records), len(readRequest.Records))
+		assert.Equal(t, len(writeRequestComplete.Records), len(deleteRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Verify none of the keys exist.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Now write a partial set of keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequestPartial)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// Verify we have what we expect by trying to read the complete set of
+		// key/value pairs, only some of which should be there.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequestPartial.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequestPartial, writeResponse)
+
+		// Attempt to delete the full set of keys. This should succeed and all the
+		// keys should have been deleted.
+		//
+		deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+		assert.Nilf(t, err, "Failed to delete one or more keys from store - error: %v key: %v", err)
+		require.NotNil(t, deleteResponse)
+		assert.Equal(t, 0, len(deleteResponse.Records))
+		assert.Less(t, readResponse.Revision, deleteResponse.Revision)
+
+		// and finally, verify none of the keys remain after the delete.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Equalf(t, deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
 
 		store.Disconnect()
 
@@ -490,14 +1274,15 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteWithPrefix"
+		key := testGenerateKeyFromName(testName)
 
-		writeRequest := testGenerateRequestForWrite(keySetSize, testName)
-		deleteRequest := testGenerateRequestForDelete(keySetSize, testName)
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+		readRequest := testGenerateRequestForReadWithCondition(keySetSize, key, ConditionUnconditional)
+		deleteRequest := testGenerateRequestForDelete(keySetSize, key)
 
 		assert.Equal(t, keySetSize, len(writeRequest.Records))
+		assert.Equal(t, keySetSize, len(readRequest.Records))
 		assert.Equal(t, keySetSize, len(deleteRequest.Records))
-
-		prefixKey := testGenerateKeyFromNames(testName, "")
 
 		store := NewStore()
 		assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -505,18 +1290,40 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 		err = store.Connect()
 		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
+		// Write the keys to the store
+		//
 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, writeResponse)
-		require.Equal(t, len(writeRequest.Records), len(writeResponse.Records))
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
 
-		response, err := store.DeleteWithPrefix(ctx, prefixKey)
-		assert.Nilf(t, err, "Failed to delete the prefix keys from the store - error: %v prefixKey: %v", err, prefixKey)
-		require.NotNil(t, response)
-		assert.Equal(t, 0, len(response.Records))
+		// Verify all the expected keys are present
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(writeRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
 
-		response, err = store.DeleteWithPrefix(ctx, prefixKey)
-		assert.Nilf(t, err, "Unexpected error when attmepting to delete prefix keys from store for a second - error: %v prefixKey: %v", err, prefixKey)
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		// Now delete the keys by prefix. Note that because of the way the request are
+		// built, the supplied "key" argument is an effective prefix for the set of keys.
+		//
+		deleteResponse, err := store.DeleteWithPrefix(ctx, key)
+		assert.Nilf(t, err, "Failed to delete the keys from the store - error: %v prefix: %v", err, key)
+		require.NotNil(t, deleteResponse)
+		assert.Equal(t, 0, len(deleteResponse.Records))
+		assert.Less(t, writeResponse.Revision, deleteResponse.Revision)
+
+		// and finally, verify none of the keys remain after the delete.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Equalf(t, deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
 
 		store.Disconnect()
 
@@ -699,7 +1506,7 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteMultipleTxnCreate"
 
-		writeRequest := testGenerateRequestForWriteWithCondition(keySetSize, testName, ConditionCreate)
+		writeRequest := testGenerateRequestForWriteCreate(keySetSize, testName)
 		readRequest := testGenerateRequestFromWriteRequest(writeRequest)
 
 		store := NewStore()
@@ -718,8 +1525,8 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 		createResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, createResponse)
-		require.Equal(t, len(writeRequest.Records), len(createResponse.Records))
-		assert.Lessf(t, revStoreInitial, createResponse.Revision, "Unexpected value for store revision on write(crerate) completion")
+		assert.Equal(t, 0, len(createResponse.Records))
+		assert.Lessf(t, revStoreInitial, createResponse.Revision, "Unexpected value for store revision on write(create) completion")
 
 		// The write claimed to succeed, now go fetch the record(s) and verify
 		// the revision(s) and value(s) are as expected
@@ -728,7 +1535,7 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 		require.NotNil(t, readResponse)
 		assert.Equalf(t, createResponse.Revision, readResponse.Revision, "Unexpected value for store revision given no updates")
-		assert.Equalf(t, len(createResponse.Records), len(readResponse.Records), "Unexpected numbers of records returned")
+		assert.Equalf(t, len(writeRequest.Records), len(readResponse.Records), "Unexpected numbers of records returned")
 
 		testCompareReadResponseToWrite(t, readResponse, writeRequest, createResponse)
 
@@ -736,14 +1543,14 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 		//
 		recreateResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.NotNilf(t, err, "Succeeded where we expected to get a failed store write - error: %v", err)
-		require.NotNil(t, recreateResponse)
-		assert.Equalf(t, RevisionInvalid, recreateResponse.Records, "Unexpected value for store revision on write(re-create) completion")
+		require.Nil(t, recreateResponse)
+		// TODO		assert.Equalf(t, RevisionInvalid, recreateResponse.Records, "Unexpected value for store revision on write(re-create) completion")
 
 		readRecreateResponse, err := store.ReadTxn(ctx, readRequest)
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 		require.NotNil(t, readRecreateResponse)
 		assert.Equalf(t, createResponse.Revision, readRecreateResponse.Revision, "Unexpected value for store revision given no updates")
-		assert.Equalf(t, len(createResponse.Records), len(readRecreateResponse.Records), "Unexpected numbers of records returned")
+		assert.Equalf(t, len(writeRequest.Records), len(readRecreateResponse.Records), "Unexpected numbers of records returned")
 
 		testCompareReadResponseToWrite(t, readResponse, writeRequest, createResponse)
 
@@ -764,7 +1571,7 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteMultipleTxnOverwrite"
 
-		writeRequest := testGenerateRequestForWriteWithCondition(keySetSize, testName, ConditionCreate)
+		writeRequest := testGenerateRequestForWrite(keySetSize, testName)
 		readRequest := testGenerateRequestFromWriteRequest(writeRequest)
 
 		store := NewStore()
@@ -783,8 +1590,8 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 		createResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, createResponse)
-		require.Equal(t, len(writeRequest.Records), len(createResponse.Records))
-		assert.Lessf(t, revStoreInitial, createResponse.Revision, "Unexpected value for store revision on write(crerate) completion")
+		assert.Equal(t, 0, len(createResponse.Records))
+		assert.Lessf(t, readResponse.Revision, createResponse.Revision, "Unexpected value for store revision on write completion")
 
 		// The write claimed to succeed, now go fetch the record(s) and verify
 		// the revision(s) and value(s) are as expected
@@ -799,18 +1606,17 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 		// We verified the write worked, so try an unconditional overwrite. Set the
 		// required condition and change the value so we can verify after the update.
 		//
-		updateRequest := testGenerateRequestForOverwriteFromWriteRequest(writeRequest, ConditionUnconditional)
+		updateRequest := testGenerateRequestFromReadResponse(readResponse)
 
 		updateResponse, err := store.WriteTxn(ctx, updateRequest)
 		assert.Nilf(t, err, "Failed to write unconditional update to store - error: %v", err)
-		assert.Lessf(t, createResponse.Revision, updateResponse.Revision, "Expected new store revision to be greater than the earlier store revision")
+		require.NotNil(t, updateResponse)
+		assert.Equal(t, 0, len(updateResponse.Records))
+		assert.Lessf(t, readResponse.Revision, updateResponse.Revision, "Expected new store revision to be greater than the earlier store revision")
 
 		readResponseUpdate, err := store.ReadTxn(ctx, readRequest)
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
-		assert.Equalf(t, createResponse.Revision, readResponse.Revision, "Unexpected value for store revision given no updates")
-		assert.Equalf(t, len(writeRequest.Records), len(readResponse.Records), "Unexpected numbers of records returned")
-
-		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNil(t, readResponseUpdate)
 		assert.Equalf(t, updateResponse.Revision, readResponseUpdate.Revision, "Unexpected value for store revision given no updates")
 		assert.Equalf(t, len(updateRequest.Records), len(readResponseUpdate.Records), "Unexpected numbers of records returned")
 
@@ -832,9 +1638,10 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteMultipleTxnCompareEqual"
+		key := testGenerateKeyFromName(testName)
 		keySetSize := 1
 
-		writeRequest := testGenerateRequestForWriteWithCondition(keySetSize, testName, ConditionCreate)
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
 		readRequest := testGenerateRequestFromWriteRequest(writeRequest)
 
 		store := NewStore()
@@ -853,14 +1660,15 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 		createResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, createResponse)
-		require.Equal(t, len(writeRequest.Records), len(createResponse.Records))
-		assert.Lessf(t, revStoreInitial, createResponse.Revision, "Unexpected value for store revision on write(crerate) completion")
+		require.Equal(t, 0, len(createResponse.Records))
+		assert.Lessf(t, readResponse.Revision, createResponse.Revision, "Unexpected value for store revision on write(create) completion")
 
 		// The write claimed to succeed, now go fetch the record(s) and verify
 		// the revision(s) and value(s) are as expected
 		//
 		readResponse, err = store.ReadTxn(ctx, readRequest)
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNil(t, readResponse)
 		assert.Equalf(t, createResponse.Revision, readResponse.Revision, "Unexpected value for store revision given no updates")
 		assert.Equalf(t, len(writeRequest.Records), len(readResponse.Records), "Unexpected numbers of records returned")
 
@@ -870,16 +1678,19 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 		// are equal. Set the required condition and change the value so we can verify
 		// after the update.
 		//
-		updateRequest := testGenerateRequestForOverwriteFromWriteRequest(writeRequest, ConditionRevisionEqual)
+		updateRequest := testGenerateRequestFromWReadResponseWithCondition(readResponse, ConditionRevisionEqual)
 
 		updateResponse, err := store.WriteTxn(ctx, updateRequest)
 		assert.Nilf(t, err, "Failed to write conditional update to store - error: %v", err)
-		assert.Lessf(t, createResponse.Revision, updateResponse.Revision, "Expected new store revision to be greater than the earlier store revision")
+		require.NotNil(t, updateResponse)
+		assert.Equal(t, 0, len(updateResponse.Records))
+		assert.Lessf(t, readResponse.Revision, updateResponse.Revision, "Expected new store revision to be greater than the earlier store revision")
 
 		// verify the update happened as expected
 		//
 		readResponse, err = store.ReadTxn(ctx, readRequest)
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNil(t, readResponse)
 		assert.Equalf(t, updateResponse.Revision, readResponse.Revision, "Unexpected value for store revision given no updates")
 		assert.Equalf(t, len(updateRequest.Records), len(readResponse.Records), "Unexpected numbers of records returned")
 
@@ -904,10 +1715,11 @@ func TestStoreListWithPrefix(t *testing.T) {
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreListWithPrefix"
-		invalidKey := testGenerateKeyFromNames(testName, "InvalidName")
-		prefix := testGenerateKeyFromNames(testName, "")
+		key := testGenerateKeyFromName(testName)
 
-		writeRequest := testGenerateRequestForWrite(keySetSize, testName)
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+
+		assert.Equal(t, keySetSize, len(writeRequest.Records))
 
 		store := NewStore()
 		assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -918,29 +1730,15 @@ func TestStoreListWithPrefix(t *testing.T) {
 		writeResponse, err := store.WriteTxn(ctx, writeRequest)
 		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
 		require.NotNil(t, writeResponse)
-		require.Equal(t, len(writeRequest.Records), len(writeResponse.Records))
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, revStoreInitial, writeResponse.Revision, "Unexpected value for store revision on write completion")
 
-		// Look for a prefix name we do not expect to be present.
+		// Look for a set of prefixed key/value pairs which we do expect to be present.
 		//
-		// We expect success with a non-nil but empty set.
-		//
-		listResponse, err := store.ListWithPrefix(ctx, invalidKey)
-		assert.Nilf(t, err, "Succeeded to read non-existing prefix key from store - error: %v prefixKey: %v", err, invalidKey)
-		require.NotNilf(t, listResponse, "Failed to get a non-nil response as expected - error: %v prefixKey: %v", err, invalidKey)
-		assert.Equal(t, 0, len(listResponse.Records), "Got more results than expected")
-
-		if len(listResponse.Records) > 0 {
-			for k, r := range listResponse.Records {
-				t.Logf("Unexpected key/value pair key: %v value: %v", k, r.Value)
-			}
-		}
-
-		// Now look for a set of prefixed key/value pairs which we do expect to be present.
-		//
-		listResponse, err = store.ListWithPrefix(ctx, prefix)
+		listResponse, err := store.ListWithPrefix(ctx, key)
 		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
 		require.NotNilf(t, listResponse, "Failed to get a response as expected - error: %v", err)
-		assert.Equal(t, len(writeResponse.Records), len(listResponse.Records), "Failed to get the expected number of response values")
+		assert.Equal(t, len(writeRequest.Records), len(listResponse.Records), "Failed to get the expected number of response values")
 
 		testCompareReadResponseToWrite(t, listResponse, writeRequest, writeResponse)
 
@@ -959,10 +1757,120 @@ func TestStoreListWithPrefix(t *testing.T) {
 		// Check we ONLY got records for the keys we asked for
 		//
 		for k, r := range listResponse.Records {
-			val, present := writeRequest.Records[k]
+			_, present := writeRequest.Records[k]
 			assert.Truef(t, present, "Extra key: %v record: %v", k, r)
 			if present {
-				assert.Equalf(t, val, r.Value, "key: %v Expected: %q Actual %q", val, r.Value)
+				val := writeRequest.Records[k].Value
+				assert.Equalf(t, val, r.Value, "key: %v Expected: %q Actual %q", k, val, r.Value)
+			}
+		}
+
+		store.Disconnect()
+
+		store = nil
+
+		return nil
+	})
+
+	return
+}
+
+func TestStoreListWithPrefixEmptySet(t *testing.T) {
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	unit_test.SetTesting(t)
+	defer unit_test.SetTesting(nil)
+
+	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+		testName := "TestStoreListWithPrefixEmptySet"
+		key := testGenerateKeyFromName(testName)
+
+		writeRequest := testGenerateRequestForWrite(keySetSize, key)
+		readRequest := testGenerateRequestForReadWithCondition(keySetSize, key, ConditionUnconditional)
+
+		assert.Equal(t, keySetSize, len(writeRequest.Records))
+		assert.Equal(t, keySetSize, len(readRequest.Records))
+
+		store := NewStore()
+		assert.NotNilf(t, store, "Failed to get the store as expected")
+
+		err = store.Connect()
+		assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+
+		// Attempt to read from the set of keys before they exist. As this is a "ConditionUnconditional" read
+		// request, it should succeed and produce an empty response.
+		//
+		readResponse, err := store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equalf(t, 0, len(readResponse.Records), "Found %d records when none were expected", len(readResponse.Records))
+		assert.Lessf(t, revStoreInitial, readResponse.Revision, "Unexpected value for store revision on read completion")
+
+		// Look for a prefix name after verifying the keys are absent.
+		//
+		// We expect success with a non-nil but empty set.
+		//
+		listResponse, err := store.ListWithPrefix(ctx, key)
+		assert.Nilf(t, err, "Unexpected failure attempting to list non-existing key set - error: %v prefixKey: %v", err, key)
+		require.NotNilf(t, listResponse, "Failed to get a non-nil response as expected - error: %v prefixKey: %v", err, key)
+		assert.Equal(t, 0, len(listResponse.Records), "Got more results than expected")
+		assert.Equal(t, readResponse.Revision, listResponse.Revision)
+
+		if len(listResponse.Records) > 0 {
+			for k, r := range listResponse.Records {
+				t.Logf("Unexpected key/value pair key: %v value: %v", k, r.Value)
+			}
+		}
+
+		// Now write the keys
+		//
+		writeResponse, err := store.WriteTxn(ctx, writeRequest)
+		assert.Nilf(t, err, "Failed to write to store - error: %v", err)
+		require.NotNil(t, writeResponse)
+		assert.Equal(t, 0, len(writeResponse.Records))
+		assert.Lessf(t, readResponse.Revision, writeResponse.Revision, "Unexpected value for store revision on write completion")
+
+		// verify the existence of the keys we just wrote.
+		//
+		readResponse, err = store.ReadTxn(ctx, readRequest)
+		assert.Nilf(t, err, "Failed to read from store - error: %v", err)
+		require.NotNilf(t, readResponse, "Failed to get a response as expected - error: %v", err)
+		assert.Equal(t, len(readRequest.Records), len(readResponse.Records), "Read returned unexpected number of records")
+		assert.Equal(t, writeResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, readResponse, writeRequest, writeResponse)
+
+		// Now look for a set of prefixed key/value pairs which we now expect and have verified to be present.
+		//
+		listResponse, err = store.ListWithPrefix(ctx, key)
+		assert.Nilf(t, err, "Unexpected failure attempting to list existing key set - error: %v prefixKey: %v", err, key)
+		require.NotNilf(t, listResponse, "Failed to get a response as expected - error: %v prefixKey: %v", err, key)
+		assert.Equal(t, len(writeRequest.Records), len(listResponse.Records), "Failed to get the expected number of response values")
+		assert.Equal(t, readResponse.Revision, readResponse.Revision)
+
+		testCompareReadResponseToWrite(t, listResponse, writeRequest, writeResponse)
+
+		// Check we got records for each key we asked for
+		//
+		for k, r := range writeRequest.Records {
+			rec, present := listResponse.Records[k]
+
+			assert.Truef(t, present, "Missing record for key - %v", k)
+
+			if present {
+				assert.Equal(t, r.Value, rec.Value, "Unexpected value - expected: %q received: %q", r.Value, rec.Value)
+			}
+		}
+
+		// Check we ONLY got records for the keys we asked for
+		//
+		for k, r := range listResponse.Records {
+			_, present := writeRequest.Records[k]
+			assert.Truef(t, present, "Extra key: %v record: %v", k, r)
+			if present {
+				val := writeRequest.Records[k].Value
+				assert.Equalf(t, val, r.Value, "key: %v Expected: %q Actual %q", k, val, r.Value)
 			}
 		}
 
