@@ -135,23 +135,6 @@ type Store struct {
 	TraceFlags        TraceFlags
 }
 
-// KeyValueArg is a struct used to describe one or more key/value pairs supplied
-// to a call such as WriteMultiple()
-//
-type KeyValueArg struct {
-	key   string
-	value string
-}
-
-// KeyValueResponse is a struct used to describe one or more key/value pairs
-// returned from a call to the store such as a ReadMultipleOld() or ReadPrefix()
-// call.
-//
-type KeyValueResponse struct {
-	key   string
-	value []byte
-}
-
 var (
 	storeRoot global
 )
@@ -972,7 +955,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 
 		st.Infof(ctx, -1, "deleted %v keys under prefix %v", opResponse.Deleted, keyPrefix)
 
-		return err
+		return nil
 	})
 
 	return response, err

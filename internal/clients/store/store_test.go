@@ -1792,29 +1792,6 @@ func TestStoreListWithPrefixEmptySet(t *testing.T) {
 
 		testCompareReadResponseToWrite(t, listResponse, writeRequest, writeResponse)
 
-		// Check we got records for each key we asked for
-		//
-		for k, r := range writeRequest.Records {
-			rec, present := listResponse.Records[k]
-
-			assert.Truef(t, present, "Missing record for key - %v", k)
-
-			if present {
-				assert.Equal(t, r.Value, rec.Value, "Unexpected value - expected: %q received: %q", r.Value, rec.Value)
-			}
-		}
-
-		// Check we ONLY got records for the keys we asked for
-		//
-		for k, r := range listResponse.Records {
-			_, present := writeRequest.Records[k]
-			assert.Truef(t, present, "Extra key: %v record: %v", k, r)
-			if present {
-				val := writeRequest.Records[k].Value
-				assert.Equalf(t, val, r.Value, "key: %v Expected: %q Actual %q", k, val, r.Value)
-			}
-		}
-
 		store.Disconnect()
 
 		store = nil

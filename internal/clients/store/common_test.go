@@ -296,17 +296,6 @@ func testCompareReadResponseToWrite(
 	}
 }
 
-func testGenerateKeySetFromKeyValueSet(keyValueSet []KeyValueArg) []string {
-
-	keySet := make([]string, len(keyValueSet))
-
-	for i, kv := range keyValueSet {
-		keySet[i] = kv.key
-	}
-
-	return keySet
-}
-
 // TestMain is the Common test startup method.  This is the _only_ Test* function in this
 // file.
 func TestMain(m *testing.M) {
