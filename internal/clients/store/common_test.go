@@ -20,7 +20,10 @@ import (
 // large may lead to problems with values to /from the underlying store,
 // so be reasonable.
 //
-const keySetSize = 10
+// Limited by etcd configuration option --max-txn-ops which (currently)
+// defaults to 128
+//
+const keySetSize = 100
 
 var (
 	initialized bool

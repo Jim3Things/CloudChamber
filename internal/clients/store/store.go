@@ -763,7 +763,7 @@ type Record struct {
 	Value    string
 }
 
-func getPrefetchKeys(req *Request) (*[]string, error) {
+func generatePrefetchKeys(req *Request) (*[]string, error) {
 	prefetchKeys := make([]string, 0, len(req.Records))
 
 	// Build an array of keys to supply as the arg to prefetch
@@ -812,7 +812,7 @@ func getPrefetchKeys(req *Request) (*[]string, error) {
 	return &prefetchKeys, nil
 }
 
-func chkConditions(stm concurrency.STM, req *Request) error {
+func checkConditions(stm concurrency.STM, req *Request) error {
 	for k, r := range req.Records {
 		c := req.Conditions[k]
 
@@ -993,7 +993,7 @@ func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Re
 
 		var prefetchKeys *[]string
 
-		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+		if prefetchKeys, err = generatePrefetchKeys(request); err != nil {
 			return err
 		}
 
@@ -1004,7 +1004,7 @@ func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Re
 
 		txnAction := func(stm concurrency.STM) error {
 
-			if err = chkConditions(stm, request); err != nil {
+			if err = checkConditions(stm, request); err != nil {
 				return err
 			}
 
@@ -1070,7 +1070,7 @@ func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *R
 
 		var prefetchKeys *[]string
 
-		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+		if prefetchKeys, err = generatePrefetchKeys(request); err != nil {
 			return err
 		}
 
@@ -1081,7 +1081,7 @@ func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *R
 
 		txnAction := func(stm concurrency.STM) error {
 
-			if err = chkConditions(stm, request); err != nil {
+			if err = checkConditions(stm, request); err != nil {
 				return err
 			}
 
@@ -1134,7 +1134,7 @@ func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *
 
 		var prefetchKeys *[]string
 
-		if prefetchKeys, err = getPrefetchKeys(request); err != nil {
+		if prefetchKeys, err = generatePrefetchKeys(request); err != nil {
 			return err
 		}
 
@@ -1145,7 +1145,7 @@ func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *
 
 		txnAction := func(stm concurrency.STM) error {
 
-			if err = chkConditions(stm, request); err != nil {
+			if err = checkConditions(stm, request); err != nil {
 				return err
 			}
 
