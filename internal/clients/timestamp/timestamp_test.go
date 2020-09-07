@@ -14,9 +14,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
@@ -26,10 +24,15 @@ import (
 
 const bufSize = 1024 * 1024
 
-var lis *bufconn.Listener
+var (
+	lis *bufconn.Listener
+
+	utf *exporters.Exporter
+)
 
 func init() {
-	setup.Init(exporters.UnitTest)
+	utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.Init(utf)
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
@@ -60,8 +63,8 @@ func commonSetup(t *testing.T) {
 }
 
 func TestNow(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx := context.Background()
 
@@ -87,8 +90,8 @@ func TestNow(t *testing.T) {
 }
 
 func TestTimestamp_After(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx := context.Background()
 

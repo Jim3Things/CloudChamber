@@ -1,22 +1,17 @@
-package io_writer
+package exporters
 
 import (
-	"fmt"
-	"io"
-	stdLog "log"
-	"sync"
+    "fmt"
+    "io"
+    stdLog "log"
+    "sync"
 
-	"go.opentelemetry.io/otel/api/trace"
+    "go.opentelemetry.io/otel/api/trace"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/common"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
+    "github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
-const (
-	tab = "    "
-)
-
-type spans struct {
+type io_spans struct {
 	m sync.Mutex
 
 	// active is keyed by traceID, with values of the currently incomplete
@@ -52,8 +47,8 @@ type activeEntry struct {
 }
 
 // newSpan creates a new, empty, spans instance
-func newSpans() *spans {
-	return &spans{
+func newSpans() *io_spans {
+	return &io_spans{
 		m:      sync.Mutex{},
 		active: make(map[string]*activeEntry),
 		known:  make(map[string]*log.Entry),
@@ -62,7 +57,7 @@ func newSpans() *spans {
 
 // getOrAddActive either retrieves an existing activeEntry for the given
 // TraceID, or a new one is created and returned.
-func (s *spans) getOrAddActive(traceID string) *activeEntry {
+func (s *io_spans) getOrAddActive(traceID string) *activeEntry {
 	entry, ok := s.active[traceID]
 	if ok {
 		return entry
@@ -82,7 +77,7 @@ func (s *spans) getOrAddActive(traceID string) *activeEntry {
 // emit processes the indicated span, sending the formatted output to the
 // supplied writer.  It will recursively process child spans, and manages the
 // line indent amount to indicate descent level
-func (s *spans) emit(a *activeEntry, spanID string, io io.Writer, indent string) {
+func (s *io_spans) emit(a *activeEntry, spanID string, io io.Writer, indent string) {
 	entry, ok := s.known[spanID]
 	if !ok {
 		stdLog.Fatalf("Missing span: %q", spanID)
@@ -92,7 +87,7 @@ func (s *spans) emit(a *activeEntry, spanID string, io io.Writer, indent string)
 	_, _ = io.Write([]byte(
 		fmt.Sprintf(
 			"\n%s\n",
-			common.FormatEntry(entry, false, indent))))
+			formatEntry(entry, false, indent))))
 
 	for _, e := range entry.Event {
 		if e.SpanStart {
@@ -102,7 +97,7 @@ func (s *spans) emit(a *activeEntry, spanID string, io io.Writer, indent string)
 			delete(s.known, e.SpanId)
 			delete(a.closed, e.SpanId)
 		} else {
-			_, _ = io.Write([]byte(common.FormatEvent(e, indent + tab)))
+			_, _ = io.Write([]byte(formatEvent(e, indent + tab)))
 		}
 	}
 }
@@ -110,7 +105,7 @@ func (s *spans) emit(a *activeEntry, spanID string, io io.Writer, indent string)
 // add is the point where a log entry is added to the set of active spans.  If
 // it results in full closure of the parent span then that subtree is emitted
 // to the IO writer and discarded.
-func (s *spans) add(entry *log.Entry, io io.Writer) {
+func (s *io_spans) add(entry *log.Entry, io io.Writer) {
 	s.m.Lock()
 	defer s.m.Unlock()
 

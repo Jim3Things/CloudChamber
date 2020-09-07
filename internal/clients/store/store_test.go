@@ -8,15 +8,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 )
 
 const revStoreInitial = int64(0)
 
 func TestNew(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 
@@ -28,8 +26,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestInitialize(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 
@@ -61,8 +59,8 @@ func TestInitialize(t *testing.T) {
 }
 
 func TestNewWithArgs(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// Use non-default values to ensure we get what we asked for and not the defaults.
 	//
@@ -87,8 +85,8 @@ func TestNewWithArgs(t *testing.T) {
 }
 
 func TestStoreSetAndGet(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 
@@ -127,8 +125,8 @@ func TestStoreSetAndGet(t *testing.T) {
 }
 
 func TestStoreConnectDisconnect(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -153,8 +151,8 @@ func TestStoreConnectDisconnect(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -192,8 +190,8 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithSet(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	endpoints := getDefaultEndpoints()
 	timeoutConnect := getDefaultTimeoutConnect()
@@ -256,8 +254,8 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 }
 
 func TestStoreWriteRead(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	key := "TestStoreWriteRead/Key"
 	value := "TestStoreWriteRead/Value"
@@ -294,8 +292,8 @@ func TestStoreWriteRead(t *testing.T) {
 }
 
 func TestStoreWriteReadMultiple(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultiple")
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
@@ -330,8 +328,8 @@ func TestStoreWriteReadMultiple(t *testing.T) {
 }
 
 func TestStoreWriteReadWithPrefix(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	prefix := "TestStoreWriteReadWithPrefix"
 	prefixKey := prefix + "/Key"
@@ -405,8 +403,8 @@ func TestStoreWriteReadWithPrefix(t *testing.T) {
 }
 
 func TestStoreWriteDelete(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	key := "TestStoreWriteDelete/Key"
 	value := "TestStoreWriteDelete/Value"
@@ -446,8 +444,8 @@ func TestStoreWriteDelete(t *testing.T) {
 }
 
 func TestStoreWriteDeleteMultiple(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultipleTxn")
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
@@ -472,8 +470,8 @@ func TestStoreWriteDeleteMultiple(t *testing.T) {
 }
 
 func TestStoreWriteDeleteWithPrefix(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	keyValueSetSize := keySetSize
 
@@ -516,8 +514,8 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 }
 
 func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	key := "TestStoreWriteReadDeleteWithoutConnect/Key"
 	value := "TestStoreWriteReadDeleteWithoutConnect/Value"
@@ -570,8 +568,8 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 }
 
 func TestStoreSetWatch(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	key := "TestStoreSetWatch/Key"
 
@@ -593,8 +591,8 @@ func TestStoreSetWatch(t *testing.T) {
 }
 
 func TestStoreSetWatchMultiple(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	keySet := []string{"TestStoreSetWatchMultiple/Key"}
 
@@ -616,8 +614,8 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 }
 
 func TestStoreSetWatchPrefix(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	key := "TestStoreSetWatchPrefix/Key"
 
@@ -639,8 +637,8 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 }
 
 func TestStoreGetMemberList(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -671,8 +669,8 @@ func TestStoreGetMemberList(t *testing.T) {
 }
 
 func TestStoreSyncClusterConnections(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -691,8 +689,8 @@ func TestStoreSyncClusterConnections(t *testing.T) {
 }
 
 func TestStoreWriteReadMultipleTxn(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	keyValueSet := testGenerateKeyValueSet(keySetSize, "TestStoreWriteReadMultipleTxn")
 	keySet := testGenerateKeySetFromKeyValueSet(keyValueSet)
@@ -728,8 +726,8 @@ func TestStoreWriteReadMultipleTxn(t *testing.T) {
 }
 
 func TestStoreWriteMultipleTxn(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testName := "TestStoreWriteMultipleTxn"
 
@@ -773,8 +771,8 @@ func TestStoreWriteMultipleTxn(t *testing.T) {
 }
 
 func TestStoreWriteMultipleTxnCreate(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testName := "TestStoreWriteMultipleTxnCreate"
 	keySetSize := 1
@@ -838,8 +836,8 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 }
 
 func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testName := "TestStoreWriteMultipleTxnOverwrite"
 	keySetSize := 1
@@ -916,8 +914,8 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 }
 
 func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testName := "TestStoreWriteMultipleTxnCompareEqual"
 	keySetSize := 1
@@ -995,8 +993,8 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 }
 
 func TestStoreListWithPrefix(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	prefix := "TestStoreListWithPrefix"
 	prefixKey := prefix + "/Key"

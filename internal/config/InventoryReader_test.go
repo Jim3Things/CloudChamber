@@ -2,15 +2,19 @@
 package config
 
 import (
-	"github.com/spf13/viper"
 	"os"
 	"testing"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
+	"github.com/spf13/viper"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+)
+
+var (
+	utf *exporters.Exporter
 )
 
 // Common test startup method.  This is the _only_ Test* function in this
@@ -24,27 +28,28 @@ func TestMain(m *testing.M) {
 // Establish the test environment, including starting a test frontend service
 // over a faked http connection.
 func commonSetup() {
-	setup.Init(exporters.UnitTest)
+	utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.Init(utf)
 }
 
 // first inventory definition test
 
 func TestReadInventoryDefinition (t *testing.T) {
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response, err := ReadInventoryDefinition(".")
 	require.Nil(t, err)
 
 	require.Equal(t, 2, len(response.Racks))
 
-	r,ok:= response.Racks["rack1"] 
+	r,ok:= response.Racks["rack1"]
 	require.True(t, ok)
 	assert.Equal(t, 2, len(r.Blades))
-	
-	b,ok:=r.Blades[1] 
-	require.True(t, ok) 
+
+	b,ok:=r.Blades[1]
+	require.True(t, ok)
 	assert.Equal(t, int64(16), b.Cores)
 	assert.Equal(t, int64(16834), b.MemoryInMb)
 	assert.Equal(t, int64(240), b.DiskInGb)
@@ -54,7 +59,7 @@ func TestReadInventoryDefinition (t *testing.T) {
 	s,ok:=response.Racks["rack2"]
 	require.True(t, ok)
 	assert.Equal(t, 2, len(s.Blades))
-	
+
 	c,ok:=r.Blades[2]
 	require.True(t, ok)
 	assert.Equal(t, int64(8), c.Cores)
@@ -64,20 +69,20 @@ func TestReadInventoryDefinition (t *testing.T) {
 }
 
 func TestReadInventoryBogusPath (t *testing.T){
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 	viper.Reset()
 
-	response, err := ReadInventoryDefinition("C://Users//Waheguru") 
-	require.NotNil(t, err) 
+	response, err := ReadInventoryDefinition("C://Users//Waheguru")
+	require.NotNil(t, err)
 	assert.NotEqual(t, "%v", response)
 }
 
 //TestInventoryUniqueRack test to check that zone always contain unique rack numbers
 func TestInventoryUniquRack (t *testing.T) {
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 	viper.Reset()
 
 	_, err := ReadInventoryDefinition(".//BadYaml")
@@ -87,8 +92,8 @@ func TestInventoryUniquRack (t *testing.T) {
 
 func TestInventoryUniqueBlade (t *testing.T){
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 	viper.Reset()
 
 	_, err := ReadInventoryDefinition(".//BadYamlBlade")
@@ -98,8 +103,8 @@ func TestInventoryUniqueBlade (t *testing.T){
 
 func TestInventoryValidateBlade (t *testing.T){
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 	viper.Reset()
 
 	_, err := ReadInventoryDefinition(".//BadYamlValidate")

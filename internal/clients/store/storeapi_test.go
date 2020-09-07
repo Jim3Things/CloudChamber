@@ -8,7 +8,6 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -29,8 +28,8 @@ const (
 )
 
 func TestCreate(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	userName := admin + "." + tracing.MethodName(1)
 
@@ -74,8 +73,8 @@ func TestCreate(t *testing.T) {
 }
 
 func TestReadNew(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	userName := admin + "." + tracing.MethodName(1)
 
@@ -125,8 +124,8 @@ func TestReadNew(t *testing.T) {
 }
 
 func TestReadNewValue(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	userName := admin + "." + tracing.MethodName(1)
 
@@ -179,8 +178,8 @@ func TestReadNewValue(t *testing.T) {
 }
 
 func TestUpdate(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	userName := admin + "." + tracing.MethodName(1)
 
@@ -260,8 +259,8 @@ func TestUpdate(t *testing.T) {
 }
 
 func TestUpdateUnconditional(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	userName := admin + "." + tracing.MethodName(1)
 
@@ -356,8 +355,8 @@ func TestUpdateUnconditional(t *testing.T) {
 }
 
 func TestDelete(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	userName := alice + "." + tracing.MethodName(1)
 	passWord := alicePassword
@@ -424,8 +423,8 @@ func TestDelete(t *testing.T) {
 }
 
 func TestList(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	type urec struct {
 		name string

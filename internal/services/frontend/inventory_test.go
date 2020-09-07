@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -21,8 +20,8 @@ import (
 // First DBInventory unit test
 func TestInventoryListRacks(t *testing.T) {
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -55,8 +54,8 @@ func TestInventoryListRacks(t *testing.T) {
 
 // Inventory rack read test
 func TestInventoryRackRead(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -83,8 +82,8 @@ func TestInventoryRackRead(t *testing.T) {
 
 // Reading a rack that does not exist - should get status not found error
 func TestInventoryUnknownRack(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -98,8 +97,8 @@ func TestInventoryUnknownRack(t *testing.T) {
 }
 
 func TestInventoryListBlades(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -123,8 +122,8 @@ func TestInventoryListBlades(t *testing.T) {
 }
 
 func TestInventoryUnknownBlade(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -138,8 +137,8 @@ func TestInventoryUnknownBlade(t *testing.T) {
 }
 
 func TestInventoryNegativeBlade(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -153,8 +152,8 @@ func TestInventoryNegativeBlade(t *testing.T) {
 }
 
 func TestInventoryZeroBlade(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -168,8 +167,8 @@ func TestInventoryZeroBlade(t *testing.T) {
 }
 
 func TestInventoryStringBlade(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -183,8 +182,8 @@ func TestInventoryStringBlade(t *testing.T) {
 }
 
 func TestInventoryBadRackBlade(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -198,8 +197,8 @@ func TestInventoryBadRackBlade(t *testing.T) {
 }
 
 func TestInventoryBladeRead(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -226,8 +225,8 @@ func TestInventoryBladeRead(t *testing.T) {
 }
 
 func TestInventoryBlade2Read(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -254,8 +253,8 @@ func TestInventoryBlade2Read(t *testing.T) {
 
 // The purpose of this test is to check that the Inventory function get executed in a valid & established http session only
 func TestInventoryNoSession(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	request := httptest.NewRequest("GET", "/api/racks/", nil)
 	response := doHTTP(request, nil)
@@ -265,8 +264,8 @@ func TestInventoryNoSession(t *testing.T) {
 }
 
 func TestInventoryNoSessionRack(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	request := httptest.NewRequest("GET", "/api/racks/rack1", nil)
 	response := doHTTP(request, nil)
@@ -276,8 +275,8 @@ func TestInventoryNoSessionRack(t *testing.T) {
 }
 
 func TestInventoryNoSessionBlade(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	request := httptest.NewRequest("GET", "/api/racks/rack1/Blades/1", nil)
 	response := doHTTP(request, nil)

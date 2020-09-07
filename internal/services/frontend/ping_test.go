@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 )
 
 const (
@@ -18,8 +16,8 @@ const (
 func testPingPath() string { return baseURI + pingURI }
 
 func TestPing(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -51,8 +49,8 @@ func TestPing(t *testing.T) {
 }
 
 func TestPingNoSession(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	request := httptest.NewRequest("GET", testPingPath(), nil)
 	response := doHTTP(request, nil)
