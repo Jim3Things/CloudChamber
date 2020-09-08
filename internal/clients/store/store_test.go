@@ -1619,7 +1619,7 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 		// are equal. Set the required condition and change the value so we can verify
 		// after the update.
 		//
-		updateRequest := testGenerateRequestFromWReadResponseWithCondition(readResponse, ConditionRevisionEqual)
+		updateRequest := testGenerateRequestFromReadResponseWithCondition(readResponse, ConditionRevisionEqual)
 
 		updateResponse, err := store.WriteTxn(ctx, updateRequest)
 		assert.Nilf(t, err, "Failed to write conditional update to store - error: %v", err)

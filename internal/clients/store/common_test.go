@@ -194,7 +194,7 @@ func testGenerateRequestFromWriteRequest(request *Request) *Request {
 	return req
 }
 
-func testGenerateRequestFromWReadResponseWithCondition(response *Response, condition Condition) *Request {
+func testGenerateRequestFromReadResponseWithCondition(response *Response, condition Condition) *Request {
 	size := len(response.Records)
 	req := &Request{
 		Records:    make(map[string]Record, size),
@@ -217,7 +217,7 @@ func testGenerateRequestFromWReadResponseWithCondition(response *Response, condi
 }
 
 func testGenerateRequestFromReadResponse(response *Response) *Request {
-	return testGenerateRequestFromWReadResponseWithCondition(response, ConditionUnconditional)
+	return testGenerateRequestFromReadResponseWithCondition(response, ConditionUnconditional)
 }
 
 func testCompareReadRecordToWriteRecord(rRec *Record, wRec *Record, wRev int64) bool {
