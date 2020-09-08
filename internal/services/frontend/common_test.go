@@ -73,7 +73,7 @@ func commonSetup() {
 	}
 
 	utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.Init(utf)
+	exporters.ConnectToProvider(utf)
 
 	// Set up the internal test deployment of the stepper service, in order to
 	// support the stepper frontend unit tests

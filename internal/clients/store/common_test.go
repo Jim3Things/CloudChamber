@@ -34,7 +34,7 @@ var (
 
 func commonSetup() {
 	utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.Init(utf)
+	exporters.ConnectToProvider(utf)
 
 	configPath = flag.String("config", ".", "path to the configuration file")
 	flag.Parse()

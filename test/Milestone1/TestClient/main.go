@@ -34,7 +34,7 @@ PUT api/Users/admin?op=logout
 // Command line: M1S -config=<global config file>
 func main() {
 	iow := exporters.NewExporter(exporters.NewIOWForwarder())
-	exporters.Init(iow)
+	exporters.ConnectToProvider(iow)
 
 	if err := iow.Open(os.Stdout); err != nil {
 		log.Fatalf("failed to open trace file: %v", err)

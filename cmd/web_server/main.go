@@ -28,7 +28,7 @@ func main() {
 
 	iow := exporters.NewExporter(exporters.NewIOWForwarder())
 	sink := exporters.NewExporter(exporters.NewSinkForwarder(grpc.WithInsecure()))
-	exporters.Init(iow, sink)
+	exporters.ConnectToProvider(iow, sink)
 
 	version.Trace()
 

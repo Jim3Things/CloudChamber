@@ -29,7 +29,7 @@ func main() {
 		os.Exit(0)
 	}
 	iow := exporters.NewExporter(exporters.NewIOWForwarder())
-	exporters.Init(iow)
+	exporters.ConnectToProvider(iow)
 
 	version.Trace()
 

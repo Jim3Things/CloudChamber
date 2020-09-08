@@ -29,7 +29,7 @@ func TestMain(m *testing.M) {
 // over a faked http connection.
 func commonSetup() {
 	utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.Init(utf)
+	exporters.ConnectToProvider(utf)
 }
 
 // first inventory definition test

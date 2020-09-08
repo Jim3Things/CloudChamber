@@ -32,7 +32,7 @@ var (
 
 func init() {
 	utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.Init(utf)
+	exporters.ConnectToProvider(utf)
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
