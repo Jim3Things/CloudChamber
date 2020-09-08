@@ -1650,9 +1650,6 @@ func TestStoreListWithPrefix(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
-
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreListWithPrefix"
 		key := testGenerateKeyFromName(testName)
@@ -1718,9 +1715,6 @@ func TestStoreListWithPrefix(t *testing.T) {
 func TestStoreListWithPrefixEmptySet(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
-
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreListWithPrefixEmptySet"
