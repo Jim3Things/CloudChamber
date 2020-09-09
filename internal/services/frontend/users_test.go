@@ -17,7 +17,6 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -147,8 +146,8 @@ func testUserSetPassword(t *testing.T, name string, upd *pb.UserPassword, rev in
 // +++ Login tests
 
 func TestUsersLoginSessionSimple(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword))
@@ -178,8 +177,8 @@ func TestUsersLoginSessionSimple(t *testing.T) {
 }
 
 func TestUsersLoginSessionRepeat(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -209,8 +208,8 @@ func TestUsersLoginSessionRepeat(t *testing.T) {
 }
 
 func TestUsersLoginDupLogins(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -256,8 +255,8 @@ func TestUsersLoginDupLogins(t *testing.T) {
 }
 
 func TestUsersLoginLogoutDiffAccounts(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -290,8 +289,8 @@ func TestUsersLoginLogoutDiffAccounts(t *testing.T) {
 }
 
 func TestUsersDoubleLogout(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// login for the first time, should succeed
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -322,8 +321,8 @@ func TestUsersDoubleLogout(t *testing.T) {
 }
 
 func TestUsersLoginSessionBadPassword(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword + "rubbish"))
@@ -345,8 +344,8 @@ func TestUsersLoginSessionBadPassword(t *testing.T) {
 }
 
 func TestUsersLoginSessionNoUser(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin + "Bogus"), strings.NewReader(adminPassword))
@@ -372,8 +371,8 @@ func TestUsersLoginSessionNoUser(t *testing.T) {
 // +++ User creation tests
 
 func TestUsersCreate(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	path := baseURI + alice + "2"
 
@@ -403,8 +402,8 @@ func TestUsersCreate(t *testing.T) {
 }
 
 func TestUsersCreateDup(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	r, err := toJSONReader(aliceDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -433,8 +432,8 @@ func TestUsersCreateDup(t *testing.T) {
 }
 
 func TestUsersCreateBadData(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -461,8 +460,8 @@ func TestUsersCreateBadData(t *testing.T) {
 }
 
 func TestUsersCreateNoPriv(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	r, err := toJSONReader(bobDef)
 	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
@@ -489,8 +488,8 @@ func TestUsersCreateNoPriv(t *testing.T) {
 }
 
 func TestUsersCreateNoSession(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	path := baseURI + alice + "2"
 
@@ -519,8 +518,8 @@ func TestUsersCreateNoSession(t *testing.T) {
 // +++ Known users list tests
 
 func TestUsersList(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -563,8 +562,8 @@ func TestUsersList(t *testing.T) {
 }
 
 func TestUsersListNoPriv(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -588,8 +587,8 @@ func TestUsersListNoPriv(t *testing.T) {
 // +++ Get user details tests
 
 func TestUsersRead(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -618,8 +617,8 @@ func TestUsersRead(t *testing.T) {
 }
 
 func TestUsersReadUnknownUser(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -639,8 +638,8 @@ func TestUsersReadUnknownUser(t *testing.T) {
 }
 
 func TestUsersReadNoPriv(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -668,8 +667,8 @@ func TestUsersReadNoPriv(t *testing.T) {
 // +++ User operation (?op=) tests
 
 func TestUsersOperationIllegal(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// Verify a bunch of failure cases. Specifically,
 	// - that a naked op fails
@@ -720,8 +719,8 @@ func TestUsersUpdate(t *testing.T) {
 		CanManageAccounts: true,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -763,8 +762,8 @@ func TestUsersUpdate(t *testing.T) {
 }
 
 func TestUsersUpdateBadData(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -799,8 +798,8 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 		CanManageAccounts: true,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -834,8 +833,8 @@ func TestUsersUpdateBadMatchSyntax(t *testing.T) {
 		CanManageAccounts: true,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -865,8 +864,8 @@ func TestUsersUpdateNoUser(t *testing.T) {
 		CanManageAccounts: true,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -893,8 +892,8 @@ func TestUsersUpdateNoPriv(t *testing.T) {
 		CanManageAccounts: true,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -949,8 +948,8 @@ func TestUsersUpdateExpandRights(t *testing.T) {
 		CanManageAccounts: false,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	path := baseURI + alice
 
@@ -992,8 +991,8 @@ func TestUsersUpdateExpandRights(t *testing.T) {
 // +++ Delete user tests
 
 func TestUsersDelete(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	path := fmt.Sprintf("%s%s", baseURI, alice)
 
@@ -1028,8 +1027,8 @@ func TestUsersDelete(t *testing.T) {
 }
 
 func TestUsersDeleteNoUser(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	path := fmt.Sprintf("%s%s", baseURI, alice+"Bogus")
 
@@ -1050,8 +1049,8 @@ func TestUsersDeleteNoUser(t *testing.T) {
 }
 
 func TestUsersDeleteNoPriv(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
@@ -1074,8 +1073,8 @@ func TestUsersDeleteNoPriv(t *testing.T) {
 }
 
 func TestUsersDeleteProtected(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -1108,8 +1107,8 @@ func TestUsersSetPassword(t *testing.T) {
 		Force:       true,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -1153,8 +1152,8 @@ func TestUsersSetPasswordForce(t *testing.T) {
 		Force:       true,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -1192,8 +1191,8 @@ func TestUsersSetPasswordBadPassword(t *testing.T) {
 		Force:       false,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -1228,8 +1227,8 @@ func TestUsersSetPasswordNoPriv(t *testing.T) {
 		Force:       false,
 	}
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())

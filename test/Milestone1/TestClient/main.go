@@ -15,7 +15,6 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -34,7 +33,12 @@ PUT api/Users/admin?op=logout
 
 // Command line: M1S -config=<global config file>
 func main() {
-	setup.Init(exporters.IoWriter)
+	iow := exporters.NewExporter(exporters.NewIOWForwarder())
+	exporters.ConnectToProvider(iow)
+
+	if err := iow.Open(os.Stdout); err != nil {
+		log.Fatalf("failed to open trace file: %v", err)
+	}
 
 	cfgPath := flag.String("config", ".", "path to the configuration file")
 	showConfig := flag.Bool("showConfig", false, "display the current configuration settings")

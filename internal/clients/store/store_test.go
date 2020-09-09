@@ -9,15 +9,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 const revStoreInitial = int64(0)
 
 func TestNew(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 
@@ -29,8 +28,8 @@ func TestNew(t *testing.T) {
 }
 
 func TestInitialize(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 
@@ -62,8 +61,8 @@ func TestInitialize(t *testing.T) {
 }
 
 func TestNewWithArgs(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	// Use non-default values to ensure we get what we asked for and not the defaults.
 	//
@@ -88,8 +87,8 @@ func TestNewWithArgs(t *testing.T) {
 }
 
 func TestStoreSetAndGet(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 
@@ -128,8 +127,8 @@ func TestStoreSetAndGet(t *testing.T) {
 }
 
 func TestStoreConnectDisconnect(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -154,8 +153,8 @@ func TestStoreConnectDisconnect(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -193,8 +192,8 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 }
 
 func TestStoreConnectDisconnectWithSet(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	endpoints := getDefaultEndpoints()
 	timeoutConnect := getDefaultTimeoutConnect()
@@ -257,8 +256,8 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 }
 
 func TestStoreWriteReadTxn(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadTxn"
@@ -301,8 +300,8 @@ func TestStoreWriteReadTxn(t *testing.T) {
 }
 
 func TestStoreWriteReadTxnRequired(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadTxnRequired"
@@ -358,8 +357,8 @@ func TestStoreWriteReadTxnRequired(t *testing.T) {
 }
 
 func TestStoreWriteReadTxnOptional(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadTxnOptional"
@@ -416,8 +415,8 @@ func TestStoreWriteReadTxnOptional(t *testing.T) {
 }
 
 func TestStoreWriteReadMultipleTxn(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadMultipleTxn"
@@ -462,8 +461,8 @@ func TestStoreWriteReadMultipleTxn(t *testing.T) {
 }
 
 func TestStoreWriteReadMultipleTxnRequired(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadMultipleTxnRequired"
@@ -532,8 +531,8 @@ func TestStoreWriteReadMultipleTxnRequired(t *testing.T) {
 }
 
 func TestStoreWriteReadMultipleTxnOptional(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadMultipleTxnOptional"
@@ -589,8 +588,8 @@ func TestStoreWriteReadMultipleTxnOptional(t *testing.T) {
 }
 
 func TestStoreWriteReadMultipleTxnPartial(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadMultipleTxnPartial"
@@ -667,8 +666,8 @@ func TestStoreWriteReadMultipleTxnPartial(t *testing.T) {
 }
 
 func TestStoreWriteDeleteTxn(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteTxn"
@@ -740,8 +739,8 @@ func TestStoreWriteDeleteTxn(t *testing.T) {
 }
 
 func TestStoreWriteDeleteTxnDeleteAbsent(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteTxnDeleteAbsent"
@@ -820,8 +819,8 @@ func TestStoreWriteDeleteTxnDeleteAbsent(t *testing.T) {
 }
 
 func TestStoreWriteDeleteMultipleTxnRequired(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteMultipleTxnRequired"
@@ -915,8 +914,8 @@ func TestStoreWriteDeleteMultipleTxnRequired(t *testing.T) {
 }
 
 func TestStoreWriteDeleteMultipleTxnOptional(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteMultipleTxnOptional"
@@ -997,8 +996,8 @@ func TestStoreWriteDeleteMultipleTxnOptional(t *testing.T) {
 }
 
 func TestStoreWriteDeleteMultipleTxnPartialRequired(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteMultipleTxnPartial"
@@ -1131,8 +1130,8 @@ func TestStoreWriteDeleteMultipleTxnPartialRequired(t *testing.T) {
 }
 
 func TestStoreWriteDeleteMultipleTxnPartialOptional(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteMultipleTxnPartialOptional"
@@ -1210,8 +1209,8 @@ func TestStoreWriteDeleteMultipleTxnPartialOptional(t *testing.T) {
 }
 
 func TestStoreWriteDeleteWithPrefix(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteDeleteWithPrefix"
@@ -1277,8 +1276,8 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 }
 
 func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteReadDeleteWithoutConnect"
@@ -1320,8 +1319,8 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 }
 
 func TestStoreSetWatch(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	key := "TestStoreSetWatch/Key"
 
@@ -1343,8 +1342,8 @@ func TestStoreSetWatch(t *testing.T) {
 }
 
 func TestStoreSetWatchMultiple(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	keySet := []string{"TestStoreSetWatchMultiple/Key"}
 
@@ -1366,8 +1365,8 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 }
 
 func TestStoreSetWatchPrefix(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	key := "TestStoreSetWatchPrefix/Key"
 
@@ -1389,8 +1388,8 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 }
 
 func TestStoreGetMemberList(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -1421,8 +1420,8 @@ func TestStoreGetMemberList(t *testing.T) {
 }
 
 func TestStoreSyncClusterConnections(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -1441,8 +1440,8 @@ func TestStoreSyncClusterConnections(t *testing.T) {
 }
 
 func TestStoreWriteMultipleTxnCreate(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteMultipleTxnCreate"
@@ -1506,8 +1505,8 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 }
 
 func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteMultipleTxnOverwrite"
@@ -1574,8 +1573,8 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 }
 
 func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreWriteMultipleTxnCompareEqual"
@@ -1648,11 +1647,8 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 }
 
 func TestStoreListWithPrefix(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
-
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreListWithPrefix"
@@ -1717,11 +1713,8 @@ func TestStoreListWithPrefix(t *testing.T) {
 }
 
 func TestStoreListWithPrefixEmptySet(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
-
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		testName := "TestStoreListWithPrefixEmptySet"

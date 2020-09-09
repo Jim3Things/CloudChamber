@@ -35,7 +35,6 @@ import (
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
@@ -54,6 +53,8 @@ var (
 	baseURI     string
 	initialized bool
 	lis         *bufconn.Listener
+
+	utf			*exporters.Exporter
 )
 
 // Common test startup method.  This is the _only_ Test* function in this
@@ -71,7 +72,8 @@ func commonSetup() {
 		log.Fatalf("Error initializing service for second or subsequent time")
 	}
 
-	setup.Init(exporters.UnitTest)
+	utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.ConnectToProvider(utf)
 
 	// Set up the internal test deployment of the stepper service, in order to
 	// support the stepper frontend unit tests

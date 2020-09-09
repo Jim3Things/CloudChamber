@@ -1,4 +1,4 @@
-package common
+package exporters
 
 import (
 	"context"
@@ -16,10 +16,10 @@ const (
 	tab = "    "
 )
 
-// ExtractEntry transforms the incoming information about an OpenTelemetry span
+// extractEntry transforms the incoming information about an OpenTelemetry span
 // into the entry / event structure is understood by Cloud Chamber's tracing
 // consumers, including the UI.
-func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
+func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 	spanID := data.SpanContext.SpanID.String()
 	traceID := data.SpanContext.TraceID.String()
 	parentID := data.ParentSpanID.String()
@@ -73,10 +73,10 @@ func ExtractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 	return entry
 }
 
-// FormatEntry produces a string containing the information in the span-level
+// formatEntry produces a string containing the information in the span-level
 // data.  This is used by exporters that emit the trace to a text-based stream.
-func FormatEntry(entry *log.Entry, deferred bool, leader string) string {
-	stack := tab + strings.ReplaceAll(entry.GetStackTrace(), "\n", "\n"+tab)
+func formatEntry(entry *log.Entry, deferred bool, leader string) string {
+	stack := doIndent(entry.GetStackTrace(), tab)
 
 	return doIndent(fmt.Sprintf(
 		"[%s:%s]%s%s %s %s:\n%s\n",
@@ -89,10 +89,10 @@ func FormatEntry(entry *log.Entry, deferred bool, leader string) string {
 		stack), leader)
 }
 
-// FormatEvent produces a string for a single event in a span that contains the
+// formatEvent produces a string for a single event in a span that contains the
 // formatted information about that event.  Also used by exporters that emit
 // the trace events to a text-based stream.
-func FormatEvent(event *log.Event, leader string) string {
+func formatEvent(event *log.Event, leader string) string {
 	if event.SpanStart {
 		return strings.TrimSuffix(formatSpanStart(event, leader), leader)
 	}

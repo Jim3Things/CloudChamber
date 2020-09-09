@@ -18,20 +18,23 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	log2 "github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const bufSize = 1024 * 1024
 
-var lis *bufconn.Listener
-var client pb.TraceSinkClient
+var (
+ 	lis *bufconn.Listener
+ 	client pb.TraceSinkClient
+
+	utf *exporters.Exporter
+)
 
 func init() {
-	setup.Init(exporters.UnitTest)
+	utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.ConnectToProvider(utf)
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(st.Interceptor))
@@ -134,8 +137,8 @@ func assertEventMatches(t *testing.T, expected *log2.Event, actual *log2.Event) 
 }
 
 func TestGetAfterNoEntries(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -154,8 +157,8 @@ func TestGetAfterNoEntries(t *testing.T) {
 }
 
 func TestGetAfterOneEntry(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -184,8 +187,8 @@ func TestGetAfterOneEntry(t *testing.T) {
 }
 
 func TestGetAfterEndOfEntries(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -233,8 +236,8 @@ func TestGetAfterEndOfEntries(t *testing.T) {
 }
 
 func TestGetAfterMaxEntriesTooSmall(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -262,8 +265,8 @@ func TestGetAfterMaxEntriesTooSmall(t *testing.T) {
 }
 
 func TestGetAfterMultipleEntries(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -295,8 +298,8 @@ func TestGetAfterMultipleEntries(t *testing.T) {
 }
 
 func TestGetAfterMissed(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -328,8 +331,8 @@ func TestGetAfterMissed(t *testing.T) {
 }
 
 func TestGetAfterRepeatedNewAppends(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -392,8 +395,8 @@ func TestGetAfterRepeatedNewAppends(t *testing.T) {
 }
 
 func TestGetPolicyOverflow(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -438,8 +441,8 @@ func TestGetPolicyOverflow(t *testing.T) {
 }
 
 func TestGetAfterWaitImmediateOneEntry(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -468,8 +471,8 @@ func TestGetAfterWaitImmediateOneEntry(t *testing.T) {
 }
 
 func TestGetAfterWaitOneEntry(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -507,8 +510,8 @@ func TestGetAfterWaitOneEntry(t *testing.T) {
 }
 
 func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()

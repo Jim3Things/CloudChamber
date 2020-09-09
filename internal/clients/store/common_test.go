@@ -9,7 +9,6 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,10 +28,13 @@ var (
 	initialized bool
 
 	configPath *string
+
+	utf *exporters.Exporter
 )
 
 func commonSetup() {
-	setup.Init(exporters.UnitTest)
+	utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.ConnectToProvider(utf)
 
 	configPath = flag.String("config", ".", "path to the configuration file")
 	flag.Parse()
