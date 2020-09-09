@@ -880,7 +880,7 @@ func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (respo
 		// We may choose to make use of listing just the keys on the Get() rquest by
 		// adding clientv3.WithKeysOnly() to the list of applicable options.
 		//
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		opCtx, cancel := context.WithTimeout(ctx, store.TimeoutRequest)
 		getResponse, err := store.Client.Get(
 			opCtx,
 			keyPrefix,
@@ -935,7 +935,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 			return err
 		}
 
-		opCtx, cancel := context.WithTimeout(context.Background(), store.TimeoutRequest)
+		opCtx, cancel := context.WithTimeout(ctx, store.TimeoutRequest)
 		opResponse, err := store.Client.Delete(opCtx, keyPrefix, clientv3.WithPrefix())
 		cancel()
 
