@@ -50,17 +50,17 @@ func TestCreate(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revCreate, err := store.CreateNew(context.Background(), KeyRootUsers, userName, user)
+	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
 
-	revCreate2, err := store.CreateNew(context.Background(), KeyRootUsers, userName, user)
+	revCreate2, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
 	assert.NotNilf(t, err, "Unexpected success attempting to (re-)create new user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revCreate2, "Expected failure should result in no response")
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadNew(context.Background(), KeyRootUsers, userName, userRead)
+	revRead, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, userRead)
 
 	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
@@ -95,18 +95,18 @@ func TestReadNew(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revCreate, err := store.CreateNew(context.Background(), KeyRootUsers, userName, user)
+	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
 
 	readUser := &pb.User{}
 
-	revRead, err := store.ReadNew(context.Background(), KeyRootUsers, userName, readUser)
+	revRead, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, readUser)
 	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revRead, "Expected read revision to be equal to create revision")
 	assert.Equalf(t, user, readUser, "Unexpected difference in creation user record and read user record")
 
-	readUserString, revReadValue, err := store.ReadNewValue(context.Background(), KeyRootUsers, userName)
+	readUserString, revReadValue, err := store.Read(context.Background(), KeyRootUsers, userName)
 	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revReadValue, "Expected read revision to be equal to create revision")
 
@@ -149,18 +149,18 @@ func TestReadNewValue(t *testing.T) {
 	userValue, err := Encode(user)
 	assert.Nilf(t, err, "Failed to encode user record")
 
-	revCreate, err := store.CreateNewValue(context.Background(), KeyRootUsers, userName, userValue)
+	revCreate, err := store.Create(context.Background(), KeyRootUsers, userName, userValue)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
 
-	readUserValue, revReadValue, err := store.ReadNewValue(context.Background(), KeyRootUsers, userName)
+	readUserValue, revReadValue, err := store.Read(context.Background(), KeyRootUsers, userName)
 	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revReadValue, "Expected read revision to be equal to create revision")
 	assert.Equalf(t, userValue, *readUserValue, "Unexpected difference in creation user record and read user record")
 
 	readUser := &pb.User{}
 
-	revRead, err := store.ReadNew(context.Background(), KeyRootUsers, userName, readUser)
+	revRead, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, readUser)
 	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revRead, "Expected read revision to be equal to create revision")
 	assert.Equalf(t, user, readUser, "Unexpected difference in creation user record and read user record")
@@ -200,13 +200,13 @@ func TestUpdate(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revCreate, err := store.CreateNew(context.Background(), KeyRootUsers, userName, user)
+	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadNew(context.Background(), KeyRootUsers, userName, userRead)
+	revRead, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, userRead)
 
 	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
@@ -225,13 +225,13 @@ func TestUpdate(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revUpdate, err := store.UpdateNew(context.Background(), KeyRootUsers, userName, revRead, userUpdate)
+	revUpdate, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, revRead, revUpdate, "Expected update revision to be greater than create revision")
 
 	userReadUpdate := &pb.User{}
 
-	revReadUpdate, err := store.ReadNew(context.Background(), KeyRootUsers, userName, userReadUpdate)
+	revReadUpdate, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, userReadUpdate)
 
 	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revUpdate, revReadUpdate, "Unexpected difference in update revision vs read revision")
@@ -248,7 +248,7 @@ func TestUpdate(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revReadUpdate2, err := store.UpdateNew(context.Background(), KeyRootUsers, userName, revRead, userUpdate2)
+	revReadUpdate2, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate2)
 	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revReadUpdate2, "Expected update revision to be greater than create revision")
 
@@ -281,13 +281,13 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revCreate, err := store.CreateNew(context.Background(), KeyRootUsers, userName, user)
+	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, RevisionInvalid, revCreate, "Expected create revision to be greater than initial revision")
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadNew(context.Background(), KeyRootUsers, userName, userRead)
+	revRead, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, userRead)
 
 	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
@@ -306,13 +306,13 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revUpdate, err := store.UpdateNew(context.Background(), KeyRootUsers, userName, revRead, userUpdate)
+	revUpdate, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, revRead, revUpdate, "Expected update revision to be greater than first read revision")
 
 	userReadUpdate := &pb.User{}
 
-	revReadUpdate, err := store.ReadNew(context.Background(), KeyRootUsers, userName, userReadUpdate)
+	revReadUpdate, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, userReadUpdate)
 
 	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revUpdate, revReadUpdate, "Unexpected difference in update revision vs read revision")
@@ -329,7 +329,7 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revReadUpdate2, err := store.UpdateNew(context.Background(), KeyRootUsers, userName, revRead, userUpdate2)
+	revReadUpdate2, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate2)
 	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revReadUpdate2, "Expected update revision to be nil")
 
@@ -344,7 +344,7 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revReadUpdate3, err := store.UpdateNew(context.Background(), KeyRootUsers, userName, RevisionInvalid, userUpdate3)
+	revReadUpdate3, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, RevisionInvalid, userUpdate3)
 	assert.Nilf(t, err, "Failed trying to update upconditionally for user %q - error: %v", userName, err)
 	assert.Lessf(t, revReadUpdate, revReadUpdate3, "Expected update revision to be greater than first update revision")
 
@@ -378,13 +378,13 @@ func TestDelete(t *testing.T) {
 		NeverDelete:       true,
 	}
 
-	revCreate, err := store.CreateNew(context.Background(), KeyRootUsers, userName, user)
+	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
 	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
 	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadNew(context.Background(), KeyRootUsers, userName, userRead)
+	revRead, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, userRead)
 
 	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
 	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
@@ -392,13 +392,13 @@ func TestDelete(t *testing.T) {
 
 	// Fiurst try to delete using the wrong revision
 	//
-	revDelete, err := store.DeleteNew(context.Background(), KeyRootUsers, userName, revRead-1)
+	revDelete, err := store.Delete(context.Background(), KeyRootUsers, userName, revRead-1)
 	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revDelete, "Expected post-delete revision to be greater than read revision")
 
 	// Now delete with the correct revision
 	//
-	revDelete, err = store.DeleteNew(context.Background(), KeyRootUsers, userName, revRead)
+	revDelete, err = store.Delete(context.Background(), KeyRootUsers, userName, revRead)
 	assert.Nilf(t, err, "Failed to delete user %q - error: %v", userName, err)
 	assert.Lessf(t, revRead, revDelete, "Expected post-delete revision to be greater than read revision")
 
@@ -406,13 +406,13 @@ func TestDelete(t *testing.T) {
 	//
 	userReread := &pb.User{}
 
-	revReread, err := store.ReadNew(context.Background(), KeyRootUsers, userName, userReread)
+	revReread, err := store.ReadWithDecode(context.Background(), KeyRootUsers, userName, userReread)
 	assert.NotNilf(t, err, "Unexpected success reading user %q after deletion - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revReread, "Unexpected difference in update revision vs read revision")
 
 	// Try to delete a non-existing record.
 	//
-	revDeleteAgain, err := store.DeleteNew(context.Background(), KeyRootUsers, userName, revRead)
+	revDeleteAgain, err := store.Delete(context.Background(), KeyRootUsers, userName, revRead)
 	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
 	assert.Equalf(t, RevisionInvalid, revDeleteAgain, "Expected post-re-delete revision invalid")
 
@@ -470,7 +470,7 @@ func TestList(t *testing.T) {
 		v, err := Encode(u)
 		assert.Nilf(t, err, "Failed to encode value for new user %q - error: %v", n, err)
 
-		revCreate, err := store.CreateNewValue(context.Background(), KeyRootUsers, n, v)
+		revCreate, err := store.Create(context.Background(), KeyRootUsers, n, v)
 		assert.Nilf(t, err, "Failed to create new user %q - error: %v", n, err)
 		assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
 
@@ -481,7 +481,7 @@ func TestList(t *testing.T) {
 		}
 	}
 
-	listRecs, listRev, err := store.ListNew(context.Background(), KeyRootUsers)
+	listRecs, listRev, err := store.List(context.Background(), KeyRootUsers)
 	assert.Nilf(t, err, "Failed to list records")
 	assert.LessOrEqualf(t, revFirstCreate, listRev, "Expected new store revision to be greater than initial revision")
 
