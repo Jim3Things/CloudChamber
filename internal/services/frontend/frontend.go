@@ -32,7 +32,8 @@ import (
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
@@ -95,7 +96,7 @@ func normalizeURL(next http.Handler) http.Handler {
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = st.WithNamedSpan(context.Background(), spanName, func(ctx context.Context) error {
-			st.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
+			tracing.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
 			next.ServeHTTP(w, r)
 			return nil
 		})

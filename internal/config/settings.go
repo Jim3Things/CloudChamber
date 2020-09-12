@@ -13,7 +13,8 @@ import (
 
 	"github.com/spf13/viper"
 
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
@@ -225,7 +226,7 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 		if err := viper.ReadInConfig(); err != nil {
 			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 				// Config file not found; we'll just use the default values
-				st.Infof(
+				tracing.Infof(
 					ctx,
 					-1,
 					"No config file found at %s/%s (%s), applying defaults.",
@@ -234,16 +235,16 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 					defaultConfigType)
 			} else {
 				// Config file was found but another error was produced
-				return st.Errorf(ctx, -1, "fatal error reading config file: %s", err)
+				return tracing.Errorf(ctx, -1, "fatal error reading config file: %s", err)
 			}
 		} else {
 			// Fill in the global configuration object from the configuration file
 			if err = viper.UnmarshalExact(cfg); err != nil {
-				return st.Errorf(ctx, -1, "unable to decode into struct, %v", err)
+				return tracing.Errorf(ctx, -1, "unable to decode into struct, %v", err)
 			}
 		}
 
-		st.Infof(ctx, -1,
+		tracing.Infof(ctx, -1,
 			"Configuration Read: \n%v", cfg)
 
 		return nil

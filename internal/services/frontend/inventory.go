@@ -17,7 +17,8 @@ import (
 	"github.com/gorilla/mux"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -65,7 +66,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		// Pick up the current time to avoid repeatedly fetching the same value
 		tick := common.Tick(ctx)
 
-		st.Infof(
+		tracing.Infof(
 			ctx,
 			tick,
 			"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
@@ -83,7 +84,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 			res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
-			st.Infof(ctx, tick, "   Listing rack %q at %q", name, target)
+			tracing.Infof(ctx, tick, "   Listing rack %q at %q", name, target)
 
 			return nil
 		})
@@ -115,7 +116,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Content-Type", "application/json")
 
-		st.Infof(ctx, common.Tick(ctx), "Returning details for rack %q: %v", rackID, u)
+		tracing.Infof(ctx, common.Tick(ctx), "Returning details for rack %q: %v", rackID, u)
 
 		// Get the user entry, and serialize it to json
 		// (export userPublic to json and return that as the body)
@@ -151,7 +152,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 		return dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
 
 			target := fmt.Sprintf("%s%d", b, bladeID)
-			st.Infof(ctx, tick, " Listing blades '%d' at %q", bladeID, target)
+			tracing.Infof(ctx, tick, " Listing blades '%d' at %q", bladeID, target)
 
 			if _, err = fmt.Fprintln(w, target); err != nil {
 				return httpError(ctx, w, err)
@@ -189,7 +190,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
-		st.Infof(ctx, common.Tick(ctx), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+		tracing.Infof(ctx, common.Tick(ctx), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
 
 		p := jsonpb.Marshaler{}
 		return p.Marshal(w, blade)

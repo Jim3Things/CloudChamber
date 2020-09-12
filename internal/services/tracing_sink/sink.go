@@ -14,7 +14,8 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -160,9 +161,9 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 	})
 
 	if err != nil {
-		st.Infof(ctx, common.Tick(ctx), "GetAfter failed with err=%v", err)
+		tracing.Infof(ctx, common.Tick(ctx), "GetAfter failed with err=%v", err)
 	} else {
-		st.Infof(
+		tracing.Infof(
 			ctx, common.Tick(ctx),
 			"GetAfter returning; %d entries, missed=%v, lastID=%d",
 			len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
@@ -185,7 +186,7 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 			FirstId:        int64(s.getFirstId() - 1),
 		}
 
-		st.Infof(
+		tracing.Infof(
 			ctx, common.Tick(ctx),
 			"GetPolicy returning; firstId=%d, maxEntriesHeld=%d",
 			resp.FirstId, resp.MaxEntriesHeld)

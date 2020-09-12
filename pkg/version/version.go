@@ -9,7 +9,8 @@ import (
 	"os"
 	"time"
 
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 //go:generate go run generator/generate.go
@@ -48,14 +49,14 @@ func Show() {
 //
 func Trace() {
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		st.Infof(
+		tracing.Infof(
 			ctx,
 			-1,
 			"===== Starting %q at %s =====",
 			fmt.Sprint(os.Args),
 			time.Now().Format(time.RFC1123Z))
 
-		st.Info(ctx, -1, toString())
+		tracing.Info(ctx, -1, toString())
 		return nil
 	})
 }

@@ -102,5 +102,5 @@ func (act *Actor) TraceOnReceive(ctx context.Context) {
 	sn := act.mgr.GetStateName()
 	mn := tracing.MethodName(2)
 
-	log.Infof(ctx, act.latest, "[In Stepper Actor/%s/%s]", sn, mn)
+	tracing.Infof(ctx, act.latest, "[In Stepper Actor/%s/%s]", sn, mn)
 }

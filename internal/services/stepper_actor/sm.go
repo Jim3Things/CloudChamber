@@ -1,22 +1,22 @@
 package stepper
 
 import (
-	"context"
-	"errors"
-	"fmt"
-	"math/rand"
-	"time"
+    "context"
+    "errors"
+    "fmt"
+    "math/rand"
+    "time"
 
-	"github.com/AsynkronIT/protoactor-go/actor"
-	"github.com/AsynkronIT/protoactor-go/scheduler"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/golang/protobuf/ptypes/empty"
+    "github.com/AsynkronIT/protoactor-go/actor"
+    "github.com/AsynkronIT/protoactor-go/scheduler"
+    "github.com/golang/protobuf/ptypes"
+    "github.com/golang/protobuf/ptypes/duration"
+    "github.com/golang/protobuf/ptypes/empty"
 
-	"github.com/Jim3Things/CloudChamber/internal/sm"
-	trace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    "github.com/Jim3Things/CloudChamber/internal/sm"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (
@@ -192,7 +192,7 @@ func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
 	}
 
 	if delay <= 0 {
-		return trace.Errorf(ctx, holder.latest, "delay must be greater than zero, but was %d", delay)
+		return tracing.Errorf(ctx, holder.latest, "delay must be greater than zero, but was %d", delay)
 	}
 
 	s.delay = delay
@@ -250,7 +250,7 @@ func (s *AutoStepStateImpl) Leave() {
 // processing for a subset of the possible messages.  The pattern is to first
 // handle those, and then call this method to handle the rest.
 func (act *Actor) ApplyDefaultActions(ctx context.Context) {
-	trace.OnEnter(ctx, act.latest, "Applying Default Actions")
+	tracing.OnEnter(ctx, act.latest, "Applying Default Actions")
 	ca := sm.ActorContext(ctx)
 
 	if !isSystemMessage(ctx) {
@@ -383,7 +383,7 @@ func (act *Actor) checkForExpiry(ctx context.Context) {
 
 	k, v := act.waiters.Min()
 	if k == nil {
-		trace.Info(ctx, act.latest, "No waiters found")
+		tracing.Info(ctx, act.latest, "No waiters found")
 		return
 	}
 
