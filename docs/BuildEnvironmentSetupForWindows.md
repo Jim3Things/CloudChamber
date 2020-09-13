@@ -11,9 +11,15 @@ The environment will make use of the following
 
   - Go
 
-  - VsCode
-
   - protoc
+
+  - npm
+
+  - CygWin
+
+  - Etcd
+
+  - VsCode
 
 VsCode is not required and other IDEs might be preferred. Configuring
 those IDEs is left as an exercise for the reader.
@@ -368,137 +374,20 @@ If this is working correctly, either use this method to modify the PATH
 environment variable each time a Windows Command line is going to be
 used or modify the System or User environment variable if desired.
 
-# Setting up the Initial CloudChamber Repository
+# Installing Etcd
 
-## Fetch CloudChamber Itself
+The Etcd V3 database is used as a back-end store by the CloudChamber
+services. It is only required when the services are being tested or run
+in a deployment.
 
-There are several ways to do this, such as using git, using go, or using
-the GitHub desktop app. Select a preferred method.
+An installation package can be found at
 
-Using a Command prompt, start by setting the value of the GOPATH
-environment variable to the directory to be used as the root of the Go
-project directory. This is assumed to be C:\\Chamber for these
-instructions, but another directory could be used as an alternative.
+<https://github.com/etcd-io/etcd/releases/download/v3.4.9/etcd-v3.4.9-windows-amd64.zip>
 
-> set GOPATH=C:\\Chamber
+Extract the binaries etcd.exe and etcdctl.exe and place then in a
+directory which is on the system PATH.
 
-This will set the value temporarily but by using the methods described
-above, this could be set permanently which would allow the setting to
-persist across logout/login and reboots.
-
-If using git, type either
-
-> git clone <https://github.com/Jim3Things/CloudChamber>
-> %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
-
-or if preferred, the command can be broken down into multiple steps
-using
-
-> mkdir %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
-> 
-> pushd %GOPATH%\\src\\github.com\\Jim3Things
-> 
-> git clone <https://github.com/Jim3Things/CloudChamber>
-
-This will initialize a git repository and populate it with the
-CloudChamber files under the specified directory.
-
-If using the go tool to fetch the initial copy of the repository, type
-
-> go get github.com/Jim3Things/CloudChamber
-
-If using the GitHub desktop application, remember to add this newly
-created repository to the set of known repositories.
-
-## Fetch Packages Used by CloudChamber
-
-Once the CloudChamber repo is available, fetch the remaining packages
-
-> cd /d
-> %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber\\build\\dev\_tools
-> 
-> fetchall
-
-This will fetch all the packages needed by the CloudChamber packages,
-install the protoc Go support and protobuf validation modules.
-
-A number of errors of the form
-
-> Can’t load package: package \<PackageName\>: no Go files in
-> \<PackagePath\>
-
-may occur, particularly for the packages
-
-  - github.com/golang/protobuf
-
-  - go.opentelemetry.io/otel
-
-  - github.com/Jim3Things/CloudChamber
-
-If so, these can be safely ignored.
-
-## Build CloudChamber
-
-Once all the packages and tools are available (i.e. after fetchall has
-run), the CloudChamber package can be built by typing
-
-> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber\\build
-> 
-> buildall
-
-This should build all the CloudChamber services and copy the generated
-executables and support files to
-
-> %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber\\deployments
-
-# Setting up the Initial CloudChamber UI Repository
-
-## Fetch the CloudChamber UI Itself
-
-This is just another GitHub project so any of the normal methods can be
-used to set up the git repository, such as
-
-> pushd %GOPATH%\\src\\github.com\\Jim3Things
-> 
-> go get github.com\\Jim3Things\\cloud\_chamber\_react\_ts
-
-If using the GitHub desktop application, remember to add this newly
-created repository to the set of known repositories.
-
-## Install the additional packages using NPM
-
-To prepare the additional packages to be used with the UI project, at a
-Windows command line
-
-> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\cloud\_chamber\_react\_ts
-> 
-> npm install react --save
-> 
-> npm install react-dom --save
-> 
-> npm install @material-ui/core
-> 
-> npm install @material-ui/icons
-> 
-> npm install @material-ui/lab
-
-The “--save” option use a double ‘-‘ character)
-
-Note that after an individual step, there may be a message suggesting
-that there are some potential security issues. If so, run the suggested
-
-> npm audi fix
-
-command.
-
-## Build The CloudChamber UI Project
-
-Once the repository has been populated, and the additional node.js
-packages installed, the project can be built using the following
-
-> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\cloud\_chamber\_react\_ts
-> 
-> npm run-script build
+Note: version later than 3.4.9 exist but have not yet been tested.
 
 # Installing the VsCode Application
 
@@ -622,6 +511,111 @@ Using extension list, search for the vscode-proto3 extension
 
 Install the extension
 
+# Setting up the Initial CloudChamber Repository
+
+## Fetch CloudChamber Itself
+
+There are several ways to do this, such as using git, using go, or using
+the GitHub desktop app. Select a preferred method.
+
+Using a Command prompt, start by setting the value of the GOPATH
+environment variable to the directory to be used as the root of the Go
+project directory. This is assumed to be C:\\Chamber for these
+instructions, but another directory could be used as an alternative.
+
+> set GOPATH=C:\\Chamber
+
+This will set the value temporarily but by using the methods described
+above, this could be set permanently which would allow the setting to
+persist across logout/login and reboots.
+
+If using git, type either
+
+> git clone <https://github.com/Jim3Things/CloudChamber>
+> %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
+
+or if preferred, the command can be broken down into multiple steps
+using
+
+> mkdir %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
+> 
+> pushd %GOPATH%\\src\\github.com\\Jim3Things
+> 
+> git clone <https://github.com/Jim3Things/CloudChamber>
+
+This will initialize a git repository and populate it with the
+CloudChamber files under the specified directory.
+
+If using the go tool to fetch the initial copy of the repository, type
+
+> go get github.com/Jim3Things/CloudChamber
+
+If using the GitHub desktop application, remember to add this newly
+created repository to the set of known repositories.
+
+## Building CloudChamber
+
+Once all the sources and tools are available, the CloudChamber package
+can be built by typing
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
+> 
+> make
+
+This should build all the CloudChamber services and copy the generated
+executables and support files to
+
+> %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber\\deployments
+
+# Setting up the Initial CloudChamber UI Repository
+
+## Fetch the CloudChamber UI Itself
+
+This is just another GitHub project so any of the normal methods can be
+used to set up the git repository, such as
+
+> pushd %GOPATH%\\src\\github.com\\Jim3Things
+> 
+> go get github.com\\Jim3Things\\cloud\_chamber\_react\_ts
+
+If using the GitHub desktop application, remember to add this newly
+created repository to the set of known repositories.
+
+## Install the additional packages using NPM
+
+To prepare the additional packages to be used with the UI project, at a
+Windows command line
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\cloud\_chamber\_react\_ts
+> 
+> npm install react --save
+> 
+> npm install react-dom --save
+> 
+> npm install @material-ui/core
+> 
+> npm install @material-ui/icons
+> 
+> npm install @material-ui/lab
+
+The “--save” option uses a double ‘-‘ character)
+
+Note that after an individual step, there may be a message suggesting
+that there are some potential security issues. If so, run the suggested
+
+> npm audit fix
+
+command.
+
+## Building the CloudChamber UI Project
+
+Once the repository has been populated, and the additional node.js
+packages installed, the project can be built using the following
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\cloud\_chamber\_react\_ts
+> 
+> npm run-script build
+
 # Checking Everything is working 
 
 Start a Windows Command Prompt / Git Command prompt and get to the
@@ -643,3 +637,181 @@ Build CloudChamber and check that the
 contains the generated executables for controllerd, inventoryd,
 sim\_supportd and web\_server, a README.md, a cloudchamber.yaml
 configuration file and some cmd files to start various components.
+
+# Deploying an Instance of CloudChamber
+
+## Using the Default Configuration
+
+By default, the tools will deploy an instance of CloudChamber to the
+C:\\CloudChamber directory. The following example will use that default
+and explain how to use an alternate location in a later section
+
+1.  Build the CloudChamber UI
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\cloud\_chamber\_react\_ts
+> 
+> npm run-script build
+
+2.  Build and install CloudChamber
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
+> 
+> make clean
+> 
+> make \[-j\] install
+> 
+> The -j option on the make command is completely optional. It allows
+> make to run multiple independent tasks in parallel and potentially
+> speed up the build. The effects will depend on the computer’s
+> configuration.
+
+3.  Start the Etcd store
+
+> C:\\CloudChamber\\Files\\StartEtcd
+> 
+> This will locate an instance of the etcd.exe executable and start it
+> in a separate window.
+
+4.  Start the CloudChamber deployment
+
+> C:\\CloudChamber\\Files\\StartCloudChamber
+> 
+> This will start all the CloudChamber services, each in a separate
+> window
+
+5.  Using a standard web browser, connect to
+
+> <http://localhost:8080/>
+
+6.  Logon to the site using some appropriate credentials. By default,
+    the configured admin account with its default password is defined in
+    the deployed cloudchamber.yaml configuration file.
+
+## Using an Alternate Installation Location
+
+To install CloudChamber to an alternate location the installation step
+changes to
+
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
+> 
+> make clean
+> 
+> make \[-j\] install CC\_INSTALL\_TARGET=C:/AlternateLocation
+
+or if the environment variable CC\_INSTALL\_TARGET is defined
+
+> set CC\_INSTALL\_TARGET=C:/CloudNewLocation
+> 
+> cd /d %GOPATH%\\src\\github.com\\Jim3Things\\CloudChamber
+> 
+> make clean
+> 
+> make -e \[-j\] install
+
+where the -e option allows environment variables to override definitions
+from the makefile.
+
+Note that the target deployment path *MUST* use the ‘/’ character as the
+directory component separator, even on a Windows computer.
+
+# Other Build Options
+
+The current “Makefile” provides a number of useful target for use with
+make e.g.
+
+> make \[\<target\> \[\<target\> \[\<target\>\]…\]\]
+
+  - all
+
+builds all the binaries which depend on sources that have been modified
+since the binaries were last built and then runs the tests
+
+  - build
+
+builds all the binaries which depend on sources that have been modified
+since the binaries were last built
+
+  - clean
+
+deletes all the generated files. Note, if the “clean” is combined with
+any target which generates files, the “-j” option *MUST NOT* be used
+
+  - install
+
+ensures all the files needed for a deployment have been built and then
+installs the deployment
+
+  - install\_clean
+
+deletes all the built files from an installed deployment. Does not
+delete the etcd database or CloudChamber log files. Note, if the
+“install\_clean” is combined with any target which generates files,
+the “-j” option *MUST NOT* be used
+
+  - protogen
+
+builds all the protobuf generated files that have been modified since
+the last time the protobuf files were built
+
+  - test
+
+runs go test on all the go packages that have been modified since the
+last successful test pass on those packages. Note this does not cause
+the deployable binaries to be built.
+
+If make is run without a target being specified, the default “all”
+target will be used.
+
+Multiple targets can be combined to process multiple steps in one
+command. For example
+
+  - To delete all the generated files, build everything and then run the
+    tests
+
+> make clean build test
+
+or
+
+> make clean all
+
+  - To run a complete reinstall using newly built binaries
+
+> make clean install\_clean install
+
+# Deployed Scripts
+
+The StartEtcd and StartCloudChamber scripts have already been mentioned,
+but the deployment has multiple scripts
+
+## StartEtcd
+
+Starts an instance of etcd in a new window. This can be started once and
+left running over multiple start-stop cycles of the primary CloudChamber
+services or even the CloudChamber tests. When etcd is no longer
+required, it can be stopped by simply closing the window where etcd is
+running. By default, all the etcd data files are placed in the Data
+sub-directory under the main CloudChamber installation directory, e.g.
+by default C:\\CloudChamber\\Data
+
+## StartCloudChamber
+
+Starts an instance of the CloudChamber installed services. Each service
+is started in its own window. This script assumes an instance of etcd
+(using the default client port of 2379) is already running. The
+StartEtcd script starts a suitable etcd instance.
+
+To stop the CloudChamber services, just close all the windows where the
+Cloud Chamber services are running. The stop order is not significant.
+
+## StartAll
+
+A convenience script which just invokes StartEtcd and follows this with
+StartCloudChamber.
+
+## MonitorEtcd
+
+Starts an instance of the etcdctl utility in a separate window to
+monitor all the changes made to the running etcd instance by any of the
+CloudChamber services. This should be started after the etcd instance is
+running. The monitor can be stopped by closing the window in which it is
+running.

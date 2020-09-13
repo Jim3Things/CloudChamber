@@ -85,6 +85,9 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			return httpError(ctx, w, err)
 		}
 
+		// Pick up the current time to avoid repeatedly fetching the same value
+		tick := common.Tick(ctx)
+
 		b := r.URL.String()
 		if !strings.HasSuffix(b, "/") {
 			b += "/"
@@ -101,7 +104,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 				protected = " (protected)"
 			}
 
-			st.Infof(ctx, common.Tick(ctx), "   Listing user %q: %q%s", entry.Name, target, protected)
+			st.Infof(ctx, tick, "   Listing user %q: %q%s", entry.Name, target, protected)
 
 			users.Users = append(users.Users, &pb.UserListEntry{
 				Name:      entry.Name,

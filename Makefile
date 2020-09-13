@@ -77,33 +77,15 @@ SRC_STORE = \
 SRC_TIMESTAMP = \
 	$(call ProdFiles, internal/clients/timestamp)
 
-SRC_TRACINGSINK = \
-	$(call ProdFiles, internal/services/tracing_sink)
-
 SRC_TRACING = \
 	$(call ProdFiles, internal/tracing)
 
-SRC_TRACING_EXPORTERS_COMMON = \
-	$(SRC_TRACING) \
-	$(call ProdFiles, internal/tracing/exporters/common)
-
-SRC_TRACING_EXPORTERS_IO_WRITER = \
-	$(SRC_TRACING_EXPORTERS_COMMON) \
-	$(call ProdFiles, internal/tracing/exporters/io_writer)
-
-SRC_TRACING_EXPORTERS_PRODUCTION = \
-	$(SRC_TRACING_EXPORTERS_COMMON) \
-	$(call ProdFiles, internal/tracing/exporters/production)
-
 SRC_TRACING_EXPORTERS = \
-	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
-	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
+	$(SRC_TRACING) \
 	$(call ProdFiles, internal/tracing/exporters)
 
 SRC_TRACING_SETUP = \
 	$(SRC_TRACING_EXPORTERS) \
-	$(SRC_TRACING_EXPORTERS_IO_WRITER) \
-	$(SRC_TRACING_EXPORTERS_PRODUCTION) \
 	$(call ProdFiles, internal/tracing/setup)
 
 SRC_TRACING_SERVER = \
@@ -243,7 +225,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test $(PROJECT)/internal/services/frontend
 	go test $(PROJECT)/internal/services/stepper_actor
 	go test $(PROJECT)/internal/services/tracing_sink
-	go test $(PROJECT)/internal/tracing/exporters/common
+	go test $(PROJECT)/internal/tracing/exporters
 	go test $(PROJECT)/internal/config
 
 

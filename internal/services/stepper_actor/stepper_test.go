@@ -15,11 +15,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common/channels"
 	clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	srvtrace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
@@ -28,11 +25,16 @@ import (
 
 const bufSize = 1024 * 1024
 
-var lis *bufconn.Listener
-var client pb.StepperClient
+var (
+	lis *bufconn.Listener
+	client pb.StepperClient
+
+	utf *exporters.Exporter
+)
 
 func init() {
-	setup.Init(exporters.UnitTest)
+	utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.ConnectToProvider(utf)
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(srvtrace.Interceptor))
@@ -150,8 +152,8 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 }
 
 func TestInvalidSetPolicyType(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -163,8 +165,8 @@ func TestInvalidSetPolicyType(t *testing.T) {
 }
 
 func TestInvalidSetPolicyManual(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -182,8 +184,8 @@ func TestInvalidSetPolicyManual(t *testing.T) {
 }
 
 func TestInvalidSetPolicyMeasured(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -203,8 +205,8 @@ func TestInvalidSetPolicyMeasured(t *testing.T) {
 }
 
 func TestInvalidSetPolicyNoWait(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -222,8 +224,8 @@ func TestInvalidSetPolicyNoWait(t *testing.T) {
 }
 
 func TestInvalidDelay(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -241,8 +243,8 @@ func TestInvalidDelay(t *testing.T) {
 }
 
 func TestStepper_NoWait(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -261,8 +263,8 @@ func TestStepper_NoWait(t *testing.T) {
 }
 
 func TestStepper_Measured(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
@@ -286,8 +288,8 @@ func TestStepper_Measured(t *testing.T) {
 }
 
 func TestStepper_Manual(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()

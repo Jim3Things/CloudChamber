@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	"github.com/Jim3Things/CloudChamber/pkg/version"
 )
 
@@ -28,8 +28,8 @@ func main() {
 		version.Show()
 		os.Exit(0)
 	}
-
-	setup.Init(exporters.IoWriter, exporters.Production)
+	iow := exporters.NewExporter(exporters.NewIOWForwarder())
+	exporters.ConnectToProvider(iow)
 
 	version.Trace()
 
@@ -43,20 +43,18 @@ func main() {
 		os.Exit(0)
 	}
 
-	if err = setup.SetFileWriter(cfg.SimSupport.TraceFile); err != nil {
+	var writer io.Writer
+	if writer, err = exporters.NameToWriter(cfg.SimSupport.TraceFile); err != nil {
+		log.Fatalf("failed to open name %q, err=%v", cfg.WebServer.TraceFile, err)
+	}
+
+	if err = iow.Open(writer); err != nil {
 		log.Fatalf("failed to set up the trace logger, err=%v", err)
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.SimSupport.EP.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
-	}
-
-	// This will fail initially, as the grpc listener is not active yet.  But
-	// a failure to connect is a planned condition and normal reconnection
-	// handling will get this channel set up.
-	if err = setup.SetEndpoint(cfg.SimSupport.EP.String()); err != nil {
-		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
 	}
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))

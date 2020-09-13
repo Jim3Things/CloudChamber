@@ -20,24 +20,26 @@ import (
 
 // Interceptor intercepts and extracts incoming trace data
 func Interceptor(
-	ctx context.Context,
+	ctxIn context.Context,
 	req interface{},
 	info *grpc.UnaryServerInfo,
 	handler grpc.UnaryHandler) (resp interface{}, err error) {
-	requestMetadata, _ := metadata.FromIncomingContext(ctx)
+	requestMetadata, _ := metadata.FromIncomingContext(ctxIn)
 	metadataCopy := requestMetadata.Copy()
 
-	entries, spanCtx := grpctrace.Extract(ctx, &metadataCopy)
-	ctx = correlation.ContextWithMap(ctx, correlation.NewMap(correlation.MapUpdate{
+	entries, spanCtx := grpctrace.Extract(ctxIn, &metadataCopy)
+	ctx := correlation.ContextWithMap(ctxIn, correlation.NewMap(correlation.MapUpdate{
 		MultiKV: entries,
 	}))
 
 	tr := global.TraceProvider().Tracer("server")
 
 	ctx, span := tr.Start(
-		trace.ContextWithRemoteSpanContext(ctx, spanCtx),
+		ctxIn,
 		info.FullMethod,
 		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithNewRoot(),
+		trace.LinkedTo(spanCtx),
 		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
 	)
 	defer span.End()

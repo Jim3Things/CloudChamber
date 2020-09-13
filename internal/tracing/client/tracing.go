@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/kv"
@@ -13,6 +14,7 @@ import (
 	"google.golang.org/grpc/status"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
 // Interceptor is a function that traces the client side activity for a grpc
@@ -83,6 +85,7 @@ func commonInterceptor(
 	ctx = metadata.NewOutgoingContext(ctx, metadataCopy)
 
 	err := invoker(ctx, method, req, reply, cc, opts...)
+
 	setTraceStatus(ctx, span, err)
 
 	return err
@@ -90,18 +93,26 @@ func commonInterceptor(
 
 // setTraceStatus records the final status for a trace span.
 func setTraceStatus(ctx context.Context, span trace.Span, err error) {
-	// Spans assume a status of "OK", so we only need to update the
-	// status if it is an error.
+	// Assume success
+	sev := log.Severity_Info
+	msg := "Success"
+
+	// We have an error, so evaluate what it should be
 	if err != nil {
-		s, ok := status.FromError(err)
+		s, _ := status.FromError(err)
 		code := s.Code()
 
-		if !ok || code == codes.Unknown {
-			code = codes.InvalidArgument
-		}
+		msg = s.Message()
 
-		span.RecordError(ctx, err, trace.WithErrorStatus(code))
-	} else {
-		span.SetStatus(codes.OK, "OK")
+		if code != codes.OK {
+			sev = log.Severity_Error
+		}
 	}
+
+	span.AddEvent(
+		ctx,
+		tracing.MethodName(3),
+		kv.Int64(tracing.SeverityKey, int64(sev)),
+		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
+		kv.String(tracing.MessageTextKey, fmt.Sprintf("GRPC completion status: %s", msg)))
 }

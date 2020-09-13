@@ -12,7 +12,6 @@ import (
 
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common/channels"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -96,8 +95,8 @@ func testStepperAfter(t *testing.T, after int64, cookies []*http.Cookie) (*commo
 }
 
 func TestStepperGetStatus(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -108,8 +107,8 @@ func TestStepperGetStatus(t *testing.T) {
 }
 
 func TestStepperSetManual(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testStepperReset(t)
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -129,8 +128,8 @@ func TestStepperSetManual(t *testing.T) {
 }
 
 func TestStepperSetModeInvalid(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testStepperReset(t)
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -163,8 +162,8 @@ func TestStepperSetModeInvalid(t *testing.T) {
 }
 
 func TestStepperSetModeBadEpoch(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testStepperReset(t)
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -195,8 +194,8 @@ func TestStepperSetModeBadEpoch(t *testing.T) {
 }
 
 func TestStepperAdvanceOne(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	testStepperReset(t)
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
@@ -219,8 +218,8 @@ func TestStepperAdvanceOne(t *testing.T) {
 }
 
 func TestStepperAdvanceTwo(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -248,8 +247,8 @@ func TestStepperAdvanceTwo(t *testing.T) {
 }
 
 func TestStepperAdvanceNotANumber(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -272,8 +271,8 @@ func TestStepperAdvanceNotANumber(t *testing.T) {
 }
 
 func TestStepperAdvanceMinusOne(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -294,8 +293,8 @@ func TestStepperAdvanceMinusOne(t *testing.T) {
 }
 
 func TestStepperSetManualBadRate(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -310,8 +309,8 @@ func TestStepperSetManualBadRate(t *testing.T) {
 func TestStepperAfter(t *testing.T) {
 	var cookies2 []*http.Cookie
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -337,8 +336,8 @@ func TestStepperAfter(t *testing.T) {
 }
 
 func TestStepperAfterBadPastTick(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -355,8 +354,8 @@ func TestStepperAfterBadPastTick(t *testing.T) {
 }
 
 func TestStepperAfterBadTick(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
@@ -372,8 +371,8 @@ func TestStepperAfterBadTick(t *testing.T) {
 }
 
 func TestStepperGetNow(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 

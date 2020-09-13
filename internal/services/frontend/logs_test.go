@@ -13,7 +13,6 @@ import (
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/common/channels"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters/unit_test"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -58,8 +57,8 @@ func testLogsGetAfter(
 }
 
 func TestLogsGetPolicy(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
@@ -74,8 +73,8 @@ func TestLogsGetPolicy(t *testing.T) {
 }
 
 func TestLogsGetPolicyNoSession(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
@@ -88,8 +87,8 @@ func TestLogsGetPolicyNoSession(t *testing.T) {
 }
 
 func TestLogsGetAfterNoSession(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
@@ -103,8 +102,8 @@ func TestLogsGetAfterNoSession(t *testing.T) {
 }
 
 func TestLogsGetAfterBadStart(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
@@ -121,8 +120,8 @@ func TestLogsGetAfterBadStart(t *testing.T) {
 }
 
 func TestLogsGetAfterBadCount(t *testing.T) {
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	err := tsc.Reset(context.Background())
 	require.Nil(t, err)
@@ -141,8 +140,8 @@ func TestLogsGetAfterBadCount(t *testing.T) {
 func TestLogsGetAfter(t *testing.T) {
 	var cookies2 []*http.Cookie
 
-	unit_test.SetTesting(t)
-	defer unit_test.SetTesting(nil)
+	_ = utf.Open(t)
+	defer utf.Close()
 
 	entry := &log.Entry{
 		Name:       "test",

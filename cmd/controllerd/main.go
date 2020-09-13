@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/monitor"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/setup"
 	"github.com/Jim3Things/CloudChamber/pkg/version"
 )
 
@@ -28,7 +28,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	setup.Init(exporters.IoWriter)
+	iow := exporters.NewExporter(exporters.NewIOWForwarder())
+	sink := exporters.NewExporter(exporters.NewSinkForwarder(grpc.WithInsecure()))
+	exporters.ConnectToProvider(iow, sink)
+
 	version.Trace()
 
 	cfg, err := config.ReadGlobalConfig(*cfgPath)
@@ -36,17 +39,22 @@ func main() {
 		log.Fatalf("failed to process the global configuration: %v", err)
 	}
 
-	if err = setup.SetFileWriter(cfg.Controller.TraceFile); err != nil {
-		log.Fatalf("failed to set up the trace logger, err=%v", err)
-	}
-
-	if err = setup.SetEndpoint(cfg.SimSupport.EP.String()); err != nil {
-		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
-	}
-
 	if *showConfig {
 		fmt.Println(cfg)
 		os.Exit(0)
+	}
+
+	var writer io.Writer
+	if writer, err = exporters.NameToWriter(cfg.Controller.TraceFile); err != nil {
+		log.Fatalf("failed to open name %q, err=%v", cfg.WebServer.TraceFile, err)
+	}
+
+	if err = iow.Open(writer); err != nil {
+		log.Fatalf("failed to set up the trace logger, err=%v", err)
+	}
+
+	if err = sink.Open(cfg.SimSupport.EP.String()); err != nil {
+		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
 	}
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Controller.EP.Port))
