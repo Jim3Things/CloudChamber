@@ -10,7 +10,7 @@ import (
 	"net/http"
 	"strconv"
 
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 var (
@@ -144,10 +144,35 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
 		}
 	}
 
-	_ = st.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
+	_ = tracing.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
 	http.Error(w, he.Error(), he.StatusCode())
 
 	return err
+}
+
+func postHttpError(ctx context.Context, tick int64, w http.ResponseWriter, err error) {
+	// We're hoping this is an HTTPError form of error, which would have the
+	// preferred HTTP status code included.
+	//
+	// If it isn't, then the error originated in some support or library logic,
+	// rather than the web server's business logic.  In that case we assume a
+	// status code of internal server error as the most likely correct value.
+	he, ok := err.(*HTTPError)
+	if !ok {
+		he = &HTTPError{
+			SC:   http.StatusInternalServerError,
+			Base: err,
+		}
+	}
+
+	_ = tracing.Errorf(ctx, tick, "http error %v: %s", he.StatusCode(), he.Error())
+	http.Error(w, he.Error(), he.StatusCode())
+}
+
+func httpErrorIf(ctx context.Context, tick int64, w http.ResponseWriter, err error) {
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+	}
 }
 
 // ensurePositiveNumber is a helper function that takes a query value as a

@@ -72,7 +72,8 @@ import (
 	"time"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    "github.com/Jim3Things/CloudChamber/internal/tracing"
+    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 
 	"go.etcd.io/etcd/clientv3"
 	"go.etcd.io/etcd/clientv3/concurrency"
@@ -210,7 +211,7 @@ func Initialize(cfg *config.GlobalConfig) {
 		storeRoot.DefaultTraceFlags = TraceFlags(cfg.Store.TraceLevel)
 		storeRoot.DefaultNamespaceSuffix = ""
 
-		st.Infof(
+		tracing.Infof(
 			ctx,
 			-1,
 			"EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v",
@@ -248,7 +249,7 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 	// and to clean the store before the tests are run
 	//
 	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
-		st.Fatalf(ctx, -1,
+		tracing.Fatalf(ctx, -1,
 			"invalid configuration: : %v",
 			ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
 	}
@@ -266,14 +267,14 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 		testNamespace += "/Standard"
 	}
 
-	st.Infof(ctx, -1, "Configured to use test namespace %q", testNamespace)
+	tracing.Infof(ctx, -1, "Configured to use test namespace %q", testNamespace)
 
 	if cfg.Store.Test.PreCleanStore {
 
-		st.Infof(ctx, -1, "Starting store pre-clean of namespace %q", testNamespace)
+		tracing.Infof(ctx, -1, "Starting store pre-clean of namespace %q", testNamespace)
 
 		if err := cleanNamespace(ctx, testNamespace); err != nil {
-			st.Fatalf(
+			tracing.Fatalf(
 				ctx, -1,
 				"failed to pre-clean the store as requested - namespace: %s err: %v",
 				testNamespace, err)
@@ -391,13 +392,13 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 	if store.traceEnabled() {
 		switch err {
 		case context.Canceled:
-			_ = st.Errorf(ctx, -1, "ctx is canceled by another routine: %v", err)
+			_ = tracing.Errorf(ctx, -1, "ctx is canceled by another routine: %v", err)
 
 		case context.DeadlineExceeded:
-			_ = st.Errorf(ctx, -1, "ctx is attached with a deadline is exceeded: %v", err)
+			_ = tracing.Errorf(ctx, -1, "ctx is attached with a deadline is exceeded: %v", err)
 
 		case rpctypes.ErrEmptyKey:
-			_ = st.Errorf(ctx, -1, "client-side error: %v", err)
+			_ = tracing.Errorf(ctx, -1, "client-side error: %v", err)
 
 		default:
 			if ev, ok := status.FromError(err); ok {
@@ -406,10 +407,10 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 					// server-side context might have timed-out first (due to clock skew)
 					// while original client-side context is not timed-out yet
 					//
-					_ = st.Errorf(ctx, -1, "server-side deadline is exceeded: %v", code)
+					_ = tracing.Errorf(ctx, -1, "server-side deadline is exceeded: %v", code)
 				}
 			} else {
-				_ = st.Errorf(ctx, -1, "bad cluster endpoints, which are not etcd servers: %v", err)
+				_ = tracing.Errorf(ctx, -1, "bad cluster endpoints, which are not etcd servers: %v", err)
 			}
 		}
 	}
@@ -423,7 +424,7 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 func (store *Store) SetTraceFlags(traceLevel TraceFlags) {
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
 		store.TraceFlags = traceLevel
-		st.Infof(ctx, -1, "TraceFlags: %v", store.GetTraceFlags())
+		tracing.Infof(ctx, -1, "TraceFlags: %v", store.GetTraceFlags())
 		return nil
 	})
 }
@@ -445,7 +446,7 @@ func (store *Store) SetAddress(endpoints []string) error {
 
 		store.Endpoints = endpoints
 
-		st.Infof(ctx, -1, "EP: %v", store.GetAddress())
+		tracing.Infof(ctx, -1, "EP: %v", store.GetAddress())
 		return nil
 	})
 }
@@ -468,7 +469,7 @@ func (store *Store) SetTimeoutConnect(timeout time.Duration) error {
 
 		store.TimeoutConnect = timeout
 
-		st.Infof(ctx, -1, "TimeoutConnect: %v", store.GetTimeoutConnect())
+		tracing.Infof(ctx, -1, "TimeoutConnect: %v", store.GetTimeoutConnect())
 		return nil
 	})
 }
@@ -488,7 +489,7 @@ func (store *Store) SetTimeoutRequest(timeout time.Duration) error {
 	return st.WithSpan(context.Background(), func(ctx context.Context) error {
 		store.TimeoutRequest = timeout
 
-		st.Infof(ctx, -1, "TimeoutRequest: %v", store.GetTimeoutRequest())
+		tracing.Infof(ctx, -1, "TimeoutRequest: %v", store.GetTimeoutRequest())
 		return nil
 	})
 }
@@ -514,7 +515,7 @@ func (store *Store) SetNamespaceSuffix(suffix string) error {
 		//
 		store.NamespaceSuffix = strings.Trim(suffix, slash)
 
-		st.Infof(ctx, -1, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
+		tracing.Infof(ctx, -1, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
 		return nil
 	})
 }
@@ -575,7 +576,7 @@ func (store *Store) Connect() error {
 func (store *Store) Disconnect() {
 	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
 		if nil == store.Client {
-			st.Infof(ctx, -1, "Store is already disconnected. No action taken")
+			tracing.Infof(ctx, -1, "Store is already disconnected. No action taken")
 			return nil
 		}
 
@@ -639,19 +640,19 @@ func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 
 			if store.trace(traceFlagExpandResults) {
 				for i, node := range result.Members {
-					st.Infof(ctx, -1, "node [%v] Id: %v Name: %v", i, node.ID, node.Name)
+					tracing.Infof(ctx, -1, "node [%v] Id: %v Name: %v", i, node.ID, node.Name)
 
 					for j, url := range node.ClientURLs {
-						st.Infof(ctx, -1, "  client [%v] URL: %v", j, url)
+						tracing.Infof(ctx, -1, "  client [%v] URL: %v", j, url)
 					}
 
 					for k, url := range node.PeerURLs {
-						st.Infof(ctx, -1, "  peer [%v] URL: %v", k, url)
+						tracing.Infof(ctx, -1, "  peer [%v] URL: %v", k, url)
 					}
 				}
 			}
 
-			st.Infof(ctx, -1, "Processed %v items", len(result.Members))
+			tracing.Infof(ctx, -1, "Processed %v items", len(result.Members))
 		}
 
 		return err
@@ -907,9 +908,9 @@ func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (respo
 
 			if store.trace(traceFlagExpandResults) {
 				if store.trace(traceFlagTraceKeyAndValue) {
-					st.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
+					tracing.Infof(ctx, -1, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
 				} else if store.trace(traceFlagTraceKey) {
-					st.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
+					tracing.Infof(ctx, -1, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
 				}
 			}
 		}
@@ -918,7 +919,7 @@ func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (respo
 
 		response = resp
 
-		st.Infof(ctx, -1, "Processed %v items", len(resp.Records))
+		tracing.Infof(ctx, -1, "Processed %v items", len(resp.Records))
 
 		return nil
 	})
@@ -953,7 +954,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 
 		response = resp
 
-		st.Infof(ctx, -1, "deleted %v keys under prefix %v", opResponse.Deleted, keyPrefix)
+		tracing.Infof(ctx, -1, "deleted %v keys under prefix %v", opResponse.Deleted, keyPrefix)
 
 		return nil
 	})

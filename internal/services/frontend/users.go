@@ -18,7 +18,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -74,325 +74,393 @@ func usersAddRoutes(routeBase *mux.Router) {
 // Process an http request for the list of users.  Response should contain a document of links to the
 // details URI for each known user.
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		err = doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(ctx, session, "")
-			})
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get User List"),
+		tracing.AsInternal())
+	defer span.End()
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := common.Tick(ctx)
 
-		// Pick up the current time to avoid repeatedly fetching the same value
-		tick := common.Tick(ctx)
-
-		b := r.URL.String()
-		if !strings.HasSuffix(b, "/") {
-			b += "/"
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-
-		users := &pb.UserList{}
-
-		err = dbUsers.Scan(ctx, func(entry *pb.User) (err error) {
-			target := fmt.Sprintf("%s%s", b, entry.Name)
-			protected := ""
-			if entry.NeverDelete {
-				protected = " (protected)"
-			}
-
-			st.Infof(ctx, tick, "   Listing user %q: %q%s", entry.Name, target, protected)
-
-			users.Users = append(users.Users, &pb.UserListEntry{
-				Name:      entry.Name,
-				Uri:       target,
-				Protected: entry.NeverDelete,
-			})
-
-			return err
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) error {
+			return canManageAccounts(ctx, session, "")
 		})
 
-		if err != nil {
-			return httpError(ctx, w, err)
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
+
+	b := r.URL.String()
+	if !strings.HasSuffix(b, "/") {
+		b += "/"
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	users := &pb.UserList{}
+
+	err = dbUsers.Scan(ctx, func(entry *pb.User) (err error) {
+		target := fmt.Sprintf("%s%s", b, entry.Name)
+
+		protected := ""
+		if entry.NeverDelete {
+			protected = " (protected)"
 		}
 
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, users)
+		tracing.Infof(ctx, tick, "   Listing user %q: %q%s", entry.Name, target, protected)
+
+		users.Users = append(users.Users, &pb.UserListEntry{
+			Name:      entry.Name,
+			Uri:       target,
+			Protected: entry.NeverDelete,
+		})
+
+		return err
 	})
+
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, users)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		vars := mux.Vars(r)
-		username := vars["username"]
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Create New User"),
+		tracing.AsInternal())
+	defer span.End()
 
-		err = doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(ctx, session, "")
-			})
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := common.Tick(ctx)
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	vars := mux.Vars(r)
+	username := vars["username"]
 
-		st.Infof(ctx, common.Tick(ctx), "Creating user %q", username)
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) error {
+			return canManageAccounts(ctx, session, "")
+		})
 
-		u := &pb.UserDefinition{}
-		if err = jsonpb.Unmarshal(r.Body, u); err != nil {
-			return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
-		}
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		var rev int64
+	tracing.Infof(ctx, common.Tick(ctx), "Creating user %q", username)
 
-		if rev, err = userAdd(ctx, username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
-			return httpError(ctx, w, err)
-		}
+	u := &pb.UserDefinition{}
+	if err = jsonpb.Unmarshal(r.Body, u); err != nil {
+		postHttpError(ctx, tick, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		return
+	}
 
-		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	var rev int64
 
-		st.Infof(
-			ctx, common.Tick(ctx),
-			"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v",
-			username, u.Enabled, u.CanManageAccounts)
+	if rev, err = userAdd(ctx, username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		_, err = fmt.Fprintf(
-			w,
-			"User %q created.  enabled: %v, can manage accounts: %v",
-			username, u.Enabled, u.CanManageAccounts)
-		return err
-	})
+	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+
+	tracing.Infof(
+		ctx, common.Tick(ctx),
+		"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v",
+		username, u.Enabled, u.CanManageAccounts)
+
+	_, err = fmt.Fprintf(
+		w,
+		"User %q created.  enabled: %v, can manage accounts: %v",
+		username, u.Enabled, u.CanManageAccounts)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 func handlerUserRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		vars := mux.Vars(r)
-		username := vars["username"]
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get User Details"),
+		tracing.AsInternal())
+	defer span.End()
 
-		err = doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(ctx, session, username)
-			})
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := common.Tick(ctx)
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	vars := mux.Vars(r)
+	username := vars["username"]
 
-		u, rev, err := userRead(ctx, username)
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) error {
+			return canManageAccounts(ctx, session, username)
+		})
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	u, rev, err := userRead(ctx, username)
 
-		ext := &pb.UserPublic{
-			Enabled:           u.Enabled,
-			CanManageAccounts: u.CanManageAccounts,
-			NeverDelete:       u.NeverDelete,
-		}
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		st.Infof(ctx, common.Tick(ctx), "Returning details for user %q: %v", username, u)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-		// Get the user entry, and serialize it to json
-		// (export userPublic to json and return that as the body)
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, ext)
-	})
+	ext := &pb.UserPublic{
+		Enabled:           u.Enabled,
+		CanManageAccounts: u.CanManageAccounts,
+		NeverDelete:       u.NeverDelete,
+	}
+
+	tracing.Infof(ctx, tick, "Returning details for user %s", formatUser(username, ext))
+
+	// Get the user entry, and serialize it to json
+	// (export userPublic to json and return that as the body)
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, ext)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 // Update the user entry
 func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		vars := mux.Vars(r)
-		username := vars["username"]
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Update User Details"),
+		tracing.AsInternal())
+	defer span.End()
 
-		var caller *pb.User
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := common.Tick(ctx)
 
-		err = doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) (err error) {
-				caller, err = getLoggedInUser(ctx, session)
-				if err != nil {
-					return err
-				}
+	vars := mux.Vars(r)
+	username := vars["username"]
 
-				return canManageAccounts(ctx, session, username)
-			})
+	var caller *pb.User
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) (err error) {
+			caller, err = getLoggedInUser(ctx, session)
+			if err != nil {
+				return err
+			}
 
-		// All updates are qualified by an ETag match.  The ETag comes from the database
-		// revision number.  So, first we get the 'if-match' tag to determine the revision
-		// that must be current for the update to proceed.
+			return canManageAccounts(ctx, session, username)
+		})
 
-		var match int64
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		matchString := r.Header.Get("If-Match")
-		match, err = strconv.ParseInt(matchString, 10, 64)
-		if err != nil {
-			return httpError(ctx, w, NewErrBadMatchType(matchString))
-		}
+	// All updates are qualified by an ETag match.  The ETag comes from the database
+	// revision number.  So, first we get the 'if-match' tag to determine the revision
+	// that must be current for the update to proceed.
 
-		// Next, get the new definition values, and make sure that they are valid.
-		upd := &pb.UserUpdate{}
-		if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-			return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
-		}
+	var match int64
 
-		// Finally, check that no rights are being added that the logged in user does
-		// not have.  Since a user can modify their own entries, the canManageAccounts
-		// check is insufficient.
-		if err = verifyRightsAvailable(caller, upd); err != nil {
-			return httpError(ctx, w, err)
-		}
+	matchString := r.Header.Get("If-Match")
+	match, err = strconv.ParseInt(matchString, 10, 64)
+	if err != nil {
+		postHttpError(ctx, tick, w, NewErrBadMatchType(matchString))
+		return
+	}
 
-		// All the prep is done.  Proceed with the update.  This may get a version
-		// mismatch, or the user may have been deleted.  Given the check above, these
-		// can all be considered version conflicts.
-		var rev int64
-		var newVer *pb.User
+	// Next, get the new definition values, and make sure that they are valid.
+	upd := &pb.UserUpdate{}
+	if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
+		postHttpError(ctx, tick, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		return
+	}
 
-		if newVer, rev, err = userUpdate(ctx, username, upd, match); err != nil {
-			return httpError(ctx, w, err)
-		}
+	// Finally, check that no rights are being added that the logged in user does
+	// not have.  Since a user can modify their own entries, the canManageAccounts
+	// check is insufficient.
+	if err = verifyRightsAvailable(caller, upd); err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	// All the prep is done.  Proceed with the update.  This may get a version
+	// mismatch, or the user may have been deleted.  Given the check above, these
+	// can all be considered version conflicts.
+	var rev int64
+	var newVer *pb.User
 
-		ext := &pb.UserPublic{
-			Enabled:           newVer.Enabled,
-			CanManageAccounts: newVer.CanManageAccounts,
-			NeverDelete:       newVer.NeverDelete,
-		}
+	if newVer, rev, err = userUpdate(ctx, username, upd, match); err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		st.Infof(ctx, common.Tick(ctx), "Returning details for user %q: %v", username, upd)
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, ext)
-	})
+	ext := &pb.UserPublic{
+		Enabled:           newVer.Enabled,
+		CanManageAccounts: newVer.CanManageAccounts,
+		NeverDelete:       newVer.NeverDelete,
+	}
+
+	tracing.Infof(ctx, tick, "Returning details for user %s", formatUser(username, ext))
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, ext)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 // Delete the user entry
 func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		vars := mux.Vars(r)
-		username := vars["username"]
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Delete User"),
+		tracing.AsInternal())
+	defer span.End()
 
-		err = doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) error {
-				return canManageAccounts(ctx, session, username)
-			})
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := common.Tick(ctx)
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	vars := mux.Vars(r)
+	username := vars["username"]
 
-		if err = userRemove(ctx, username); err != nil {
-			return httpError(ctx, w, err)
-		}
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) error {
+			return canManageAccounts(ctx, session, username)
+		})
 
-		_, err = fmt.Fprintf(w, "User %q deleted.", username)
-		return err
-	})
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
+
+	if err = userRemove(ctx, username); err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
+
+	_, err = fmt.Fprintf(w, "User %q deleted.", username)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 // Perform an admin operation (login, logout, enable, disable) on an account
 func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		var s string
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Perform User Operation"),
+		tracing.AsInternal())
+	defer span.End()
 
-		err = doSessionHeader(ctx, w, r, func(ctx context.Context, session *sessions.Session) (err error) {
-			op := r.FormValue("op")
-			vars := mux.Vars(r)
-			username := vars["username"]
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := common.Tick(ctx)
 
-			st.Infof(ctx, common.Tick(ctx), "Operation %q, user %q, session %v", op, username, session)
+	var s string
 
-			switch op {
-			case Login:
-				s, err = login(ctx, session, r)
+	err := doSessionHeader(ctx, w, r, func(ctx context.Context, session *sessions.Session) (err error) {
+		op := r.FormValue("op")
+		vars := mux.Vars(r)
+		username := vars["username"]
 
-			case Logout:
-				s, err = logout(ctx, session, r)
+		tracing.Infof(ctx, tick, "Operation %q, user %q, session %v", op, username, session)
 
-			default:
-				err = NewErrUserInvalidOperation(op)
-			}
+		switch op {
+		case Login:
+			s, err = login(ctx, session, r)
 
-			if err != nil {
-				_ = st.Error(ctx, common.Tick(ctx), dumpSessionState(session))
-			}
-			return err
-		})
+		case Logout:
+			s, err = logout(ctx, session, r)
 
-		if err != nil {
-			return httpError(ctx, w, err)
+		default:
+			err = NewErrUserInvalidOperation(op)
 		}
 
-		_, err = fmt.Fprintln(w, s)
-
+		if err != nil {
+			_ = tracing.Error(ctx, tick, dumpSessionState(session))
+		}
 		return err
 	})
+
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
+
+	_, err = fmt.Fprintln(w, s)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 // Set a new password on the specified account
 func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		vars := mux.Vars(r)
-		username := vars["username"]
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Perform User Operation"),
+		tracing.AsInternal())
+	defer span.End()
 
-		err = doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) (err error) {
-				return canManageAccounts(ctx, session, username)
-			})
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := common.Tick(ctx)
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	vars := mux.Vars(r)
+	username := vars["username"]
 
-		// All updates are qualified by an ETag match.  The ETag comes from the database
-		// revision number.  So, first we get the 'if-match' tag to determine the revision
-		// that must be current for the update to proceed.
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) (err error) {
+			return canManageAccounts(ctx, session, username)
+		})
 
-		var match int64
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		matchString := r.Header.Get("If-Match")
-		match, err = strconv.ParseInt(matchString, 10, 64)
-		if err != nil {
-			return httpError(ctx, w, NewErrBadMatchType(matchString))
-		}
+	// All updates are qualified by an ETag match.  The ETag comes from the database
+	// revision number.  So, first we get the 'if-match' tag to determine the revision
+	// that must be current for the update to proceed.
 
-		// Next, get the new password values, and make sure that they are valid.
-		upd := &pb.UserPassword{}
-		if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-			return httpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
-		}
+	var match int64
 
-		// All the prep is done.  Proceed to try to set.  This may get a version
-		// mismatch, the user may have been deleted, or the old password may not
-		// match.
-		var rev int64
+	matchString := r.Header.Get("If-Match")
+	match, err = strconv.ParseInt(matchString, 10, 64)
+	if err != nil {
+		postHttpError(ctx, tick, w, NewErrBadMatchType(matchString))
+		return
+	}
 
-		if rev, err = userSetPassword(ctx, username, upd, match); err != nil {
-			return httpError(ctx, w, err)
-		}
+	// Next, get the new password values, and make sure that they are valid.
+	upd := &pb.UserPassword{}
+	if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
+		postHttpError(ctx, tick, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		return
+	}
 
-		w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	// All the prep is done.  Proceed to try to set.  This may get a version
+	// mismatch, the user may have been deleted, or the old password may not
+	// match.
+	var rev int64
 
-		st.Infof(ctx, common.Tick(ctx), "Password changed for user %q", username)
-		_, err = fmt.Fprintf(w, "Password changed for user %q", username)
-		return err
-	})
+	if rev, err = userSetPassword(ctx, username, upd, match); err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
+
+	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+
+	tracing.Infof(ctx, common.Tick(ctx), "Password changed for user %q", username)
+	_, err = fmt.Fprintf(w, "Password changed for user %q", username)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 // --- Route handling methods
@@ -643,6 +711,28 @@ func verifyRightsAvailable(current *pb.User, upd *pb.UserUpdate) error {
 	}
 
 	return nil
+}
+
+func formatUser(name string, user *pb.UserPublic) string {
+	var attrs []string
+
+	if user.NeverDelete {
+		attrs = append(attrs, "protected")
+	}
+
+	if user.Enabled {
+		attrs = append(attrs, "enabled")
+	} else {
+		attrs = append(attrs, "disabled")
+	}
+
+	if user.CanManageAccounts {
+		attrs = append(attrs, "can managed accounts")
+	}
+
+	desc := strings.Join(attrs, ", ")
+
+	return fmt.Sprintf("%q: %s", name, desc)
 }
 
 // Get the secret associated with this session

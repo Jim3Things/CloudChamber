@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/instrumentation/grpctrace"
@@ -64,22 +63,10 @@ func commonInterceptor(
 	requestMetadata, _ := metadata.FromOutgoingContext(ctxIn)
 	metadataCopy := requestMetadata.Copy()
 
-	parent := trace.SpanFromContext(ctxIn)
-
-	tr := global.TraceProvider().Tracer("client")
-
-	ctx, span := tr.Start(ctxIn, method,
-		trace.WithSpanKind(kind),
-		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())))
+	ctx, span := tracing.StartSpan(ctxIn,
+		tracing.WithKind(kind),
+		tracing.WithName(method))
 	defer span.End()
-
-	if parent.SpanContext().HasSpanID() {
-		parent.AddEvent(
-			ctx,
-			tracing.MethodName(2),
-			kv.String(tracing.StackTraceKey, tracing.StackTrace()),
-			kv.String(tracing.ChildSpanKey, span.SpanContext().SpanID.String()))
-	}
 
 	grpctrace.Inject(ctx, &metadataCopy)
 	ctx = metadata.NewOutgoingContext(ctx, metadataCopy)

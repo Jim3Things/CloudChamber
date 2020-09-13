@@ -12,8 +12,8 @@ import (
 	trc "go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // +++ Logging interceptors
@@ -23,7 +23,7 @@ import (
 // span is terminated when the actor returns.
 func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 	return func(c actor.ReceiverContext, envelope *actor.MessageEnvelope) {
-		tr := global.TraceProvider().Tracer("server")
+		tr := global.TraceProvider().Tracer("")
 
 		ctxIn := annotatedContext(context.Background(), envelope)
 
@@ -45,7 +45,7 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 
 		hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-		Infof(ctx, -1, "Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg))
+		tracing.Infof(ctx, -1, "Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg))
 
 		next(c, envelope)
 	}
@@ -58,7 +58,7 @@ func SendLogger(next actor.SenderFunc) actor.SenderFunc {
 		ctx := trc.ContextWithSpan(context.Background(), GetSpan(c.Self()))
 		hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-		Info(ctx, -1, fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
+		tracing.Info(ctx, -1, fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
 
 		next(c, target, envelope)
 	}

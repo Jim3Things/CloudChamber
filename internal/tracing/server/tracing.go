@@ -2,9 +2,6 @@ package server
 
 import (
 	"context"
-	"errors"
-	"fmt"
-	stdLog "log"
 
 	"go.opentelemetry.io/otel/api/correlation"
 	"go.opentelemetry.io/otel/api/global"
@@ -15,7 +12,6 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
 // Interceptor intercepts and extracts incoming trace data
@@ -32,7 +28,7 @@ func Interceptor(
 		MultiKV: entries,
 	}))
 
-	tr := global.TraceProvider().Tracer("server")
+	tr := global.TraceProvider().Tracer("")
 
 	ctx, span := tr.Start(
 		ctxIn,
@@ -71,7 +67,7 @@ func WithInfraSpan(ctx context.Context, fn func(ctx context.Context) error) erro
 func doSpan(ctxIn context.Context, spanName string, spanKind trace.SpanKind, fn func(ctx context.Context) error) error {
 	parent := trace.SpanFromContext(ctxIn)
 
-	tr := global.TraceProvider().Tracer("server")
+	tr := global.TraceProvider().Tracer("")
 
 	ctx, span := tr.Start(ctxIn, spanName,
 		trace.WithSpanKind(spanKind),
@@ -89,85 +85,3 @@ func doSpan(ctxIn context.Context, spanName string, spanKind trace.SpanKind, fn 
 	return fn(ctx)
 }
 
-// There should be an Xxx and Xxxf method for every severity level, plus some
-// specific scenario functions (such as OnEnter to log an information entry
-// about arrival at a specific method).
-//
-// Note: The set of methods that are implemented below are based on what is
-// currently needed.  Others will be added as required.
-
-// Info posts a simple informational trace event
-func Info(ctx context.Context, tick int64, msg string) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		tracing.MethodName(2),
-		kv.Int64(tracing.StepperTicksKey, tick),
-		kv.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
-		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
-		kv.String(tracing.MessageTextKey, msg))
-}
-
-// Infof posts an informational trace event with complex formatting
-func Infof(ctx context.Context, tick int64, f string, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		tracing.MethodName(2),
-		kv.Int64(tracing.StepperTicksKey, tick),
-		kv.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
-		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
-		kv.String(tracing.MessageTextKey, fmt.Sprintf(f, a...)))
-}
-
-// OnEnter posts an informational trace event describing the entry into a
-// function
-func OnEnter(ctx context.Context, tick int64, msg string) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		fmt.Sprintf("On %q entry", tracing.MethodName(2)),
-		kv.Int64(tracing.StepperTicksKey, tick),
-		kv.Int64(tracing.SeverityKey, int64(log.Severity_Info)),
-		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
-		kv.String(tracing.MessageTextKey, msg))
-}
-
-// Error posts a simple error trace event
-func Error(ctx context.Context, tick int64, a interface{}) error {
-	if msg, ok := a.(string); ok {
-		return logError(ctx, tick, errors.New(msg))
-	}
-
-	if err, ok := a.(error); ok {
-		return logError(ctx, tick, err)
-	}
-
-	panic("Invalid Error call - no valid arguments found")
-}
-
-// Errorf posts an error trace event with a complex string formatting
-func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
-	return logError(ctx, tick, fmt.Errorf(f, a...))
-}
-
-// Fatalf traces the error, and then terminates the process.
-func Fatalf(ctx context.Context, tick int64, f string, a ...interface{}) {
-	stdLog.Fatal(Errorf(ctx, tick, f, a...))
-}
-
-// --- Exported trace invocation methods
-
-// +++ Helper functions
-
-// logError writes a specific error trace event
-func logError(ctx context.Context, tick int64, err error) error {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		fmt.Sprintf("Error from %q", tracing.MethodName(3)),
-		kv.Int64(tracing.StepperTicksKey, tick),
-		kv.Int64(tracing.SeverityKey, int64(log.Severity_Error)),
-		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
-		kv.String(tracing.MessageTextKey, err.Error()))
-
-	return err
-}
-
-// --- Helper functions
