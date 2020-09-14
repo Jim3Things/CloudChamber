@@ -108,8 +108,7 @@ rem
 echo.
 echo Starting %TARGETBIN%
 
-start %TARGETBIN% -config=%2 2>&1 >%CLOUDCHAMBERLOGS%\%BINARY:~0,-4%-%UpdateDateTime%.log
-
+start cmd /c "%TARGETBIN% -config=%2 2>&1 >%CLOUDCHAMBERLOGS%\%BINARY:~0,-4%.log"
 goto :StartBinaryExit
 
 
