@@ -2,25 +2,25 @@
 package stepper
 
 import (
-	"context"
-	"log"
-	"net"
-	"testing"
-	"time"
+    "context"
+    "log"
+    "net"
+    "testing"
+    "time"
 
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/metadata"
+    "github.com/golang/protobuf/ptypes/duration"
+    "github.com/stretchr/testify/assert"
+    "google.golang.org/grpc/metadata"
 
-	"github.com/Jim3Things/CloudChamber/internal/common/channels"
-	clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	srvtrace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+    "github.com/Jim3Things/CloudChamber/internal/common"
+    clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+    srvtrace "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/test/bufconn"
 )
 
 const bufSize = 1024 * 1024
@@ -318,14 +318,14 @@ func TestStepper_Manual(t *testing.T) {
 		res <- true
 	}(ch)
 
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(1) * time.Second))
+	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(1) * time.Second))
 	testGetStatus(t, ctx, 1, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
 
 	callStep(t, ctx, 2)
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(1) * time.Second))
+	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(1) * time.Second))
 
 	callStep(t, ctx, 3)
-	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
+	assert.True(t, common.CompleteWithin(ch, time.Duration(1) * time.Second))
 
 	testGetStatus(t, ctx, 3, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
 

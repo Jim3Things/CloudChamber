@@ -8,8 +8,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 func logsAddRoutes(routeBase *mux.Router) {
@@ -22,69 +23,89 @@ func logsAddRoutes(routeBase *mux.Router) {
 // handlerLogsGetAfter processes an incoming REST request to retrieve trace
 // entries within the specified range.
 func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithInfraSpan(context.Background(), func(ctx context.Context) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get Traces After..."),
+		tracing.AsInternal())
+	defer span.End()
 
-		vars := mux.Vars(r)
-		from := vars["from"]
-		count := vars["for"]
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := clients.Tick(ctx)
 
-		err := doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) error {
-				return ensureEstablishedSession(session)
-			})
+	vars := mux.Vars(r)
+	from := vars["from"]
+	count := vars["for"]
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) error {
+			return ensureEstablishedSession(session)
+		})
 
-		fromId, err := ensureNumber("from", from)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		maxSize, err := ensurePositiveNumber("for", count)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	fromId, err := ensureNumber("from", from)
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		ch := tsc.GetTraces(ctx, fromId, maxSize)
+	maxSize, err := ensurePositiveNumber("for", count)
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		data := <-ch
-		if data.Err != nil {
-			return httpError(ctx, w, data.Err)
-		}
+	ch := tsc.GetTraces(ctx, fromId, maxSize)
 
-		w.Header().Set("Content-Type", "application/json")
+	data := <-ch
+	if data.Err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, data.Traces)
-	})
+	w.Header().Set("Content-Type", "application/json")
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, data.Traces)
+
+	httpErrorIf(ctx, tick, w, err)
 }
 
 // handlerLogsGetPolicy processes an incoming REST request to obtain the
 // current trace_sink policy.
 func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithInfraSpan(context.Background(), func(ctx context.Context) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get Traces After..."),
+		tracing.AsInternal())
+	defer span.End()
 
-		err := doSessionHeader(
-			ctx, w, r,
-			func(ctx context.Context, session *sessions.Session) error {
-				return ensureEstablishedSession(session)
-			})
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := clients.Tick(ctx)
 
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	err := doSessionHeader(
+		ctx, w, r,
+		func(ctx context.Context, session *sessions.Session) error {
+			return ensureEstablishedSession(session)
+		})
 
-		policy, err := tsc.GetPolicy(ctx)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		w.Header().Set("Content-Type", "application/json")
+	policy, err := tsc.GetPolicy(ctx)
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
 
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, policy)
-	})
+	w.Header().Set("Content-Type", "application/json")
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, policy)
+
+	httpErrorIf(ctx, tick, w, err)
 }

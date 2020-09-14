@@ -33,7 +33,7 @@ func NameToWriter(name string) (io.Writer, error) {
 // is formatted into a functional tree, grouped by trace ID.
 type IOWForwarder struct {
 	writer io.Writer
-	spans *io_spans
+	spans *ioSpans
 }
 
 // NewIOWForwarder creates a closed IOwForwarder instance

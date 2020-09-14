@@ -102,7 +102,7 @@ func commonSetup() {
 	tsc.InitSinkClient("bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ctrc.InfraInterceptor))
+		grpc.WithUnaryInterceptor(ctrc.Interceptor))
 
 	// Finally, start the test web service, which all tests will use
 	configPath := flag.String("config", ".", "path to the configuration file")

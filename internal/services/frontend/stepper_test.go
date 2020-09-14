@@ -1,19 +1,19 @@
 package frontend
 
 import (
-	"context"
-	"fmt"
-	"net/http"
-	"net/http/httptest"
-	"testing"
-	"time"
+    "context"
+    "fmt"
+    "net/http"
+    "net/http/httptest"
+    "testing"
+    "time"
 
-	"github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/assert"
 
-	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	"github.com/Jim3Things/CloudChamber/internal/common/channels"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+    ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+    common2 "github.com/Jim3Things/CloudChamber/internal/common"
+    "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (
@@ -330,7 +330,7 @@ func TestStepperAfter(t *testing.T) {
 
 	_, _ = testStepperAdvance(t, cookies)
 
-	assert.True(t, channels.CompleteWithin(ch, time.Duration(2)*time.Second))
+	assert.True(t, common2.CompleteWithin(ch, time.Duration(2)*time.Second))
 
 	doLogout(t, randomCase(adminAccountName), cookies2)
 }

@@ -17,7 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
-	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -38,7 +38,7 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	if dbUsers == nil {
 		dbUsers = &DBUsers{

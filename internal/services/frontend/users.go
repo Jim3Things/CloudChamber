@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -80,7 +81,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -93,16 +94,13 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	b := r.URL.String()
-	if !strings.HasSuffix(b, "/") {
-		b += "/"
-	}
+	b := common.URLPrefix(r)
 
 	w.Header().Set("Content-Type", "application/json")
 
 	users := &pb.UserList{}
 
-	err = dbUsers.Scan(ctx, func(entry *pb.User) (err error) {
+	err = dbUsers.Scan(ctx, func(entry *pb.User) error {
 		target := fmt.Sprintf("%s%s", b, entry.Name)
 
 		protected := ""
@@ -118,7 +116,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			Protected: entry.NeverDelete,
 		})
 
-		return err
+		return nil
 	})
 
 	if err != nil {
@@ -139,7 +137,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -155,7 +153,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tracing.Infof(ctx, common.Tick(ctx), "Creating user %q", username)
+	tracing.Infof(ctx, clients.Tick(ctx), "Creating user %q", username)
 
 	u := &pb.UserDefinition{}
 	if err = jsonpb.Unmarshal(r.Body, u); err != nil {
@@ -173,7 +171,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
 	tracing.Infof(
-		ctx, common.Tick(ctx),
+		ctx, clients.Tick(ctx),
 		"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v",
 		username, u.Enabled, u.CanManageAccounts)
 
@@ -192,7 +190,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -242,7 +240,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -329,7 +327,7 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -363,7 +361,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	var s string
 
@@ -409,7 +407,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
+	tick := clients.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -457,7 +455,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-	tracing.Infof(ctx, common.Tick(ctx), "Password changed for user %q", username)
+	tracing.Infof(ctx, clients.Tick(ctx), "Password changed for user %q", username)
 	_, err = fmt.Fprintf(w, "Password changed for user %q", username)
 
 	httpErrorIf(ctx, tick, w, err)

@@ -57,13 +57,6 @@ func WithNamedSpan(ctx context.Context, spanName string, fn func(ctx context.Con
 	return doSpan(ctx, spanName, trace.SpanKindServer, fn)
 }
 
-// WithInfraSpan is a variant of WithSpan that marks the span as internal to
-// the simulation, and therefore of limited interest outside of development
-// or debugging use.
-func WithInfraSpan(ctx context.Context, fn func(ctx context.Context) error) error {
-	return doSpan(ctx, tracing.MethodName(2), trace.SpanKindInternal, fn)
-}
-
 func doSpan(ctxIn context.Context, spanName string, spanKind trace.SpanKind, fn func(ctx context.Context) error) error {
 	parent := trace.SpanFromContext(ctxIn)
 

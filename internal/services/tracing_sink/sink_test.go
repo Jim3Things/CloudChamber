@@ -15,7 +15,7 @@ import (
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
-	"github.com/Jim3Things/CloudChamber/internal/common/channels"
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
@@ -26,8 +26,8 @@ import (
 const bufSize = 1024 * 1024
 
 var (
- 	lis *bufconn.Listener
- 	client pb.TraceSinkClient
+	lis    *bufconn.Listener
+	client pb.TraceSinkClient
 
 	utf *exporters.Exporter
 )
@@ -256,7 +256,7 @@ func TestGetAfterMaxEntriesTooSmall(t *testing.T) {
 	require.NotNil(t, err)
 	assert.Equal(
 		t,
-		"rpc error: code = Unknown desc = the field \"MaxEntries\" " +
+		"rpc error: code = Unknown desc = the field \"MaxEntries\" "+
 			"must be greater than or equal to 10.  It is 1, which is invalid",
 		err.Error(),
 		"unexpected error: %v",
@@ -389,7 +389,7 @@ func TestGetAfterRepeatedNewAppends(t *testing.T) {
 	require.Equal(t, 5, len(res.Entries))
 
 	for i := 0; i < len(res.Entries); i++ {
-		assert.Equal(t, int64(i + 5), res.Entries[i].Id)
+		assert.Equal(t, int64(i+5), res.Entries[i].Id)
 		assertEntryMatches(t, entries[i], res.Entries[i].Entry)
 	}
 }
@@ -481,7 +481,7 @@ func TestGetAfterWaitOneEntry(t *testing.T) {
 
 	ch := make(chan bool)
 
-	go func (ch chan<- bool) {
+	go func(ch chan<- bool) {
 		res, err := client.GetAfter(ctx, &pb.GetAfterRequest{
 			Id:         -1,
 			MaxEntries: 10,
@@ -501,12 +501,12 @@ func TestGetAfterWaitOneEntry(t *testing.T) {
 		ch <- true
 	}(ch)
 
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100) * time.Millisecond))
+	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
 
 	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
 	require.Nilf(t, err, "unexpected error: %v", err)
 
-	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
+	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
 }
 
 func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
@@ -526,7 +526,7 @@ func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
 
 	ch := make(chan bool)
 
-	go func (ch chan<- bool) {
+	go func(ch chan<- bool) {
 		res, err2 := client.GetAfter(ctx, &pb.GetAfterRequest{
 			Id:         -1,
 			MaxEntries: 10,
@@ -547,10 +547,10 @@ func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
 		ch <- true
 	}(ch)
 
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100) * time.Millisecond))
+	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
 
 	_, err = client.Append(ctx, &pb.AppendRequest{Entry: entry})
 	require.Nilf(t, err, "unexpected error: %v", err)
 
-	assert.True(t, channels.CompleteWithin(ch, time.Duration(1) * time.Second))
+	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
 }

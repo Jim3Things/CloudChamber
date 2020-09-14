@@ -1,25 +1,25 @@
 package clients
 
 import (
-	"context"
-	"log"
-	"net"
-	"testing"
-	"time"
+    "context"
+    "log"
+    "net"
+    "testing"
+    "time"
 
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/assert"
+    "github.com/golang/protobuf/ptypes/duration"
+    "github.com/stretchr/testify/assert"
 
-	"github.com/Jim3Things/CloudChamber/internal/common/channels"
-	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
-	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+    "github.com/Jim3Things/CloudChamber/internal/common"
+    "github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
+    ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+    strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+    ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
+    "google.golang.org/grpc"
+    "google.golang.org/grpc/test/bufconn"
 )
 
 const bufSize = 1024 * 1024
@@ -113,11 +113,11 @@ func TestTimestamp_After(t *testing.T) {
 	}(3, ch)
 
 	assert.Nil(t, Advance(ctx))
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(2)*time.Second))
+	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(2)*time.Second))
 
 	assert.Nil(t, Advance(ctx))
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(2)*time.Second))
+	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(2)*time.Second))
 
 	assert.Nil(t, Advance(ctx))
-	assert.True(t, channels.CompleteWithin(ch, time.Duration(2)*time.Second))
+	assert.True(t, common.CompleteWithin(ch, time.Duration(2)*time.Second))
 }
