@@ -133,10 +133,10 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.AsInternal())
 
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
-
 	defer func() {
+		// Pick up the current time to avoid repeatedly fetching the same value
+		tick := clients.Tick(ctx)
+
 		if err != nil {
 			tracing.Warnf(ctx, tick, "GetAfter failed: %v", err)
 		} else {
