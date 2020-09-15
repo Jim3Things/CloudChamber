@@ -92,8 +92,8 @@ func StartSpan(
 
 	parent := trace.SpanFromContext(ctx)
 
-	if spanEx, ok := parent.(spanEx); ok {
-		cfg.kind = spanEx.Mask(cfg.kind)
+	if s, ok := parent.(spanEx); ok {
+		cfg.kind = s.Mask(cfg.kind)
 	}
 
 	tr := global.TraceProvider().Tracer("")
@@ -159,6 +159,28 @@ func OnEnter(ctx context.Context, tick int64, msg string) {
 		kv.Int64(SeverityKey, int64(log.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, msg))
+}
+
+// Warn posts a simple warning trace event
+func Warn(ctx context.Context, tick int64, msg string) {
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(SeverityKey, int64(log.Severity_Warning)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, msg))
+}
+
+// Warnf posts a warning trace event with complex formatting
+func Warnf(ctx context.Context, tick int64, f string, a ...interface{}) {
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(SeverityKey, int64(log.Severity_Warning)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, fmt.Sprintf(f, a...)))
 }
 
 // Error posts a simple error trace event

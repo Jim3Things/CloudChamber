@@ -164,3 +164,15 @@ func connect(ctx context.Context) (context.Context, *grpc.ClientConn, error) {
 
 	return metadata.NewOutgoingContext(ctx, md), conn, nil
 }
+
+// Tick provides the current simulated time Tick, or '-1' if the simulated time
+// cannot be retrieved (e.g. during startup)
+func Tick(ctx context.Context) int64 {
+	now, err := Now(ctx)
+	if err != nil {
+		return -1
+	}
+
+	return now.Ticks
+}
+

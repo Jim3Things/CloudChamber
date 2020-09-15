@@ -11,7 +11,8 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 func pingAddRoutes(routeBase *mux.Router) {
@@ -27,21 +28,30 @@ func pingAddRoutes(routeBase *mux.Router) {
 func handlerPing(w http.ResponseWriter, r *http.Request) {
 	var ccSession sessionState
 
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
-		err := doSessionHeader(
-			ctx, w, r,
-			func(_ context.Context, session *sessions.Session) error {
-				// We get the cloud chamber session state.  We can ignore the ok
-				// flag, as we only look at it if the next call succeeds, which
-				// can only happen if there is a session...
-				ccSession, _ = getSession(session)
-				return ensureEstablishedSession(session)
-			})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Ping Session"),
+		tracing.AsInternal())
+	defer span.End()
 
-		w.Header().Set("Expires", ccSession.timeout.Format(time.RFC3339))
-		return nil
-	})
+	// Pick up the current time to avoid repeatedly fetching the same value
+	tick := clients.Tick(ctx)
+
+	err := doSessionHeader(
+		ctx, w, r,
+		func(_ context.Context, session *sessions.Session) error {
+			// We get the cloud chamber session state.  We can ignore the ok
+			// flag, as we only look at it if the next call succeeds, which
+			// can only happen if there is a session...
+			ccSession, _ = getSession(session)
+			return ensureEstablishedSession(session)
+		})
+
+	if err != nil {
+		postHttpError(ctx, tick, w, err)
+		return
+	}
+
+	w.Header().Set("Expires", ccSession.timeout.Format(time.RFC3339))
+
+	httpErrorIf(ctx, tick, w, err)
 }
