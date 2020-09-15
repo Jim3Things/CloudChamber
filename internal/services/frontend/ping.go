@@ -30,11 +30,9 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
 
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Ping Session"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -47,11 +45,11 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHttpError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Expires", ccSession.timeout.Format(time.RFC3339))
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }

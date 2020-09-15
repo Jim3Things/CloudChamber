@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
@@ -131,19 +132,17 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 	var err error = nil
 
 	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 
 	defer func() {
 		// Pick up the current time to avoid repeatedly fetching the same value
-		tick := clients.Tick(ctx)
+		ctx = common.ContextWithTick(ctx, clients.Tick(ctx))
 
 		if err != nil {
-			tracing.Warnf(ctx, tick, "GetAfter failed: %v", err)
+			tracing.Warnf(ctx, "GetAfter failed: %v", err)
 		} else {
-			tracing.Infof(
-				ctx, tick,
-				"GetAfter returning; %d entries, missed=%v, lastID=%d",
-				len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
+			tracing.Infof(ctx, "GetAfter returning; %d entries, missed=%v, lastID=%d", len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
 		}
 
 		span.End()
@@ -183,21 +182,16 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 	var resp *pb.GetPolicyResponse
 
 	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	resp = &pb.GetPolicyResponse{
 		MaxEntriesHeld: int64(s.maxHeld),
 		FirstId:        int64(s.getFirstId() - 1),
 	}
 
-	tracing.Infof(
-		ctx, tick,
-		"GetPolicy returning; firstId=%d, maxEntriesHeld=%d",
-		resp.FirstId, resp.MaxEntriesHeld)
+	tracing.Infof(ctx, "GetPolicy returning; firstId=%d, maxEntriesHeld=%d", resp.FirstId, resp.MaxEntriesHeld)
 
 	return resp, nil
 }

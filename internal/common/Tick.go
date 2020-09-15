@@ -20,3 +20,11 @@ func TickFromContext(ctx context.Context) int64 {
 
 	return -1
 }
+
+// ContextHasTick verifies whether the supplied context has a simulated time
+// tick in its set of values.
+func ContextHasTick(ctx context.Context) bool {
+	_, ok := ctx.Value(tickKey).(int64)
+
+	return ok
+}

@@ -25,11 +25,9 @@ func logsAddRoutes(routeBase *mux.Router) {
 func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Traces After..."),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	vars := mux.Vars(r)
 	from := vars["from"]
@@ -42,19 +40,19 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHttpError(ctx, w, err)
 		return
 	}
 
 	fromId, err := ensureNumber("from", from)
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHttpError(ctx, w, err)
 		return
 	}
 
 	maxSize, err := ensurePositiveNumber("for", count)
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHttpError(ctx, w, err)
 		return
 	}
 
@@ -62,7 +60,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 
 	data := <-ch
 	if data.Err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHttpError(ctx, w, err)
 		return
 	}
 
@@ -71,7 +69,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, data.Traces)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 // handlerLogsGetPolicy processes an incoming REST request to obtain the
@@ -79,11 +77,9 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Traces After..."),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -92,13 +88,13 @@ func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHttpError(ctx, w, err)
 		return
 	}
 
 	policy, err := tsc.GetPolicy(ctx)
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHttpError(ctx, w, err)
 		return
 	}
 
@@ -107,5 +103,5 @@ func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, policy)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }

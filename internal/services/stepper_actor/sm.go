@@ -1,22 +1,23 @@
 package stepper
 
 import (
-    "context"
-    "errors"
-    "fmt"
-    "math/rand"
-    "time"
+	"context"
+	"errors"
+	"fmt"
+	"math/rand"
+	"time"
 
-    "github.com/AsynkronIT/protoactor-go/actor"
-    "github.com/AsynkronIT/protoactor-go/scheduler"
-    "github.com/golang/protobuf/ptypes"
-    "github.com/golang/protobuf/ptypes/duration"
-    "github.com/golang/protobuf/ptypes/empty"
+	"github.com/AsynkronIT/protoactor-go/actor"
+	"github.com/AsynkronIT/protoactor-go/scheduler"
+	"github.com/golang/protobuf/ptypes"
+	"github.com/golang/protobuf/ptypes/duration"
+	"github.com/golang/protobuf/ptypes/empty"
 
-    "github.com/Jim3Things/CloudChamber/internal/sm"
-    "github.com/Jim3Things/CloudChamber/internal/tracing"
-    "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-    pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+	common2 "github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (
@@ -73,6 +74,7 @@ type InvalidStateImpl struct {
 func (s *InvalidStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
+	ctx = common2.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	switch msg := ca.Message().(type) {
@@ -120,6 +122,7 @@ func (s *NoWaitStateImpl) Enter(ctx context.Context) error {
 func (s *NoWaitStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
+	ctx = common2.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	switch msg := ca.Message().(type) {
@@ -158,6 +161,7 @@ func (s *ManualStateImpl) Enter(ctx context.Context) error {
 func (s *ManualStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
+	ctx = common2.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	s.Holder.ApplyDefaultActions(ctx)
@@ -192,7 +196,7 @@ func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
 	}
 
 	if delay <= 0 {
-		return tracing.Errorf(ctx, holder.latest, "delay must be greater than zero, but was %d", delay)
+		return tracing.Errorf(ctx, "delay must be greater than zero, but was %d", delay)
 	}
 
 	s.delay = delay
@@ -204,6 +208,7 @@ func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
 func (s *AutoStepStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
+	ctx = common2.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	switch msg := ca.Message().(type) {
@@ -250,7 +255,7 @@ func (s *AutoStepStateImpl) Leave() {
 // processing for a subset of the possible messages.  The pattern is to first
 // handle those, and then call this method to handle the rest.
 func (act *Actor) ApplyDefaultActions(ctx context.Context) {
-	tracing.OnEnter(ctx, act.latest, "Applying Default Actions")
+	tracing.OnEnter(ctx, "Applying Default Actions")
 	ca := sm.ActorContext(ctx)
 
 	if !isSystemMessage(ctx) {
@@ -383,7 +388,7 @@ func (act *Actor) checkForExpiry(ctx context.Context) {
 
 	k, v := act.waiters.Min()
 	if k == nil {
-		tracing.Info(ctx, act.latest, "No waiters found")
+		tracing.Info(ctx, "No waiters found")
 		return
 	}
 

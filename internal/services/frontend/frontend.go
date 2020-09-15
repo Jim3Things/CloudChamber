@@ -34,7 +34,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 // Server is the context structure for the frontend web service. It is used to
@@ -95,11 +94,14 @@ func normalizeURL(next http.Handler) http.Handler {
 // arrives.  This is used, for example, to trace file access requests.
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = st.WithNamedSpan(context.Background(), spanName, func(ctx context.Context) error {
-			tracing.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
-			next.ServeHTTP(w, r)
-			return nil
-		})
+		ctx, span := tracing.StartSpan(context.Background(),
+			tracing.WithName(spanName),
+			tracing.AsInternal(),
+			tracing.WithContextValue(ts.OutsideTime))
+		defer span.End()
+
+		tracing.Infof(ctx, "%s for path %q", r.Method, r.URL.String())
+		next.ServeHTTP(w, r)
 	})
 }
 

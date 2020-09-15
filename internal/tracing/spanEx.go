@@ -10,6 +10,7 @@ import (
 	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
@@ -22,6 +23,8 @@ type spanEx struct {
 	// isInternal is true if this span started with SpanKindInternal.
 	isInternal bool
 }
+
+type decorator func(ctx context.Context) context.Context
 
 // Mask applies the policy that a child span of a span that is marked as
 // infrastructure (span kind is internal) should also be market as internal.
@@ -36,10 +39,11 @@ func (s *spanEx) Mask(kind trace.SpanKind) trace.SpanKind {
 // startSpanConfig defines the attributes used when starting a new span, and
 // that can be overridden by the caller.
 type startSpanConfig struct {
-	name       string
-	kind       trace.SpanKind
-	stackTrace string
-	tick       int64
+	name        string
+	kind        trace.SpanKind
+	stackTrace  string
+	tick        int64
+	decorations []decorator
 }
 
 // StartSpanOption denotes optional decoration methods used on StartSpan
@@ -52,25 +56,17 @@ func WithName(name string) StartSpanOption {
 	}
 }
 
-// WithKind sets the span kind for the span under creation.  This will be
-// overridden if the parent span is of SpanKindInternal.
-func WithKind(kind trace.SpanKind) StartSpanOption {
-	return func(cfg *startSpanConfig) {
-		cfg.kind = kind
-	}
-}
-
-// WithTick sets the start time for the span to a specific simulated time.
-func WithTick(tick int64) StartSpanOption {
-	return func(cfg *startSpanConfig) {
-		cfg.tick = tick
-	}
-}
-
 // AsInternal sets the span as an infrastructure (or internal) span kind.
 func AsInternal() StartSpanOption {
 	return func(cfg *startSpanConfig) {
 		cfg.kind = trace.SpanKindInternal
+	}
+}
+
+// WithContextValue decorates the resulting context using the supplied function
+func WithContextValue(action decorator) StartSpanOption {
+	return func(cfg *startSpanConfig) {
+		cfg.decorations = append(cfg.decorations, action)
 	}
 }
 
@@ -80,10 +76,11 @@ func StartSpan(
 	ctx context.Context,
 	options ...StartSpanOption) (context.Context, trace.Span) {
 	cfg := startSpanConfig{
-		name:       MethodName(2),
-		kind:       trace.SpanKindServer,
-		stackTrace: StackTrace(),
-		tick:       -1,
+		name:        MethodName(2),
+		kind:        trace.SpanKindServer,
+		stackTrace:  StackTrace(),
+		tick:        -1,
+		decorations: []decorator{},
 	}
 
 	for _, opt := range options {
@@ -117,6 +114,10 @@ func StartSpan(
 		isInternal: cfg.kind == trace.SpanKindInternal,
 	}
 
+	for _, action := range cfg.decorations {
+		ctxChild = action(ctxChild)
+	}
+
 	return trace.ContextWithSpan(ctxChild, ccSpan), ccSpan
 }
 
@@ -128,22 +129,22 @@ func StartSpan(
 // currently needed.  Others will be added as required.
 
 // Info posts a simple informational trace event
-func Info(ctx context.Context, tick int64, msg string) {
+func Info(ctx context.Context, msg string) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
-		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, msg))
 }
 
 // Infof posts an informational trace event with complex formatting
-func Infof(ctx context.Context, tick int64, f string, a ...interface{}) {
+func Infof(ctx context.Context, f string, a ...interface{}) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
-		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, fmt.Sprintf(f, a...)))
@@ -151,59 +152,59 @@ func Infof(ctx context.Context, tick int64, f string, a ...interface{}) {
 
 // OnEnter posts an informational trace event describing the entry into a
 // function
-func OnEnter(ctx context.Context, tick int64, msg string) {
+func OnEnter(ctx context.Context, msg string) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		fmt.Sprintf("On %q entry", MethodName(2)),
-		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, msg))
 }
 
 // Warn posts a simple warning trace event
-func Warn(ctx context.Context, tick int64, msg string) {
+func Warn(ctx context.Context, msg string) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
-		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Warning)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, msg))
 }
 
 // Warnf posts a warning trace event with complex formatting
-func Warnf(ctx context.Context, tick int64, f string, a ...interface{}) {
+func Warnf(ctx context.Context, f string, a ...interface{}) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
-		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Warning)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, fmt.Sprintf(f, a...)))
 }
 
 // Error posts a simple error trace event
-func Error(ctx context.Context, tick int64, a interface{}) error {
+func Error(ctx context.Context, a interface{}) error {
 	if msg, ok := a.(string); ok {
-		return logError(ctx, tick, errors.New(msg))
+		return logError(ctx, errors.New(msg))
 	}
 
 	if err, ok := a.(error); ok {
-		return logError(ctx, tick, err)
+		return logError(ctx, err)
 	}
 
 	panic("Invalid Error call - no valid arguments found")
 }
 
 // Errorf posts an error trace event with a complex string formatting
-func Errorf(ctx context.Context, tick int64, f string, a ...interface{}) error {
-	return logError(ctx, tick, fmt.Errorf(f, a...))
+func Errorf(ctx context.Context, f string, a ...interface{}) error {
+	return logError(ctx, fmt.Errorf(f, a...))
 }
 
 // Fatalf traces the error, and then terminates the process.
-func Fatalf(ctx context.Context, tick int64, f string, a ...interface{}) {
-	log2.Fatal(Errorf(ctx, tick, f, a...))
+func Fatalf(ctx context.Context, f string, a ...interface{}) {
+	log2.Fatal(Errorf(ctx, f, a...))
 }
 
 // --- Exported trace invocation methods
@@ -211,11 +212,11 @@ func Fatalf(ctx context.Context, tick int64, f string, a ...interface{}) {
 // +++ Helper functions
 
 // logError writes a specific error trace event
-func logError(ctx context.Context, tick int64, err error) error {
+func logError(ctx context.Context, err error) error {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		fmt.Sprintf("Error from %q", MethodName(3)),
-		kv.Int64(StepperTicksKey, tick),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Error)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, err.Error()))
