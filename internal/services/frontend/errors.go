@@ -91,7 +91,7 @@ func (eubrc ErrUserBadRecordContent) Error() string {
 // from what is defined in the configuration
 type ErrUnableToVerifySystemAccount struct {
 	Name string
-	Err error
+	Err  error
 }
 
 func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
@@ -99,6 +99,7 @@ func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
 		"CloudChamber: unable to verify the standard %q account is using configured password - error %v",
 		eutvsa.Name, eutvsa.Err)
 }
+
 // HTTPError is a custom common HTTP error type that includes the status code
 // to use in a response.
 type HTTPError struct {
@@ -125,11 +126,8 @@ func (he *HTTPError) Error() string {
 	return he.Base.Error()
 }
 
-// Set an http error, and log it to the tracing system.
-//
-// Note that this returns the original error in case there is later processing
-// to be done with it.
-func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
+// postHTTPError sets an http error, and log it to the tracing system.
+func postHTTPError(ctx context.Context, w http.ResponseWriter, err error) {
 	// We're hoping this is an HTTPError form of error, which would have the
 	// preferred HTTP status code included.
 	//
@@ -144,34 +142,14 @@ func httpError(ctx context.Context, w http.ResponseWriter, err error) error {
 		}
 	}
 
-	_ = tracing.Errorf(ctx, -1, "http error %v: %s", he.StatusCode(), he.Error())
-	http.Error(w, he.Error(), he.StatusCode())
-
-	return err
-}
-
-func postHttpError(ctx context.Context, tick int64, w http.ResponseWriter, err error) {
-	// We're hoping this is an HTTPError form of error, which would have the
-	// preferred HTTP status code included.
-	//
-	// If it isn't, then the error originated in some support or library logic,
-	// rather than the web server's business logic.  In that case we assume a
-	// status code of internal server error as the most likely correct value.
-	he, ok := err.(*HTTPError)
-	if !ok {
-		he = &HTTPError{
-			SC:   http.StatusInternalServerError,
-			Base: err,
-		}
-	}
-
-	_ = tracing.Errorf(ctx, tick, "http error %v: %s", he.StatusCode(), he.Error())
+	_ = tracing.Errorf(ctx, "http error %v: %s", he.StatusCode(), he.Error())
 	http.Error(w, he.Error(), he.StatusCode())
 }
 
-func httpErrorIf(ctx context.Context, tick int64, w http.ResponseWriter, err error) {
+// httpErrorIf sets and traces an http error, if there is one.
+func httpErrorIf(ctx context.Context, w http.ResponseWriter, err error) {
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 	}
 }
 
@@ -345,7 +323,7 @@ func NewErrStepperFailedToSetPolicy() *HTTPError {
 // processed as a number.
 func NewErrInvalidNumber(field string, value string) *HTTPError {
 	return &HTTPError{
-		SC:   http.StatusBadRequest,
+		SC: http.StatusBadRequest,
 		Base: fmt.Errorf(
 			"CloudChamber: the %q field's value %q could not be parsed as a decimal number",
 			field, value),
@@ -356,7 +334,7 @@ func NewErrInvalidNumber(field string, value string) *HTTPError {
 // processed as a positive number.
 func NewErrInvalidPositiveNumber(field string, value string) *HTTPError {
 	return &HTTPError{
-		SC:   http.StatusBadRequest,
+		SC: http.StatusBadRequest,
 		Base: fmt.Errorf(
 			"CloudChamber: the %q field's value %q could not be parsed as a positive decimal number",
 			field, value),

@@ -13,8 +13,8 @@ import (
 
 	"github.com/spf13/viper"
 
-    "github.com/Jim3Things/CloudChamber/internal/tracing"
-    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
@@ -222,37 +222,31 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 
 	cfg := newGlobalConfig()
 
-	err := st.WithNamedSpan(context.Background(), "ReadGlobalConfig", func(ctx context.Context) error {
-		if err := viper.ReadInConfig(); err != nil {
-			if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-				// Config file not found; we'll just use the default values
-				tracing.Infof(
-					ctx,
-					-1,
-					"No config file found at %s/%s (%s), applying defaults.",
-					path,
-					defaultGlobalConfigFile,
-					defaultConfigType)
-			} else {
-				// Config file was found but another error was produced
-				return tracing.Errorf(ctx, -1, "fatal error reading config file: %s", err)
-			}
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Read Cloud Chamber Configuration"),
+		tracing.AsInternal(),
+		tracing.WithContextValue(clients.OutsideTime))
+	defer span.End()
+
+	if err := viper.ReadInConfig(); err != nil {
+		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			// Config file not found; we'll just use the default values
+			tracing.Infof(
+				ctx,
+				"No config file found at %s/%s (%s), applying defaults.",
+				path, defaultGlobalConfigFile, defaultConfigType)
 		} else {
-			// Fill in the global configuration object from the configuration file
-			if err = viper.UnmarshalExact(cfg); err != nil {
-				return tracing.Errorf(ctx, -1, "unable to decode into struct, %v", err)
-			}
+			// Config file was found but another error was produced
+			return nil, tracing.Errorf(ctx, "fatal error reading config file: %s", err)
 		}
-
-		tracing.Infof(ctx, -1,
-			"Configuration Read: \n%v", cfg)
-
-		return nil
-	})
-
-	if err != nil {
-		return nil, err
+	} else {
+		// Fill in the global configuration object from the configuration file
+		if err = viper.UnmarshalExact(cfg); err != nil {
+			return nil, tracing.Errorf(ctx, "unable to decode into struct, %v", err)
+		}
 	}
+
+	tracing.Infof(ctx, "Configuration Read: \n%v", cfg)
 
 	return cfg, nil
 }

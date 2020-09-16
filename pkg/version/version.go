@@ -9,8 +9,8 @@ import (
 	"os"
 	"time"
 
-    "github.com/Jim3Things/CloudChamber/internal/tracing"
-    st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 //go:generate go run generator/generate.go
@@ -48,15 +48,11 @@ func Show() {
 // startup of the service, and the version information associated with it.
 //
 func Trace() {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		tracing.Infof(
-			ctx,
-			-1,
-			"===== Starting %q at %s =====",
-			fmt.Sprint(os.Args),
-			time.Now().Format(time.RFC1123Z))
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(clients.OutsideTime))
+	defer span.End()
 
-		tracing.Info(ctx, -1, toString())
-		return nil
-	})
+	tracing.Infof(ctx, "===== Starting %q at %s =====", fmt.Sprint(os.Args), time.Now().Format(time.RFC1123Z))
+
+	tracing.Info(ctx, toString())
 }

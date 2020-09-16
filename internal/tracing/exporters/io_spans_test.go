@@ -15,13 +15,13 @@ func TestSingleRoot(t *testing.T) {
 	io := bytes.Buffer{}
 
 	entry := &log.Entry{
-		Name:           "root",
-		SpanID:         "0102030405060708",
-		ParentID:       "0000000000000000",
-		TraceID:        "11020304050607080102030405060708",
-		Status:         "ok",
-		StackTrace:     "stacks",
-		Event:          []*log.Event{
+		Name:       "root",
+		SpanID:     "0102030405060708",
+		ParentID:   "0000000000000000",
+		TraceID:    "11020304050607080102030405060708",
+		Status:     "ok",
+		StackTrace: "stacks",
+		Event: []*log.Event{
 			{
 				Tick:       0,
 				Severity:   0,
@@ -50,11 +50,11 @@ func TestSingleRoot(t *testing.T) {
 
 	assert.Equal(t,
 		"\n[0102030405060708:0000000000000000] ok root:\n"+
-		"    stacks\n\n"+
-		"      @   0: [D] (test1) text1\n"+
-		"        stack1\n" +
-		"      @   1: [D] (test2) text2\n" +
-		"        stack2\n", io.String())
+			"    stacks\n\n"+
+			"      @   0: [D] (test1) text1\n"+
+			"        stack1\n"+
+			"      @   1: [D] (test2) text2\n"+
+			"        stack2\n", io.String())
 
 	assert.Equal(t, 0, len(s.known))
 	assert.Equal(t, 0, len(s.active))
@@ -66,13 +66,13 @@ func TestDoubleRoot(t *testing.T) {
 	io := bytes.Buffer{}
 
 	entry := &log.Entry{
-		Name:           "root",
-		SpanID:         "0102030405060708",
-		ParentID:       "0000000000000000",
-		TraceID:        "11020304050607080102030405060708",
-		Status:         "ok",
-		StackTrace:     "stacks",
-		Event:          []*log.Event{
+		Name:       "root",
+		SpanID:     "0102030405060708",
+		ParentID:   "0000000000000000",
+		TraceID:    "11020304050607080102030405060708",
+		Status:     "ok",
+		StackTrace: "stacks",
+		Event: []*log.Event{
 			{
 				Tick:       0,
 				Severity:   0,
@@ -98,13 +98,13 @@ func TestDoubleRoot(t *testing.T) {
 	}
 
 	entry2 := &log.Entry{
-		Name:           "root",
-		SpanID:         "1102030405060708",
-		ParentID:       "0000000000000000",
-		TraceID:        "11020304050607080102030405060708",
-		Status:         "ok",
-		StackTrace:     "stacks",
-		Event:          []*log.Event{
+		Name:       "root",
+		SpanID:     "1102030405060708",
+		ParentID:   "0000000000000000",
+		TraceID:    "11020304050607080102030405060708",
+		Status:     "ok",
+		StackTrace: "stacks",
+		Event: []*log.Event{
 			{
 				Tick:       2,
 				Severity:   0,
@@ -133,11 +133,11 @@ func TestDoubleRoot(t *testing.T) {
 
 	assert.Equal(t,
 		"\n[0102030405060708:0000000000000000] ok root:\n"+
-		"    stacks\n\n"+
-		"      @   0: [D] (test1) text1\n"+
-		"        stack1\n" +
-		"      @   1: [D] (test2) text2\n" +
-		"        stack2\n", io.String())
+			"    stacks\n\n"+
+			"      @   0: [D] (test1) text1\n"+
+			"        stack1\n"+
+			"      @   1: [D] (test2) text2\n"+
+			"        stack2\n", io.String())
 
 	assert.Equal(t, 0, len(s.known))
 	assert.Equal(t, 0, len(s.active))
@@ -147,12 +147,12 @@ func TestDoubleRoot(t *testing.T) {
 
 	assert.Equal(t,
 		"\n[1102030405060708:0000000000000000] ok root:\n"+
-		"    stacks\n\n"+
-		"      @   2: [D] (test3) text3\n"+
-		"        stack3\n" +
-		"      @   3: [D] (test4) text4\n" +
-		"        stack4\n",
-			io.String())
+			"    stacks\n\n"+
+			"      @   2: [D] (test3) text3\n"+
+			"        stack3\n"+
+			"      @   3: [D] (test4) text4\n"+
+			"        stack4\n",
+		io.String())
 
 	assert.Equal(t, 0, len(s.known))
 	assert.Equal(t, 0, len(s.active))
@@ -165,13 +165,13 @@ func TestSimpleChildFirst(t *testing.T) {
 	io := bytes.Buffer{}
 
 	entry := &log.Entry{
-		Name:           "root",
-		SpanID:         "0102030405060708",
-		ParentID:       "0000000000000000",
-		TraceID:        traceID,
-		Status:         "ok",
-		StackTrace:     "stacks",
-		Event:          []*log.Event{
+		Name:       "root",
+		SpanID:     "0102030405060708",
+		ParentID:   "0000000000000000",
+		TraceID:    traceID,
+		Status:     "ok",
+		StackTrace: "stacks",
+		Event: []*log.Event{
 			{
 				Tick:       0,
 				Severity:   0,
@@ -207,13 +207,13 @@ func TestSimpleChildFirst(t *testing.T) {
 	}
 
 	entry2 := &log.Entry{
-		Name:           "root",
-		SpanID:         "1102030405060708",
-		ParentID:       "0102030405060708",
-		TraceID:        traceID,
-		Status:         "ok",
-		StackTrace:     "stacks",
-		Event:          []*log.Event{
+		Name:       "root",
+		SpanID:     "1102030405060708",
+		ParentID:   "0102030405060708",
+		TraceID:    traceID,
+		Status:     "ok",
+		StackTrace: "stacks",
+		Event: []*log.Event{
 			{
 				Tick:       2,
 				Severity:   0,
@@ -255,14 +255,14 @@ func TestSimpleChildFirst(t *testing.T) {
 		"\n[0102030405060708:0000000000000000] ok root:\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
-			"        stack1\n" +
-		"\n    [1102030405060708:0102030405060708] ok root:\n"+
+			"        stack1\n"+
+			"\n    [1102030405060708:0102030405060708] ok root:\n"+
 			"        stacks\n\n"+
 			"          @   2: [D] (test3) text3\n"+
-			"            stack3\n" +
-			"          @   3: [D] (test4) text4\n" +
+			"            stack3\n"+
+			"          @   3: [D] (test4) text4\n"+
 			"            stack4\n"+
-		"      @   1: [D] (test2) text2\n" +
+			"      @   1: [D] (test2) text2\n"+
 			"        stack2\n",
 		io.String())
 
@@ -278,13 +278,13 @@ func TestSimpleChildLast(t *testing.T) {
 	io := bytes.Buffer{}
 
 	entry := &log.Entry{
-		Name:           "root",
-		SpanID:         "0102030405060708",
-		ParentID:       "0000000000000000",
-		TraceID:        traceID,
-		Status:         "ok",
-		StackTrace:     "stacks",
-		Event:          []*log.Event{
+		Name:       "root",
+		SpanID:     "0102030405060708",
+		ParentID:   "0000000000000000",
+		TraceID:    traceID,
+		Status:     "ok",
+		StackTrace: "stacks",
+		Event: []*log.Event{
 			{
 				Tick:       0,
 				Severity:   0,
@@ -320,13 +320,13 @@ func TestSimpleChildLast(t *testing.T) {
 	}
 
 	entry2 := &log.Entry{
-		Name:           "root",
-		SpanID:         "1102030405060708",
-		ParentID:       "0102030405060708",
-		TraceID:        traceID,
-		Status:         "ok",
-		StackTrace:     "stacks",
-		Event:          []*log.Event{
+		Name:       "root",
+		SpanID:     "1102030405060708",
+		ParentID:   "0102030405060708",
+		TraceID:    traceID,
+		Status:     "ok",
+		StackTrace: "stacks",
+		Event: []*log.Event{
 			{
 				Tick:       2,
 				Severity:   0,
@@ -368,14 +368,14 @@ func TestSimpleChildLast(t *testing.T) {
 		"\n[0102030405060708:0000000000000000] ok root:\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
-			"        stack1\n" +
+			"        stack1\n"+
 			"\n    [1102030405060708:0102030405060708] ok root:\n"+
 			"        stacks\n\n"+
 			"          @   2: [D] (test3) text3\n"+
-			"            stack3\n" +
-			"          @   3: [D] (test4) text4\n" +
+			"            stack3\n"+
+			"          @   3: [D] (test4) text4\n"+
 			"            stack4\n"+
-			"      @   1: [D] (test2) text2\n" +
+			"      @   1: [D] (test2) text2\n"+
 			"        stack2\n",
 		io.String())
 

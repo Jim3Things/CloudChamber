@@ -127,11 +127,9 @@ func (s *ioSpans) add(entry *log.Entry, io io.Writer) {
 
 	if !hasParent {
 		a.root = spanID
-	} else {
+	} else if _, ok := s.known[parentID]; !ok {
 		// add this entry's parent to active, if not in the known list
-		if _, ok := s.known[parentID]; !ok {
-			a.open[parentID] = true
-		}
+		a.open[parentID] = true
 	}
 
 	// go through the full set of entries.  For each span start, add that

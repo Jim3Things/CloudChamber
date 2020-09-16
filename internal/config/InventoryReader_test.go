@@ -34,7 +34,7 @@ func commonSetup() {
 
 // first inventory definition test
 
-func TestReadInventoryDefinition (t *testing.T) {
+func TestReadInventoryDefinition(t *testing.T) {
 
 	_ = utf.Open(t)
 	defer utf.Close()
@@ -44,11 +44,11 @@ func TestReadInventoryDefinition (t *testing.T) {
 
 	require.Equal(t, 2, len(response.Racks))
 
-	r,ok:= response.Racks["rack1"]
+	r, ok := response.Racks["rack1"]
 	require.True(t, ok)
 	assert.Equal(t, 2, len(r.Blades))
 
-	b,ok:=r.Blades[1]
+	b, ok := r.Blades[1]
 	require.True(t, ok)
 	assert.Equal(t, int64(16), b.Cores)
 	assert.Equal(t, int64(16834), b.MemoryInMb)
@@ -56,11 +56,11 @@ func TestReadInventoryDefinition (t *testing.T) {
 	assert.Equal(t, int64(2048), b.NetworkBandwidthInMbps)
 	assert.Equal(t, "X64", b.Arch)
 
-	s,ok:=response.Racks["rack2"]
+	s, ok := response.Racks["rack2"]
 	require.True(t, ok)
 	assert.Equal(t, 2, len(s.Blades))
 
-	c,ok:=r.Blades[2]
+	c, ok := r.Blades[2]
 	require.True(t, ok)
 	assert.Equal(t, int64(8), c.Cores)
 	assert.Equal(t, int64(16834), c.MemoryInMb)
@@ -68,7 +68,7 @@ func TestReadInventoryDefinition (t *testing.T) {
 	assert.Equal(t, int64(2048), c.NetworkBandwidthInMbps)
 }
 
-func TestReadInventoryBogusPath (t *testing.T){
+func TestReadInventoryBogusPath(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 	viper.Reset()
@@ -79,7 +79,7 @@ func TestReadInventoryBogusPath (t *testing.T){
 }
 
 //TestInventoryUniqueRack test to check that zone always contain unique rack numbers
-func TestInventoryUniquRack (t *testing.T) {
+func TestInventoryUniquRack(t *testing.T) {
 
 	_ = utf.Open(t)
 	defer utf.Close()
@@ -87,10 +87,10 @@ func TestInventoryUniquRack (t *testing.T) {
 
 	_, err := ReadInventoryDefinition(".//BadYaml")
 	require.NotNil(t, err)
-	assert.Equal (t, "Duplicate rack \"rack1\" detected", err.Error() )
+	assert.Equal(t, "Duplicate rack \"rack1\" detected", err.Error())
 }
 
-func TestInventoryUniqueBlade (t *testing.T){
+func TestInventoryUniqueBlade(t *testing.T) {
 
 	_ = utf.Open(t)
 	defer utf.Close()
@@ -98,10 +98,10 @@ func TestInventoryUniqueBlade (t *testing.T){
 
 	_, err := ReadInventoryDefinition(".//BadYamlBlade")
 	require.NotNil(t, err)
-	assert.Equal (t, "Duplicate Blade 1 in Rack \"rack1\" detected", err.Error() )
+	assert.Equal(t, "Duplicate Blade 1 in Rack \"rack1\" detected", err.Error())
 }
 
-func TestInventoryValidateBlade (t *testing.T){
+func TestInventoryValidateBlade(t *testing.T) {
 
 	_ = utf.Open(t)
 	defer utf.Close()
@@ -109,5 +109,5 @@ func TestInventoryValidateBlade (t *testing.T){
 
 	_, err := ReadInventoryDefinition(".//BadYamlValidate")
 	require.NotNil(t, err)
-	assert.Equal (t,  "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid", err.Error() )
+	assert.Equal(t, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid", err.Error())
 }

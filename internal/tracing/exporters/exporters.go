@@ -77,10 +77,10 @@ type Exporter struct {
 // forwarded.
 func NewExporter(proc forwarder) *Exporter {
 	return &Exporter{
-		m: sync.Mutex{},
+		m:      sync.Mutex{},
 		closed: true,
-		ch:   make(chan interface{}, maxBuffer),
-		proc: proc,
+		ch:     make(chan interface{}, maxBuffer),
+		proc:   proc,
 	}
 }
 
@@ -121,7 +121,7 @@ func (e *Exporter) Close() {
 
 	if !e.closed {
 		rsp := make(chan bool)
-		e.ch <- &closeMsg{ ch: rsp }
+		e.ch <- &closeMsg{ch: rsp}
 
 		<-rsp
 	}
@@ -133,7 +133,7 @@ func (e *Exporter) processLoop(ch chan interface{}) {
 	early := true
 
 	for !e.closed {
-		msg := <- ch
+		msg := <-ch
 
 		switch pkt := msg.(type) {
 		case *pbl.Entry:

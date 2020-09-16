@@ -46,11 +46,9 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Cluster Inventory List of Racks"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -59,7 +57,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -74,7 +72,6 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	tracing.Infof(
 		ctx,
-		tick,
 		"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
 		rackCount,
 		res.MaxBladeCount,
@@ -87,30 +84,28 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 		res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
-		tracing.Infof(ctx, tick, "   Listing rack %q at %q", name, target)
+		tracing.Infof(ctx, "   Listing rack %q at %q", name, target)
 
 		return nil
 	})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, res)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Rack Details"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	vars := mux.Vars(r)
 	rackID := vars["rackID"]
@@ -122,34 +117,32 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	rack, err := dbInventory.Get(rackID)
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 
-	tracing.Infof(ctx, tick, "Returning details for rack %q: %v", rackID, rack)
+	tracing.Infof(ctx, "Returning details for rack %q: %v", rackID, rack)
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, rack)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get List of Blades in Selected Rack"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -158,7 +151,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -166,7 +159,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	rackID := vars["rackID"] // captured the key value in rackID variable
 
 	if _, err = fmt.Fprintf(w, "Blades in %q (List)\n", rackID); err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -175,26 +168,21 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	err = dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
 
 		target := fmt.Sprintf("%s%d", b, bladeID)
-		tracing.Infof(ctx, tick, " Listing blades '%d' at %q", bladeID, target)
+		tracing.Infof(ctx, " Listing blades '%d' at %q", bladeID, target)
 
-		if _, err = fmt.Fprintln(w, target); err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		return nil
+		_, err = fmt.Fprintln(w, target)
+		return err
 	})
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Blade Details"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := clients.Tick(ctx)
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -203,7 +191,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -215,7 +203,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 
 	bladeID, err := strconv.ParseInt(bladeName, 10, 64)
 	if err != nil {
-		postHttpError(ctx, tick, w, &HTTPError{
+		postHTTPError(ctx, w, &HTTPError{
 			SC:   http.StatusBadRequest,
 			Base: err,
 		})
@@ -223,17 +211,17 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-		blade, err := dbInventory.GetBlade(rackID, bladeID)
+	blade, err := dbInventory.GetBlade(rackID, bladeID)
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
-	tracing.Infof(ctx, tick, "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+	tracing.Infof(ctx, "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, blade)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }

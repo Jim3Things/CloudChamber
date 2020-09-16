@@ -4,7 +4,8 @@ import (
 	"context"
 )
 
-type tickKeyType struct {}
+type tickKeyType struct{}
+
 var tickKey = tickKeyType{}
 
 // ContextWithTick returns a new context with the current simulated time added.
@@ -19,4 +20,12 @@ func TickFromContext(ctx context.Context) int64 {
 	}
 
 	return -1
+}
+
+// ContextHasTick verifies whether the supplied context has a simulated time
+// tick in its set of values.
+func ContextHasTick(ctx context.Context) bool {
+	_, ok := ctx.Value(tickKey).(int64)
+
+	return ok
 }
