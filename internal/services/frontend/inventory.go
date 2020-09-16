@@ -57,7 +57,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -73,7 +73,9 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	tracing.Infof(
 		ctx,
 		"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
-		rackCount, res.MaxBladeCount, res.MaxCapacity)
+		rackCount,
+		res.MaxBladeCount,
+		res.MaxCapacity)
 
 	b := common.URLPrefix(r)
 
@@ -88,7 +90,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -115,13 +117,13 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	rack, err := dbInventory.Get(rackID)
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -149,7 +151,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -157,7 +159,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	rackID := vars["rackID"] // captured the key value in rackID variable
 
 	if _, err = fmt.Fprintf(w, "Blades in %q (List)\n", rackID); err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -189,7 +191,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -201,7 +203,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 
 	bladeID, err := strconv.ParseInt(bladeName, 10, 64)
 	if err != nil {
-		postHttpError(ctx, w, &HTTPError{
+		postHTTPError(ctx, w, &HTTPError{
 			SC:   http.StatusBadRequest,
 			Base: err,
 		})
@@ -212,7 +214,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	blade, err := dbInventory.GetBlade(rackID, bladeID)
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 

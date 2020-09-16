@@ -144,7 +144,7 @@ func formatNormalEvent(event *log.Event, leader string) string {
 
 func doIndent(s string, indent string) string {
 	return strings.TrimSuffix(
-		strings.ReplaceAll(indent + s, "\n", "\n"+indent),
+		strings.ReplaceAll(indent+s, "\n", "\n"+indent),
 		indent)
 }
 

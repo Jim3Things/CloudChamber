@@ -124,13 +124,13 @@ func (store *Store) CreateWithEncode(
 	tracing.Infof(ctx, "Request to create new %q under prefix %q", n, prefix)
 
 	if err = store.disconnected(ctx); err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	v, err := Encode(m)
 
 	if err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	request := &Request{
@@ -148,11 +148,11 @@ func (store *Store) CreateWithEncode(
 	// in terms the caller should recognize
 	//
 	if err == ErrStoreAlreadyExists(k) {
-		return 0, ErrStoreAlreadyExists(n)
+		return RevisionInvalid, ErrStoreAlreadyExists(n)
 	}
 
 	if err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	tracing.Infof(ctx, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
@@ -172,7 +172,7 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 	tracing.Infof(ctx, "Request to create new %q under prefix %q", n, prefix)
 
 	if err = store.disconnected(ctx); err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	request := &Request{
@@ -190,11 +190,11 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 	// in terms the caller should recognize
 	//
 	if err == ErrStoreAlreadyExists(k) {
-		return 0, ErrStoreAlreadyExists(n)
+		return RevisionInvalid, ErrStoreAlreadyExists(n)
 	}
 
 	if err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	tracing.Infof(ctx, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
@@ -230,7 +230,7 @@ func (store *Store) ReadWithDecode(
 	tracing.Infof(ctx, "Request to read and decode %q under prefix %q", n, prefix)
 
 	if err = store.disconnected(ctx); err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	var (
@@ -251,24 +251,24 @@ func (store *Store) ReadWithDecode(
 	request.Conditions[k] = ConditionUnconditional
 
 	if response, err = store.ReadTxn(ctx, request); err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	recordCount := len(response.Records)
 
 	switch recordCount {
 	default:
-		return 0, ErrStoreBadRecordCount{n, 1, recordCount}
+		return RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
 
 	case 0:
-		return 0, ErrStoreKeyNotFound(n)
+		return RevisionInvalid, ErrStoreKeyNotFound(n)
 
 	case 1:
 		rev = response.Records[k].Revision
 		val = response.Records[k].Value
 
 		if err = Decode(val, m); err != nil {
-			return 0, err
+			return RevisionInvalid, err
 		}
 
 		tracing.Infof(ctx, "found and decoded record for %q under prefix %q with revision %v and value %q", n, prefix, rev, val)
@@ -299,7 +299,7 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 	tracing.Infof(ctx, "Request to read value of %q under prefix %q", n, prefix)
 
 	if err = store.disconnected(ctx); err != nil {
-		return nil, 0, err
+		return nil, RevisionInvalid, err
 	}
 
 	var (
@@ -320,17 +320,17 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 	request.Conditions[k] = ConditionUnconditional
 
 	if response, err = store.ReadTxn(ctx, request); err != nil {
-		return nil, 0, err
+		return nil, RevisionInvalid, err
 	}
 
 	recordCount := len(response.Records)
 
 	switch recordCount {
 	default:
-		return nil, 0, ErrStoreBadRecordCount{n, 1, recordCount}
+		return nil, RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
 
 	case 0:
-		return nil, 0, ErrStoreKeyNotFound(n)
+		return nil, RevisionInvalid, ErrStoreKeyNotFound(n)
 
 	case 1:
 		rev = response.Records[k].Revision
@@ -361,12 +361,12 @@ func (store *Store) UpdateWithEncode(
 	tracing.Infof(ctx, "Request to update %q under prefix %q", n, prefix)
 
 	if err = store.disconnected(ctx); err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	v, err := Encode(m)
 	if err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	var condition Condition
@@ -390,10 +390,12 @@ func (store *Store) UpdateWithEncode(
 	resp, err := store.WriteTxn(ctx, request)
 
 	if err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
-	tracing.Infof(ctx, "Updated record %q under prefix %q from revision %v to revision %v", n, prefix, rev, resp.Revision)
+	tracing.Infof(ctx,
+		"Updated record %q under prefix %q from revision %v to revision %v",
+		n, prefix, rev, resp.Revision)
 
 	return resp.Revision, nil
 }
@@ -410,7 +412,7 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 	tracing.Infof(ctx, "Request to delete %q under prefix %q", n, prefix)
 
 	if err = store.disconnected(ctx); err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	var condition Condition
@@ -438,11 +440,11 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 	// in terms the caller should recognize
 	//
 	if err == ErrStoreKeyNotFound(k) {
-		return 0, ErrStoreKeyNotFound(n)
+		return RevisionInvalid, ErrStoreKeyNotFound(n)
 	}
 
 	if err != nil {
-		return 0, err
+		return RevisionInvalid, err
 	}
 
 	tracing.Infof(ctx, "Deleted record for %q under prefix %q with revision %v resulting in store revision %v", n, prefix, rev, resp.Revision)
@@ -470,13 +472,13 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 	tracing.Infof(ctx, "Request to list keys under prefix %q", prefix)
 
 	if err = store.disconnected(ctx); err != nil {
-		return nil, 0, err
+		return nil, RevisionInvalid, err
 	}
 
 	response, err := store.ListWithPrefix(ctx, prefix)
 
 	if err != nil {
-		return nil, 0, err
+		return nil, RevisionInvalid, err
 	}
 
 	recs := make(map[string]Record, len(response.Records))
@@ -484,7 +486,7 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 	for k, record := range response.Records {
 
 		if !strings.HasPrefix(k, prefix) {
-			return nil, 0, ErrStoreBadRecordKey(k)
+			return nil, RevisionInvalid, ErrStoreBadRecordKey(k)
 		}
 
 		name := strings.TrimPrefix(k, prefix)

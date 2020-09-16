@@ -49,14 +49,14 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	stat, err := clients.Status(ctx)
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -84,7 +84,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -97,7 +97,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 	} else {
 		count, err = strconv.Atoi(arg)
 		if err != nil || count <= 0 {
-			postHttpError(ctx, w, NewErrInvalidStepperRate(arg))
+			postHTTPError(ctx, w, NewErrInvalidStepperRate(arg))
 			return
 		}
 	}
@@ -105,7 +105,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 	// Advance the time the request number of ticks
 	for i := 0; i < count; i++ {
 		if err = clients.Advance(ctx); err != nil {
-			postHttpError(ctx, w, err)
+			postHTTPError(ctx, w, err)
 			return
 		}
 	}
@@ -141,7 +141,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -149,14 +149,14 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 	match, err := strconv.ParseInt(matchString, 10, 64)
 
 	if err != nil {
-		postHttpError(ctx, w, NewErrBadMatchType(matchString))
+		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
 	}
 
 	switch args[0] {
 	case "manual":
 		if len(args) != 1 {
-			postHttpError(ctx, w, NewErrInvalidRateRequest())
+			postHTTPError(ctx, w, NewErrInvalidRateRequest())
 			return
 		}
 
@@ -168,7 +168,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 		if len(args) == 2 {
 			tps, err := strconv.Atoi(args[1])
 			if err != nil || tps < 1 {
-				postHttpError(ctx, w, NewErrInvalidStepperRate(args[1]))
+				postHTTPError(ctx, w, NewErrInvalidStepperRate(args[1]))
 				return
 			}
 
@@ -181,12 +181,12 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 		policy = pb.StepperPolicy_Measured
 
 	default:
-		postHttpError(ctx, w, NewErrInvalidStepperMode(args[0]))
+		postHTTPError(ctx, w, NewErrInvalidStepperMode(args[0]))
 		return
 	}
 
 	if err = clients.SetPolicy(ctx, policy, delay, match); err != nil {
-		postHttpError(ctx, w, NewErrStepperFailedToSetPolicy())
+		postHTTPError(ctx, w, NewErrStepperFailedToSetPolicy())
 		return
 	}
 
@@ -231,7 +231,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -258,7 +258,7 @@ func handleGetNow(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 

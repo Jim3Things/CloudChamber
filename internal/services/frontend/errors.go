@@ -126,8 +126,8 @@ func (he *HTTPError) Error() string {
 	return he.Base.Error()
 }
 
-// postHttpError sets an http error, and log it to the tracing system.
-func postHttpError(ctx context.Context, w http.ResponseWriter, err error) {
+// postHTTPError sets an http error, and log it to the tracing system.
+func postHTTPError(ctx context.Context, w http.ResponseWriter, err error) {
 	// We're hoping this is an HTTPError form of error, which would have the
 	// preferred HTTP status code included.
 	//
@@ -149,7 +149,7 @@ func postHttpError(ctx context.Context, w http.ResponseWriter, err error) {
 // httpErrorIf sets and traces an http error, if there is one.
 func httpErrorIf(ctx context.Context, w http.ResponseWriter, err error) {
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 	}
 }
 

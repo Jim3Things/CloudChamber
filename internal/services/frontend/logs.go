@@ -40,27 +40,27 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
-	fromId, err := ensureNumber("from", from)
+	fromID, err := ensureNumber("from", from)
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	maxSize, err := ensurePositiveNumber("for", count)
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
-	ch := tsc.GetTraces(ctx, fromId, maxSize)
+	ch := tsc.GetTraces(ctx, fromID, maxSize)
 
 	data := <-ch
 	if data.Err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -88,13 +88,13 @@ func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	policy, err := tsc.GetPolicy(ctx)
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 

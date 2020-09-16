@@ -88,7 +88,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -118,7 +118,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -145,7 +145,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -153,14 +153,14 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 
 	u := &pb.UserDefinition{}
 	if err = jsonpb.Unmarshal(r.Body, u); err != nil {
-		postHttpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		postHTTPError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
 		return
 	}
 
 	var rev int64
 
 	if rev, err = userAdd(ctx, username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -193,14 +193,14 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	u, rev, err := userRead(ctx, username)
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -248,7 +248,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -261,14 +261,14 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	matchString := r.Header.Get("If-Match")
 	match, err = strconv.ParseInt(matchString, 10, 64)
 	if err != nil {
-		postHttpError(ctx, w, NewErrBadMatchType(matchString))
+		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
 	}
 
 	// Next, get the new definition values, and make sure that they are valid.
 	upd := &pb.UserUpdate{}
 	if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-		postHttpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		postHTTPError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
 		return
 	}
 
@@ -276,7 +276,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	// not have.  Since a user can modify their own entries, the canManageAccounts
 	// check is insufficient.
 	if err = verifyRightsAvailable(caller, upd); err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -287,7 +287,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	var newVer *pb.User
 
 	if newVer, rev, err = userUpdate(ctx, username, upd, match); err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -326,12 +326,12 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	if err = userRemove(ctx, username); err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -375,7 +375,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 	})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -402,7 +402,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -415,14 +415,14 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	matchString := r.Header.Get("If-Match")
 	match, err = strconv.ParseInt(matchString, 10, 64)
 	if err != nil {
-		postHttpError(ctx, w, NewErrBadMatchType(matchString))
+		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
 	}
 
 	// Next, get the new password values, and make sure that they are valid.
 	upd := &pb.UserPassword{}
 	if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-		postHttpError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		postHTTPError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
 		return
 	}
 
@@ -432,7 +432,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	var rev int64
 
 	if rev, err = userSetPassword(ctx, username, upd, match); err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 

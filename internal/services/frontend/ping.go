@@ -45,7 +45,7 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 

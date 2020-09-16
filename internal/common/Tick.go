@@ -4,7 +4,8 @@ import (
 	"context"
 )
 
-type tickKeyType struct {}
+type tickKeyType struct{}
+
 var tickKey = tickKeyType{}
 
 // ContextWithTick returns a new context with the current simulated time added.

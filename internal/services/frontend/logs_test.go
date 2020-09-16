@@ -1,20 +1,20 @@
 package frontend
 
 import (
-    "context"
-    "fmt"
-    "net/http"
-    "net/http/httptest"
-    "testing"
-    "time"
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+	"time"
 
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
-    tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
-    "github.com/Jim3Things/CloudChamber/internal/common"
-    "github.com/Jim3Things/CloudChamber/pkg/protos/log"
-    pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
+	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 const (

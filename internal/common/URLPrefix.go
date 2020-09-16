@@ -14,4 +14,3 @@ func URLPrefix(r *http.Request) string {
 	}
 	return b
 }
-

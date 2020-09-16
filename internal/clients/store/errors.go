@@ -42,7 +42,9 @@ type ErrStoreConnectionFailed struct {
 }
 
 func (escf ErrStoreConnectionFailed) Error() string {
-	return fmt.Sprintf("CloudChamber: failed to establish connection to store - endpoints: %q reason: %q", escf.endpoints, escf.reason)
+	return fmt.Sprintf(
+		"CloudChamber: failed to establish connection to store - endpoints: %q reason: %q",
+		escf.endpoints, escf.reason)
 }
 
 // ErrStoreKeyNotFound indicates the request key was not found when the store
@@ -130,7 +132,9 @@ type ErrStoreBadRecordCount struct {
 }
 
 func (esbrc ErrStoreBadRecordCount) Error() string {
-	return fmt.Sprintf("CloudChamber: unexpected record count for key %q - expected: %v actual %v", esbrc.key, esbrc.expected, esbrc.actual)
+	return fmt.Sprintf(
+		"CloudChamber: unexpected record count for key %q - expected: %v actual %v",
+		esbrc.key, esbrc.expected, esbrc.actual)
 }
 
 // ErrStoreBadArgCondition indicates the condition argument specified for the update was not valid.
@@ -153,7 +157,9 @@ type ErrStoreBadArgRevision struct {
 }
 
 func (esbar ErrStoreBadArgRevision) Error() string {
-	return fmt.Sprintf("CloudChamber: invalid revision argument supplied on update for key %q - requested: %v actual: %v", esbar.key, esbar.requested, esbar.actual)
+	return fmt.Sprintf(
+		"CloudChamber: invalid revision argument supplied on update for key %q - requested: %v actual: %v",
+		esbar.key, esbar.requested, esbar.actual)
 }
 
 // ErrStoreConditionFail indicates the update transaction failed due to a
@@ -168,7 +174,9 @@ type ErrStoreConditionFail struct {
 }
 
 func (esucf ErrStoreConditionFail) Error() string {
-	return fmt.Sprintf("CloudChamber: condition failure on update for key %q - requested: %v condition: %v actual: %v", esucf.key, esucf.requested, esucf.condition, esucf.actual)
+	return fmt.Sprintf(
+		"CloudChamber: condition failure on update for key %q - requested: %v condition: %v actual: %v",
+		esucf.key, esucf.requested, esucf.condition, esucf.actual)
 }
 
 // ErrStoreAlreadyExists indicates the key, value pair being created already exists

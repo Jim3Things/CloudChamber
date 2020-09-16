@@ -54,7 +54,7 @@ var (
 	initialized bool
 	lis         *bufconn.Listener
 
-	utf			*exporters.Exporter
+	utf *exporters.Exporter
 )
 
 // Common test startup method.  This is the _only_ Test* function in this

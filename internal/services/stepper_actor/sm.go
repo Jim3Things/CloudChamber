@@ -13,10 +13,10 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/golang/protobuf/ptypes/empty"
 
-	common2 "github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
@@ -74,7 +74,7 @@ type InvalidStateImpl struct {
 func (s *InvalidStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
-	ctx = common2.ContextWithTick(ctx, holder.latest)
+	ctx = common.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	switch msg := ca.Message().(type) {
@@ -122,7 +122,7 @@ func (s *NoWaitStateImpl) Enter(ctx context.Context) error {
 func (s *NoWaitStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
-	ctx = common2.ContextWithTick(ctx, holder.latest)
+	ctx = common.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	switch msg := ca.Message().(type) {
@@ -161,7 +161,7 @@ func (s *ManualStateImpl) Enter(ctx context.Context) error {
 func (s *ManualStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
-	ctx = common2.ContextWithTick(ctx, holder.latest)
+	ctx = common.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	s.Holder.ApplyDefaultActions(ctx)
@@ -208,7 +208,7 @@ func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
 func (s *AutoStepStateImpl) Receive(ca actor.Context) {
 	holder := s.Holder
 	ctx := sm.DecorateContext(ca)
-	ctx = common2.ContextWithTick(ctx, holder.latest)
+	ctx = common.ContextWithTick(ctx, holder.latest)
 	holder.TraceOnReceive(ctx)
 
 	switch msg := ca.Message().(type) {
@@ -227,7 +227,7 @@ func (s *AutoStepStateImpl) Receive(ca actor.Context) {
 		rsp := &pb.StatusResponse{
 			Policy:        indexToPolicy[holder.mgr.Current],
 			MeasuredDelay: ptypes.DurationProto(s.delay),
-			Now:           &common.Timestamp{Ticks: holder.latest},
+			Now:           &ct.Timestamp{Ticks: holder.latest},
 			WaiterCount:   int64(holder.waiters.Size()),
 			Epoch:         holder.epoch,
 		}
@@ -261,7 +261,7 @@ func (act *Actor) ApplyDefaultActions(ctx context.Context) {
 	if !isSystemMessage(ctx) {
 		switch msg := ca.Message().(type) {
 		case *pb.NowRequest:
-			ca.Respond(&common.Timestamp{Ticks: act.latest})
+			ca.Respond(&ct.Timestamp{Ticks: act.latest})
 
 		case *pb.DelayRequest:
 			act.HandleDelay(ctx, msg)
@@ -373,7 +373,7 @@ func (act *Actor) HandleGetStatus(ctx context.Context) {
 	rsp := &pb.StatusResponse{
 		Policy:        indexToPolicy[act.mgr.Current],
 		MeasuredDelay: &duration.Duration{Seconds: 0},
-		Now:           &common.Timestamp{Ticks: act.latest},
+		Now:           &ct.Timestamp{Ticks: act.latest},
 		WaiterCount:   int64(act.waiters.Size()),
 		Epoch:         act.epoch,
 	}
@@ -397,7 +397,7 @@ func (act *Actor) checkForExpiry(ctx context.Context) {
 	for key <= act.latest {
 		value := v.([]*actor.PID)
 		for _, p := range value {
-			ca.Send(p, &common.Timestamp{Ticks: act.latest})
+			ca.Send(p, &ct.Timestamp{Ticks: act.latest})
 		}
 		act.waiters.Remove(k)
 

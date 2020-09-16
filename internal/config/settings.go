@@ -231,7 +231,10 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; we'll just use the default values
-			tracing.Infof(ctx, "No config file found at %s/%s (%s), applying defaults.", path, defaultGlobalConfigFile, defaultConfigType)
+			tracing.Infof(
+				ctx,
+				"No config file found at %s/%s (%s), applying defaults.",
+				path, defaultGlobalConfigFile, defaultConfigType)
 		} else {
 			// Config file was found but another error was produced
 			return nil, tracing.Errorf(ctx, "fatal error reading config file: %s", err)

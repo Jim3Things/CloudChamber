@@ -31,7 +31,7 @@ func Interceptor(
 	tr := global.TraceProvider().Tracer("")
 
 	ctx, span := tr.Start(
-		ctxIn,
+		ctx,
 		info.FullMethod,
 		trace.WithSpanKind(trace.SpanKindServer),
 		trace.WithNewRoot(),
