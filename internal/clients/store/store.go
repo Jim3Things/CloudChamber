@@ -214,7 +214,14 @@ func Initialize(cfg *config.GlobalConfig) {
 	storeRoot.DefaultTraceFlags = TraceFlags(cfg.Store.TraceLevel)
 	storeRoot.DefaultNamespaceSuffix = ""
 
-	tracing.Infof(ctx, "EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v", storeRoot.DefaultEndpoints, storeRoot.DefaultTimeoutConnect, storeRoot.DefaultTimeoutRequest, storeRoot.DefaultTraceFlags, storeRoot.DefaultNamespaceSuffix)
+	tracing.Infof(
+		ctx,
+		"EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v",
+		storeRoot.DefaultEndpoints,
+		storeRoot.DefaultTimeoutConnect,
+		storeRoot.DefaultTimeoutRequest,
+		storeRoot.DefaultTraceFlags,
+		storeRoot.DefaultNamespaceSuffix)
 
 	// See if any part of the test namespace requires initialization and optionally cleaning.
 	//
@@ -241,7 +248,10 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 	// and to clean the store before the tests are run
 	//
 	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
-		tracing.Fatalf(ctx, "invalid configuration: : %v", ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
+		tracing.Fatalf(
+			ctx,
+			"invalid configuration: : %v",
+			ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
 	}
 
 	// For test purposes, need to set an alternate namespace rather than
