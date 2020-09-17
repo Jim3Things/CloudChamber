@@ -32,8 +32,8 @@ import (
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 )
 
 // Server is the context structure for the frontend web service. It is used to
@@ -94,11 +94,14 @@ func normalizeURL(next http.Handler) http.Handler {
 // arrives.  This is used, for example, to trace file access requests.
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_ = st.WithNamedSpan(context.Background(), spanName, func(ctx context.Context) error {
-			st.Infof(ctx, -1, "%s for path %q", r.Method, r.URL.String())
-			next.ServeHTTP(w, r)
-			return nil
-		})
+		ctx, span := tracing.StartSpan(context.Background(),
+			tracing.WithName(spanName),
+			tracing.AsInternal(),
+			tracing.WithContextValue(ts.OutsideTime))
+		defer span.End()
+
+		tracing.Infof(ctx, "%s for path %q", r.Method, r.URL.String())
+		next.ServeHTTP(w, r)
 	})
 }
 
@@ -143,14 +146,14 @@ func initService(cfg *config.GlobalConfig) error {
 	//
 	if nil == keyAuthentication {
 		log.Fatalf(
-			"Failed to generate required authentication key (Check system " +
+			"Failed to generate required authentication key (Check system "+
 				"Random Number Generator and restart the service after 60s). Error: %v",
-				ErrNotInitialized)
+			ErrNotInitialized)
 	} else if nil == keyEncryption {
 		log.Fatalf(
-			"Failed to generate required encryption key (Check system Random " +
+			"Failed to generate required encryption key (Check system Random "+
 				"Number Generator and restart the service after 60s). Error: %v",
-				ErrNotInitialized)
+			ErrNotInitialized)
 	}
 
 	server.rootFilePath = cfg.WebServer.RootFilePath
@@ -171,7 +174,7 @@ func initService(cfg *config.GlobalConfig) error {
 	tsc.InitSinkClient(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.InfraInterceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor))
 
 	if err := initHandlers(); err != nil {
 		return err

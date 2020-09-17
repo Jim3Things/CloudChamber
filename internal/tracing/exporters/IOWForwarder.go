@@ -15,32 +15,32 @@ func NameToWriter(name string) (io.Writer, error) {
 	if name == "" || strings.EqualFold(name, "stdout") {
 		// If no trace file specified, use stdout
 		return os.Stdout, nil
-	} else {
-		writer, err := os.OpenFile(
-			name,
-			os.O_APPEND | os.O_CREATE | os.O_WRONLY,
-			0644)
-
-		if err != nil {
-			return nil, fmt.Errorf("error creating trace file (%q), err=%v", name, err)
-		}
-
-		return writer, nil
 	}
+
+	writer, err := os.OpenFile(
+		name,
+		os.O_APPEND|os.O_CREATE|os.O_WRONLY,
+		0644)
+
+	if err != nil {
+		return nil, fmt.Errorf("error creating trace file (%q), err=%v", name, err)
+	}
+
+	return writer, nil
 }
 
 // IOWForwarder implements a Forwarder to a designated IO writer.  The output
 // is formatted into a functional tree, grouped by trace ID.
 type IOWForwarder struct {
 	writer io.Writer
-	spans *io_spans
+	spans  *ioSpans
 }
 
 // NewIOWForwarder creates a closed IOwForwarder instance
 func NewIOWForwarder() *IOWForwarder {
 	return &IOWForwarder{
 		writer: nil,
-		spans: newSpans(),
+		spans:  newSpans(),
 	}
 }
 

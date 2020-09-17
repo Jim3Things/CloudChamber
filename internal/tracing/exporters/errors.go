@@ -19,7 +19,7 @@ var (
 // Exporter.Open call used a type that was not expected or supported.
 type ErrInvalidOpenAttrsType struct {
 	expected string
-	actual string
+	actual   string
 }
 
 func (e ErrInvalidOpenAttrsType) Error() string {

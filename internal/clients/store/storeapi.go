@@ -7,9 +7,10 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
-
 	"google.golang.org/protobuf/runtime/protoiface"
+
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 // KeyRoot is used to describe which part of the store namespace
@@ -114,95 +115,93 @@ func (store *Store) CreateWithEncode(
 	r KeyRoot,
 	n string,
 	m protoiface.MessageV1) (revision int64, err error) {
-	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(r)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
+	prefix := getNamespacePrefixFromKeyRoot(r)
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+	tracing.Infof(ctx, "Request to create new %q under prefix %q", n, prefix)
 
-		v, err := Encode(m)
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
 
-		if err != nil {
-			return err
-		}
+	v, err := Encode(m)
 
-		request := &Request{
-			Records:    make(map[string]Record),
-			Conditions: make(map[string]Condition),
-		}
+	if err != nil {
+		return RevisionInvalid, err
+	}
 
-		k := getKeyFromKeyRootAndName(r, n)
-		request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
-		request.Conditions[k] = ConditionCreate
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition),
+	}
 
-		resp, err := store.WriteTxn(ctx, request)
+	k := getKeyFromKeyRootAndName(r, n)
+	request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
+	request.Conditions[k] = ConditionCreate
 
-		// Need to strip the namespace prefix and return something described
-		// in terms the caller should recognize
-		//
-		if err == ErrStoreAlreadyExists(k) {
-			return ErrStoreAlreadyExists(n)
-		}
+	resp, err := store.WriteTxn(ctx, request)
 
-		if err != nil {
-			return err
-		}
+	// Need to strip the namespace prefix and return something described
+	// in terms the caller should recognize
+	//
+	if err == ErrStoreAlreadyExists(k) {
+		return RevisionInvalid, ErrStoreAlreadyExists(n)
+	}
 
-		st.Infof(ctx, -1, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
+	if err != nil {
+		return RevisionInvalid, err
+	}
 
-		revision = resp.Revision
+	tracing.Infof(ctx, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
 
-		return nil
-	})
-
-	return revision, err
+	return resp.Revision, nil
 }
 
 // Create is a function to create a single key, value record pair
 //
 func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (revision int64, err error) {
-	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(r)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		st.Infof(ctx, -1, "Request to create new %q under prefix %q", n, prefix)
+	prefix := getNamespacePrefixFromKeyRoot(r)
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+	tracing.Infof(ctx, "Request to create new %q under prefix %q", n, prefix)
 
-		request := &Request{
-			Records:    make(map[string]Record),
-			Conditions: make(map[string]Condition),
-		}
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
 
-		k := getKeyFromKeyRootAndName(r, n)
-		request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
-		request.Conditions[k] = ConditionCreate
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition),
+	}
 
-		resp, err := store.WriteTxn(ctx, request)
+	k := getKeyFromKeyRootAndName(r, n)
+	request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
+	request.Conditions[k] = ConditionCreate
 
-		// Need to strip the namespace prefix and return something described
-		// in terms the caller should recognize
-		//
-		if err == ErrStoreAlreadyExists(k) {
-			return ErrStoreAlreadyExists(n)
-		}
+	resp, err := store.WriteTxn(ctx, request)
 
-		if err != nil {
-			return err
-		}
+	// Need to strip the namespace prefix and return something described
+	// in terms the caller should recognize
+	//
+	if err == ErrStoreAlreadyExists(k) {
+		return RevisionInvalid, ErrStoreAlreadyExists(n)
+	}
 
-		st.Infof(ctx, -1, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
+	if err != nil {
+		return RevisionInvalid, err
+	}
 
-		revision = resp.Revision
+	tracing.Infof(ctx, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
 
-		return nil
-	})
+	revision = resp.Revision
 
-	return revision, err
+	return resp.Revision, nil
 }
 
 // ReadWithDecode is a method to retrieve the user record associated with the
@@ -222,65 +221,60 @@ func (store *Store) ReadWithDecode(
 	m protoiface.MessageV1) (revision int64, err error) {
 	revision = RevisionInvalid
 
-	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(kr)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		st.Infof(ctx, -1, "Request to read and decode %q under prefix %q", n, prefix)
+	prefix := getNamespacePrefixFromKeyRoot(kr)
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
+	tracing.Infof(ctx, "Request to read and decode %q under prefix %q", n, prefix)
+
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
+
+	var (
+		rev      int64
+		val      string
+		response *Response
+	)
+
+	// If we need to do the read to get the revision, we will need an array of the keys
+	//
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition),
+	}
+
+	k := getKeyFromKeyRootAndName(kr, n)
+	request.Records[k] = Record{Revision: RevisionInvalid}
+	request.Conditions[k] = ConditionUnconditional
+
+	if response, err = store.ReadTxn(ctx, request); err != nil {
+		return RevisionInvalid, err
+	}
+
+	recordCount := len(response.Records)
+
+	switch recordCount {
+	default:
+		return RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
+
+	case 0:
+		return RevisionInvalid, ErrStoreKeyNotFound(n)
+
+	case 1:
+		rev = response.Records[k].Revision
+		val = response.Records[k].Value
+
+		if err = Decode(val, m); err != nil {
+			return RevisionInvalid, err
 		}
 
-		var (
-			rev      int64
-			val      string
-			response *Response
-		)
+		tracing.Infof(ctx, "found and decoded record for %q under prefix %q with revision %v and value %q", n, prefix, rev, val)
 
-		// If we need to do the read to get the revision, we will need an array of the keys
-		//
-		request := &Request{
-			Records:    make(map[string]Record),
-			Conditions: make(map[string]Condition),
-		}
-
-		k := getKeyFromKeyRootAndName(kr, n)
-		request.Records[k] = Record{Revision: RevisionInvalid}
-		request.Conditions[k] = ConditionUnconditional
-
-		if response, err = store.ReadTxn(ctx, request); err != nil {
-			return err
-		}
-
-		recordCount := len(response.Records)
-
-		switch recordCount {
-		default:
-			return ErrStoreBadRecordCount{n, 1, recordCount}
-
-		case 0:
-			return ErrStoreKeyNotFound(n)
-
-		case 1:
-			rev = response.Records[k].Revision
-			val = response.Records[k].Value
-
-			if err = Decode(val, m); err != nil {
-				return err
-			}
-
-			st.Infof(
-				ctx, -1,
-				"found and decoded record for %q under prefix %q with revision %v and value %q",
-				n, prefix, rev, val)
-
-			revision = rev
-
-			return nil
-		}
-	})
-
-	return revision, err
+		return rev, nil
+	}
 }
 
 // Read is a method to retrieve the user record associated with the
@@ -296,58 +290,58 @@ func (store *Store) ReadWithDecode(
 func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *string, revision int64, err error) {
 	revision = RevisionInvalid
 
-	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(kr)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		st.Infof(ctx, -1, "Request to read value of %q under prefix %q", n, prefix)
+	prefix := getNamespacePrefixFromKeyRoot(kr)
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+	tracing.Infof(ctx, "Request to read value of %q under prefix %q", n, prefix)
 
-		var (
-			rev      int64
-			val      string
-			response *Response
-		)
+	if err = store.disconnected(ctx); err != nil {
+		return nil, RevisionInvalid, err
+	}
 
-		// If we need to do the read to get the revision, we will need an array of the keys
-		//
-		request := &Request{
-			Records:    make(map[string]Record),
-			Conditions: make(map[string]Condition),
-		}
+	var (
+		rev      int64
+		val      string
+		response *Response
+	)
 
-		k := getKeyFromKeyRootAndName(kr, n)
-		request.Records[k] = Record{Revision: RevisionInvalid}
-		request.Conditions[k] = ConditionUnconditional
+	// If we need to do the read to get the revision, we will need an array of the keys
+	//
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition),
+	}
 
-		if response, err = store.ReadTxn(ctx, request); err != nil {
-			return err
-		}
+	k := getKeyFromKeyRootAndName(kr, n)
+	request.Records[k] = Record{Revision: RevisionInvalid}
+	request.Conditions[k] = ConditionUnconditional
 
-		recordCount := len(response.Records)
+	if response, err = store.ReadTxn(ctx, request); err != nil {
+		return nil, RevisionInvalid, err
+	}
 
-		switch recordCount {
-		default:
-			return ErrStoreBadRecordCount{n, 1, recordCount}
+	recordCount := len(response.Records)
 
-		case 0:
-			return ErrStoreKeyNotFound(n)
+	switch recordCount {
+	default:
+		return nil, RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
 
-		case 1:
-			rev = response.Records[k].Revision
-			val = response.Records[k].Value
-			st.Infof(ctx, -1, "found record for %q under prefix %q, with revision %v and value %q", n, prefix, rev, val)
+	case 0:
+		return nil, RevisionInvalid, ErrStoreKeyNotFound(n)
 
-			revision = rev
-			value = &val
+	case 1:
+		rev = response.Records[k].Revision
+		val = response.Records[k].Value
+		tracing.Infof(ctx, "found record for %q under prefix %q, with revision %v and value %q", n, prefix, rev, val)
 
-			return nil
-		}
-	})
+		revision = rev
+		value = &val
 
-	return value, revision, err
+		return value, revision, err
+	}
 }
 
 // UpdateWithEncode is a function to conditionally update a value for a single key
@@ -358,112 +352,104 @@ func (store *Store) UpdateWithEncode(
 	n string,
 	rev int64,
 	m protoiface.MessageV1) (revision int64, err error) {
-	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(kr)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		st.Infof(ctx, -1, "Request to update %q under prefix %q", n, prefix)
+	prefix := getNamespacePrefixFromKeyRoot(kr)
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+	tracing.Infof(ctx, "Request to update %q under prefix %q", n, prefix)
 
-		v, err := Encode(m)
-		if err != nil {
-			return err
-		}
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
 
-		var condition Condition
+	v, err := Encode(m)
+	if err != nil {
+		return RevisionInvalid, err
+	}
 
-		switch {
-		case rev == RevisionInvalid:
-			condition = ConditionUnconditional
+	var condition Condition
 
-		default:
-			condition = ConditionRevisionEqual
-		}
+	switch {
+	case rev == RevisionInvalid:
+		condition = ConditionUnconditional
 
-		request := &Request{
-			Records:    make(map[string]Record),
-			Conditions: make(map[string]Condition)}
+	default:
+		condition = ConditionRevisionEqual
+	}
 
-		k := getKeyFromKeyRootAndName(kr, n)
-		request.Records[k] = Record{Revision: rev, Value: v}
-		request.Conditions[k] = condition
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition)}
 
-		resp, err := store.WriteTxn(ctx, request)
+	k := getKeyFromKeyRootAndName(kr, n)
+	request.Records[k] = Record{Revision: rev, Value: v}
+	request.Conditions[k] = condition
 
-		if err != nil {
-			return err
-		}
+	resp, err := store.WriteTxn(ctx, request)
 
-		st.Infof(
-			ctx, -1,
-			"Updated record %q under prefix %q from revision %v to revision %v",
-			n, prefix, rev, resp.Revision)
+	if err != nil {
+		return RevisionInvalid, err
+	}
 
-		revision = resp.Revision
+	tracing.Infof(ctx,
+		"Updated record %q under prefix %q from revision %v to revision %v",
+		n, prefix, rev, resp.Revision)
 
-		return nil
-	})
-
-	return revision, err
+	return resp.Revision, nil
 }
 
 // Delete is a function to delete a single key, value record pair
 //
 func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) (revision int64, err error) {
-	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(r)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		st.Infof(ctx, -1, "Request to delete %q under prefix %q", n, prefix)
+	prefix := getNamespacePrefixFromKeyRoot(r)
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
-		}
+	tracing.Infof(ctx, "Request to delete %q under prefix %q", n, prefix)
 
-		var condition Condition
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
 
-		switch {
-		case rev == RevisionInvalid:
-			condition = ConditionUnconditional
+	var condition Condition
 
-		default:
-			condition = ConditionRevisionEqual
-		}
+	switch {
+	case rev == RevisionInvalid:
+		condition = ConditionUnconditional
 
-		request := &Request{
-			Records:    make(map[string]Record),
-			Conditions: make(map[string]Condition),
-		}
+	default:
+		condition = ConditionRevisionEqual
+	}
 
-		k := getKeyFromKeyRootAndName(r, n)
-		request.Records[k] = Record{Revision: rev}
-		request.Conditions[k] = condition
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition),
+	}
 
-		resp, err := store.DeleteTxn(ctx, request)
+	k := getKeyFromKeyRootAndName(r, n)
+	request.Records[k] = Record{Revision: rev}
+	request.Conditions[k] = condition
 
-		// Need to strip the namespace prefix and return something described
-		// in terms the caller should recognize
-		//
-		if err == ErrStoreKeyNotFound(k) {
-			return ErrStoreKeyNotFound(n)
-		}
+	resp, err := store.DeleteTxn(ctx, request)
 
-		if err != nil {
-			return err
-		}
+	// Need to strip the namespace prefix and return something described
+	// in terms the caller should recognize
+	//
+	if err == ErrStoreKeyNotFound(k) {
+		return RevisionInvalid, ErrStoreKeyNotFound(n)
+	}
 
-		st.Infof(
-			ctx, -1,
-			"Deleted record for %q under prefix %q with revision %v resulting in store revision %v",
-			n, prefix, rev, resp.Revision)
+	if err != nil {
+		return RevisionInvalid, err
+	}
 
-		revision = resp.Revision
+	tracing.Infof(ctx, "Deleted record for %q under prefix %q with revision %v resulting in store revision %v", n, prefix, rev, resp.Revision)
 
-		return nil
-	})
-
-	return revision, err
+	return resp.Revision, nil
 }
 
 // List is a method to return all the user records using a single call.
@@ -477,43 +463,40 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 //		 an essentially infinite number of records.
 //
 func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Record, revision int64, err error) {
-	err = st.WithSpan(ctx, func(ctx context.Context) (err error) {
-		prefix := getNamespacePrefixFromKeyRoot(r)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		st.Infof(ctx, -1, "Request to list keys under prefix %q", prefix)
+	prefix := getNamespacePrefixFromKeyRoot(r)
 
-		if err = store.disconnected(ctx); err != nil {
-			return err
+	tracing.Infof(ctx, "Request to list keys under prefix %q", prefix)
+
+	if err = store.disconnected(ctx); err != nil {
+		return nil, RevisionInvalid, err
+	}
+
+	response, err := store.ListWithPrefix(ctx, prefix)
+
+	if err != nil {
+		return nil, RevisionInvalid, err
+	}
+
+	recs := make(map[string]Record, len(response.Records))
+
+	for k, record := range response.Records {
+
+		if !strings.HasPrefix(k, prefix) {
+			return nil, RevisionInvalid, ErrStoreBadRecordKey(k)
 		}
 
-		response, err := store.ListWithPrefix(ctx, prefix)
+		name := strings.TrimPrefix(k, prefix)
 
-		if err != nil {
-			return err
-		}
+		recs[name] = Record{Revision: record.Revision, Value: record.Value}
 
-		recs := make(map[string]Record, len(response.Records))
+		tracing.Infof(ctx, "found record with key %q for name %q with revision %v", k, name, record.Revision)
+	}
 
-		for k, record := range response.Records {
+	tracing.Infof(ctx, "returned %v records at store revision %v", len(response.Records), response.Revision)
 
-			if !strings.HasPrefix(k, prefix) {
-				return ErrStoreBadRecordKey(k)
-			}
-
-			name := strings.TrimPrefix(k, prefix)
-
-			recs[name] = Record{Revision: record.Revision, Value: record.Value}
-
-			st.Infof(ctx, -1, "found record with key %q for name %q with revision %v", k, name, record.Revision)
-		}
-
-		st.Infof(ctx, -1, "returned %v records at store revision %v", len(response.Records), response.Revision)
-
-		records = &recs
-		revision = response.Revision
-
-		return nil
-	})
-
-	return records, revision, err
+	return &recs, response.Revision, nil
 }

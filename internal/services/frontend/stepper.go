@@ -13,7 +13,8 @@ import (
 	"github.com/gorilla/sessions"
 
 	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -37,71 +38,86 @@ func stepperAddRoutes(routeBase *mux.Router) {
 
 // Process an http request for the current Stepper service status.
 func handleGetStatus(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get Simulated Time Service Status"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
 
-		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
-		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		stat, err := clients.Status(ctx)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("ETag", fmt.Sprintf("%v", stat.Epoch))
-
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, stat)
+	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+		return ensureEstablishedSession(session)
 	})
+
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	stat, err := clients.Status(ctx)
+
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("ETag", fmt.Sprintf("%v", stat.Epoch))
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, stat)
+
+	httpErrorIf(ctx, w, err)
 }
 
 // Process an http request to advance the simulated time by a specified number
 // of ticks.  The number defaults to 1.
 func handleAdvance(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		var count int
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Advance Simulated Time"),
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
-		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	var count int
 
-		// Get the optional count of ticks to advance, and validate it
-		vars := mux.Vars(r)
-		arg, ok := vars["num"]
-		if !ok || len(arg) == 0 {
-			count = 1
-		} else {
-			count, err = strconv.Atoi(arg)
-			if err != nil || count <= 0 {
-				return httpError(ctx, w, NewErrInvalidStepperRate(arg))
-			}
-		}
-
-		// Advance the time the request number of ticks
-		for i := 0; i < count; i++ {
-			if err = clients.Advance(ctx); err != nil {
-				return httpError(ctx, w, err)
-			}
-		}
-
-		// .. and get the current time to return in the body of the response
-		now, err := clients.Now(ctx)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, now)
+	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+		return ensureEstablishedSession(session)
 	})
+
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	// Get the optional count of ticks to advance, and validate it
+	vars := mux.Vars(r)
+	arg, ok := vars["num"]
+
+	if !ok || len(arg) == 0 {
+		count = 1
+	} else {
+		count, err = strconv.Atoi(arg)
+		if err != nil || count <= 0 {
+			postHTTPError(ctx, w, NewErrInvalidStepperRate(arg))
+			return
+		}
+	}
+
+	// Advance the time the request number of ticks
+	for i := 0; i < count; i++ {
+		if err = clients.Advance(ctx); err != nil {
+			postHTTPError(ctx, w, err)
+			return
+		}
+	}
+
+	// .. and get the current time to return in the body of the response
+	ctx = common.ContextWithTick(ctx, clients.Tick(ctx))
+	w.Header().Set("Content-Type", "application/json")
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, &ct.Timestamp{Ticks: common.TickFromContext(ctx)})
+
+	httpErrorIf(ctx, w, err)
 }
 
 // Process an http request to change the simulated time service's policy.  The
@@ -109,76 +125,94 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 // request, or it may advance at some number of ticks per second.  If the
 // latter, the default rate is 1 tick per second.
 func handleSetMode(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
-		vars := mux.Vars(r)
-		args := strings.Split(strings.Replace(vars["type"], "=", ":", 1), ":")
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Set Simulated Time Policy"),
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
 
-		var delay *duration.Duration
-		var policy pb.StepperPolicy
+	vars := mux.Vars(r)
+	args := strings.Split(strings.Replace(vars["type"], "=", ":", 1), ":")
 
-		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
-		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	var delay *duration.Duration
+	var policy pb.StepperPolicy
 
-		matchString := r.Header.Get("If-Match")
-		match, err := strconv.ParseInt(matchString, 10, 64)
-		if err != nil {
-			return httpError(ctx, w, NewErrBadMatchType(matchString))
-		}
-
-		switch args[0] {
-		case "manual":
-			if len(args) != 1 {
-				return httpError(ctx, w, NewErrInvalidRateRequest())
-			}
-
-			delay = &duration.Duration{Seconds: 0, Nanos: 0}
-			policy = pb.StepperPolicy_Manual
-
-		case "automatic":
-			delay = &duration.Duration{Seconds: 1, Nanos: 0}
-			if len(args) == 2 {
-				tps, err := strconv.Atoi(args[1])
-				if err != nil {
-					return httpError(ctx, w, NewErrInvalidStepperRate(args[1]))
-				}
-
-				if tps > 1 {
-					delay.Seconds = 0
-					delay.Nanos = int32(nanosPerSecond / tps)
-				}
-			}
-
-			policy = pb.StepperPolicy_Measured
-
-		default:
-			return httpError(ctx, w, NewErrInvalidStepperMode(args[0]))
-		}
-
-		if err = clients.SetPolicy(ctx, policy, delay, match); err != nil {
-			return httpError(ctx, w, NewErrStepperFailedToSetPolicy())
-		}
-
-		w.Header().Set("ETag", fmt.Sprintf("%v", match+1))
-
-		return nil
+	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+		return ensureEstablishedSession(session)
 	})
+
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	matchString := r.Header.Get("If-Match")
+	match, err := strconv.ParseInt(matchString, 10, 64)
+
+	if err != nil {
+		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
+		return
+	}
+
+	switch args[0] {
+	case "manual":
+		if len(args) != 1 {
+			postHTTPError(ctx, w, NewErrInvalidRateRequest())
+			return
+		}
+
+		delay = &duration.Duration{Seconds: 0, Nanos: 0}
+		policy = pb.StepperPolicy_Manual
+
+	case "automatic":
+		delay = &duration.Duration{Seconds: 1, Nanos: 0}
+		if len(args) == 2 {
+			tps, err := strconv.Atoi(args[1])
+			if err != nil || tps < 1 {
+				postHTTPError(ctx, w, NewErrInvalidStepperRate(args[1]))
+				return
+			}
+
+			if tps > 1 {
+				delay.Seconds = 0
+				delay.Nanos = int32(nanosPerSecond / tps)
+			}
+		}
+
+		policy = pb.StepperPolicy_Measured
+
+	default:
+		postHTTPError(ctx, w, NewErrInvalidStepperMode(args[0]))
+		return
+	}
+
+	if err = clients.SetPolicy(ctx, policy, delay, match); err != nil {
+		postHTTPError(ctx, w, NewErrStepperFailedToSetPolicy())
+		return
+	}
+
+	w.Header().Set("ETag", fmt.Sprintf("%v", match+1))
+
+	httpErrorIf(ctx, w, err)
 }
 
 // Process an http request to wait for the first tick after the one specified.
 // This can be used to be notified of time changes when the simulated time is
 // in the 'automatic' state.
 func handleWaitFor(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
-		vars := mux.Vars(r)
-		after := vars["after"]
+	vars := mux.Vars(r)
+	after := vars["after"]
 
-		var data clients.TimeData
+	var data clients.TimeData
 
-		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Wait Until Simulate Time After..."),
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
+
+	err := doSessionHeader(
+		ctx, w, r,
+		func(_ context.Context, session *sessions.Session) error {
+
 			if err := ensureEstablishedSession(session); err != nil {
 				return err
 			}
@@ -195,35 +229,43 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 
 			return nil
 		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
 
-		w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
 
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, data.Time)
-	})
+	ctx = common.ContextWithTick(ctx, data.Time.Ticks)
+
+	w.Header().Set("Content-Type", "application/json")
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, data.Time)
+
+	httpErrorIf(ctx, w, err)
 }
 
 // Process an http request to get the current simulated time.
 func handleGetNow(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) error {
-		err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
-		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get Current Simulated Time"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
 
-		now, err := clients.Now(ctx)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, now)
+	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+		return ensureEstablishedSession(session)
 	})
+
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, &ct.Timestamp{Ticks: common.TickFromContext(ctx)})
+
+	httpErrorIf(ctx, w, err)
 }

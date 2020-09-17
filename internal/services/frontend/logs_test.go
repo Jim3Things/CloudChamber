@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
-	"github.com/Jim3Things/CloudChamber/internal/common/channels"
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -201,12 +201,12 @@ func TestLogsGetAfter(t *testing.T) {
 		ch <- true
 	}(ch, response.Cookies())
 
-	assert.True(t, channels.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
+	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
 
 	err = tsc.Append(context.Background(), entry)
 	require.Nil(t, err)
 
-	assert.True(t, channels.CompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
 
 	doLogout(t, randomCase(adminAccountName), cookies2)
 }

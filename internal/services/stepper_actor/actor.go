@@ -12,6 +12,7 @@ import (
 	"github.com/emirpasic/gods/utils"
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	log "github.com/Jim3Things/CloudChamber/internal/tracing/server"
@@ -75,6 +76,7 @@ func Register(svc *grpc.Server, p pb.StepperPolicy) (err error) {
 // set up.
 func (act *Actor) Receive(ca actor.Context) {
 	ctx := sm.DecorateContext(ca)
+	ctx = common.ContextWithTick(ctx, act.latest)
 
 	switch ca.Message().(type) {
 	case *actor.Started:
@@ -102,5 +104,5 @@ func (act *Actor) TraceOnReceive(ctx context.Context) {
 	sn := act.mgr.GetStateName()
 	mn := tracing.MethodName(2)
 
-	log.Infof(ctx, act.latest, "[In Stepper Actor/%s/%s]", sn, mn)
+	tracing.Infof(ctx, "[In Stepper Actor/%s/%s]", sn, mn)
 }

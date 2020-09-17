@@ -10,7 +10,7 @@ import (
 // ConnectToProvider configures one or more OpenTelemetry exporters into our trace provider
 func ConnectToProvider(exporters ...*Exporter) {
 
-	options := []sdk.ProviderOption {
+	options := []sdk.ProviderOption{
 		sdk.WithConfig(sdk.Config{DefaultSampler: sdk.AlwaysSample()}),
 	}
 

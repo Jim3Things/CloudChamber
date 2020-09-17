@@ -9,15 +9,15 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 
 	"github.com/gorilla/sessions"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -44,155 +44,184 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 }
 
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get Cluster Inventory List of Racks"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
 
-		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+	err := doSessionHeader(
+		ctx, w, r,
+		func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
 
-		w.Header().Set("Content-Type", "application/json")
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
 
-		rackCount, maxBlades, maxCapacity := dbInventory.GetMemoData()
-		res := &pb.ExternalZoneSummary{
-			Racks:         make(map[string]*pb.ExternalRackSummary, rackCount),
-			MaxBladeCount: maxBlades,
-			MaxCapacity:   maxCapacity,
-		}
+	w.Header().Set("Content-Type", "application/json")
 
-		// Pick up the current time to avoid repeatedly fetching the same value
-		tick := common.Tick(ctx)
+	rackCount, maxBlades, maxCapacity := dbInventory.GetMemoData()
+	res := &pb.ExternalZoneSummary{
+		Racks:         make(map[string]*pb.ExternalRackSummary, rackCount),
+		MaxBladeCount: maxBlades,
+		MaxCapacity:   maxCapacity,
+	}
 
-		st.Infof(
-			ctx,
-			tick,
-			"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
-			rackCount,
-			res.MaxBladeCount,
-			res.MaxCapacity)
+	tracing.Infof(
+		ctx,
+		"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
+		rackCount,
+		res.MaxBladeCount,
+		res.MaxCapacity)
 
-		b := r.URL.String()
-		if !strings.HasSuffix(b, "/") {
-			b += "/"
-		}
+	b := common.URLPrefix(r)
 
-		err = dbInventory.Scan(func(name string) (err error) {
-			target := fmt.Sprintf("%s%s", b, name)
+	err = dbInventory.Scan(func(name string) error {
+		target := fmt.Sprintf("%s%s", b, name)
 
-			res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
+		res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
-			st.Infof(ctx, tick, "   Listing rack %q at %q", name, target)
+		tracing.Infof(ctx, "   Listing rack %q at %q", name, target)
 
-			return nil
-		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
-
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, res)
+		return nil
 	})
+
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, res)
+
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get Rack Details"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	vars := mux.Vars(r)
+	rackID := vars["rackID"]
+
+	err := doSessionHeader(
+		ctx, w, r,
+		func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
 
-		vars := mux.Vars(r)
-		rackID := vars["rackID"]
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
 
-		u, err := dbInventory.Get(rackID)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	rack, err := dbInventory.Get(rackID)
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
 
-		w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json")
 
-		st.Infof(ctx, common.Tick(ctx), "Returning details for rack %q: %v", rackID, u)
+	tracing.Infof(ctx, "Returning details for rack %q: %v", rackID, rack)
 
-		// Get the user entry, and serialize it to json
-		// (export userPublic to json and return that as the body)
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, u)
-	})
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, rack)
+
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get List of Blades in Selected Rack"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	err := doSessionHeader(
+		ctx, w, r,
+		func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
 
-		vars := mux.Vars(r)
-		rackID := vars["rackID"] // captured the key value in rackID variable
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
 
-		// Pick up the current time to avoid repeatedly fetching the same value
-		tick := common.Tick(ctx)
+	vars := mux.Vars(r)
+	rackID := vars["rackID"] // captured the key value in rackID variable
 
-		if _, err = fmt.Fprintf(w, "Blades in %q (List)\n", rackID); err != nil {
-			return httpError(ctx, w, err)
-		}
+	if _, err = fmt.Fprintf(w, "Blades in %q (List)\n", rackID); err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
 
-		b := r.URL.String()
-		if !strings.HasSuffix(b, "/") {
-			b += "/"
-		}
+	b := common.URLPrefix(r)
 
-		return dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
+	err = dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
 
-			target := fmt.Sprintf("%s%d", b, bladeID)
-			st.Infof(ctx, tick, " Listing blades '%d' at %q", bladeID, target)
+		target := fmt.Sprintf("%s%d", b, bladeID)
+		tracing.Infof(ctx, " Listing blades '%d' at %q", bladeID, target)
 
-			if _, err = fmt.Fprintln(w, target); err != nil {
-				return httpError(ctx, w, err)
-			}
-
-			return nil
-		})
+		_, err = fmt.Fprintln(w, target)
+		return err
 	})
+
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
-	_ = st.WithSpan(context.Background(), func(ctx context.Context) (err error) {
-		err = doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Get Blade Details"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	err := doSessionHeader(
+		ctx, w, r,
+		func(_ context.Context, session *sessions.Session) error {
 			return ensureEstablishedSession(session)
 		})
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
 
-		vars := mux.Vars(r)
-		rackID := vars["rackID"]
-		bladeName := vars["bladeID"]
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
 
-		w.Header().Set("Content-Type", "application/json")
+	vars := mux.Vars(r)
+	rackID := vars["rackID"]
+	bladeName := vars["bladeID"]
 
-		bladeID, err := strconv.ParseInt(bladeName, 10, 64)
-		if err != nil {
-			return httpError(ctx, w, &HTTPError{
-				SC:   http.StatusBadRequest,
-				Base: err,
-			})
-		}
-		blade, err := dbInventory.GetBlade(rackID, bladeID)
-		if err != nil {
-			return httpError(ctx, w, err)
-		}
+	w.Header().Set("Content-Type", "application/json")
 
-		st.Infof(ctx, common.Tick(ctx), "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+	bladeID, err := strconv.ParseInt(bladeName, 10, 64)
+	if err != nil {
+		postHTTPError(ctx, w, &HTTPError{
+			SC:   http.StatusBadRequest,
+			Base: err,
+		})
 
-		p := jsonpb.Marshaler{}
-		return p.Marshal(w, blade)
-	})
+		return
+	}
+
+	blade, err := dbInventory.GetBlade(rackID, bladeID)
+
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	tracing.Infof(ctx, "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, blade)
+
+	httpErrorIf(ctx, w, err)
 }
-

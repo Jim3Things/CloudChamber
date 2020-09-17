@@ -12,18 +12,18 @@ import (
 	trc "go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // +++ Logging interceptors
 
-// Set up the logging context for an incoming message.  Establish the
-// surrounding span, and associate it with this actor instance.  The
-// span is terminated when the actor returns.
+// ReceiveLogger sets up the logging context for an incoming message.  It
+// establishes the surrounding span, and associate it with this actor instance.
+// The span is terminated when the actor returns.
 func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 	return func(c actor.ReceiverContext, envelope *actor.MessageEnvelope) {
-		tr := global.TraceProvider().Tracer("server")
+		tr := global.TraceProvider().Tracer("")
 
 		ctxIn := annotatedContext(context.Background(), envelope)
 
@@ -45,26 +45,27 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 
 		hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-		Infof(ctx, -1, "Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg))
+		tracing.Infof(ctx, "Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg))
 
 		next(c, envelope)
 	}
 }
 
-// Log a send operation from an actor, using the span associated with that
-// actor's instance
+// SendLogger records a send operation from an actor, using the span
+// associated with that actor's instance
 func SendLogger(next actor.SenderFunc) actor.SenderFunc {
 	return func(c actor.SenderContext, target *actor.PID, envelope *actor.MessageEnvelope) {
 		ctx := trc.ContextWithSpan(context.Background(), GetSpan(c.Self()))
 		hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-		Info(ctx, -1, fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
+		tracing.Info(ctx, fmt.Sprintf("Sending pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg)))
 
 		next(c, target, envelope)
 	}
 }
 
-// Simple trace formatting for each of the known message types.
+// dumpMessage provides simple trace formatting for each of the known message
+// types.
 func dumpMessage(msg interface{}) string {
 	switch msg := msg.(type) {
 	case *actor.Stopping:

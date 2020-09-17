@@ -8,7 +8,7 @@ controller:
     Hostname: localhost
 
   # trace file for local text tracing
-  Tracefile: .\controller_trace.txt
+  TraceFile: stdout
 
 # simulated inventory service (inventoryd)
 inventory:
@@ -18,7 +18,7 @@ inventory:
     hostname: localhost
 
   # trace file for local text tracing
-  Tracefile: .\inventory_trace.txt
+  TraceFile: stdout
 
 # simulation support services (sim_supportd)
 simSupport:
@@ -28,7 +28,7 @@ simSupport:
     hostname: localhost
 
   # trace file for local text tracing
-  Tracefile: .\sim_support_trace.txt
+  TraceFile: stdout
 
   # Starting Stepper Policy Mode
   # valid strings are 'manual' or 'automatic'.  The latter
@@ -91,7 +91,7 @@ webServer:
     hostname: localhost
 
   # trace file for local text tracing
-  Tracefile: .\web_server_trace.txt
+  TraceFile: stdout
 
   # file system path to the static files and scripts
   rootFilePath: .
