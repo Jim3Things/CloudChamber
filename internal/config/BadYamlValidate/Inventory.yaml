@@ -1,4 +1,3 @@
-#defining a blade1 and blade2 for rack1
 Racks:
   - Name: rack1
     Blades:
@@ -9,6 +8,42 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
       Cores: 32
       MemoryInMb: 16834
       DiskInGb: 120
@@ -25,7 +60,43 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
-      Cores: 8
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
+      Cores: 32
       MemoryInMb: 16834
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
@@ -41,6 +112,42 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
       Cores: 32
       MemoryInMb: 16834
       DiskInGb: 120
@@ -62,6 +169,42 @@ Racks:
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
       Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
     Tor:
     Pdu:
   - Name: rack5
@@ -73,7 +216,43 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
-      Cores: 16
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
+      Cores: 32
       MemoryInMb: 16834
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
@@ -89,6 +268,42 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
       Cores: 32
       MemoryInMb: 16834
       DiskInGb: 120
@@ -110,6 +325,42 @@ Racks:
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
       Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
     Tor:
     Pdu:
   - Name: rack8
@@ -121,6 +372,42 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 3
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 4
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 5
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 6
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 7
+      Cores: 32
+      MemoryInMb: 16834
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: X64
+    - Index: 8
       Cores: 32
       MemoryInMb: 16834
       DiskInGb: 120

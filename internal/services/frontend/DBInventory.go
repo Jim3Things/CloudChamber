@@ -167,11 +167,11 @@ func InitDBInventory() error {
 
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
-func (m *DBInventory) GetMemoData() (int, int64, *common.BladeCapacity) {
+func (m *DBInventory) GetMemoData() (int64, *common.BladeCapacity) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
-	return len(m.Zone.Racks), m.MaxBladeCount, m.MaxCapacity
+	return m.MaxBladeCount, m.MaxCapacity
 }
 
 // Scan the set of known blades the store, invoking the supplied
@@ -277,3 +277,7 @@ func maxInt64(a int64, b int64) int64 {
 
 	return a
 }
+
+
+//Cloud chamber config file needs to have a setting that point to inventory.yaml file
+//We need dbinventory to create the inventory via the inventory reader
