@@ -10,6 +10,7 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/grpc/metadata"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
@@ -19,21 +20,22 @@ import (
 var dialName string
 var dialOpts []grpc.DialOption
 
-// Defines the value returned from a delay wait.  This is more than the
-// simple timestamp inasmuch as the delay call can fail asynchronously.
+// TimeData defines the value returned from a delay wait.  This is more than
+// the simple timestamp inasmuch as the delay call can fail asynchronously.
 type TimeData struct {
 	Time *ct.Timestamp
 	Err  error
 }
 
-// Store the information needed to be able to connect to the Stepper service.
+// InitTimestamp stores the information needed to be able to connect to the
+// Stepper service.
 func InitTimestamp(name string, opts ...grpc.DialOption) {
 	dialName = name
 
 	dialOpts = append(dialOpts, opts...)
 }
 
-// Set the stepper policy
+// SetPolicy sets the stepper policy
 func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
 	ctx, conn, err := connect(ctx)
 	if err != nil {
@@ -71,7 +73,7 @@ func Advance(ctx context.Context) error {
 	return err
 }
 
-// Get the current simulated time.
+// Now gets the current simulated time.
 func Now(ctx context.Context) (*ct.Timestamp, error) {
 	ctx, conn, err := connect(ctx)
 	if err != nil {
@@ -85,8 +87,9 @@ func Now(ctx context.Context) (*ct.Timestamp, error) {
 	return client.Now(ctx, &pb.NowRequest{})
 }
 
-// Delay until the simulated time meets or exceeds the specified deadline.
-// Completion is asynchronous, even if no delay is required.
+// After delays execution until the simulated time meets or exceeds the
+// specified deadline.  Completion is asynchronous, even if no delay is
+// required.
 func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 
@@ -116,6 +119,7 @@ func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	return ch
 }
 
+// Status retrieves the status of the Stepper service
 func Status(ctx context.Context) (*pb.StatusResponse, error) {
 	ctx, conn, err := connect(ctx)
 	if err != nil {
@@ -163,4 +167,31 @@ func connect(ctx context.Context) (context.Context, *grpc.ClientConn, error) {
 	)
 
 	return metadata.NewOutgoingContext(ctx, md), conn, nil
+}
+
+// Tick provides the current simulated time Tick, or '-1' if the simulated time
+// cannot be retrieved (e.g. during startup)
+func Tick(ctx context.Context) int64 {
+	now, err := Now(ctx)
+	if err != nil {
+		return -1
+	}
+
+	return now.Ticks
+}
+
+// EnsureTickInContext checks if a simulated time tick is already present in
+// the context.  If not, it stores the current simulated time.
+func EnsureTickInContext(ctx context.Context) context.Context {
+	if common.ContextHasTick(ctx) {
+		return ctx
+	}
+
+	return common.ContextWithTick(ctx, Tick(ctx))
+}
+
+// OutsideTime forces the simulated time tick in the context to be '-1', which
+// is the designator for an operation that is outside the simulated time flow.
+func OutsideTime(ctx context.Context) context.Context {
+	return common.ContextWithTick(ctx, -1)
 }

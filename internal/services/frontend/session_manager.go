@@ -215,4 +215,3 @@ func ensureEstablishedSession(session *sessions.Session) error {
 
 	return nil
 }
-

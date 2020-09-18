@@ -27,12 +27,12 @@ const (
 type SinkForwarder struct {
 	endpoint string
 
-	opts []grpc.DialOption
-	conn *grpc.ClientConn
+	opts   []grpc.DialOption
+	conn   *grpc.ClientConn
 	client pb.TraceSinkClient
 
 	connectCount int
-	active bool
+	active       bool
 }
 
 // NewSinkForwarder creates a new, closed, forwarder instance.
@@ -135,4 +135,3 @@ func (sf *SinkForwarder) post(entry *pbl.Entry, _ bool) error {
 
 	return err
 }
-

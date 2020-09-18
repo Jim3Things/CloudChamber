@@ -17,7 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
-	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -34,11 +34,9 @@ type DBUsers struct {
 func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Initialize User DB Connection"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	if dbUsers == nil {
 		dbUsers = &DBUsers{
@@ -75,7 +73,7 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 		existingUser, _, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
 
 		if err != nil {
-			return tracing.Error(ctx, tick, ErrUnableToVerifySystemAccount{
+			return tracing.Error(ctx, ErrUnableToVerifySystemAccount{
 				Name: cfg.WebServer.SystemAccount,
 				Err:  err,
 			})
@@ -84,10 +82,7 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 		if err = bcrypt.CompareHashAndPassword(
 			existingUser.GetPasswordHash(),
 			[]byte(cfg.WebServer.SystemAccountPassword)); err != nil {
-			tracing.Infof(
-				ctx, tick,
-				"CloudChamber: standard %q account is not using using configured password - error %v",
-				cfg.WebServer.SystemAccount, err)
+			tracing.Infof(ctx, "CloudChamber: standard %q account is not using using configured password - error %v", cfg.WebServer.SystemAccount, err)
 		}
 
 		return nil

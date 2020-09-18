@@ -18,5 +18,3 @@ func handlerInjectionRoot(w http.ResponseWriter, _ *http.Request) {
 
 	_, _ = fmt.Fprintf(w, "Injection (Root)")
 }
-
-

@@ -17,6 +17,7 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -76,11 +77,9 @@ func usersAddRoutes(routeBase *mux.Router) {
 func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get User List"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -89,20 +88,17 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
-	b := r.URL.String()
-	if !strings.HasSuffix(b, "/") {
-		b += "/"
-	}
+	b := common.URLPrefix(r)
 
 	w.Header().Set("Content-Type", "application/json")
 
 	users := &pb.UserList{}
 
-	err = dbUsers.Scan(ctx, func(entry *pb.User) (err error) {
+	err = dbUsers.Scan(ctx, func(entry *pb.User) error {
 		target := fmt.Sprintf("%s%s", b, entry.Name)
 
 		protected := ""
@@ -110,7 +106,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			protected = " (protected)"
 		}
 
-		tracing.Infof(ctx, tick, "   Listing user %q: %q%s", entry.Name, target, protected)
+		tracing.Infof(ctx, "   Listing user %q: %q%s", entry.Name, target, protected)
 
 		users.Users = append(users.Users, &pb.UserListEntry{
 			Name:      entry.Name,
@@ -118,28 +114,26 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			Protected: entry.NeverDelete,
 		})
 
-		return err
+		return nil
 	})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, users)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Create New User"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -151,48 +145,43 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
-	tracing.Infof(ctx, common.Tick(ctx), "Creating user %q", username)
+	tracing.Infof(ctx, "Creating user %q", username)
 
 	u := &pb.UserDefinition{}
 	if err = jsonpb.Unmarshal(r.Body, u); err != nil {
-		postHttpError(ctx, tick, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		postHTTPError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
 		return
 	}
 
 	var rev int64
 
 	if rev, err = userAdd(ctx, username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-	tracing.Infof(
-		ctx, common.Tick(ctx),
-		"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v",
-		username, u.Enabled, u.CanManageAccounts)
+	tracing.Infof(ctx, "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
 
 	_, err = fmt.Fprintf(
 		w,
 		"User %q created.  enabled: %v, can manage accounts: %v",
 		username, u.Enabled, u.CanManageAccounts)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get User Details"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -204,14 +193,14 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	u, rev, err := userRead(ctx, username)
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -224,25 +213,23 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		NeverDelete:       u.NeverDelete,
 	}
 
-	tracing.Infof(ctx, tick, "Returning details for user %s", formatUser(username, ext))
+	tracing.Infof(ctx, "Returning details for user %s", formatUser(username, ext))
 
 	// Get the user entry, and serialize it to json
 	// (export userPublic to json and return that as the body)
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, ext)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 // Update the user entry
 func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Update User Details"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -261,7 +248,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -274,14 +261,14 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	matchString := r.Header.Get("If-Match")
 	match, err = strconv.ParseInt(matchString, 10, 64)
 	if err != nil {
-		postHttpError(ctx, tick, w, NewErrBadMatchType(matchString))
+		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
 	}
 
 	// Next, get the new definition values, and make sure that they are valid.
 	upd := &pb.UserUpdate{}
 	if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-		postHttpError(ctx, tick, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		postHTTPError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
 		return
 	}
 
@@ -289,7 +276,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	// not have.  Since a user can modify their own entries, the canManageAccounts
 	// check is insufficient.
 	if err = verifyRightsAvailable(caller, upd); err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -300,7 +287,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	var newVer *pb.User
 
 	if newVer, rev, err = userUpdate(ctx, username, upd, match); err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -313,23 +300,21 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		NeverDelete:       newVer.NeverDelete,
 	}
 
-	tracing.Infof(ctx, tick, "Returning details for user %s", formatUser(username, ext))
+	tracing.Infof(ctx, "Returning details for user %s", formatUser(username, ext))
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, ext)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 // Delete the user entry
 func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Delete User"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -341,29 +326,27 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	if err = userRemove(ctx, username); err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	_, err = fmt.Fprintf(w, "User %q deleted.", username)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 // Perform an admin operation (login, logout, enable, disable) on an account
 func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Perform User Operation"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	var s string
 
@@ -372,7 +355,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
-		tracing.Infof(ctx, tick, "Operation %q, user %q, session %v", op, username, session)
+		tracing.Infof(ctx, "Operation %q, user %q, session %v", op, username, session)
 
 		switch op {
 		case Login:
@@ -386,30 +369,28 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			_ = tracing.Error(ctx, tick, dumpSessionState(session))
+			_ = tracing.Error(ctx, dumpSessionState(session))
 		}
 		return err
 	})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	_, err = fmt.Fprintln(w, s)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 // Set a new password on the specified account
 func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Perform User Operation"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
-	// Pick up the current time to avoid repeatedly fetching the same value
-	tick := common.Tick(ctx)
 
 	vars := mux.Vars(r)
 	username := vars["username"]
@@ -421,7 +402,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		})
 
 	if err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
@@ -434,14 +415,14 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	matchString := r.Header.Get("If-Match")
 	match, err = strconv.ParseInt(matchString, 10, 64)
 	if err != nil {
-		postHttpError(ctx, tick, w, NewErrBadMatchType(matchString))
+		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
 	}
 
 	// Next, get the new password values, and make sure that they are valid.
 	upd := &pb.UserPassword{}
 	if err = jsonpb.Unmarshal(r.Body, upd); err != nil {
-		postHttpError(ctx, tick, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
+		postHTTPError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
 		return
 	}
 
@@ -451,16 +432,16 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	var rev int64
 
 	if rev, err = userSetPassword(ctx, username, upd, match); err != nil {
-		postHttpError(ctx, tick, w, err)
+		postHTTPError(ctx, w, err)
 		return
 	}
 
 	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-	tracing.Infof(ctx, common.Tick(ctx), "Password changed for user %q", username)
+	tracing.Infof(ctx, "Password changed for user %q", username)
 	_, err = fmt.Fprintf(w, "Password changed for user %q", username)
 
-	httpErrorIf(ctx, tick, w, err)
+	httpErrorIf(ctx, w, err)
 }
 
 // --- Route handling methods
