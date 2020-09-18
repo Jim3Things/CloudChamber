@@ -38,7 +38,7 @@ func init() {
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(st.Interceptor))
-	if err := Register(s); err != nil {
+	if _, err := Register(s); err != nil {
 		log.Fatalf("Failed to register wither error: %v", err)
 	}
 
@@ -77,12 +77,47 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 }
 
 func createEntry(events int) *log2.Entry {
-	tag := rand.Int()
+	tag := rand.Int63()
+	if tag == 0 {
+		tag = 1
+	}
 
 	entry := &log2.Entry{
 		Name:           fmt.Sprintf("test-%d", tag),
-		SpanID:         fmt.Sprintf("0000%d", tag),
-		ParentID:       fmt.Sprintf("0001%d", tag),
+		SpanID:         fmt.Sprintf("%016x", tag),
+		ParentID:       fmt.Sprintf("%016x", tag),
+		TraceID: 		fmt.Sprintf("%016x%016x", tag, tag),
+		Infrastructure: false,
+		Status:         "ok",
+		StackTrace:     fmt.Sprintf("xxxx%d", tag),
+		Event:          []*log2.Event{},
+	}
+
+	for i := 0; i < events; i++ {
+		entry.Event = append(entry.Event, &log2.Event{
+			Tick:       0,
+			Severity:   0,
+			Name:       fmt.Sprintf("Event-%d", i),
+			Text:       "xxxx",
+			StackTrace: fmt.Sprintf("xxxx%d", i),
+			Impacted:   nil,
+		})
+	}
+
+	return entry
+}
+
+func createRootEntry(events int) *log2.Entry {
+	tag := rand.Int63()
+	if tag == 0 {
+		tag = 1
+	}
+
+	entry := &log2.Entry{
+		Name:           fmt.Sprintf("test-%d", tag),
+		SpanID:         fmt.Sprintf("%016x", tag),
+		ParentID:       fmt.Sprintf("%016x", 0),
+		TraceID: 		fmt.Sprintf("%016x%016x", tag, tag),
 		Infrastructure: false,
 		Status:         "ok",
 		StackTrace:     fmt.Sprintf("xxxx%d", tag),
@@ -337,11 +372,17 @@ func TestGetAfterRepeatedNewAppends(t *testing.T) {
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
 
-	entries := createEntries(5, 1)
+	entry := createRootEntry(1)
+	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	entries := createEntries(4, 1)
 	for i := 0; i < len(entries); i++ {
-		_, err := client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
+		_, err = client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
 		require.Nilf(t, err, "unexpected error: %v", err)
 	}
+
+	entries = append([]*log2.Entry{entry}, entries...)
 
 	policy, err := client.GetPolicy(ctx, &pb.GetPolicyRequest{})
 	require.Nilf(t, err, "unexpected error: %v", err)

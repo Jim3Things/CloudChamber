@@ -32,12 +32,16 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 		Infrastructure: data.SpanKind == trace2.SpanKindInternal,
 		Status:         fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
 		StackTrace:     "",
+		Reason:         "",
 	}
 
 	for _, attr := range data.Attributes {
 		switch attr.Key {
 		case tracing.StackTraceKey:
 			entry.StackTrace = attr.Value.AsString()
+
+		case tracing.ReasonKey:
+			entry.Reason = attr.Value.AsString()
 		}
 	}
 
@@ -79,13 +83,14 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 	stack := doIndent(entry.GetStackTrace(), tab)
 
 	return doIndent(fmt.Sprintf(
-		"[%s:%s]%s%s %s %s:\n%s\n",
+		"[%s:%s]%s%s %s %s(%s):\n%s\n",
 		entry.GetSpanID(),
 		entry.GetParentID(),
 		deferredFlag(deferred),
 		infraFlag(entry.GetInfrastructure()),
 		entry.GetStatus(),
 		entry.GetName(),
+		entry.GetReason(),
 		stack), leader)
 }
 

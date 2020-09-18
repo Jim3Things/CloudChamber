@@ -1,7 +1,7 @@
 // This file contains the trace log entry formats used by CloudChamber when
 // queuing to the production display
 //
-// CloucChamber will display the trace message, may have an annotation as to
+// CloudChamber will display the trace message, may have an annotation as to
 // why the event occurred, when it occurred, and the modules impacted by this
 // event, and in what why.
 //
@@ -96,4 +96,8 @@ message entry {
 
     // True, if this span represents internal-only operations.
     bool infrastructure = 8;
+
+    // Friendly string describing the purpose of the logic covered by this
+    // entry.
+    string reason = 9;
 }
