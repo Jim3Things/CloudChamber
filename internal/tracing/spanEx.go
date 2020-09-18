@@ -44,6 +44,7 @@ type startSpanConfig struct {
 	stackTrace  string
 	tick        int64
 	decorations []decorator
+	reason      string
 }
 
 // StartSpanOption denotes optional decoration methods used on StartSpan
@@ -67,6 +68,14 @@ func AsInternal() StartSpanOption {
 func WithContextValue(action decorator) StartSpanOption {
 	return func(cfg *startSpanConfig) {
 		cfg.decorations = append(cfg.decorations, action)
+	}
+}
+
+// WithReason adds a friendly description for the reason behind the logic in
+// the span.
+func WithReason(reason string) StartSpanOption {
+	return func(cfg *startSpanConfig) {
+		cfg.reason = reason
 	}
 }
 
@@ -97,6 +106,7 @@ func StartSpan(
 
 	ctxChild, span := tr.Start(ctx, cfg.name,
 		trace.WithSpanKind(cfg.kind),
+		trace.WithAttributes(kv.String(ReasonKey, cfg.reason)),
 		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
 
 	if parent.SpanContext().HasSpanID() {

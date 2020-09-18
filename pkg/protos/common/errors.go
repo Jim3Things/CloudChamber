@@ -58,3 +58,18 @@ func (e ErrMinLenMap) Error() string {
 		suffix,
 		e.Actual)
 }
+
+// ErrInvalidID signals that the specified tracing ID does not contain a valid
+// value.
+type ErrInvalidID struct {
+	Field string
+	Type  string
+	ID    string
+}
+
+func (e ErrInvalidID) Error() string {
+	return fmt.Sprintf("the field %q must be a valid %s ID.  It contains %q, which is invalid",
+		e.Field,
+		e.Type,
+		e.ID)
+}

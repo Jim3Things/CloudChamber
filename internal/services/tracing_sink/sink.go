@@ -20,8 +20,8 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
-// server defines the interface and associated state for a trace sink instance
-type server struct {
+// TraceSinkServer defines the interface and associated state for a trace sink instance
+type TraceSinkServer struct {
 	pb.UnimplementedTraceSinkServer
 
 	// mutex protects access to the rest of the state
@@ -77,9 +77,9 @@ type waiter struct {
 
 // Register instantiates a sink service instance, and registers it with the
 // grpc service.
-func Register(svc *grpc.Server) error {
-	// Create the trace sink server object
-	sink := &server{
+func Register(svc *grpc.Server) (*TraceSinkServer, error) {
+	// Create the trace sink TraceSinkServer object
+	sink := &TraceSinkServer{
 		mutex:             sync.Mutex{},
 		entries:           list.New(),
 		waiters:           make(map[int][]waiter),
@@ -90,22 +90,21 @@ func Register(svc *grpc.Server) error {
 
 	// .. then register it with the grpc service
 	pb.RegisterTraceSinkServer(svc, sink)
-	return nil
+	return sink, nil
 }
 
 // Append adds a trace entry to the list of known entries.
-func (s *server) Append(_ context.Context, request *pb.AppendRequest) (*empty.Empty, error) {
-	s.mutex.Lock()
-	defer s.mutex.Unlock()
-
+func (s *TraceSinkServer) Append(_ context.Context, request *pb.AppendRequest) (*empty.Empty, error) {
 	if err := request.Validate(); err != nil {
 		return &empty.Empty{}, err
 	}
 
-	entry := request.Entry
+	s.mutex.Lock()
+	defer s.mutex.Unlock()
+
 	item := listEntry{
 		id:    s.nextId,
-		entry: entry,
+		entry: request.Entry,
 	}
 
 	s.entries.PushBack(item)
@@ -115,7 +114,7 @@ func (s *server) Append(_ context.Context, request *pb.AppendRequest) (*empty.Em
 	}
 
 	s.nextId++
-	if !entry.Infrastructure {
+	if !item.entry.Infrastructure {
 		s.nextNonInternalId = s.nextId
 	}
 
@@ -127,7 +126,7 @@ func (s *server) Append(_ context.Context, request *pb.AppendRequest) (*empty.Em
 // GetAfter retrieves trace entries starting after the supplied ID.  The
 // caller also specifies the maximum number of entries to return in one call,
 // and whether or not to wait if there are not entries currently outstanding.
-func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
+func (s *TraceSinkServer) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb.GetAfterResponse, error) {
 	var resp waitResponse
 	var err error = nil
 
@@ -142,7 +141,9 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 		if err != nil {
 			tracing.Warnf(ctx, "GetAfter failed: %v", err)
 		} else {
-			tracing.Infof(ctx, "GetAfter returning; %d entries, missed=%v, lastID=%d", len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
+			tracing.Infof(ctx,
+				"GetAfter returning; %d entries, missed=%v, lastID=%d",
+				len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
 		}
 
 		span.End()
@@ -175,7 +176,7 @@ func (s *server) GetAfter(ctx context.Context, request *pb.GetAfterRequest) (*pb
 
 // GetPolicy supplies information on the range of trace entries held by the
 // sink service, and the limits on how many it will retain.
-func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.GetPolicyResponse, error) {
+func (s *TraceSinkServer) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.GetPolicyResponse, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -198,7 +199,7 @@ func (s *server) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest) (*pb.Get
 
 // Reset is a test support function that forcibly resets the instance's state
 // to its initial values.
-func (s *server) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, error) {
+func (s *TraceSinkServer) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, error) {
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
 
@@ -212,7 +213,7 @@ func (s *server) Reset(_ context.Context, _ *pb.ResetRequest) (*empty.Empty, err
 
 // signalWaiters looks for waiters who are waiting for new trace entries that
 // are now within the set held by the service, and processes them.
-func (s *server) signalWaiters() {
+func (s *TraceSinkServer) signalWaiters() {
 	for id, waiters := range s.waiters {
 		if id < s.nextNonInternalId {
 
@@ -232,7 +233,7 @@ func (s *server) signalWaiters() {
 
 // wait sets up a blocked request using the supplied values, returning
 // the channel to wait on for the final outcome.
-func (s *server) wait(id int64, maxEntries int64) chan waitResponse {
+func (s *TraceSinkServer) wait(id int64, maxEntries int64) chan waitResponse {
 	ch := make(chan waitResponse)
 
 	item := waiter{
@@ -258,7 +259,7 @@ func (s *server) wait(id int64, maxEntries int64) chan waitResponse {
 // processWaiter runs through the outstanding trace entries that are at or after
 // the startID, up to the maximum number.  It assembles and returns them in a
 // reply packet that can be sent back to the caller.
-func (s *server) processWaiter(startID int64, maxEntries int64) waitResponse {
+func (s *TraceSinkServer) processWaiter(startID int64, maxEntries int64) waitResponse {
 	resp := waitResponse{
 		err: nil,
 		res: &pb.GetAfterResponse{
@@ -297,7 +298,7 @@ func (s *server) processWaiter(startID int64, maxEntries int64) waitResponse {
 
 // getFirstId is a helper function that returns the oldest id currently
 // held in the store (or zero, if none are).
-func (s *server) getFirstId() int {
+func (s *TraceSinkServer) getFirstId() int {
 	if s.entries.Len() > 0 {
 		return s.entries.Front().Value.(listEntry).id
 	}

@@ -49,7 +49,7 @@ func TestSingleRoot(t *testing.T) {
 	s.add(entry, &io)
 
 	assert.Equal(t,
-		"\n[0102030405060708:0000000000000000] ok root:\n"+
+		"\n[0102030405060708:0000000000000000] ok root():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
@@ -132,7 +132,7 @@ func TestDoubleRoot(t *testing.T) {
 	s.add(entry, &io)
 
 	assert.Equal(t,
-		"\n[0102030405060708:0000000000000000] ok root:\n"+
+		"\n[0102030405060708:0000000000000000] ok root():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
@@ -146,7 +146,7 @@ func TestDoubleRoot(t *testing.T) {
 	s.add(entry2, &io)
 
 	assert.Equal(t,
-		"\n[1102030405060708:0000000000000000] ok root:\n"+
+		"\n[1102030405060708:0000000000000000] ok root():\n"+
 			"    stacks\n\n"+
 			"      @   2: [D] (test3) text3\n"+
 			"        stack3\n"+
@@ -252,11 +252,11 @@ func TestSimpleChildFirst(t *testing.T) {
 	s.add(entry, &io)
 
 	assert.Equal(t,
-		"\n[0102030405060708:0000000000000000] ok root:\n"+
+		"\n[0102030405060708:0000000000000000] ok root():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
-			"\n    [1102030405060708:0102030405060708] ok root:\n"+
+			"\n    [1102030405060708:0102030405060708] ok root():\n"+
 			"        stacks\n\n"+
 			"          @   2: [D] (test3) text3\n"+
 			"            stack3\n"+
@@ -365,11 +365,11 @@ func TestSimpleChildLast(t *testing.T) {
 	s.add(entry2, &io)
 
 	assert.Equal(t,
-		"\n[0102030405060708:0000000000000000] ok root:\n"+
+		"\n[0102030405060708:0000000000000000] ok root():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
-			"\n    [1102030405060708:0102030405060708] ok root:\n"+
+			"\n    [1102030405060708:0102030405060708] ok root():\n"+
 			"        stacks\n\n"+
 			"          @   2: [D] (test3) text3\n"+
 			"            stack3\n"+
