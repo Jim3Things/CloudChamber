@@ -7,6 +7,9 @@ controller:
     Port: 8081
     Hostname: localhost
 
+  # trace file for local text tracing
+  TraceFile: stdout
+
 # simulated inventory service (inventoryd)
 inventory:
   # GRPC endpoint
@@ -14,12 +17,23 @@ inventory:
     port: 8082
     hostname: localhost
 
+  # trace file for local text tracing
+  TraceFile: stdout
+
 # simulation support services (sim_supportd)
 simSupport:
   # GRPC endpoint
   EP:
     port: 8083
     hostname: localhost
+
+  # trace file for local text tracing
+  TraceFile: stdout
+
+  # Starting Stepper Policy Mode
+  # valid strings are 'manual' or 'automatic'.  The latter
+  # is preset to 1 tick / second
+  stepperPolicy: manual
 
 # store interactions and etcd instance connection parameters
 store:
@@ -49,7 +63,7 @@ store:
   # Setting UseTestNamespace to 1 will instruct the store to use
   # a pre-defined test namespace which optionally can be deleted
   # prior to running the any tests. Only the test namespace is
-  # affected by any cleanining.
+  # affected by any cleaning.
   #
   # If UseUniqueInstance is set to 1, the tests will write to a
   # unique namespace to isolate test results from run to run.
@@ -75,6 +89,9 @@ webServer:
   be:
     port: 8084
     hostname: localhost
+
+  # trace file for local text tracing
+  TraceFile: stdout
 
   # file system path to the static files and scripts
   rootFilePath: c:\CloudChamber\Files
