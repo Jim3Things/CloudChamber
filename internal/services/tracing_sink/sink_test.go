@@ -76,19 +76,29 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 	return ctx, conn
 }
 
-func createEntry(events int) *log2.Entry {
-	tag := rand.Int63() + 1
+func createNonZeroRand64() int64 {
+	return rand.Int63n(0x7FFF_FFFF_FFFF_FFFE) + 1
+}
 
-	entry := &log2.Entry{
-		Name:           fmt.Sprintf("test-%d", tag),
-		SpanID:         fmt.Sprintf("%016x", tag),
-		ParentID:       fmt.Sprintf("%016x", tag),
-		TraceID: 		fmt.Sprintf("%016x%016x", tag, tag),
+func createEntryBase(name string, spanID int64, parentID int64, traceID [2]int64) *log2.Entry {
+	return &log2.Entry{
+		Name:           name,
+		SpanID:         fmt.Sprintf("%016x", spanID),
+		ParentID:       fmt.Sprintf("%016x", parentID),
+		TraceID: 		fmt.Sprintf("%016x%016x", traceID[0], traceID[1]),
 		Infrastructure: false,
 		Status:         "ok",
-		StackTrace:     fmt.Sprintf("xxxx%d", tag),
+		StackTrace:     fmt.Sprintf("xxxx%d", rand.Int63()),
 		Event:          []*log2.Event{},
 	}
+
+}
+func createEntry(events int) *log2.Entry {
+	entry := createEntryBase(
+		fmt.Sprintf("test-%d", rand.Int63()),
+		createNonZeroRand64(),
+		createNonZeroRand64(),
+		[2]int64{ createNonZeroRand64(), createNonZeroRand64() })
 
 	for i := 0; i < events; i++ {
 		entry.Event = append(entry.Event, &log2.Event{
@@ -105,21 +115,11 @@ func createEntry(events int) *log2.Entry {
 }
 
 func createRootEntry(events int) *log2.Entry {
-	tag := rand.Int63()
-	if tag == 0 {
-		tag = 1
-	}
-
-	entry := &log2.Entry{
-		Name:           fmt.Sprintf("test-%d", tag),
-		SpanID:         fmt.Sprintf("%016x", tag),
-		ParentID:       fmt.Sprintf("%016x", 0),
-		TraceID: 		fmt.Sprintf("%016x%016x", tag, tag),
-		Infrastructure: false,
-		Status:         "ok",
-		StackTrace:     fmt.Sprintf("xxxx%d", tag),
-		Event:          []*log2.Event{},
-	}
+	entry := createEntryBase(
+		fmt.Sprintf("test-%d", rand.Int63()),
+		createNonZeroRand64(),
+		0,
+		[2]int64{ createNonZeroRand64(), createNonZeroRand64() })
 
 	for i := 0; i < events; i++ {
 		entry.Event = append(entry.Event, &log2.Event{
