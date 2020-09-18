@@ -77,10 +77,7 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 }
 
 func createEntry(events int) *log2.Entry {
-	tag := rand.Int63()
-	if tag == 0 {
-		tag = 1
-	}
+	tag := rand.Int63() + 1
 
 	entry := &log2.Entry{
 		Name:           fmt.Sprintf("test-%d", tag),
