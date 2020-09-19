@@ -145,8 +145,9 @@ func TestLogsGetAfter(t *testing.T) {
 
 	entry := &log.Entry{
 		Name:       "test",
-		SpanID:     "0000",
-		ParentID:   "1111",
+		SpanID:     "1102030405060708",
+		ParentID:   "1111111111111111",
+		TraceID:    "11020304050607081102030405060708",
 		Status:     "ok",
 		StackTrace: "yyyy",
 		Event: []*log.Event{
@@ -160,6 +161,7 @@ func TestLogsGetAfter(t *testing.T) {
 			},
 		},
 		Infrastructure: false,
+		Reason:         "My Reason",
 	}
 
 	err := tsc.Reset(context.Background())
@@ -182,9 +184,11 @@ func TestLogsGetAfter(t *testing.T) {
 		assert.Equal(t, entry.Name, resEntry.Name)
 		assert.Equal(t, entry.SpanID, resEntry.SpanID)
 		assert.Equal(t, entry.ParentID, resEntry.ParentID)
+		assert.Equal(t, entry.TraceID, resEntry.TraceID)
 		assert.Equal(t, entry.Infrastructure, resEntry.Infrastructure)
 		assert.Equal(t, entry.Status, resEntry.Status)
 		assert.Equal(t, entry.StackTrace, resEntry.StackTrace)
+		assert.Equal(t, entry.Reason, resEntry.Reason)
 
 		require.Equal(t, len(entry.Event), len(resEntry.Event))
 

@@ -38,7 +38,7 @@ func init() {
 
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(st.Interceptor))
-	if err := Register(s); err != nil {
+	if _, err := Register(s); err != nil {
 		log.Fatalf("Failed to register wither error: %v", err)
 	}
 
@@ -76,18 +76,50 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 	return ctx, conn
 }
 
-func createEntry(events int) *log2.Entry {
-	tag := rand.Int()
+func createNonZeroRand64() int64 {
+	return rand.Int63n(0x7FFF_FFFF_FFFF_FFFE) + 1
+}
 
-	entry := &log2.Entry{
-		Name:           fmt.Sprintf("test-%d", tag),
-		SpanID:         fmt.Sprintf("0000%d", tag),
-		ParentID:       fmt.Sprintf("0001%d", tag),
+func createEntryBase(name string, spanID int64, parentID int64, traceID [2]int64) *log2.Entry {
+	return &log2.Entry{
+		Name:           name,
+		SpanID:         fmt.Sprintf("%016x", spanID),
+		ParentID:       fmt.Sprintf("%016x", parentID),
+		TraceID: 		fmt.Sprintf("%016x%016x", traceID[0], traceID[1]),
 		Infrastructure: false,
 		Status:         "ok",
-		StackTrace:     fmt.Sprintf("xxxx%d", tag),
+		StackTrace:     fmt.Sprintf("xxxx%d", rand.Int63()),
 		Event:          []*log2.Event{},
 	}
+
+}
+func createEntry(events int) *log2.Entry {
+	entry := createEntryBase(
+		fmt.Sprintf("test-%d", rand.Int63()),
+		createNonZeroRand64(),
+		createNonZeroRand64(),
+		[2]int64{ createNonZeroRand64(), createNonZeroRand64() })
+
+	for i := 0; i < events; i++ {
+		entry.Event = append(entry.Event, &log2.Event{
+			Tick:       0,
+			Severity:   0,
+			Name:       fmt.Sprintf("Event-%d", i),
+			Text:       "xxxx",
+			StackTrace: fmt.Sprintf("xxxx%d", i),
+			Impacted:   nil,
+		})
+	}
+
+	return entry
+}
+
+func createRootEntry(events int) *log2.Entry {
+	entry := createEntryBase(
+		fmt.Sprintf("test-%d", rand.Int63()),
+		createNonZeroRand64(),
+		0,
+		[2]int64{ createNonZeroRand64(), createNonZeroRand64() })
 
 	for i := 0; i < events; i++ {
 		entry.Event = append(entry.Event, &log2.Event{
@@ -337,11 +369,17 @@ func TestGetAfterRepeatedNewAppends(t *testing.T) {
 	ctx, conn := commonSetup(t)
 	defer func() { _ = conn.Close() }()
 
-	entries := createEntries(5, 1)
+	entry := createRootEntry(1)
+	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
+	require.Nilf(t, err, "unexpected error: %v", err)
+
+	entries := createEntries(4, 1)
 	for i := 0; i < len(entries); i++ {
-		_, err := client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
+		_, err = client.Append(ctx, &pb.AppendRequest{Entry: entries[i]})
 		require.Nilf(t, err, "unexpected error: %v", err)
 	}
+
+	entries = append([]*log2.Entry{entry}, entries...)
 
 	policy, err := client.GetPolicy(ctx, &pb.GetPolicyRequest{})
 	require.Nilf(t, err, "unexpected error: %v", err)

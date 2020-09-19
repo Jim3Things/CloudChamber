@@ -94,13 +94,12 @@ func normalizeURL(next http.Handler) http.Handler {
 // arrives.  This is used, for example, to trace file access requests.
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, span := tracing.StartSpan(context.Background(),
-			tracing.WithName(spanName),
+		_, span := tracing.StartSpan(context.Background(),
+			tracing.WithName(fmt.Sprintf("%s: %s %q", spanName, r.Method, r.URL.String())),
 			tracing.AsInternal(),
 			tracing.WithContextValue(ts.OutsideTime))
 		defer span.End()
 
-		tracing.Infof(ctx, "%s for path %q", r.Method, r.URL.String())
 		next.ServeHTTP(w, r)
 	})
 }
@@ -161,7 +160,8 @@ func initService(cfg *config.GlobalConfig) error {
 	server.cookieStore = sessions.NewCookieStore(keyAuthentication, keyEncryption)
 	server.cookieStore.Options.SameSite = http.SameSiteStrictMode
 
-	// TODO: These are here only because we've not gotten https working yet.  Once it is, these need to be removed.
+	// TODO: These are here only because we've not gotten https working yet.
+	//       Once it is, these need to be removed.
 	server.cookieStore.Options.Secure = false
 	server.cookieStore.Options.HttpOnly = false
 

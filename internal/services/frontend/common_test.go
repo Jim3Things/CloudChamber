@@ -84,7 +84,7 @@ func commonSetup() {
 		log.Fatalf("Failed to register stepper actor: %v", err)
 	}
 
-	if err := tracing_sink.Register(s); err != nil {
+	if _, err := tracing_sink.Register(s); err != nil {
 		log.Fatalf("Failed to register tracing sink: %v", err)
 	}
 
