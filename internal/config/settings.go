@@ -29,6 +29,7 @@ const (
 
 	inventoryDefaultPort      = 8082
 	inventoryDefaultTraceFile = ".\\inventory_trace.txt"
+	inventoryDefaultDefinition = "./inventory.yaml"
 
 	simSupportDefaultPort      = 8083
 	simSupportDefaultTraceFile = ".\\sim_support_trace.txt"
@@ -91,6 +92,7 @@ type InventoryType struct {
 	// Exposed GRPC endpoint
 	EP        Endpoint
 	TraceFile string
+	InventoryDefinition string
 }
 
 // SimSupportType is a helper type that describes the sim_supportd configuration settings
@@ -172,6 +174,7 @@ func newGlobalConfig() *GlobalConfig {
 				Port:     inventoryDefaultPort,
 			},
 			TraceFile: inventoryDefaultTraceFile,
+			InventoryDefinition: inventoryDefaultDefinition,
 		},
 		SimSupport: SimSupportType{
 			EP: Endpoint{
@@ -263,6 +266,7 @@ func (data *GlobalConfig) String() string {
 			"  EP:\n"+
 			"    port: %v\n    hostname: %v\n"+
 			"  TraceFile: %s\n"+
+			"  InventoryDefinition: %s\n"+
 			"SimSupport:\n"+
 			"  EP:\n"+
 			"    port: %v\n    hostname: %v\n"+
@@ -290,6 +294,7 @@ func (data *GlobalConfig) String() string {
 		data.Controller.TraceFile,
 		data.Inventory.EP.Port, data.Inventory.EP.Hostname,
 		data.Inventory.TraceFile,
+		data.Inventory.InventoryDefinition,
 		data.SimSupport.EP.Port, data.SimSupport.EP.Hostname,
 		data.SimSupport.TraceFile,
 		data.SimSupport.StepperPolicy,

@@ -20,6 +20,9 @@ inventory:
   # trace file for local text tracing
   TraceFile: stdout
 
+  # Path to Inventory definition file
+  InventoryDefinition: "./inventory.yaml"
+  
 # simulation support services (sim_supportd)
 simSupport:
   # GRPC endpoint
