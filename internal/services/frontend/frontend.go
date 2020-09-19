@@ -180,7 +180,7 @@ func initService(cfg *config.GlobalConfig) error {
 		return err
 	}
 
-	if err := InitDBInventory(); err != nil {
+	if err := InitDBInventory(cfg); err != nil {
 		return err
 	}
 

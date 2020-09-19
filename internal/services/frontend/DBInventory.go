@@ -14,10 +14,9 @@
 package frontend
 
 import (
-	"fmt"
-	"math/rand"
 	"sync"
-
+	
+	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -54,109 +53,18 @@ var dbInventory *DBInventory
 // connected to the store in order to persist the inventory read from an external
 // definition file
 //
-func InitDBInventory() error {
+func InitDBInventory(cfg *config.GlobalConfig) error {
 	if dbInventory == nil {
+		zone, err := config.ReadInventoryDefinition(cfg.Inventory.InventoryDefinition) 
+		if err != nil {
+			return err 
+		}
+		
 		dbInventory = &DBInventory{
 			Mutex: sync.Mutex{},
-			Zone: &pb.ExternalZone{
-				Racks: make(map[string]*pb.ExternalRack),
-			},
+			Zone: zone,
 			MaxBladeCount: 0,
 			MaxCapacity:   &common.BladeCapacity{},
-		}
-
-		dbInventory.Zone.Racks["rack1"] = &pb.ExternalRack{
-			Tor:    &pb.ExternalTor{},
-			Pdu:    &pb.ExternalPdu{},
-			Blades: make(map[int64]*common.BladeCapacity),
-		}
-
-		dbInventory.Zone.Racks["rack2"] = &pb.ExternalRack{
-			Tor:    &pb.ExternalTor{},
-			Pdu:    &pb.ExternalPdu{},
-			Blades: make(map[int64]*common.BladeCapacity),
-		}
-
-		// First blade for rack 1.
-		dbInventory.Zone.Racks["rack1"].Blades[1] = &common.BladeCapacity{
-			Cores:                  8,
-			MemoryInMb:             16384,
-			DiskInGb:               120,
-			NetworkBandwidthInMbps: 1024,
-			Arch:                   "X64",
-		}
-
-		// Second blade for rack 1.
-		dbInventory.Zone.Racks["rack1"].Blades[2] = &common.BladeCapacity{
-			Cores:                  16,
-			MemoryInMb:             16384,
-			DiskInGb:               240,
-			NetworkBandwidthInMbps: 2048,
-			Arch:                   "X64",
-		}
-
-		// First blade for rack 2.
-		dbInventory.Zone.Racks["rack2"].Blades[1] = &common.BladeCapacity{
-			Cores:                  24,
-			MemoryInMb:             16384,
-			DiskInGb:               120,
-			NetworkBandwidthInMbps: 1024,
-			Arch:                   "X64",
-		}
-
-		// Second blade for rack 2.
-		dbInventory.Zone.Racks["rack2"].Blades[2] = &common.BladeCapacity{
-			Cores:                  32,
-			MemoryInMb:             16384,
-			DiskInGb:               120,
-			NetworkBandwidthInMbps: 1024,
-			Arch:                   "X64",
-		}
-
-		// Add some more arbitrary inventory
-		//
-		for r := 3; r <= 4; r++ {
-
-			rack := fmt.Sprintf("test%d", r)
-
-			dbInventory.Zone.Racks[rack] = &pb.ExternalRack{
-				Tor:    &pb.ExternalTor{},
-				Pdu:    &pb.ExternalPdu{},
-				Blades: make(map[int64]*common.BladeCapacity),
-			}
-
-			for b := 1; b <= 8; b++ {
-
-				dbInventory.Zone.Racks[rack].Blades[int64(b)] = &common.BladeCapacity{
-					Cores:                  3 * rand.Int63n(16),
-					MemoryInMb:             1024 * rand.Int63n(128),
-					DiskInGb:               1024 * rand.Int63n(16),
-					NetworkBandwidthInMbps: 10 * 1024,
-					Arch:                   "X64",
-				}
-			}
-		}
-
-		for r := 5; r <= 8; r++ {
-
-			rack := fmt.Sprintf("test%d", r)
-
-			dbInventory.Zone.Racks[rack] = &pb.ExternalRack{
-				Tor:    &pb.ExternalTor{},
-				Pdu:    &pb.ExternalPdu{},
-				Blades: make(map[int64]*common.BladeCapacity),
-			}
-
-			for b := 1; b <= 8; b++ {
-
-				dbInventory.Zone.Racks[rack].Blades[int64(b)] = &common.BladeCapacity{
-					Cores:                  48,
-					MemoryInMb:             128 * 1024,
-					DiskInGb:               16 * 1024,
-					NetworkBandwidthInMbps: 10 * 1024,
-					Arch:                   "X64",
-				}
-			}
 		}
 
 		dbInventory.buildSummary()
@@ -167,11 +75,11 @@ func InitDBInventory() error {
 
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
-func (m *DBInventory) GetMemoData() (int64, *common.BladeCapacity) {
+func (m *DBInventory) GetMemoData() (int, int64, *common.BladeCapacity) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
-
-	return m.MaxBladeCount, m.MaxCapacity
+	
+	return len(m.Zone.Racks), m.MaxBladeCount, m.MaxCapacity
 }
 
 // Scan the set of known blades the store, invoking the supplied

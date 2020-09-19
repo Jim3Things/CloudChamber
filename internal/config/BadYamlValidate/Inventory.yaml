@@ -8,7 +8,7 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
-      Cores: 32
+      Cores: 0
       MemoryInMb: 16834
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
@@ -240,7 +240,7 @@ Racks:
       NetworkBandwidthInMbps: 2048
       Arch: X64
     - Index: 6
-      Cores: 32
+      Cores: 0
       MemoryInMb: 16834
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048

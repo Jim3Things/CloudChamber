@@ -35,10 +35,10 @@ func TestInventoryListRacks(t *testing.T) {
 	assert.Nilf(t, err, "Failed to convert racks list to valid json.  err: %v", err)
 
 	assert.Equal(t, int64(8), list.MaxBladeCount)
-	assert.Equal(t, int64(48), list.MaxCapacity.Cores)
-	assert.Equal(t, int64(128*1024), list.MaxCapacity.MemoryInMb)
-	assert.Equal(t, int64(16*1024), list.MaxCapacity.DiskInGb)
-	assert.Equal(t, int64(10*1024), list.MaxCapacity.NetworkBandwidthInMbps)
+	assert.Equal(t, int64(32), list.MaxCapacity.Cores)
+	assert.Equal(t, int64(16834), list.MaxCapacity.MemoryInMb)
+	assert.Equal(t, int64(240), list.MaxCapacity.DiskInGb)
+	assert.Equal(t, int64(2*1024), list.MaxCapacity.NetworkBandwidthInMbps)
 	assert.Equal(t, 8, len(list.Racks))
 
 	r, ok := list.Racks["rack1"]
@@ -71,7 +71,7 @@ func TestInventoryRackRead(t *testing.T) {
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, 2, len(rack.Blades))
+	assert.Equal(t, 8, len(rack.Blades))
 	_, ok := rack.Blades[1]
 	assert.True(t, ok, "Blade 1 not found")
 	_, ok = rack.Blades[2]
@@ -87,7 +87,7 @@ func TestInventoryUnknownRack(t *testing.T) {
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/Rack3"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/Rack9"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())
@@ -111,7 +111,17 @@ func TestInventoryListBlades(t *testing.T) {
 	s := string(body)                   // Converted into a string
 	var splits = strings.Split(s, "\n") // Created an array per line
 
-	expected := []string{"/api/racks/rack1/blades/1", "/api/racks/rack1/blades/2", ""}
+	expected := []string{
+		"/api/racks/rack1/blades/1",
+		"/api/racks/rack1/blades/2",
+		"/api/racks/rack1/blades/3",
+		"/api/racks/rack1/blades/4",
+		"/api/racks/rack1/blades/5",
+		"/api/racks/rack1/blades/6",
+		"/api/racks/rack1/blades/7",
+		"/api/racks/rack1/blades/8",
+		"",
+	}
 
 	assert.Equal(t, splits[0], "Blades in \"rack1\" (List)")
 	assert.ElementsMatch(t, expected, splits[1:])
@@ -127,7 +137,7 @@ func TestInventoryUnknownBlade(t *testing.T) {
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/3"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/9"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())
@@ -187,7 +197,7 @@ func TestInventoryBadRackBlade(t *testing.T) {
 
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack3/blades/2"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack9/blades/2"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = doHTTP(request, response.Cookies())
@@ -213,11 +223,11 @@ func TestInventoryBladeRead(t *testing.T) {
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, int64(8), blade.Cores)
-	assert.Equal(t, int64(16384), blade.MemoryInMb)
+	assert.Equal(t, int64(16), blade.Cores)
+	assert.Equal(t, int64(16834), blade.MemoryInMb)
 	assert.Equal(t, "X64", blade.Arch)
-	assert.Equal(t, int64(120), blade.DiskInGb)
-	assert.Equal(t, int64(1024), blade.NetworkBandwidthInMbps)
+	assert.Equal(t, int64(240), blade.DiskInGb)
+	assert.Equal(t, int64(2048), blade.NetworkBandwidthInMbps)
 	assert.Equal(t, 0, len(blade.Accelerators))
 
 	doLogout(t, randomCase(adminAccountName), response.Cookies())
@@ -241,10 +251,10 @@ func TestInventoryBlade2Read(t *testing.T) {
 	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, int64(16), blade.Cores)
-	assert.Equal(t, int64(16384), blade.MemoryInMb)
+	assert.Equal(t, int64(32), blade.Cores)
+	assert.Equal(t, int64(16834), blade.MemoryInMb)
 	assert.Equal(t, "X64", blade.Arch)
-	assert.Equal(t, int64(240), blade.DiskInGb)
+	assert.Equal(t, int64(120), blade.DiskInGb)
 	assert.Equal(t, int64(2048), blade.NetworkBandwidthInMbps)
 	assert.Equal(t, 0, len(blade.Accelerators))
 
