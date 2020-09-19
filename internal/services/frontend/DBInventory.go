@@ -59,7 +59,7 @@ func InitDBInventory(cfg *config.GlobalConfig) error {
 		if err != nil {
 			return err 
 		}
-		
+
 		dbInventory = &DBInventory{
 			Mutex: sync.Mutex{},
 			Zone: zone,
@@ -185,7 +185,3 @@ func maxInt64(a int64, b int64) int64 {
 
 	return a
 }
-
-
-//Cloud chamber config file needs to have a setting that point to inventory.yaml file
-//We need dbinventory to create the inventory via the inventory reader
