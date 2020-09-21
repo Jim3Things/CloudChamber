@@ -143,6 +143,7 @@ VERSION_MARKER = \
 ARTIFACTS = \
     deployments/readme.md \
     deployments/cloudchamber.yaml \
+	deployments/inventory.yaml \
     deployments/Deploy.cmd \
     deployments/StartAll.cmd \
     deployments/StartCloudChamber.cmd \
@@ -274,6 +275,9 @@ deployments/readme.md: pkg/version/version_stamp.md
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/cloudchamber.yaml: configs/cloudchamber.yaml
+	$(CP) $(PROJECT)/$< $(PROJECT)/$@
+
+deployments/inventory.yaml: configs/inventory.yaml
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
 deployments/Deploy.cmd: scripts/Deploy.cmd
