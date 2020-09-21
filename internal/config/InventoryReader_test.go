@@ -39,7 +39,7 @@ func TestReadInventoryDefinition(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
-	response, err := ReadInventoryDefinition(".")
+	response, err := ReadInventoryDefinition("./testdata")
 	require.Nil(t, err)
 
 	require.Equal(t, 2, len(response.Racks))
@@ -73,19 +73,19 @@ func TestReadInventoryBogusPath(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	response, err := ReadInventoryDefinition("C://Users//Waheguru")
+	response, err := ReadInventoryDefinition("./missing/path")
 	require.NotNil(t, err)
 	assert.NotEqual(t, "%v", response)
 }
 
-//TestInventoryUniqueRack test to check that zone always contain unique rack numbers
-func TestInventoryUniquRack(t *testing.T) {
+// TestInventoryUniqueRack test to check that zone always contain unique rack numbers
+func TestInventoryUniqueRack(t *testing.T) {
 
 	_ = utf.Open(t)
 	defer utf.Close()
 	viper.Reset()
 
-	_, err := ReadInventoryDefinition(".//BadYaml")
+	_, err := ReadInventoryDefinition("./testdata/BadYaml")
 	require.NotNil(t, err)
 	assert.Equal(t, "Duplicate rack \"rack1\" detected", err.Error())
 }
@@ -96,7 +96,7 @@ func TestInventoryUniqueBlade(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	_, err := ReadInventoryDefinition(".//BadYamlBlade")
+	_, err := ReadInventoryDefinition("./testdata/BadYamlBlade")
 	require.NotNil(t, err)
 	assert.Equal(t, "Duplicate Blade 1 in Rack \"rack1\" detected", err.Error())
 }
@@ -107,7 +107,9 @@ func TestInventoryValidateBlade(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	_, err := ReadInventoryDefinition(".//BadYamlValidate")
+	_, err := ReadInventoryDefinition("./testdata/BadYamlValidate")
 	require.NotNil(t, err)
-	assert.Equal(t, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid", err.Error())
+	assert.Equal(t,
+		"In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid",
+		err.Error())
 }

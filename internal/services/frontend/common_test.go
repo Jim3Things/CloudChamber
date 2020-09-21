@@ -105,7 +105,7 @@ func commonSetup() {
 		grpc.WithUnaryInterceptor(ctrc.Interceptor))
 
 	// Finally, start the test web service, which all tests will use
-	configPath := flag.String("config", ".", "path to the configuration file")
+	configPath := flag.String("config", "./testdata", "path to the configuration file")
 	flag.Parse()
 
 	cfg, err := config.ReadGlobalConfig(*configPath)
