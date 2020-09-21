@@ -20,6 +20,9 @@ inventory:
   # trace file for local text tracing
   TraceFile: stdout
 
+  # Directory holding the inventory definition file
+  InventoryDefinition: ./testdata
+
 # simulation support services (sim_supportd)
 simSupport:
   # GRPC endpoint
