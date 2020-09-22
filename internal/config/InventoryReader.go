@@ -95,7 +95,7 @@ func ReadInventoryDefinition(path string) (*pb.ExternalZone, error) {
 
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
-			err = fmt.Errorf("No inventory definition found at %s/%s (%s)",
+			err = fmt.Errorf("no inventory definition found at %s/%s (%s)",
 				path,
 				defaultDefinitionFile,
 				defaultConfigType)

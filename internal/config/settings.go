@@ -29,7 +29,7 @@ const (
 
 	inventoryDefaultPort      = 8082
 	inventoryDefaultTraceFile = ".\\inventory_trace.txt"
-	inventoryDefaultDefinition = "./inventory.yaml"
+	inventoryDefaultDefinition = "."
 
 	simSupportDefaultPort      = 8083
 	simSupportDefaultTraceFile = ".\\sim_support_trace.txt"
