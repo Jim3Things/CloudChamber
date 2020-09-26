@@ -29,6 +29,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
@@ -150,6 +151,11 @@ func initClients(cfg *config.GlobalConfig) error {
 }
 
 func initService(cfg *config.GlobalConfig) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Initialize web service"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
 
 	// A failure to generate a random key is most likely a result of a failure of the
 	// system supplied random number generator mechanism. Although not known for sure
@@ -185,7 +191,13 @@ func initService(cfg *config.GlobalConfig) error {
 		return err
 	}
 
-	if err := InitDBInventory(cfg); err != nil {
+	// Initialize the underlying store
+	//
+	store.Initialize(cfg)
+
+	// initialize the inventory store and apply any updates from the configuration.
+	//
+	if err := InitDBInventory(ctx, cfg); err != nil {
 		return err
 	}
 
@@ -193,12 +205,8 @@ func initService(cfg *config.GlobalConfig) error {
 		return err
 	}
 
-	// Initialize the underlying store
-	//
-	store.Initialize(cfg)
-
 	// Finally, initialize the user store
-	return InitDBUsers(context.Background(), cfg)
+	return InitDBUsers(ctx, cfg)
 }
 
 // StartService is the primary entry point to start the front-end web service.

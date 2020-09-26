@@ -15,7 +15,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
@@ -81,8 +81,8 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.Scan(func(name string) error {
-		target := fmt.Sprintf("%s%s/", b, name)
+	err = dbInventory.ScanRacks(func(name string) error {
+		target := fmt.Sprintf("%s%s", b, name)
 
 		res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
@@ -123,7 +123,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rack, err := dbInventory.Get(rackID)
+	rack, err := dbInventory.GetRack(rackID)
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return

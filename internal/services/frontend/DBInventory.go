@@ -14,10 +14,14 @@
 package frontend
 
 import (
+	"context"
 	"sync"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/store"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -37,12 +41,13 @@ import (
 //	  Cloud Chamber UI.
 //
 type DBInventory struct {
-	Mutex sync.Mutex
+	mutex sync.RWMutex
 
 	Zone *pb.ExternalZone
 
 	MaxBladeCount int64
 	MaxCapacity   *ct.BladeCapacity
+	Store *store.Store
 }
 
 var dbInventory *DBInventory
@@ -54,22 +59,99 @@ var dbInventory *DBInventory
 // connected to the store in order to persist the inventory read from an external
 // definition file
 //
-func InitDBInventory(cfg *config.GlobalConfig) error {
+func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Initialize Inventory DB Connection"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
 	if dbInventory == nil {
-		zone, err := config.ReadInventoryDefinition(cfg.Inventory.InventoryDefinition)
-		if err != nil {
+		dbInventory = &DBInventory{
+			mutex: sync.RWMutex{},
+			Zone: nil,
+			MaxBladeCount: 0,
+			MaxCapacity:   &ct.BladeCapacity{},
+			Store: store.NewStore(),
+		}
+
+		if err = dbInventory.Store.Connect(); err != nil {
 			return err
 		}
 
-		dbInventory = &DBInventory{
-			Mutex: sync.Mutex{},
-			Zone: zone,
-			MaxBladeCount: 0,
-			MaxCapacity:   &ct.BladeCapacity{},
+		if err = dbInventory.LoadFromStore(ctx); err != nil {
+			return err
 		}
 
-		dbInventory.buildSummary()
+		if err = dbInventory.UpdateFromFile(ctx, cfg); err != nil {
+			return err
+		}
 	}
+
+	return nil
+}
+
+// LoadFromStore is a method to load the currently known inventory from the store and in
+// expected to use used on service startup. Subsequent to this, once all the
+// component services are running, the inventory in the configuration file will
+// be loaded and a reconciliation pass will take place with all the appropriate
+// notifications for arrival and/or departures of various items in the inventory.
+//
+func (m *DBInventory) LoadFromStore(ctx context.Context) error {
+
+	return nil
+}
+
+// UpdateFromFile is a method to load a new inventory definition from the configured
+// file. Once read, the store will be updated with the differences which will in
+// turn trigger a set of previously established watch routines to issue a number or
+// arrival and/or departure notifications.
+//
+func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConfig) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Initialize User DB Connection"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+
+	// We have the basic initialization done. Now go read the current inventory
+	// from the file indicated by the configuration. Once we have that, load it
+	// into the store looking to see if there are any material changes between
+	// what is already in the store and what is now found in the file.
+	//
+	zone, err := config.ReadInventoryDefinition(cfg.Inventory.InventoryDefinition) 
+	if err != nil {
+			return err 
+	}
+
+	if err = m.reconcileNewInventory(ctx, zone); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+
+// reconcileNewInventory compares the newly loaded inventory definition,
+// presumably from a configuration file, with the currently loaded inventory
+// and updates the store accordinly. This will trigger the various watches
+// which any currently running services have previously established and deliver
+// a set of arrival and/or departure notifications as appropriate.
+//
+func (m *DBInventory) reconcileNewInventory(ctx context.Context, zone *pb.ExternalZone) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Reconcile current inventory with update"),
+		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	m.Zone = zone
+
+	m.buildSummary(ctx)
 
 	return nil
 }
@@ -77,19 +159,19 @@ func InitDBInventory(cfg *config.GlobalConfig) error {
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
 func (m *DBInventory) GetMemoData() (int, int64, *ct.BladeCapacity) {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	return len(m.Zone.Racks), m.MaxBladeCount, m.MaxCapacity
 }
 
-// Scan the set of known blades the store, invoking the supplied
+// ScanRacks scans the set of known racks in the store, invoking the supplied
 // function with each entry.
-func (m *DBInventory) Scan(action func(entry string) error) error {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+func (m *DBInventory) ScanRacks(action func(entry string) error) error {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
-	for name := range dbInventory.Zone.Racks {
+	for name := range m.Zone.Racks {
 		if err := action(name); err != nil {
 			return err
 		}
@@ -98,10 +180,10 @@ func (m *DBInventory) Scan(action func(entry string) error) error {
 	return nil
 }
 
-// Get returns the rack details to match the supplied rackID
-func (m *DBInventory) Get(rackID string) (*pb.ExternalRack, error) {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+// GetRack returns the rack details to match the supplied rackID
+func (m *DBInventory) GetRack(rackID string) (*pb.ExternalRack, error) {
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	r, ok := m.Zone.Racks[rackID]
 	if !ok {
@@ -115,8 +197,8 @@ func (m *DBInventory) Get(rackID string) (*pb.ExternalRack, error) {
 // rackID, and invokes the supplied action on each discovered bladeID in
 // turn.
 func (m *DBInventory) ScanBladesInRack(rackID string, action func(bladeID int64) error) error {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	r, ok := m.Zone.Racks[rackID]
 	if !ok {
@@ -135,8 +217,8 @@ func (m *DBInventory) ScanBladesInRack(rackID string, action func(bladeID int64)
 // GetBlade returns the details of a blade matching the supplied rackID and
 // bladeID
 func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*ct.BladeCapacity, error) {
-	m.Mutex.Lock()
-	defer m.Mutex.Unlock()
+	m.mutex.RLock()
+	defer m.mutex.RUnlock()
 
 	r, ok := m.Zone.Racks[rackID]
 	if !ok {
@@ -154,12 +236,13 @@ func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*ct.BladeCapacity,
 // buildSummary constructs the memo-ed summary data for the zone.  This should
 // be called whenever the configured inventory changes.
 //
-// This method assumes it is called from within a DBInventory function, and the
-// required mutex is already held.
-func (m *DBInventory) buildSummary() {
-	m.MaxBladeCount = 0
+// Assumptions: dbInventory (write)lock is already held.
+//
+func (m *DBInventory) buildSummary(ctx context.Context) {
 
+	maxBladeCount := int64(0)
 	memo := &ct.BladeCapacity{}
+
 	for _, rack := range m.Zone.Racks {
 		for _, blade := range rack.Blades {
 			memo.Cores = common.MaxInt64(memo.Cores, blade.Cores)
@@ -175,5 +258,8 @@ func (m *DBInventory) buildSummary() {
 			int64(len(rack.Blades)))
 	}
 
-	m.MaxCapacity = memo
+	m.MaxBladeCount = maxBladeCount
+	m.MaxCapacity   = memo
+
+	tracing.Infof(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", m.MaxBladeCount, m.MaxCapacity)
 }

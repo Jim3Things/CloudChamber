@@ -20,26 +20,54 @@ type KeyRoot int
 // The set of available namespace roots used by various record types
 //
 const (
-	KeyRootUsers KeyRoot = iota
-	KeyRootBlades
-	KeyRootRacks
-	KeyRootWorkloads
-	KeyRootStoreTest
+	KeyRootStoreTest KeyRoot = iota
+	KeyRootUsers
+
+	KeyRootInventoryDefinitions
+	KeyRootInventoryTargetState
+	KeyRootInventoryActualState
+	KeyRootInventoryObservedState
+	KeyRootInventoryRepairActions
+
+	KeyRootWorkloadDefinitions
+	KeyRootWorkloadTargetState
+	KeyRootWorkloadActualState
+	KeyRootWorkloadObservedState
+	KeyRootWorkloadRepairActions
 )
+
 const (
-	namespaceRootUsers     = "users"
-	namespaceRootRacks     = "racks"
-	namespaceRootBlades    = "blades"
-	namespaceRootWorkloads = "workloads"
 	namespaceRootStoreTest = "storetest"
+	namespaceRootUsers     = "users"
+	namespaceRootInventory = "inventory"
+	namespaceRootWorkloads = "workload"
+
+	namespaceRootInventoryDefinition     = namespaceRootInventory + "/" + "definition"
+	namespaceRootInventoryTargetState    = namespaceRootInventory + "/" + "target"
+	namespaceRootInventoryActualState    = namespaceRootInventory + "/" + "actual"
+	namespaceRootInventoryObservedeState = namespaceRootInventory + "/" + "observed"
+	namespaceRootInventoryRepairActions  = namespaceRootInventory + "/" + "repair"
+
+	namespaceRootWorkloadDefinition      = namespaceRootWorkloads + "/" + "definition"
+	namespaceRootWorkloadTargetState     = namespaceRootWorkloads + "/" + "target"
+	namespaceRootWorkloadActualState     = namespaceRootWorkloads + "/" + "actual"
+	namespaceRootWorkloadObservedeState  = namespaceRootWorkloads + "/" + "observed"
+	namespaceRootWorkloadRepairActions   = namespaceRootWorkloads + "/" + "repair"
 )
 
 var namespaceRoots = map[KeyRoot]string{
-	KeyRootUsers:     namespaceRootUsers,
-	KeyRootRacks:     namespaceRootBlades,
-	KeyRootBlades:    namespaceRootBlades,
-	KeyRootWorkloads: namespaceRootWorkloads,
-	KeyRootStoreTest: namespaceRootStoreTest,
+	KeyRootStoreTest:              namespaceRootStoreTest,
+	KeyRootUsers:                  namespaceRootUsers,
+	KeyRootInventoryDefinitions:   namespaceRootInventoryDefinition,
+	KeyRootInventoryTargetState:   namespaceRootInventoryTargetState,
+	KeyRootInventoryActualState:   namespaceRootInventoryActualState,
+	KeyRootInventoryObservedState: namespaceRootInventoryObservedeState,
+	KeyRootInventoryRepairActions: namespaceRootInventoryRepairActions,
+	KeyRootWorkloadDefinitions:    namespaceRootWorkloadDefinition,
+	KeyRootWorkloadTargetState:    namespaceRootWorkloadTargetState,
+	KeyRootWorkloadActualState:    namespaceRootWorkloadTargetState,
+	KeyRootWorkloadObservedState:  namespaceRootWorkloadObservedeState,
+	KeyRootWorkloadRepairActions:  namespaceRootWorkloadRepairActions,
 }
 
 func getNamespaceRootFromKeyRoot(r KeyRoot) string {

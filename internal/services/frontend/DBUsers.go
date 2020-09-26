@@ -17,7 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
-	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -29,6 +29,8 @@ import (
 type DBUsers struct {
 	Store *store.Store
 }
+
+var dbUsers *DBUsers
 
 // InitDBUsers is a method to initialize the users store.  For now this is only a map in memory.
 func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {

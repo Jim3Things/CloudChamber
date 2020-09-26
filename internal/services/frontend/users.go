@@ -17,7 +17,7 @@ import (
 	"github.com/gorilla/sessions"
 	"golang.org/x/crypto/bcrypt"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
@@ -34,10 +34,6 @@ const (
 	// Logout is a string used to select and identify the logout operation
 	//
 	Logout = "logout"
-)
-
-var (
-	dbUsers *DBUsers
 )
 
 // +++ Route handling methods
