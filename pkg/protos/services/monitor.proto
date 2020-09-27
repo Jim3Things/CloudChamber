@@ -19,17 +19,6 @@ service Monitor {
     rpc ReportHealth(actual) returns (google.protobuf.Empty);
 }
 
-// Define the service implemented by the inventory itself
-service Inventory {
-
-    // Set the configuration options for reporting health
-    rpc SetConfig(google.protobuf.Empty) returns (google.protobuf.Empty);
-
-    // Set the desired states for various inventory items.  Provide the
-    // current actual state as informative return values.
-    rpc SetTargets(desired) returns (actual);
-}
-
 // This message describes a health report from the inventory
 
 // NOTE: There is an aspect of this structure that I'm unhappy with - I'd like

@@ -1,0 +1,33 @@
+// This file contains the definitions of the messages exchanged between the
+// inventory monitor and the inventory.
+
+syntax = "proto3";
+
+package services;
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
+
+// Define the service implemented by the inventory itself
+service Inventory {
+    rpc Repair(InventoryRepairMsg) returns (InventoryRepairResp);
+
+    rpc GetCurrentStatus(InventoryStatusMsg) returns (InventoryStatusResp);
+}
+
+message InventoryRepairMsg {
+
+}
+
+message InventoryRepairResp {
+
+}
+
+message InventoryStatusMsg {
+
+}
+
+message InventoryStatusResp {
+
+}

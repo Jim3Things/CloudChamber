@@ -1,0 +1,231 @@
+package clients
+
+import (
+	"context"
+	"errors"
+	"sync"
+	"time"
+
+	"github.com/Jim3Things/CloudChamber/internal/common"
+	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+
+	"google.golang.org/grpc"
+)
+
+var (
+	ErrTimerNotFound = errors.New("timer ID was not found")
+	ErrSuicide = errors.New("listener stopping")
+)
+
+// timerEntry describes a single active timer
+type timerEntry struct {
+	// id is the unique key assigned to this timer
+	id int
+
+	// dueTime is the simulated time when this timer expires
+	dueTime int64
+
+	// ch is the channel that is to receive the expiration message
+	ch chan interface{}
+
+	// msg is the expiration message specified for this timer
+	msg interface{}
+}
+
+// Timers is
+type Timers struct {
+	m sync.Mutex
+
+	// waiters is the collection of current outstanding timers.
+	waiters map[int64][]*timerEntry
+
+	// idMap is an entry lookup aid that maps the timer ID to its associated
+	// dueTime.  This can be used as a key in the writers collection, limiting
+	// the search to only that key's list of entries.
+	idMap map[int]int64
+
+	// nextID holds the timer ID to assign to the next timer created.
+	nextID int
+
+	// active indicates whether or not the listener goroutine is currently
+	// running.
+	active bool
+
+	// epoch is the running instance version of the listener goroutine, used to
+	// detect the need to suicide by a goroutine that should be exiting.
+	epoch int
+
+	// connection data for contacting the simulated time service.
+	dialName string
+	dialOpts []grpc.DialOption
+}
+
+// NewTimers creates a new timer collection instance.  The configuration
+// parameter provides endpoint information for the simulated time service.
+func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
+	return &Timers{
+		m:        sync.Mutex{},
+		waiters:  make(map[int64][]*timerEntry),
+		idMap:    make(map[int]int64),
+		nextID:   1,
+		active:   false,
+		epoch:    1,
+		dialName: ep,
+		dialOpts: dialOpts,
+	}
+}
+
+// Timer creates a new timer that operates in simulated time. The delay
+// parameter specifies the number of ticks to wait until the timer expires. At
+// that point, the supplied msg is sent on the completion channel specified by
+// the parameter ch.  This function returns an id that can be used to cancel
+// the timer, and an error to indicate if the timer was successfully set.
+func (t *Timers) Timer(ctx context.Context, delay int64, ch chan interface{}, msg interface{}) (int, error) {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	now := common.TickFromContext(ctx)
+	entry := &timerEntry{
+		id:      t.nextID,
+		dueTime: delay + now,
+		ch:      ch,
+		msg:     msg,
+	}
+
+	t.idMap[entry.id] = entry.dueTime
+
+	entries, _ := t.waiters[entry.dueTime]
+	t.waiters[entry.dueTime] = append(entries, entry)
+
+	t.nextID++
+
+	if !t.active {
+		t.active = true
+
+		go t.listener(t.epoch, now)
+	}
+
+	return entry.id, nil
+}
+
+// Cancel removes the designated waiting timer, or returns an error if it is
+// not found.
+func (t *Timers) Cancel(timerID int) error {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	dueTime, ok := t.idMap[timerID]
+	if !ok {
+		return ErrTimerNotFound
+	}
+
+	entries := t.waiters[dueTime]
+	for i, entry := range entries {
+		if entry.id == timerID {
+			entries = append(entries[:i], entries[i+1:]...)
+
+			if len(entries) > 0 {
+				t.waiters[dueTime] = entries
+			} else {
+				delete(t.waiters, dueTime)
+			}
+
+			delete(t.idMap, timerID)
+
+			_ = t.mayCancelListener()
+		}
+	}
+
+	return nil
+}
+
+// listener is the goroutine that waits for a new simulated time tick, and
+// then processes each expired timer.
+func (t *Timers) listener(epoch int, now int64) {
+	startCtx := context.Background()
+	retries := 0
+
+	t.m.Lock()
+
+	for t.epoch == epoch {
+		t.m.Unlock()
+		now = t.listenUntilFailure(startCtx, epoch, now)
+
+		retries = waitBeforeReconnect(retries)
+		t.m.Lock()
+	}
+
+	t.m.Unlock()
+}
+
+func (t *Timers) listenUntilFailure(startCtx context.Context, epoch int, now int64) int64 {
+	ctx, conn, err := gprcConnect(startCtx, t.dialName, t.dialOpts)
+	defer func() { _ = conn.Close() }()
+
+	client := pb.NewStepperClient(conn)
+
+	for err == nil {
+		resp, err := client.Delay(ctx, &pb.DelayRequest{
+			AtLeast: &ct.Timestamp{Ticks: now + 1},
+			Jitter:  0,
+		})
+
+		if err == nil {
+			now = resp.Ticks
+			err = t.processExpiredWaiters(now, epoch)
+		}
+	}
+
+	return now
+}
+
+func (t *Timers) processExpiredWaiters(now int64, epoch int) error {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	// check if this listener was ordered to exit while we did not hold the
+	// mutex.
+	if t.epoch != epoch {
+		return ErrSuicide
+	}
+
+	// signal every waiter that has expired, cleaning the waiting state maps
+	// as the processing proceeds.
+	for dueTime, entries := range t.waiters {
+		if dueTime <= now {
+			for _, entry := range entries {
+				entry.ch <- entry.msg
+				delete(t.idMap, entry.id)
+			}
+
+			delete(t.waiters, dueTime)
+		}
+	}
+
+	return t.mayCancelListener()
+}
+
+// mayCancelListener checks if there are any waiters.  If there are none, then
+// it signals that the current listener goroutine should exit.
+func (t *Timers) mayCancelListener() error {
+	if len(t.idMap) == 0 {
+		t.epoch++
+		t.active = false
+
+		return ErrSuicide
+	}
+
+	return nil
+}
+
+func waitBeforeReconnect(retries int) int {
+	retries++
+	if retries > 5 {
+		retries = 5
+	}
+
+	time.Sleep(time.Duration(retries*100) * time.Millisecond)
+
+	return retries
+}
