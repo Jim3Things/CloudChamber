@@ -21,16 +21,24 @@ message external {
     // Power distribution unit.  Network accessible power controller
     message pdu {
         // Note that full internal name for a pdu is <rackname>-pdu-0
+
+        bool enabled = 1;
     }
 
     // Rack-level network switch.
     message tor {
         // Note that full internal name for a tor is <rackname>-tor-0
+
+        bool enabled = 1;
     }
 
     message rack {
         // This assumes a single overhead item per rack.  May want to allow multiple to handle
         // subdivisions for power or network, say.
+
+        bool enabled = 4;
+
+        string name = 5;
 
         pdu pdu = 1;
         tor tor = 2;
@@ -38,6 +46,7 @@ message external {
         // specify the blades in the rack.  Each blade is defined by an integer index within that rack, which is used
         // here as the key.
         map<int64, common.blade_capacity> blades = 3;
+
     }
 
     // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in the map below.
