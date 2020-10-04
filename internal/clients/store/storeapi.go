@@ -70,6 +70,38 @@ var namespaceRoots = map[KeyRoot]string{
 	KeyRootWorkloadRepairActions:  namespaceRootWorkloadRepairActions,
 }
 
+
+// Options is a
+//
+type Options struct {
+	revision int64
+	keysOnly bool
+}
+
+func (options *Options) applyOpts(optionsArray []Option) {
+	for _, option := range optionsArray {
+		option(options)
+	}
+}
+
+// Option is a
+// 
+type Option func(*Options)
+
+// WithRevision is a
+//
+func WithRevision(rev int64) Option {
+	return func(options *Options) {options.revision = rev}
+}
+
+// WithKeysOnly is a
+//
+func WithKeysOnly() Option {
+	return func(options *Options) {options.keysOnly = true}
+}
+
+
+
 func getNamespaceRootFromKeyRoot(r KeyRoot) string {
 	return namespaceRoots[r]
 }

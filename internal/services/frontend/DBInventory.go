@@ -263,3 +263,198 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 
 	tracing.Infof(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", m.MaxBladeCount, m.MaxCapacity)
 }
+
+
+// Condition describes the currtent operational condition of an item in the inventory.
+//
+type Condition int
+
+// Thw set of available conditions used to describe items in the inventory. Related
+// to the conditions defined in inventory.proto
+//
+const (
+	ConditionNotInService Condition = iota
+	ConditionOperational
+	ConditionSuspect
+	ConditionOutForRepair
+	ConditionRetiring
+	ConditionRetired
+)
+
+
+// DefinitionTor describes the revision and value for the request TOR
+//
+type DefinitionTor struct {
+	revision int64
+	tor *pb.DefinitionTor
+}
+
+// DefinitionPdu describes the revision and value for the request PDU
+//
+type DefinitionPdu struct {
+	revision int64
+	pdu *pb.DefinitionPdu
+}
+
+// DefinitionBlade describes the revision and value for the request blade
+//
+type DefinitionBlade struct {
+	revision int64
+	blade *pb.DefinitionBlade
+}
+
+// DefinitionRack describes the revision and value for the request rack
+//
+type DefinitionRack struct {
+	revision int64
+	rack *pb.DefinitionRack
+}
+
+// DefinitionZone defines the set of values used to summarize the contents of a zone to
+// allow a query on the zone without incorporating the entire inventory definition
+//
+type DefinitionZone struct {
+	revision int64
+	zone *pb.DefinitionZone
+}
+
+// InventoryOptions is a struct 
+//
+type InventoryOptions struct {
+	revision int64
+	includeRackValues bool
+	includeBladeValues bool
+	includePduValues bool
+	includeTorValues bool
+	includeRackLocation bool
+	includeRackNotes bool
+	includeZoneLocation bool
+	includeZoneNotes bool
+}
+
+func (options *InventoryOptions) applyOpts(optionsArray []InventoryOption) {
+	for _, option := range optionsArray {
+		option(options)
+	}
+}
+
+
+
+// InventoryOption is a 
+// 
+type InventoryOption func(*InventoryOptions)
+
+// WithRevision is a
+//
+func WithRevision(rev int64) InventoryOption {
+	return func(options *InventoryOptions) {options.revision = rev}
+}
+
+// WithRackValues is a
+//
+func WithRackValues() InventoryOption {
+	return func(options *InventoryOptions) {options.includeRackValues = true}
+}
+
+// WithBladeValues is a
+//
+func WithBladeValues() InventoryOption {
+	return func(options *InventoryOptions) {options.includeBladeValues = true}
+}
+
+// WithTorValues is a
+//
+func WithTorValues() InventoryOption {
+	return func(options *InventoryOptions) {options.includeTorValues = true}
+}
+
+// WithPduValues is a
+//
+func WithPduValues() InventoryOption {
+	return func(options *InventoryOptions) {options.includePduValues = true}
+}
+
+// WithRackNotes is a 
+//
+func WithRackNotes() InventoryOption {
+	return func(options *InventoryOptions) {options.includeRackNotes = true}
+}
+
+// WithZoneNotes is a 
+//
+func WithZoneNotes() InventoryOption {
+	return func(options *InventoryOptions) {options.includeZoneNotes = true}
+}
+
+// WithRackLocation is a
+//
+func WithRackLocation() InventoryOption {
+	return func(options *InventoryOptions) {options.includeRackLocation = true}
+}
+
+// WithZoneLocation is a
+//
+func WithZoneLocation() InventoryOption {
+	return func(options *InventoryOptions) {options.includeZoneLocation = true}
+}
+
+
+
+
+
+// List returns
+//
+func (m *DBInventory) List() {}
+
+// ListZones returns
+//
+func (m *DBInventory) ListZones(ctx context.Context, options ...InventoryOption) (map[string]*DefinitionZone, error) {return nil, nil}
+
+// ListRacks returns
+//
+func (m *DBInventory) ListRacks(ctx context.Context, zone string, options ...InventoryOption) (map[string]*DefinitionRack, error) {return nil, nil}
+
+// ListPdus returns
+//
+func (m *DBInventory) ListPdus(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionPdu, error) {return nil, nil}
+
+// ListTors returns
+//
+func (m *DBInventory) ListTors(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionTor, error) {return nil, nil}
+
+// ListBlades returns
+//
+func (m *DBInventory) ListBlades(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionBlade, error) {return nil, nil}
+
+// Create is used
+//
+func (m *DBInventory) Create(ctx context.Context, u *pb.DefinitionRack) {}
+
+
+// ReadZone returns
+//
+func (m *DBInventory) ReadZone(ctx context.Context, zone string, options ...store.Option) (*DefinitionZone, error) {return nil, nil}
+
+// ReadRack returns
+//
+func (m *DBInventory) ReadRack(ctx context.Context, zone string, rack string, blade int64, options ...store.Option) (*DefinitionRack, error) {return nil, nil}
+
+// ReadPdus returns
+//
+func (m *DBInventory) ReadPdus(ctx context.Context, zone string, rack string, pdu int64, options ...store.Option) (*DefinitionPdu, error) {return nil, nil}
+
+// ReadTor returns
+//
+func (m *DBInventory) ReadTor(ctx context.Context, zone string, rack string, tor int64, options ...store.Option) (*DefinitionTor, error) {return nil, nil}
+
+// ReadBlade returns
+//
+func (m *DBInventory) ReadBlade(ctx context.Context, zone string, rack string, blade int64, options ...store.Option) (*DefinitionBlade, error) {return nil, nil}
+
+// Update is used
+//
+func (m *DBInventory) Update() {}
+
+// Delete is used
+//
+func (m *DBInventory) Delete() {}
