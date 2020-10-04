@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/pkg/version"
 )
 
@@ -54,8 +57,18 @@ func main() {
 		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
 	}
 
-	if *showConfig {
-		fmt.Println(cfg)
-		os.Exit(0)
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Controller.EP.Port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
+	}
+
+	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
+
+	if err = inventory.Register(s, cfg); err != nil {
+		log.Fatalf("failed to register the inventory service: %v", err)
+	}
+
+	if err = s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }

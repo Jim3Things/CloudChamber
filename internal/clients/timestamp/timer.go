@@ -160,7 +160,7 @@ func (t *Timers) listener(epoch int, now int64) {
 }
 
 func (t *Timers) listenUntilFailure(startCtx context.Context, epoch int, now int64) int64 {
-	ctx, conn, err := gprcConnect(startCtx, t.dialName, t.dialOpts)
+	ctx, conn, err := grpcConnect(startCtx, t.dialName, t.dialOpts)
 	defer func() { _ = conn.Close() }()
 
 	client := pb.NewStepperClient(conn)

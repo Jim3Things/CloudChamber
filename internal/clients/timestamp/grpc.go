@@ -8,9 +8,9 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// gprcConnect initiates a connection to target client, with the expected
+// grpcConnect initiates a connection to target client, with the expected
 // CloudChamber metadata.
-func gprcConnect(ctx context.Context, dialName string, dialOpts []grpc.DialOption) (context.Context, *grpc.ClientConn, error) {
+func grpcConnect(ctx context.Context, dialName string, dialOpts []grpc.DialOption) (context.Context, *grpc.ClientConn, error) {
 	conn, err := grpc.Dial(dialName, dialOpts...)
 
 	if err != nil {

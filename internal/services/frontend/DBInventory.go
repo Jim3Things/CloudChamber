@@ -15,9 +15,10 @@ package frontend
 
 import (
 	"sync"
-	
+
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -41,7 +42,7 @@ type DBInventory struct {
 	Zone *pb.ExternalZone
 
 	MaxBladeCount int64
-	MaxCapacity   *common.BladeCapacity
+	MaxCapacity   *ct.BladeCapacity
 }
 
 var dbInventory *DBInventory
@@ -55,16 +56,16 @@ var dbInventory *DBInventory
 //
 func InitDBInventory(cfg *config.GlobalConfig) error {
 	if dbInventory == nil {
-		zone, err := config.ReadInventoryDefinition(cfg.Inventory.InventoryDefinition) 
+		zone, err := config.ReadInventoryDefinition(cfg.Inventory.InventoryDefinition)
 		if err != nil {
-			return err 
+			return err
 		}
 
 		dbInventory = &DBInventory{
 			Mutex: sync.Mutex{},
 			Zone: zone,
 			MaxBladeCount: 0,
-			MaxCapacity:   &common.BladeCapacity{},
+			MaxCapacity:   &ct.BladeCapacity{},
 		}
 
 		dbInventory.buildSummary()
@@ -75,10 +76,10 @@ func InitDBInventory(cfg *config.GlobalConfig) error {
 
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
-func (m *DBInventory) GetMemoData() (int, int64, *common.BladeCapacity) {
+func (m *DBInventory) GetMemoData() (int, int64, *ct.BladeCapacity) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
-	
+
 	return len(m.Zone.Racks), m.MaxBladeCount, m.MaxCapacity
 }
 
@@ -133,7 +134,7 @@ func (m *DBInventory) ScanBladesInRack(rackID string, action func(bladeID int64)
 
 // GetBlade returns the details of a blade matching the supplied rackID and
 // bladeID
-func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*common.BladeCapacity, error) {
+func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*ct.BladeCapacity, error) {
 	m.Mutex.Lock()
 	defer m.Mutex.Unlock()
 
@@ -158,30 +159,21 @@ func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*common.BladeCapac
 func (m *DBInventory) buildSummary() {
 	m.MaxBladeCount = 0
 
-	memo := &common.BladeCapacity{}
+	memo := &ct.BladeCapacity{}
 	for _, rack := range m.Zone.Racks {
 		for _, blade := range rack.Blades {
-			memo.Cores = maxInt64(memo.Cores, blade.Cores)
-			memo.DiskInGb = maxInt64(memo.DiskInGb, blade.DiskInGb)
-			memo.MemoryInMb = maxInt64(memo.MemoryInMb, blade.MemoryInMb)
-			memo.NetworkBandwidthInMbps = maxInt64(
+			memo.Cores = common.MaxInt64(memo.Cores, blade.Cores)
+			memo.DiskInGb = common.MaxInt64(memo.DiskInGb, blade.DiskInGb)
+			memo.MemoryInMb = common.MaxInt64(memo.MemoryInMb, blade.MemoryInMb)
+			memo.NetworkBandwidthInMbps = common.MaxInt64(
 				memo.NetworkBandwidthInMbps,
 				blade.NetworkBandwidthInMbps)
 		}
 
-		m.MaxBladeCount = maxInt64(
+		m.MaxBladeCount = common.MaxInt64(
 			m.MaxBladeCount,
 			int64(len(rack.Blades)))
 	}
 
 	m.MaxCapacity = memo
-}
-
-// maxInt64 is a helper function to return the maximum of two int64 values
-func maxInt64(a int64, b int64) int64 {
-	if a < b {
-		return b
-	}
-
-	return a
 }
