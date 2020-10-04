@@ -132,7 +132,7 @@ func (e *Exporter) Close() {
 func (e *Exporter) processLoop(ch chan interface{}) {
 	early := true
 
-	for !e.closed {
+	for {
 		msg := <-ch
 
 		switch pkt := msg.(type) {
@@ -149,6 +149,7 @@ func (e *Exporter) processLoop(ch chan interface{}) {
 			e.closed = true
 
 			pkt.ch <- true
+			return
 		}
 	}
 }
