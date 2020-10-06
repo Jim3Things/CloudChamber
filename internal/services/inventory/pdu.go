@@ -11,29 +11,52 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
+// cableState describes the active state of a power cable from the PDU to an
+// individual blade.
 type cableState struct {
+	// on is true if the power is on to the target blade.
 	on bool
+
+	// at is the simulated time tick for the last repair operation to this
+	// cable.
 	at int64
 }
 
 // pdu defines the state required to simulate a PDU in a rack.
 type pdu struct {
+	// cables holds the simulated power cables.  The key is the blade id the
+	// cable is attached to.
 	cables map[int64]cableState
+
+	// rack holds the pointer to the rack that contains this PDU.
 	holder *rack
 
+	// sm is the state machine for this PDU's simulation.
 	sm *sm.SimpleSM
 }
 
+// Receive handles incoming messages for the PDU.
 func (p *pdu) Receive(ctx context.Context, msg interface{}, ch chan interface{}) {
 	p.sm.Receive(ctx, msg, ch)
 }
 
 const (
+	// pduWorkingState is the state ID for the PDU powered on and working
+	// state.
 	pduWorkingState int = iota
+
+	// pduOffState is the state ID for the PDU powered off state.
 	pduOffState
+
+	// pduStuckState is the state ID for a PDU faulted state where the PDU is
+	// unresponsive, but some power may still be on.
 	pduStuckState
 )
 
+// newPdu creates a new pdu instance from the definition structure and the
+// containing rack.  Note that it currently does not fill in the cable
+// information, as that is missing from the inventory definition.  That is
+// done is the fixConnection function below.
 func newPdu(_ *pb.ExternalPdu, r *rack) *pdu {
 	p := &pdu{
 		cables: make(map[int64]cableState),
@@ -49,6 +72,9 @@ func newPdu(_ *pb.ExternalPdu, r *rack) *pdu {
 	return p
 }
 
+// fixConnection updates the PDU with presumed cable definitions to match up
+// with the blades defined for the rack.  This is a temporary workaround until
+// the inventory definition structures include the cable definitions.
 func (p *pdu) fixConnection(ctx context.Context, id int64) {
 	at := common.TickFromContext(ctx)
 
@@ -60,20 +86,28 @@ func (p *pdu) fixConnection(ctx context.Context, id int64) {
 	}
 }
 
+// forwardToBlade is a helper function that forwards a message to the target
+// blade in the containing rack.
 func (p *pdu) forwardToBlade(ctx context.Context, id int64, msg interface{}, ch chan interface{}) {
 	if b, ok := p.holder.blades[id]; ok {
 		b.Receive(ctx, msg, ch)
 	}
 }
 
-func (p *pdu) newStatusReport(ctx context.Context) *services.InventoryStatusResp {
+// newStatusReport is a helper function to construct a status response for this
+// PDU.
+func (p *pdu) newStatusReport(
+	ctx context.Context,
+	target *services.InventoryAddress) *services.InventoryStatusResp {
 	return nil
 }
 
+// pduWorking is the state a PDU is in when it is turned on and functional.
 type pduWorking struct {
 	sm.NullState
 }
 
+// Receive processes incoming requests for this state.
 func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
 	p := sm.Parent.(*pdu)
 
@@ -84,16 +118,12 @@ func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface
 			return
 		}
 
-		// Any other type of command, the pdu ignores.
-		ch <- &services.InventoryRepairResp{
-			Source: msg.Target,
-			At:     &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Rsp:    &services.InventoryRepairResp_Dropped{},
-		}
+		// Any other type of repair command, the pdu ignores.
+		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:
-		ch <- p.newStatusReport(ctx)
+		ch <- p.newStatusReport(ctx, msg.Target)
 		return
 
 	default:
@@ -104,8 +134,11 @@ func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface
 	}
 }
 
+// Name returns the friendly name for this state.
 func (s *pduWorking) Name() string { return "working" }
 
+// changePower implements the repair operation to turn either a cable or the
+// full PDU on or off.
 func (s *pduWorking) changePower(
 	ctx context.Context,
 	sm *sm.SimpleSM,
@@ -141,6 +174,7 @@ func (s *pduWorking) changePower(
 	// the pdu, otherwise, forward along.
 	switch elem := target.Element.(type) {
 
+	// Change the power on/off state for the full PDU
 	case *services.InventoryAddress_Pdu:
 		if sm.At < after.Ticks {
 
@@ -172,12 +206,9 @@ func (s *pduWorking) changePower(
 			}
 		}
 
-		ch <- &services.InventoryRepairResp{
-			Source: target,
-			At:     &ct.Timestamp{Ticks: occursAt},
-			Rsp:    &services.InventoryRepairResp_Dropped{},
-		}
+		ch <- droppedResponse(target, occursAt)
 
+	// Change the power on/off state for an individual blade
 	case *services.InventoryAddress_BladeId:
 		id := elem.BladeId
 
@@ -203,51 +234,36 @@ func (s *pduWorking) changePower(
 					p.forwardToBlade(ctx, id, power, ch)
 				}
 
-				ch <- &services.InventoryRepairResp{
-					Source: target,
-					At:     &ct.Timestamp{Ticks: occursAt},
-					Rsp:    &services.InventoryRepairResp_Success{},
-				}
-
+				ch <- successResponse(target, occursAt)
 				return
 			}
 		}
 
-		ch <- &services.InventoryRepairResp{
-			Source: target,
-			At:     &ct.Timestamp{Ticks: occursAt},
-			Rsp:    &services.InventoryRepairResp_Dropped{},
-		}
+		ch <- droppedResponse(target, occursAt)
 
 	default:
-		ch <- &services.InventoryRepairResp{
-			Source: target,
-			At:     &ct.Timestamp{Ticks: occursAt},
-			Rsp: &services.InventoryRepairResp_Failed{
-				Failed: "invalid target specified, request ignored",
-			},
-		}
+		ch <- failedResponse(
+			target, occursAt, "invalid target specified, request ignored")
 	}
 }
 
+// pduOff is the state a PDU is in when it is fully powered off.
 type pduOff struct {
 	sm.NullState
 }
 
+// Receive processes incoming requests for this state.
 func (s *pduOff) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
 	p := sm.Parent.(*pdu)
 
 	switch msg := msg.(type) {
 	case *services.InventoryRepairMsg:
-		ch <- &services.InventoryRepairResp{
-			Source: msg.Target,
-			At:     &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Rsp:    &services.InventoryRepairResp_Dropped{},
-		}
+		// Powered off, so no repairs can be processed.
+		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:
-		ch <- p.newStatusReport(ctx)
+		ch <- p.newStatusReport(ctx, msg.Target)
 		return
 
 	default:
@@ -255,21 +271,29 @@ func (s *pduOff) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, 
 	}
 }
 
+// Name returns the friendly name for this state.
 func (s *pduOff) Name() string { return "off" }
 
+// pduStuck is the state a PDU is in when it is unresponsive to commands, but
+// is still powered on.  By implication, the powered state for each cable is
+// also stuck.
 type pduStuck struct {
 	sm.NullState
 }
 
+// Receive processes incoming requests for this state.
 func (s *pduStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
 	p := sm.Parent.(*pdu)
 
-	switch msg.(type) {
+	switch msg := msg.(type) {
 	case *services.InventoryRepairMsg:
+		// the PDU is not responding to commands, so no repairs can be
+		// processed.
+		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:
-		ch <- p.newStatusReport(ctx)
+		ch <- p.newStatusReport(ctx, msg.Target)
 		return
 
 	default:
@@ -277,4 +301,5 @@ func (s *pduStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}
 	}
 }
 
+// Name returns the friendly name for this state.
 func (s *pduStuck) Name() string { return "stuck" }

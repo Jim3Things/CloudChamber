@@ -1,5 +1,5 @@
 // This file contains the definitions of the messages exchanged between the
-// inventory monitor and the inventory.
+// inventory monitor and the simulated inventory service.
 
 syntax = "proto3";
 
@@ -68,20 +68,37 @@ message InventoryRepairMsg {
     }
 }
 
-// InventoryRepairResp defines the response to a single repair request.  
+// InventoryRepairResp defines the response to a single repair request.
 message InventoryRepairResp {
+    // source contains the target address for the request it is reporting on.
     InventoryAddress source = 1;
+
+    // at contains the simulated time tick when the repair operation executed.
     common.Timestamp at = 2;
 
     oneof rsp {
+        // dropped indicates that the repair request was dropped - either it was
+        // no longer relevant, targeted an element that was not in a working
+        // state, or resulted in an element that was not in a working state.
+        // This response is solely to help the simulation make progress more
+        // quickly.  It must be treated as identical to getting no response.
+        // Note that the value held in this field is ignored.
         bool dropped  = 3;
+
+        // success indicates that the request was successful.  The exact value
+        // of this field is ignored.
         bool success = 4;
+
+        // failed indicates that the request failed.  The value is the error
+        // message describing that failure.
         string failed = 5;
     }
 }
 
 message InventoryStatusMsg {
-
+    // target contains the structured address of the element that the status
+    // is about.
+    InventoryAddress target = 1;
 }
 
 message InventoryStatusResp {
