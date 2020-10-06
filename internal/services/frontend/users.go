@@ -361,8 +361,6 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
-		tracing.Info(ctx, "Operation %q, user %q, session %v", op, username, session)
-
 		switch op {
 		case Login:
 			tracing.UpdateSpanName(ctx, "Logging in user %q", username)
@@ -373,7 +371,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 			s, err = logout(ctx, session, r)
 
 		default:
-			err = NewErrUserInvalidOperation(op)
+			err = NewErrUserInvalidOperation(op, username)
 		}
 
 		if err != nil {

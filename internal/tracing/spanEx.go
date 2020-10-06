@@ -202,6 +202,10 @@ func Warn(ctx context.Context, a ...interface{}) {
 
 // Error posts an error trace event
 func Error(ctx context.Context, a ...interface{}) error {
+	if a == nil || len(a) == 0 {
+		return logError(ctx, errors.New("missing error details"))
+	}
+
 	if len(a) == 1 {
 		if msg, ok := a[0].(string); ok {
 			return logError(ctx, errors.New(msg))
@@ -212,7 +216,7 @@ func Error(ctx context.Context, a ...interface{}) error {
 		}
 	}
 
-	return logError(ctx, fmt.Errorf(a[0].(string), a[1:]))
+	return logError(ctx, fmt.Errorf(a[0].(string), a[1:]...))
 }
 
 // Fatal traces the error, and then terminates the process.
@@ -240,8 +244,7 @@ func logError(ctx context.Context, err error) error {
 // formatIf determines if this is a simple string, or something to format
 // before returning.
 func formatIf(a ...interface{}) string {
-
-	if len(a) == 0 {
+	if  a == nil || len(a) == 0 {
 		return ""
 	}
 
