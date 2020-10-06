@@ -70,7 +70,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		MaxCapacity:   maxCapacity,
 	}
 
-	tracing.Infof(
+	tracing.Info(
 		ctx,
 		"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
 		rackCount,
@@ -84,7 +84,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 		res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
-		tracing.Infof(ctx, "   Listing rack %q at %q", name, target)
+		tracing.Info(ctx, "   Listing rack %q at %q", name, target)
 
 		return nil
 	})
@@ -129,7 +129,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	tracing.Infof(ctx, "Returning details for rack %q: %v", rackID, rack)
+	tracing.Info(ctx, "Returning details for rack %q: %v", rackID, rack)
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, rack)
@@ -168,7 +168,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	err = dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
 
 		target := fmt.Sprintf("%s%d", b, bladeID)
-		tracing.Infof(ctx, " Listing blades '%d' at %q", bladeID, target)
+		tracing.Info(ctx, " Listing blades '%d' at %q", bladeID, target)
 
 		_, err = fmt.Fprintln(w, target)
 		return err
@@ -218,7 +218,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tracing.Infof(ctx, "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+	tracing.Info(ctx, "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, blade)

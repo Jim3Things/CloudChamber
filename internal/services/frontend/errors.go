@@ -142,7 +142,7 @@ func postHTTPError(ctx context.Context, w http.ResponseWriter, err error) {
 		}
 	}
 
-	_ = tracing.Errorf(ctx, "http error %v: %s", he.StatusCode(), he.Error())
+	_ = tracing.Error(ctx, "http error %v: %s", he.StatusCode(), he.Error())
 	http.Error(w, he.Error(), he.StatusCode())
 }
 

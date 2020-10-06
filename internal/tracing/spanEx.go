@@ -113,6 +113,7 @@ func StartSpan(
 		parent.AddEvent(
 			ctxChild,
 			cfg.name,
+			kv.Int64(ActionKey, int64(log.Action_SpanStart)),
 			kv.Int64(StepperTicksKey, cfg.tick),
 			kv.Int64(SeverityKey, int64(log.Severity_Info)),
 			kv.String(StackTraceKey, StackTrace()),
@@ -131,33 +132,49 @@ func StartSpan(
 	return trace.ContextWithSpan(ctxChild, ccSpan), ccSpan
 }
 
-// There should be an Xxx and Xxxf method for every severity level, plus some
-// specific scenario functions (such as OnEnter to log an information entry
-// about arrival at a specific method).
+// UpdateSpanName replaces the current span name string with the
+// formatted string provided.  The span will end up with the last
+// name provided.
+func UpdateSpanName(ctx context.Context, a ...interface{}) {
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		kv.Int64(ActionKey, int64(log.Action_UpdateSpanName)),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(log.Severity_Info)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, formatIf(a...)))
+}
+
+// UpdateSpanReason replaces the current span reason with the formatted
+// string provided.  The span will end up with the last reason provided.
+func UpdateSpanReason(ctx context.Context, a ...interface{}) {
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		kv.Int64(ActionKey, int64(log.Action_UpdateReason)),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(log.Severity_Info)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, formatIf(a...)))
+}
+
+// There should be an Xxx method for every severity level, plus some specific
+// scenario functions (such as OnEnter to log an information entry about
+// arrival at a specific method).
 //
 // Note: The set of methods that are implemented below are based on what is
 // currently needed.  Others will be added as required.
 
-// Info posts a simple informational trace event
-func Info(ctx context.Context, msg string) {
+// Info posts an informational trace event
+func Info(ctx context.Context, a ...interface{}) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, msg))
-}
-
-// Infof posts an informational trace event with complex formatting
-func Infof(ctx context.Context, f string, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		MethodName(2),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Info)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, fmt.Sprintf(f, a...)))
+		kv.String(MessageTextKey, formatIf(a...)))
 }
 
 // OnEnter posts an informational trace event describing the entry into a
@@ -172,49 +189,35 @@ func OnEnter(ctx context.Context, msg string) {
 		kv.String(MessageTextKey, msg))
 }
 
-// Warn posts a simple warning trace event
-func Warn(ctx context.Context, msg string) {
+// Warn posts a warning trace event
+func Warn(ctx context.Context, a ...interface{}) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(log.Severity_Warning)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, msg))
+		kv.String(MessageTextKey, formatIf(a...)))
 }
 
-// Warnf posts a warning trace event with complex formatting
-func Warnf(ctx context.Context, f string, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		MethodName(2),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Warning)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, fmt.Sprintf(f, a...)))
-}
+// Error posts an error trace event
+func Error(ctx context.Context, a ...interface{}) error {
+	if len(a) == 1 {
+		if msg, ok := a[0].(string); ok {
+			return logError(ctx, errors.New(msg))
+		}
 
-// Error posts a simple error trace event
-func Error(ctx context.Context, a interface{}) error {
-	if msg, ok := a.(string); ok {
-		return logError(ctx, errors.New(msg))
+		if err, ok := a[0].(error); ok {
+			return logError(ctx, err)
+		}
 	}
 
-	if err, ok := a.(error); ok {
-		return logError(ctx, err)
-	}
-
-	panic("Invalid Error call - no valid arguments found")
+	return logError(ctx, fmt.Errorf(a[0].(string), a[1:]))
 }
 
-// Errorf posts an error trace event with a complex string formatting
-func Errorf(ctx context.Context, f string, a ...interface{}) error {
-	return logError(ctx, fmt.Errorf(f, a...))
-}
-
-// Fatalf traces the error, and then terminates the process.
-func Fatalf(ctx context.Context, f string, a ...interface{}) {
-	log2.Fatal(Errorf(ctx, f, a...))
+// Fatal traces the error, and then terminates the process.
+func Fatal(ctx context.Context, a ...interface{}) {
+	log2.Fatal(Error(ctx, a))
 }
 
 // --- Exported trace invocation methods
@@ -232,6 +235,24 @@ func logError(ctx context.Context, err error) error {
 		kv.String(MessageTextKey, err.Error()))
 
 	return err
+}
+
+// formatIf determines if this is a simple string, or something to format
+// before returning.
+func formatIf(a ...interface{}) string {
+
+	if len(a) == 0 {
+		return ""
+	}
+
+	if len(a) == 1 {
+		if s, ok := a[0].(string); ok {
+			return s
+		}
+		return fmt.Sprintf("%+v", a[0])
+	}
+
+	return fmt.Sprintf(a[0].(string), a[1:]...)
 }
 
 // --- Helper functions

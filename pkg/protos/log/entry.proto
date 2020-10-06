@@ -30,6 +30,13 @@ enum impact {
     Execute = 5;
 }
 
+enum action {
+    Trace = 0;
+    UpdateSpanName = 1;
+    UpdateReason = 2;
+    SpanStart = 3;
+}
+
 enum severity {
     Debug = 0;
 
@@ -68,10 +75,10 @@ message event {
     // The set of modules impacted, and the type of impact.
     repeated module impacted = 6;
 
-    // True, if this event denotes a start child span
-    bool span_start = 7;
+    // Action to take when this trace is encountered.
+    action event_action = 7;
 
-    // Child's span ID.  Ignored if span_start is false.
+    // Child's span ID.  Ignored if the action is not SpanStart.
     string span_id = 8;
 }
 

@@ -90,7 +90,7 @@ func (s *ioSpans) emit(a *activeEntry, spanID string, io io.Writer, indent strin
 			formatEntry(entry, false, indent))))
 
 	for _, e := range entry.Event {
-		if e.SpanStart {
+		if e.EventAction == log.Action_SpanStart {
 			// This entry is for a child span creation event.
 			// Recursively process it.
 			s.emit(a, e.SpanId, io, indent+tab)
@@ -135,7 +135,7 @@ func (s *ioSpans) add(entry *log.Entry, io io.Writer) {
 	// go through the full set of entries.  For each span start, add that
 	// child ID to the trace ID set, if not already known
 	for _, e := range entry.Event {
-		if e.SpanStart {
+		if e.EventAction == log.Action_SpanStart {
 			if _, ok := s.known[e.SpanId]; !ok {
 				a.open[e.SpanId] = true
 			}
