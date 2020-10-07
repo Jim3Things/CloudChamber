@@ -196,7 +196,7 @@ func (s *AutoStepStateImpl) Enter(ctx context.Context) error {
 	}
 
 	if delay <= 0 {
-		return tracing.Errorf(ctx, "delay must be greater than zero, but was %d", delay)
+		return tracing.Error(ctx, "delay must be greater than zero, but was %d", delay)
 	}
 
 	s.delay = delay

@@ -106,7 +106,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			protected = " (protected)"
 		}
 
-		tracing.Infof(ctx, "   Listing user %q: %q%s", entry.Name, target, protected)
+		tracing.Info(ctx, "   Listing user %q: %q%s", entry.Name, target, protected)
 
 		users.Users = append(users.Users, &pb.UserListEntry{
 			Name:      entry.Name,
@@ -149,7 +149,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tracing.Infof(ctx, "Creating user %q", username)
+	tracing.UpdateSpanName(ctx, "Creating user %q", username)
 
 	u := &pb.UserDefinition{}
 	if err = jsonpb.Unmarshal(r.Body, u); err != nil {
@@ -166,7 +166,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-	tracing.Infof(ctx, "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
+	tracing.Info(ctx, "Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
 
 	_, err = fmt.Fprintf(
 		w,
@@ -197,6 +197,8 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tracing.UpdateSpanName(ctx, "Getting details for user %q", username)
+
 	u, rev, err := userRead(ctx, username)
 
 	if err != nil {
@@ -213,7 +215,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		NeverDelete:       u.NeverDelete,
 	}
 
-	tracing.Infof(ctx, "Returning details for user %s", formatUser(username, ext))
+	tracing.Info(ctx, "Returning details for user %s", formatUser(username, ext))
 
 	// Get the user entry, and serialize it to json
 	// (export userPublic to json and return that as the body)
@@ -251,6 +253,8 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		postHTTPError(ctx, w, err)
 		return
 	}
+
+	tracing.UpdateSpanName(ctx, "Updating details on user %q", username)
 
 	// All updates are qualified by an ETag match.  The ETag comes from the database
 	// revision number.  So, first we get the 'if-match' tag to determine the revision
@@ -300,7 +304,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		NeverDelete:       newVer.NeverDelete,
 	}
 
-	tracing.Infof(ctx, "Returning details for user %s", formatUser(username, ext))
+	tracing.Info(ctx, "Returning details for user %s", formatUser(username, ext))
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, ext)
@@ -330,6 +334,8 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tracing.UpdateSpanName(ctx, "Deleting user %q", username)
+
 	if err = userRemove(ctx, username); err != nil {
 		postHTTPError(ctx, w, err)
 		return
@@ -355,17 +361,17 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		username := vars["username"]
 
-		tracing.Infof(ctx, "Operation %q, user %q, session %v", op, username, session)
-
 		switch op {
 		case Login:
+			tracing.UpdateSpanName(ctx, "Logging in user %q", username)
 			s, err = login(ctx, session, r)
 
 		case Logout:
+			tracing.UpdateSpanName(ctx, "Logging out user %q", username)
 			s, err = logout(ctx, session, r)
 
 		default:
-			err = NewErrUserInvalidOperation(op)
+			err = NewErrUserInvalidOperation(op, username)
 		}
 
 		if err != nil {
@@ -406,6 +412,8 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tracing.UpdateSpanName(ctx, "Updating the password for user %q", username)
+
 	// All updates are qualified by an ETag match.  The ETag comes from the database
 	// revision number.  So, first we get the 'if-match' tag to determine the revision
 	// that must be current for the update to proceed.
@@ -438,7 +446,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
 
-	tracing.Infof(ctx, "Password changed for user %q", username)
+	tracing.Info(ctx, "Password changed for user %q", username)
 	_, err = fmt.Fprintf(w, "Password changed for user %q", username)
 
 	httpErrorIf(ctx, w, err)

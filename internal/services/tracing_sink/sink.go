@@ -139,9 +139,9 @@ func (s *TraceSinkServer) GetAfter(ctx context.Context, request *pb.GetAfterRequ
 		ctx = common.ContextWithTick(ctx, clients.Tick(ctx))
 
 		if err != nil {
-			tracing.Warnf(ctx, "GetAfter failed: %v", err)
+			tracing.Warn(ctx, "GetAfter failed: %v", err)
 		} else {
-			tracing.Infof(ctx,
+			tracing.Info(ctx,
 				"GetAfter returning; %d entries, missed=%v, lastID=%d",
 				len(resp.res.Entries), resp.res.Missed, resp.res.LastId)
 		}
@@ -192,7 +192,7 @@ func (s *TraceSinkServer) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest)
 		FirstId:        int64(s.getFirstId() - 1),
 	}
 
-	tracing.Infof(ctx, "GetPolicy returning; firstId=%d, maxEntriesHeld=%d", resp.FirstId, resp.MaxEntriesHeld)
+	tracing.Info(ctx, "GetPolicy returning; firstId=%d, maxEntriesHeld=%d", resp.FirstId, resp.MaxEntriesHeld)
 
 	return resp, nil
 }
