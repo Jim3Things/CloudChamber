@@ -214,7 +214,7 @@ func Initialize(cfg *config.GlobalConfig) {
 	storeRoot.DefaultTraceFlags = TraceFlags(cfg.Store.TraceLevel)
 	storeRoot.DefaultNamespaceSuffix = ""
 
-	tracing.Infof(
+	tracing.Info(
 		ctx,
 		"EP: %v TimeoutConnect: %v TimeoutRequest: %v DefTrcFlags: %v NsSuffix: %v",
 		storeRoot.DefaultEndpoints,
@@ -248,7 +248,7 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 	// and to clean the store before the tests are run
 	//
 	if cfg.Store.Test.UseUniqueInstance && cfg.Store.Test.PreCleanStore {
-		tracing.Fatalf(
+		tracing.Fatal(
 			ctx,
 			"invalid configuration: : %v",
 			ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
@@ -267,14 +267,14 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 		testNamespace += "/Standard"
 	}
 
-	tracing.Infof(ctx, "Configured to use test namespace %q", testNamespace)
+	tracing.Info(ctx, "Configured to use test namespace %q", testNamespace)
 
 	if cfg.Store.Test.PreCleanStore {
 
-		tracing.Infof(ctx, "Starting store pre-clean of namespace %q", testNamespace)
+		tracing.Info(ctx, "Starting store pre-clean of namespace %q", testNamespace)
 
 		if err := cleanNamespace(ctx, testNamespace); err != nil {
-			tracing.Fatalf(ctx, "failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
+			tracing.Fatal(ctx, "failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
 		}
 	}
 
@@ -391,13 +391,13 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 	if store.traceEnabled() {
 		switch err {
 		case context.Canceled:
-			_ = tracing.Errorf(ctx, "ctx is canceled by another routine: %v", err)
+			_ = tracing.Error(ctx, "ctx is canceled by another routine: %v", err)
 
 		case context.DeadlineExceeded:
-			_ = tracing.Errorf(ctx, "ctx is attached with a deadline is exceeded: %v", err)
+			_ = tracing.Error(ctx, "ctx is attached with a deadline is exceeded: %v", err)
 
 		case rpctypes.ErrEmptyKey:
-			_ = tracing.Errorf(ctx, "client-side error: %v", err)
+			_ = tracing.Error(ctx, "client-side error: %v", err)
 
 		default:
 			if ev, ok := status.FromError(err); ok {
@@ -406,10 +406,10 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 					// server-side context might have timed-out first (due to clock skew)
 					// while original client-side context is not timed-out yet
 					//
-					_ = tracing.Errorf(ctx, "server-side deadline is exceeded: %v", code)
+					_ = tracing.Error(ctx, "server-side deadline is exceeded: %v", code)
 				}
 			} else {
-				_ = tracing.Errorf(ctx, "bad cluster endpoints, which are not etcd servers: %v", err)
+				_ = tracing.Error(ctx, "bad cluster endpoints, which are not etcd servers: %v", err)
 			}
 		}
 	}
@@ -426,7 +426,7 @@ func (store *Store) SetTraceFlags(traceLevel TraceFlags) {
 	defer span.End()
 
 	store.TraceFlags = traceLevel
-	tracing.Infof(ctx, "TraceFlags: %v", store.GetTraceFlags())
+	tracing.Info(ctx, "TraceFlags: %v", store.GetTraceFlags())
 }
 
 // GetTraceFlags is a method to retrieve the current trace flags value.
@@ -449,7 +449,7 @@ func (store *Store) SetAddress(endpoints []string) error {
 
 	store.Endpoints = endpoints
 
-	tracing.Infof(ctx, "EP: %v", store.GetAddress())
+	tracing.Info(ctx, "EP: %v", store.GetAddress())
 	return nil
 }
 
@@ -474,7 +474,7 @@ func (store *Store) SetTimeoutConnect(timeout time.Duration) error {
 
 	store.TimeoutConnect = timeout
 
-	tracing.Infof(ctx, "TimeoutConnect: %v", store.GetTimeoutConnect())
+	tracing.Info(ctx, "TimeoutConnect: %v", store.GetTimeoutConnect())
 	return nil
 }
 
@@ -496,7 +496,7 @@ func (store *Store) SetTimeoutRequest(timeout time.Duration) error {
 
 	store.TimeoutRequest = timeout
 
-	tracing.Infof(ctx, "TimeoutRequest: %v", store.GetTimeoutRequest())
+	tracing.Info(ctx, "TimeoutRequest: %v", store.GetTimeoutRequest())
 	return nil
 }
 
@@ -524,7 +524,7 @@ func (store *Store) SetNamespaceSuffix(suffix string) error {
 	//
 	store.NamespaceSuffix = strings.Trim(suffix, slash)
 
-	tracing.Infof(ctx, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
+	tracing.Info(ctx, "NamespaceSuffix: %v", store.GetNamespaceSuffix())
 	return nil
 }
 
@@ -653,19 +653,19 @@ func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 
 		if store.trace(traceFlagExpandResults) {
 			for i, node := range result.Members {
-				tracing.Infof(ctx, "node [%v] Id: %v Name: %v", i, node.ID, node.Name)
+				tracing.Info(ctx, "node [%v] Id: %v Name: %v", i, node.ID, node.Name)
 
 				for j, url := range node.ClientURLs {
-					tracing.Infof(ctx, "  client [%v] URL: %v", j, url)
+					tracing.Info(ctx, "  client [%v] URL: %v", j, url)
 				}
 
 				for k, url := range node.PeerURLs {
-					tracing.Infof(ctx, "  peer [%v] URL: %v", k, url)
+					tracing.Info(ctx, "  peer [%v] URL: %v", k, url)
 				}
 			}
 		}
 
-		tracing.Infof(ctx, "Processed %v items", len(result.Members))
+		tracing.Info(ctx, "Processed %v items", len(result.Members))
 	}
 
 	return result, err
@@ -929,16 +929,16 @@ func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (respo
 
 		if store.trace(traceFlagExpandResults) {
 			if store.trace(traceFlagTraceKeyAndValue) {
-				tracing.Infof(ctx, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
+				tracing.Info(ctx, "read [%v/%v] key: %v rev: %v value: %q", i, len(getResponse.Kvs), key, rev, val)
 			} else if store.trace(traceFlagTraceKey) {
-				tracing.Infof(ctx, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
+				tracing.Info(ctx, "read [%v/%v] key: %v", i, len(getResponse.Kvs), key)
 			}
 		}
 	}
 
 	resp.Revision = getResponse.Header.GetRevision()
 
-	tracing.Infof(ctx, "Processed %v items", len(resp.Records))
+	tracing.Info(ctx, "Processed %v items", len(resp.Records))
 
 	return resp, nil
 }
@@ -971,7 +971,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 
 	resp.Revision = opResponse.Header.GetRevision()
 
-	tracing.Infof(ctx, "deleted %v keys under prefix %v", opResponse.Deleted, keyPrefix)
+	tracing.Info(ctx, "deleted %v keys under prefix %v", opResponse.Deleted, keyPrefix)
 
 	return resp, nil
 }

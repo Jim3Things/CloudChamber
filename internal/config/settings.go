@@ -234,22 +234,22 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 	if err := viper.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			// Config file not found; we'll just use the default values
-			tracing.Infof(
+			tracing.Info(
 				ctx,
 				"No config file found at %s/%s (%s), applying defaults.",
 				path, defaultGlobalConfigFile, defaultConfigType)
 		} else {
 			// Config file was found but another error was produced
-			return nil, tracing.Errorf(ctx, "fatal error reading config file: %s", err)
+			return nil, tracing.Error(ctx, "fatal error reading config file: %s", err)
 		}
 	} else {
 		// Fill in the global configuration object from the configuration file
 		if err = viper.UnmarshalExact(cfg); err != nil {
-			return nil, tracing.Errorf(ctx, "unable to decode into struct, %v", err)
+			return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 		}
 	}
 
-	tracing.Infof(ctx, "Configuration Read: \n%v", cfg)
+	tracing.Info(ctx, "Configuration Read: \n%v", cfg)
 
 	return cfg, nil
 }

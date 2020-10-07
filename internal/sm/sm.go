@@ -50,7 +50,7 @@ type SM struct {
 // Common method to change the current state.  Leave the old state, try to
 // enter the new state, and declare that state as current if successful.
 func (sm *SM) ChangeState(ctx context.Context, latest int64, newState int) error {
-	tracing.Infof(ctx, "Change state to %q", sm.StateNames[newState])
+	tracing.Info(ctx, "Change state to %q", sm.StateNames[newState])
 	cur := sm.States[sm.Current]
 	cur.Leave()
 

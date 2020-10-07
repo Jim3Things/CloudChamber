@@ -689,7 +689,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t,
-		"CloudChamber: invalid user operation requested (?op=)\n", string(body),
+		"CloudChamber: invalid user operation requested (?op=) for user \"alice\"\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// Case 2, check that an invalid op fails
@@ -705,7 +705,7 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(t,
-		"CloudChamber: invalid user operation requested (?op=testInvalid)\n", string(body),
+		"CloudChamber: invalid user operation requested (?op=testInvalid) for user \"alice\"\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 }
 

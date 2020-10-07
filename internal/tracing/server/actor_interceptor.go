@@ -45,7 +45,7 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 
 		hdr, msg, pid := actor.UnwrapEnvelope(envelope)
 
-		tracing.Infof(ctx, "Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg))
+		tracing.Info(ctx, "Receive pid: %v, hdr: %v, msg: %v", pid, hdr, dumpMessage(msg))
 
 		next(c, envelope)
 	}
