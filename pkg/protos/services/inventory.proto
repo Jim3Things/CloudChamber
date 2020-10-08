@@ -58,7 +58,7 @@ message InventoryRepairMsg {
     }
 
     oneof action {
-        // power defines whether the target power is on or off.  If the pdu it
+        // power defines whether the target power is on or off.  If the pdu is
         // transitioning to off, by implication all blades will also transition
         // to off.
         bool power = 3;

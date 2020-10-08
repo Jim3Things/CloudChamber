@@ -109,7 +109,7 @@ func NewSimpleSM(parent interface{}, decls ...StateDecl) *SimpleSM {
 // ChangeState changes the current state.  Leave the old state, try to
 // enter the new state, and declare that state as current if successful.
 func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
-	tracing.Infof(ctx, "Change state to %q", sm.States[newState].Name())
+	tracing.Info(ctx, "Change state to %q", sm.States[newState].Name())
 	cur := sm.Current
 	cur.Leave(ctx, nil)
 

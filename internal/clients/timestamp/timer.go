@@ -15,7 +15,6 @@ import (
 
 var (
 	ErrTimerNotFound = errors.New("timer ID was not found")
-	ErrSuicide = errors.New("listener stopping")
 )
 
 // timerEntry describes a single active timer
@@ -159,43 +158,63 @@ func (t *Timers) listener(epoch int, now int64) {
 	t.m.Unlock()
 }
 
+// listenUntilFailure is the main worker logic in the listener goroutine.  It
+// wakes after each simulated time tick and signals all expired waiters.  It
+// continues until either there are no more waiters, or until there is an error
+// in contacting the simulated time service.  Any decision to resume after some
+// interval or exit is then made by the caller.
 func (t *Timers) listenUntilFailure(startCtx context.Context, epoch int, now int64) int64 {
 	ctx, conn, err := grpcConnect(startCtx, t.dialName, t.dialOpts)
 	defer func() { _ = conn.Close() }()
 
 	client := pb.NewStepperClient(conn)
 
-	for err == nil {
-		resp, err := client.Delay(ctx, &pb.DelayRequest{
+	for stop := false; err == nil && !stop; {
+		var resp *ct.Timestamp
+
+		resp, err = client.Delay(ctx, &pb.DelayRequest{
 			AtLeast: &ct.Timestamp{Ticks: now + 1},
 			Jitter:  0,
 		})
 
 		if err == nil {
+			var toSignal []*timerEntry
+
 			now = resp.Ticks
-			err = t.processExpiredWaiters(now, epoch)
+
+			if toSignal, stop = t.getExpiredWaiters(now, epoch); toSignal != nil {
+				for _, entry := range toSignal {
+					entry.ch <- entry.msg
+				}
+			}
 		}
 	}
 
 	return now
 }
 
-func (t *Timers) processExpiredWaiters(now int64, epoch int) error {
+// getExpiredWaiters looks through the set of outstanding waiters, pulling out
+// those that have expired to return to the caller.  It also signals whether or
+// not the listener can exit because there are no remaining waiters.  If that
+// is so, it returns true as the second return value.
+func (t *Timers) getExpiredWaiters(now int64, epoch int) ([]*timerEntry, bool) {
 	t.m.Lock()
 	defer t.m.Unlock()
 
 	// check if this listener was ordered to exit while we did not hold the
 	// mutex.
 	if t.epoch != epoch {
-		return ErrSuicide
+		return nil, true
 	}
 
-	// signal every waiter that has expired, cleaning the waiting state maps
+	// find every waiter that has expired, cleaning the waiting state maps
 	// as the processing proceeds.
+	var toSignal []*timerEntry
+
 	for dueTime, entries := range t.waiters {
 		if dueTime <= now {
 			for _, entry := range entries {
-				entry.ch <- entry.msg
+				toSignal = append(toSignal, entry)
 				delete(t.idMap, entry.id)
 			}
 
@@ -203,20 +222,20 @@ func (t *Timers) processExpiredWaiters(now int64, epoch int) error {
 		}
 	}
 
-	return t.mayCancelListener()
+	return toSignal, t.mayCancelListener()
 }
 
 // mayCancelListener checks if there are any waiters.  If there are none, then
 // it signals that the current listener goroutine should exit.
-func (t *Timers) mayCancelListener() error {
+func (t *Timers) mayCancelListener() bool {
 	if len(t.idMap) == 0 {
 		t.epoch++
 		t.active = false
 
-		return ErrSuicide
+		return true
 	}
 
-	return nil
+	return false
 }
 
 func waitBeforeReconnect(retries int) int {

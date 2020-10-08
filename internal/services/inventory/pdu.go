@@ -129,7 +129,7 @@ func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface
 	default:
 		// Invalid message.  This should not happen, and we have no way to
 		// send an error back.  Panic.
-		tracing.Fatalf(ctx, "Invalid message received: %v", msg)
+		tracing.Fatal(ctx, "Invalid message received: %v", msg)
 		return
 	}
 }
