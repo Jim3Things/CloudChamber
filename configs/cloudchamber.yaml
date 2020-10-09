@@ -21,7 +21,7 @@ inventory:
   TraceFile: stdout
 
   # Path to Inventory definition file
-  InventoryDefinition: "./inventory.yaml"
+  InventoryDefinition: "."
 
 # simulation support services (sim_supportd)
 simSupport:
