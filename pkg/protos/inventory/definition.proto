@@ -25,6 +25,26 @@ message definition {
         retiring = 4;
         retired = 5;
     }
+
+    message power_port {
+        // Defined whether or not the port is actually connected to the associated blade.
+        //
+        bool connected = 1;
+
+        // Defines whethor or not power is applied to the port, and hence the associated blade.
+        //
+        bool powered = 2;
+    }
+
+    message network_port {
+        // Defined whether or not the port is actually connected to the associated blade.
+        //
+        bool connected = 1;
+
+        // Defines whether or not the port is enabled for passing network traffic.
+        //
+        bool enabled = 2;
+    }
     
     // The two types here are common overhead items in a rack.  All are pure skeletons at this point.
     // Note that all have implied connectivity with all other items in a rack.  Currently elided in the external model,
@@ -45,6 +65,12 @@ message definition {
         // enabled and the condition must be operational.
         //
         condition condition = 2;
+
+        // Defines a power "socket" which is used to provide power to a blade. There is
+        // a 1 to 1 mapping of a power port to a blade within a single rack and it is an
+        // error if there fewer power ports than blades.
+        //
+        map<int64, power_port> ports = 10;
     }
 
     // Rack-level network switch.
@@ -62,6 +88,12 @@ message definition {
         // enabled and the condition must be operational.
         //
         condition condition = 2;
+
+        // Defines a network "port" which is used to provide a network connection to a
+        // blade. There is a 1 to 1 mapping of a network port to a blade within a single
+        // rack and it is an error if there fewer netwrok ports than blades.
+        //
+        map<int64, network_port> ports = 10;
     }
 
     // Individual blade within the rack
