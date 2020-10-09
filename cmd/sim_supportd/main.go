@@ -28,6 +28,7 @@ func main() {
 		version.Show()
 		os.Exit(0)
 	}
+
 	iow := exporters.NewExporter(exporters.NewIOWForwarder())
 	exporters.ConnectToProvider(iow)
 
@@ -43,31 +44,33 @@ func main() {
 		os.Exit(0)
 	}
 
+	section := cfg.SimSupport
+
 	var writer io.Writer
-	if writer, err = exporters.NameToWriter(cfg.SimSupport.TraceFile); err != nil {
-		log.Fatalf("failed to open name %q, err=%v", cfg.WebServer.TraceFile, err)
+	if writer, err = exporters.NameToWriter(section.TraceFile); err != nil {
+		log.Fatalf("failed to open name %q, err=%v", section.TraceFile, err)
 	}
 
 	if err = iow.Open(writer); err != nil {
 		log.Fatalf("failed to set up the trace logger, err=%v", err)
 	}
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.SimSupport.EP.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", section.EP.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-	if _, err = tracing_sink.Register(s, cfg.SimSupport.TraceRetentionLimit); err != nil {
+	if _, err = tracing_sink.Register(s, section.TraceRetentionLimit); err != nil {
 		log.Fatalf(
 			"failed to register the tracing sink.  Err: %v", err)
 	}
 
-	if err = stepper.Register(s, cfg.SimSupport.GetPolicyType()); err != nil {
+	if err = stepper.Register(s, section.GetPolicyType()); err != nil {
 		log.Fatalf(
 			"failed to register the stepper actor.  default policy: %v, err: %v",
-			cfg.SimSupport.GetPolicyType(),
+			section.GetPolicyType(),
 			err)
 	}
 
