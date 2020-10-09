@@ -80,11 +80,19 @@ func commonSetup() {
 	lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
 
-	if err := stepper.Register(s, pb.StepperPolicy_Manual); err != nil {
+	configPath := flag.String("config", "./testdata", "path to the configuration file")
+	flag.Parse()
+
+	cfg, err := config.ReadGlobalConfig(*configPath)
+	if err != nil {
+		log.Fatalf("failed to process the global configuration: %v", err)
+	}
+
+	if err = stepper.Register(s, pb.StepperPolicy_Manual); err != nil {
 		log.Fatalf("Failed to register stepper actor: %v", err)
 	}
 
-	if _, err := tracing_sink.Register(s); err != nil {
+	if _, err = tracing_sink.Register(s, cfg.SimSupport.TraceRetentionLimit); err != nil {
 		log.Fatalf("Failed to register tracing sink: %v", err)
 	}
 
@@ -105,14 +113,6 @@ func commonSetup() {
 		grpc.WithUnaryInterceptor(ctrc.Interceptor))
 
 	// Finally, start the test web service, which all tests will use
-	configPath := flag.String("config", "./testdata", "path to the configuration file")
-	flag.Parse()
-
-	cfg, err := config.ReadGlobalConfig(*configPath)
-	if err != nil {
-		log.Fatalf("failed to process the global configuration: %v", err)
-	}
-
 	if err = initService(cfg); err != nil {
 		log.Fatalf("Error initializing service: %v", err)
 	}

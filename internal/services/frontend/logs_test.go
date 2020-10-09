@@ -66,7 +66,7 @@ func TestLogsGetPolicy(t *testing.T) {
 	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
 
 	res, cookies := testLogsGetPolicy(t, response.Cookies())
-	assert.Equal(t, int64(100), res.MaxEntriesHeld)
+	assert.Equal(t, int64(200), res.MaxEntriesHeld)
 	assert.Equal(t, int64(-1), res.FirstId)
 
 	doLogout(t, randomCase(adminAccountName), cookies)
