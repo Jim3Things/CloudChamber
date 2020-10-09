@@ -102,6 +102,8 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	tracing.UpdateSpanName(ctx, "Advance Simulated Time By %d", count)
+
 	// Advance the time the request number of ticks
 	for i := 0; i < count; i++ {
 		if err = clients.Advance(ctx); err != nil {
@@ -160,6 +162,8 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		tracing.UpdateSpanName(ctx, "Set Simulated Time Policy To Manual")
+
 		delay = &duration.Duration{Seconds: 0, Nanos: 0}
 		policy = pb.StepperPolicy_Manual
 
@@ -177,6 +181,8 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 				delay.Nanos = int32(nanosPerSecond / tps)
 			}
 		}
+
+		tracing.UpdateSpanName(ctx, "Set Simulated Time Policy To Automatic")
 
 		policy = pb.StepperPolicy_Measured
 
@@ -205,7 +211,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 	var data clients.TimeData
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName("Wait Until Simulate Time After..."),
+		tracing.WithName("Wait Until Simulated Time After..."),
 		tracing.WithContextValue(clients.EnsureTickInContext))
 	defer span.End()
 
@@ -222,6 +228,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 				return err
 			}
 
+			tracing.UpdateSpanName(ctx, "Wait Until Simulated Time After %d", afterTick)
 			data = <-clients.After(ctx, &ct.Timestamp{Ticks: afterTick + 1})
 			if data.Err != nil {
 				return data.Err

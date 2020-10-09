@@ -59,8 +59,7 @@ func main() {
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
 
-
-	if _, err = tracing_sink.Register(s); err != nil {
+	if _, err = tracing_sink.Register(s, cfg.SimSupport.TraceRetentionLimit); err != nil {
 		log.Fatalf(
 			"failed to register the tracing sink.  Err: %v", err)
 	}
