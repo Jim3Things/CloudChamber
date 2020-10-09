@@ -261,7 +261,7 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 	m.MaxBladeCount = maxBladeCount
 	m.MaxCapacity   = memo
 
-	tracing.Infof(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", m.MaxBladeCount, m.MaxCapacity)
+	tracing.Info(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", m.MaxBladeCount, m.MaxCapacity)
 }
 
 
