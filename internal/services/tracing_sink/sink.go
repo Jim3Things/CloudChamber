@@ -77,13 +77,13 @@ type waiter struct {
 
 // Register instantiates a sink service instance, and registers it with the
 // grpc service.
-func Register(svc *grpc.Server) (*TraceSinkServer, error) {
+func Register(svc *grpc.Server, limit int) (*TraceSinkServer, error) {
 	// Create the trace sink TraceSinkServer object
 	sink := &TraceSinkServer{
 		mutex:             sync.Mutex{},
 		entries:           list.New(),
 		waiters:           make(map[int][]waiter),
-		maxHeld:           100,
+		maxHeld:           limit,
 		nextId:            0,
 		nextNonInternalId: 0,
 	}

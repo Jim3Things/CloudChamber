@@ -22,7 +22,7 @@ inventory:
 
   # Path to Inventory definition file
   InventoryDefinition: "./inventory.yaml"
-  
+
 # simulation support services (sim_supportd)
 simSupport:
   # GRPC endpoint
@@ -36,7 +36,10 @@ simSupport:
   # Starting Stepper Policy Mode
   # valid strings are 'manual' or 'automatic'.  The latter
   # is preset to 1 tick / second
-  stepperPolicy: manual
+  StepperPolicy: manual
+
+  # Number of trace spans to retain before aging them out.
+  TraceRetentionLimit: 100
 
 # store interactions and etcd instance connection parameters
 store:

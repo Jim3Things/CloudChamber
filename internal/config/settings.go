@@ -27,8 +27,8 @@ const (
 	controllerDefaultPort      = 8081
 	controllerDefaultTraceFile = ".\\controller_trace.txt"
 
-	inventoryDefaultPort      = 8082
-	inventoryDefaultTraceFile = ".\\inventory_trace.txt"
+	inventoryDefaultPort       = 8082
+	inventoryDefaultTraceFile  = ".\\inventory_trace.txt"
 	inventoryDefaultDefinition = "."
 
 	simSupportDefaultPort      = 8083
@@ -40,6 +40,8 @@ const (
 	defaultHost               = ""
 
 	stepperDefaultPolicy = ""
+
+	traceRetentionDefaultLimit = 100
 
 	defaultRootFilePath = "."
 
@@ -90,8 +92,8 @@ type ControllerType struct {
 // InventoryType is a helper type that describes the inventoryd configuration settings
 type InventoryType struct {
 	// Exposed GRPC endpoint
-	EP        Endpoint
-	TraceFile string
+	EP                  Endpoint
+	TraceFile           string
 	InventoryDefinition string
 }
 
@@ -103,6 +105,9 @@ type SimSupportType struct {
 
 	// Name of the initial stepper policy to apply
 	StepperPolicy string
+
+	// Number of trace spans to retain
+	TraceRetentionLimit int
 }
 
 // GetPolicyType is a function that returns the configured default policy as
@@ -173,7 +178,7 @@ func newGlobalConfig() *GlobalConfig {
 				Hostname: defaultHost,
 				Port:     inventoryDefaultPort,
 			},
-			TraceFile: inventoryDefaultTraceFile,
+			TraceFile:           inventoryDefaultTraceFile,
 			InventoryDefinition: inventoryDefaultDefinition,
 		},
 		SimSupport: SimSupportType{
@@ -181,8 +186,9 @@ func newGlobalConfig() *GlobalConfig {
 				Hostname: defaultHost,
 				Port:     simSupportDefaultPort,
 			},
-			TraceFile:     simSupportDefaultTraceFile,
-			StepperPolicy: stepperDefaultPolicy,
+			TraceFile:           simSupportDefaultTraceFile,
+			StepperPolicy:       stepperDefaultPolicy,
+			TraceRetentionLimit: traceRetentionDefaultLimit,
 		},
 		WebServer: WebServerType{
 			RootFilePath:          defaultRootFilePath,
@@ -260,23 +266,24 @@ func (data *GlobalConfig) String() string {
 	return fmt.Sprintf(
 		"Controller:\n"+
 			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
+			"    port: %v\n    hostname: %s\n"+
 			"  TraceFile: %s\n"+
 			"Inventory:\n"+
 			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
+			"    port: %v\n    hostname: %s\n"+
 			"  TraceFile: %s\n"+
 			"  InventoryDefinition: %s\n"+
 			"SimSupport:\n"+
 			"  EP:\n"+
-			"    port: %v\n    hostname: %v\n"+
+			"    port: %v\n    hostname: %s\n"+
 			"  TraceFile: %s\n"+
 			"  StepperPolicy: %v\n"+
+			"  TraceRetentionLimit: %d\n"+
 			"Webserver:\n"+
 			"  FE:\n"+
-			"    port: %v\n    hostname: %v\n"+
+			"    port: %v\n    hostname: %s\n"+
 			"  BE:\n"+
-			"    port: %v\n    hostname: %v\n"+
+			"    port: %v\n    hostname: %s\n"+
 			"  TraceFile: %s\n"+
 			"  RootFilePath: %s\n"+
 			"  SystemAccount: %s\n"+
@@ -298,6 +305,7 @@ func (data *GlobalConfig) String() string {
 		data.SimSupport.EP.Port, data.SimSupport.EP.Hostname,
 		data.SimSupport.TraceFile,
 		data.SimSupport.StepperPolicy,
+		data.SimSupport.TraceRetentionLimit,
 		data.WebServer.FE.Port, data.WebServer.FE.Hostname,
 		data.WebServer.BE.Port, data.WebServer.BE.Hostname,
 		data.WebServer.TraceFile,
