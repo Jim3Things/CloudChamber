@@ -400,59 +400,106 @@ func WithZoneLocation() InventoryOption {
 
 
 
-// List returns
-//
-func (m *DBInventory) List() {}
-
 // ListZones returns
 //
-func (m *DBInventory) ListZones(ctx context.Context, options ...InventoryOption) (map[string]*DefinitionZone, error) {return nil, nil}
+func (m *DBInventory) ListZones(ctx context.Context, options ...InventoryOption) (map[string]*DefinitionZone, int64, error) {return nil, InvalidRev, nil}
 
 // ListRacks returns
 //
-func (m *DBInventory) ListRacks(ctx context.Context, zone string, options ...InventoryOption) (map[string]*DefinitionRack, error) {return nil, nil}
+func (m *DBInventory) ListRacks(ctx context.Context, zone string, options ...InventoryOption) (map[string]*DefinitionRack, int64, error) {return nil, InvalidRev, nil}
 
 // ListPdus returns
 //
-func (m *DBInventory) ListPdus(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionPdu, error) {return nil, nil}
+func (m *DBInventory) ListPdus(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionPdu, int64, error) {return nil, InvalidRev, nil}
 
 // ListTors returns
 //
-func (m *DBInventory) ListTors(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionTor, error) {return nil, nil}
+func (m *DBInventory) ListTors(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionTor, int64, error) {return nil,InvalidRev,  nil}
 
 // ListBlades returns
 //
-func (m *DBInventory) ListBlades(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionBlade, error) {return nil, nil}
+func (m *DBInventory) ListBlades(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionBlade, int64, error) {return nil, InvalidRev, nil}
 
-// Create is used
+// CreateZone is used
 //
-func (m *DBInventory) Create(ctx context.Context, u *pb.DefinitionRack) {}
+func (m *DBInventory) CreateZone(ctx context.Context, zone string, u *pb.DefinitionZone, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// CreateRack is used
+//
+func (m *DBInventory) CreateRack(ctx context.Context, zone string, rack string, u *pb.DefinitionRack, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// CreatePdu is used
+//
+func (m *DBInventory) CreatePdu(ctx context.Context, zone string, rack string, pdu int64, u *pb.DefinitionPdu, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// CreateTor is used
+//
+func (m *DBInventory) CreateTor(ctx context.Context, zone string, rack string, tor int64, u *pb.DefinitionTor, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// CreateBlade is used
+//
+func (m *DBInventory) CreateBlade(ctx context.Context, zone string, rack string, blade int64, u *pb.DefinitionBlade, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
 
 
 // ReadZone returns
 //
-func (m *DBInventory) ReadZone(ctx context.Context, zone string, options ...store.Option) (*DefinitionZone, error) {return nil, nil}
+func (m *DBInventory) ReadZone(ctx context.Context, zone string, options ...InventoryOption) (*DefinitionZone, int64, error) {return nil, InvalidRev, nil}
 
 // ReadRack returns
 //
-func (m *DBInventory) ReadRack(ctx context.Context, zone string, rack string, blade int64, options ...store.Option) (*DefinitionRack, error) {return nil, nil}
+func (m *DBInventory) ReadRack(ctx context.Context, zone string, rack string, blade int64, options ...InventoryOption) (*DefinitionRack, int64, error) {return nil, InvalidRev, nil}
 
 // ReadPdus returns
 //
-func (m *DBInventory) ReadPdus(ctx context.Context, zone string, rack string, pdu int64, options ...store.Option) (*DefinitionPdu, error) {return nil, nil}
+func (m *DBInventory) ReadPdus(ctx context.Context, zone string, rack string, pdu int64, options ...InventoryOption) (*DefinitionPdu, int64, error) {return nil, InvalidRev, nil}
 
 // ReadTor returns
 //
-func (m *DBInventory) ReadTor(ctx context.Context, zone string, rack string, tor int64, options ...store.Option) (*DefinitionTor, error) {return nil, nil}
+func (m *DBInventory) ReadTor(ctx context.Context, zone string, rack string, tor int64, options ...InventoryOption) (*DefinitionTor, int64, error) {return nil, InvalidRev, nil}
 
 // ReadBlade returns
 //
-func (m *DBInventory) ReadBlade(ctx context.Context, zone string, rack string, blade int64, options ...store.Option) (*DefinitionBlade, error) {return nil, nil}
+func (m *DBInventory) ReadBlade(ctx context.Context, zone string, rack string, blade int64, options ...InventoryOption) (*DefinitionBlade, int64, error) {return nil, InvalidRev, nil}
 
-// Update is used
-//
-func (m *DBInventory) Update() {}
 
-// Delete is used
+// UpdateZone is used
 //
-func (m *DBInventory) Delete() {}
+func (m *DBInventory) UpdateZone(ctx context.Context, zone string, u *pb.DefinitionZone, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// UpdateRack is used
+//
+func (m *DBInventory) UpdateRack(ctx context.Context, zone string, rack string, u *pb.DefinitionRack, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// UpdatePdu is used
+//
+func (m *DBInventory) UpdatePdu(ctx context.Context, zone string, rack string, pdu int64, u *pb.DefinitionPdu, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// UpdateTor is used
+//
+func (m *DBInventory) UpdateTor(ctx context.Context, zone string, rack string, tor int64, u *pb.DefinitionTor, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// UpdateBlade is used
+//
+func (m *DBInventory) UpdateBlade(ctx context.Context, zone string, rack string, blade int64, u *pb.DefinitionBlade, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+
+// DeleteZone is used
+//
+func (m *DBInventory) DeleteZone(ctx context.Context, zone string, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// DeleteRack is used
+//
+func (m *DBInventory) DeleteRack(ctx context.Context, zone string, rack string, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// DeletePdu is used
+//
+func (m *DBInventory) DeletePdu(ctx context.Context, zone string, rack string, pdu int64, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// DeleteTor is used
+//
+func (m *DBInventory) DeleteTor(ctx context.Context, zone string, rack string, tor int64, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
+// DeleteBlade is used
+//
+func (m *DBInventory) DeleteBlade(ctx context.Context, zone string, rack string, blade int64, options ...InventoryOption) (int64, error) {return InvalidRev, nil}
+
