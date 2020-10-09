@@ -253,9 +253,7 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 				blade.NetworkBandwidthInMbps)
 		}
 
-		m.MaxBladeCount = common.MaxInt64(
-			m.MaxBladeCount,
-			int64(len(rack.Blades)))
+		maxBladeCount = common.MaxInt64(maxBladeCount,	int64(len(rack.Blades)))
 	}
 
 	m.MaxBladeCount = maxBladeCount
