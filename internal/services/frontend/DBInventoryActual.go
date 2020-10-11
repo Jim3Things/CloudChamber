@@ -28,67 +28,79 @@ const(
 	bladeFaulted
 )
 
-type ActualTor struct{
+type actualTor struct{
 	State torStatus
 }
 
-type ActualPdu struct{
+type actualPdu struct{
 	State pduStatus
 }
 
-type ActualBlade struct{
+type actualBlade struct{
 	State bladeStatus
 }
 
-type ActualRack struct{
-	Tor ActualTor
-	Pdu ActualPdu
-	Blades map[int64]*ActualBlade
+type actualRack struct{
+	Tor actualTor
+	Pdu actualPdu
+	Blades map[int64]*actualBlade
 
 	State rackStatus
 }
 
-type ActualZone struct {
-	Racks map[string]*ActualRack
+type actualZone struct {
+	Racks map[string]*actualRack
 }
 
+// DBInventoryActual holds the actual state of the defined inventory.
 type DBInventoryActual struct {
 	Mutex sync.Mutex
 
-	Zone *ActualZone
+	Zone *actualZone
 }
 
 var dbInventoryActual *DBInventoryActual
 
+// InitDBInventoryActual creates the starting actual state for the defined inventory.
 func InitDBInventoryActual(inven *DBInventory) error {
-	if dbInventoryActual == nil{
-		actual:= &DBInventoryActual{
+	
+	if dbInventoryActual == nil {
+		actual := &DBInventoryActual {
 			Mutex: sync.Mutex{},
-			Zone: &ActualZone{
-				Racks: make(map[string]*ActualRack),
+			Zone: &actualZone {
+				Racks: make(map[string]*actualRack),
 			},
 		}
+		
 		inven.Mutex.Lock()
-		for name, rack := range inven.Zone.Racks{
-			r := &ActualRack {
-				Tor: ActualTor{
+
+		for name, rack := range inven.Zone.Racks {
+			r := &actualRack {
+				Tor: actualTor {
 					State: torWorking,
 				},
-				Pdu: ActualPdu{
+
+				Pdu: actualPdu {
 					State: pduWorking,
 				},
-				Blades: make(map[int64]*ActualBlade),
+
+				Blades: make(map[int64]*actualBlade),
 				State: rackWorking,
 			}
+
 			for bladeID := range rack.Blades{
-				r.Blades[bladeID] = &ActualBlade {
+				r.Blades[bladeID] = &actualBlade {
 					State: bladeWorking,
 				}
 			}
+
 			actual.Zone.Racks[name] = r
 		}
+
 		inven.Mutex.Unlock()
+
 		dbInventoryActual = actual
 	}
+
 	return nil
 }
