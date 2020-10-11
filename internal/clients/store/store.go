@@ -78,7 +78,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
@@ -202,7 +202,7 @@ func (store *Store) disconnected(ctx context.Context) error {
 //
 func Initialize(cfg *config.GlobalConfig) {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	storeRoot.DefaultEndpoints = []string{
@@ -358,7 +358,7 @@ func (store *Store) Initialize(
 	traceFlags TraceFlags,
 	namespaceSuffix string) error {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	if err := store.connected(ctx); err != nil {
@@ -422,7 +422,7 @@ func (store *Store) logEtcdResponseError(ctx context.Context, err error) {
 //
 func (store *Store) SetTraceFlags(traceLevel TraceFlags) {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	store.TraceFlags = traceLevel
@@ -440,7 +440,7 @@ func (store *Store) GetTraceFlags() TraceFlags { return store.TraceFlags }
 //
 func (store *Store) SetAddress(endpoints []string) error {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err := store.connected(ctx); err != nil {
@@ -465,7 +465,7 @@ func (store *Store) GetAddress() []string { return store.Endpoints }
 //
 func (store *Store) SetTimeoutConnect(timeout time.Duration) error {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	if err := store.connected(ctx); err != nil {
@@ -491,7 +491,7 @@ func (store *Store) GetTimeoutConnect() time.Duration { return store.TimeoutConn
 //
 func (store *Store) SetTimeoutRequest(timeout time.Duration) error {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	store.TimeoutRequest = timeout
@@ -513,7 +513,7 @@ func (store *Store) GetTimeoutRequest() time.Duration { return store.TimeoutRequ
 //
 func (store *Store) SetNamespaceSuffix(suffix string) error {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	if err := store.connected(ctx); err != nil {
@@ -539,7 +539,7 @@ func (store *Store) GetNamespaceSuffix() string { return store.NamespaceSuffix }
 //
 func (store *Store) Connect() error {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err := store.connected(ctx); err != nil {
@@ -585,7 +585,7 @@ func (store *Store) Connect() error {
 //
 func (store *Store) Disconnect() {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if nil == store.Client {
@@ -622,7 +622,7 @@ type ClusterMember struct {
 //
 func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err = store.disconnected(ctx); err != nil {
@@ -676,7 +676,7 @@ func (store *Store) GetClusterMembers() (result *Cluster, err error) {
 //
 func (store *Store) UpdateClusterConnections() error {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err := store.disconnected(ctx); err != nil {
@@ -698,7 +698,7 @@ func (store *Store) UpdateClusterConnections() error {
 //
 func (store *Store) SetWatch(key string) error {
 	_, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	return ErrStoreNotImplemented("SetWatch")
@@ -712,7 +712,7 @@ func (store *Store) SetWatch(key string) error {
 //
 func (store *Store) SetWatchMultiple(key []string) error {
 	_, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	return ErrStoreNotImplemented("SetWatchMultiple")
@@ -723,7 +723,7 @@ func (store *Store) SetWatchMultiple(key []string) error {
 //
 func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
 	_, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	return ErrStoreNotImplemented("SetWatchWithPrefix")
@@ -892,7 +892,7 @@ func checkConditions(stm concurrency.STM, req *Request) error {
 //
 func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (response *Response, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err = store.disconnected(ctx); err != nil {
@@ -948,7 +948,7 @@ func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (respo
 //
 func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (response *Response, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err = store.disconnected(ctx); err != nil {
@@ -985,7 +985,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 //
 func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Response, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err = store.disconnected(ctx); err != nil {
@@ -1060,7 +1060,7 @@ func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Re
 //
 func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *Response, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err = store.disconnected(ctx); err != nil {
@@ -1122,7 +1122,7 @@ func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *R
 //
 func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *Response, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	if err = store.disconnected(ctx); err != nil {

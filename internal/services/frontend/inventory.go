@@ -46,7 +46,7 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Cluster Inventory List of Racks"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -103,7 +103,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Rack Details"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -140,7 +140,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get List of Blades in Selected Rack"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -180,7 +180,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Blade Details"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 

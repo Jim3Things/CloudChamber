@@ -8,8 +8,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	"google.golang.org/protobuf/runtime/protoiface"
-
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
@@ -116,7 +115,7 @@ func (store *Store) CreateWithEncode(
 	n string,
 	m protoiface.MessageV1) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
@@ -164,7 +163,7 @@ func (store *Store) CreateWithEncode(
 //
 func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
@@ -222,7 +221,7 @@ func (store *Store) ReadWithDecode(
 	revision = RevisionInvalid
 
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(kr)
@@ -291,7 +290,7 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 	revision = RevisionInvalid
 
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(kr)
@@ -353,7 +352,7 @@ func (store *Store) UpdateWithEncode(
 	rev int64,
 	m protoiface.MessageV1) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(kr)
@@ -404,7 +403,7 @@ func (store *Store) UpdateWithEncode(
 //
 func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
@@ -464,7 +463,7 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 //
 func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Record, revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
