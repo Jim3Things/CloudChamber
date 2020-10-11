@@ -16,6 +16,7 @@ PROTO_FILES = \
     pkg/protos/workload/external.proto \
     pkg/protos/workload/internal.proto \
     pkg/protos/workload/target.proto \
+    pkg/protos/services/inventory.proto \
     pkg/protos/services/monitor.proto \
     pkg/protos/services/requests.proto \
     pkg/protos/services/stepper.proto \
@@ -36,6 +37,7 @@ PROTO_GEN_FILES = \
     pkg/protos/workload/external.pb.go \
     pkg/protos/workload/internal.pb.go \
     pkg/protos/workload/target.pb.go \
+    pkg/protos/services/inventory.pb.go \
     pkg/protos/services/monitor.pb.go \
     pkg/protos/services/requests.pb.go \
     pkg/protos/services/stepper.pb.go \
@@ -58,6 +60,12 @@ SRC_FRONTEND = \
 
 SRC_MONITOR = \
 	$(call ProdFiles, internal/services/monitor)
+
+SRC_INVENTORY_SERVICE = \
+	$(SRC_TIMESTAMP) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_CLIENT) \
+	$(call ProdFiles, internal/services/inventory)
 
 SRC_SM = \
 	$(SRC_TRACING_SERVER) \
@@ -111,7 +119,8 @@ SRC_INVENTORY = \
 	$(call ProdFiles, cmd/inventoryd) \
 	$(SRC_CONFIG) \
 	$(SRC_TRACING_EXPORTERS) \
-	$(SRC_TRACING_SETUP)
+	$(SRC_TRACING_SETUP) \
+	$(SRC_INVENTORY_SERVICE)
 
 SRC_SIMSUPPORT = \
 	$(call ProdFiles, cmd/sim_supportd) \
@@ -224,6 +233,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test $(PROJECT)/internal/clients/store
 	go test $(PROJECT)/internal/clients/timestamp
 	go test $(PROJECT)/internal/services/frontend
+	go test $(PROJECT)/internal/services/inventory
 	go test $(PROJECT)/internal/services/stepper_actor
 	go test $(PROJECT)/internal/services/tracing_sink
 	go test $(PROJECT)/internal/tracing/exporters
@@ -244,6 +254,9 @@ test: run_tests
 %.pb.go : %.proto
 	$(PROTOC_PBUF) $(PROJECT)/$<
 
+
+pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
+	$(PROTOC_GRPC) $(PROJECT)/$<
 
 pkg/protos/services/monitor.pb.go: pkg/protos/services/monitor.proto
 	$(PROTOC_GRPC) $(PROJECT)/$<

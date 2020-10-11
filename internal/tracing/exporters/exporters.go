@@ -124,6 +124,7 @@ func (e *Exporter) Close() {
 		e.ch <- &closeMsg{ch: rsp}
 
 		<-rsp
+		e.closed = true
 	}
 }
 
@@ -132,7 +133,7 @@ func (e *Exporter) Close() {
 func (e *Exporter) processLoop(ch chan interface{}) {
 	early := true
 
-	for !e.closed {
+	for {
 		msg := <-ch
 
 		switch pkt := msg.(type) {
@@ -146,9 +147,9 @@ func (e *Exporter) processLoop(ch chan interface{}) {
 
 		case *closeMsg:
 			e.proc.Close()
-			e.closed = true
 
 			pkt.ch <- true
+			return
 		}
 	}
 }

@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	"github.com/Jim3Things/CloudChamber/pkg/version"
 )
 
@@ -41,21 +44,33 @@ func main() {
 		os.Exit(0)
 	}
 
+	if err = sink.Open(cfg.SimSupport.EP.String()); err != nil {
+		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
+	}
+
+	section := cfg.Inventory
+
 	var writer io.Writer
-	if writer, err = exporters.NameToWriter(cfg.Inventory.TraceFile); err != nil {
-		log.Fatalf("failed to open name %q, err=%v", cfg.WebServer.TraceFile, err)
+	if writer, err = exporters.NameToWriter(section.TraceFile); err != nil {
+		log.Fatalf("failed to open name %q, err=%v", section.TraceFile, err)
 	}
 
 	if err = iow.Open(writer); err != nil {
 		log.Fatalf("failed to set up the trace logger, err=%v", err)
 	}
 
-	if err = sink.Open(cfg.SimSupport.EP.String()); err != nil {
-		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", section.EP.Port))
+	if err != nil {
+		log.Fatalf("failed to listen: %v", err)
 	}
 
-	if *showConfig {
-		fmt.Println(cfg)
-		os.Exit(0)
+	s := grpc.NewServer(grpc.UnaryInterceptor(server.Interceptor))
+
+	if err = inventory.Register(s, cfg); err != nil {
+		log.Fatalf("failed to register the inventory service: %v", err)
+	}
+
+	if err = s.Serve(lis); err != nil {
+		log.Fatalf("failed to serve: %v", err)
 	}
 }

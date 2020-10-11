@@ -82,7 +82,7 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 		if err = bcrypt.CompareHashAndPassword(
 			existingUser.GetPasswordHash(),
 			[]byte(cfg.WebServer.SystemAccountPassword)); err != nil {
-			tracing.Infof(ctx, "CloudChamber: standard %q account is not using using configured password - error %v", cfg.WebServer.SystemAccount, err)
+			tracing.Info(ctx, "CloudChamber: standard %q account is not using using configured password - error %v", cfg.WebServer.SystemAccount, err)
 		}
 
 		return nil

@@ -44,20 +44,22 @@ func main() {
 		os.Exit(0)
 	}
 
+	if err = sink.Open(cfg.SimSupport.EP.String()); err != nil {
+		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
+	}
+
+	section := cfg.Controller
+
 	var writer io.Writer
-	if writer, err = exporters.NameToWriter(cfg.Controller.TraceFile); err != nil {
-		log.Fatalf("failed to open name %q, err=%v", cfg.WebServer.TraceFile, err)
+	if writer, err = exporters.NameToWriter(section.TraceFile); err != nil {
+		log.Fatalf("failed to open name %q, err=%v", section.TraceFile, err)
 	}
 
 	if err = iow.Open(writer); err != nil {
 		log.Fatalf("failed to set up the trace logger, err=%v", err)
 	}
 
-	if err = sink.Open(cfg.SimSupport.EP.String()); err != nil {
-		log.Fatalf("failed to set the trace sink endpoint, err=%v", err)
-	}
-
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", cfg.Controller.EP.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", section.EP.Port))
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}

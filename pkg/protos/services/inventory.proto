@@ -1,0 +1,106 @@
+// This file contains the definitions of the messages exchanged between the
+// inventory monitor and the simulated inventory service.
+
+syntax = "proto3";
+
+package services;
+
+import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
+
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
+
+// Define the service implemented by the inventory itself
+service Inventory {
+    // Issue a repair request to the simulated inventory.
+    rpc Repair(InventoryRepairMsg) returns (InventoryRepairResp);
+
+    // Get the current status for one or more elements in the simulated
+    // inventory.
+    rpc GetCurrentStatus(InventoryStatusMsg) returns (InventoryStatusResp);
+}
+
+// InventoryAddress holds the structured address for an element in the
+// simulated inventory.  Addresses are structured as sequences of <rack-name>
+// <element>, where element designates the Tor, Pdu, or a specific blade.
+message InventoryAddress {
+    // Name of the rack
+    string rack = 1;
+
+    oneof element {
+        // Use this to specify the TOR.  Exact value is ignored.
+        bool tor = 2;
+
+        // Use this to specify the PDU.  Exact value is ignored.
+        bool pdu = 3;
+
+        // Use this to specify the blade via its id.
+        int64 bladeId = 4;
+    }
+}
+
+// InventoryRepairMsg defines a single repair command that is sent to the
+// simulated inventory service.
+message InventoryRepairMsg {
+    // target contains the structured address of the element to repair
+    InventoryAddress target = 1;
+
+    // after contains the guard time - the highest time that this operation
+    // must be after.  If the element has already seen repair commands that
+    // are after this time, then the repair must be ignored.
+    common.Timestamp after = 2;
+
+    // BootStyle indicates the type of reboot request to make.  Currently
+    // these are just listed as 'soft' or 'hard', suggesting one performs
+    // a stronger hardware reset than the other.
+    enum BootStyle {
+        soft = 0;
+        hard = 1;
+    }
+
+    oneof action {
+        // power defines whether the target power is on or off.  If the pdu is
+        // transitioning to off, by implication all blades will also transition
+        // to off.
+        bool power = 3;
+
+        // boot defines the (re-)booting action.
+        BootStyle boot = 4;
+    }
+}
+
+// InventoryRepairResp defines the response to a single repair request.
+message InventoryRepairResp {
+    // source contains the target address for the request it is reporting on.
+    InventoryAddress source = 1;
+
+    // at contains the simulated time tick when the repair operation executed.
+    common.Timestamp at = 2;
+
+    oneof rsp {
+        // dropped indicates that the repair request was dropped - either it was
+        // no longer relevant, targeted an element that was not in a working
+        // state, or resulted in an element that was not in a working state.
+        // This response is solely to help the simulation make progress more
+        // quickly.  It must be treated as identical to getting no response.
+        // Note that the value held in this field is ignored.
+        bool dropped  = 3;
+
+        // success indicates that the request was successful.  The exact value
+        // of this field is ignored.
+        bool success = 4;
+
+        // failed indicates that the request failed.  The value is the error
+        // message describing that failure.
+        string failed = 5;
+    }
+}
+
+message InventoryStatusMsg {
+    // target contains the structured address of the element that the status
+    // is about.
+    InventoryAddress target = 1;
+}
+
+message InventoryStatusResp {
+
+}

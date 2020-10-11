@@ -36,7 +36,7 @@ func commonSetup() {
 	utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(utf)
 
-	configPath = flag.String("config", ".", "path to the configuration file")
+	configPath = flag.String("config", "./testdata", "path to the configuration file")
 	flag.Parse()
 
 	cfg, err := config.ReadGlobalConfig(*configPath)

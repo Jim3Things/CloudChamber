@@ -5,10 +5,8 @@ package clients
 
 import (
 	"context"
-	"time"
 
 	"github.com/golang/protobuf/ptypes/duration"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
@@ -17,8 +15,10 @@ import (
 	"google.golang.org/grpc"
 )
 
-var dialName string
-var dialOpts []grpc.DialOption
+var (
+	dialName string
+	dialOpts []grpc.DialOption
+)
 
 // TimeData defines the value returned from a delay wait.  This is more than
 // the simple timestamp inasmuch as the delay call can fail asynchronously.
@@ -27,7 +27,7 @@ type TimeData struct {
 	Err  error
 }
 
-// InitTimestamp stores the information needed to be able to connect to the
+// InitTimestamp stores the information needed to be able to grpcConnect to the
 // Stepper service.
 func InitTimestamp(name string, opts ...grpc.DialOption) {
 	dialName = name
@@ -37,7 +37,7 @@ func InitTimestamp(name string, opts ...grpc.DialOption) {
 
 // SetPolicy sets the stepper policy
 func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
-	ctx, conn, err := connect(ctx)
+	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Dur
 
 // Advance the simulated time, assuming that the policy mode is manual
 func Advance(ctx context.Context) error {
-	ctx, conn, err := connect(ctx)
+	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func Advance(ctx context.Context) error {
 
 // Now gets the current simulated time.
 func Now(ctx context.Context) (*ct.Timestamp, error) {
-	ctx, conn, err := connect(ctx)
+	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -93,8 +93,8 @@ func Now(ctx context.Context) (*ct.Timestamp, error) {
 func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 
-	go func(res chan<- TimeData) {
-		ctx, conn, err := connect(ctx)
+	go func(ctx context.Context, res chan<- TimeData) {
+		ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
 		if err != nil {
 			res <- TimeData{
 				Time: nil,
@@ -114,14 +114,14 @@ func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 			return
 		}
 		res <- TimeData{Time: rsp, Err: nil}
-	}(ch)
+	}(ctx, ch)
 
 	return ch
 }
 
 // Status retrieves the status of the Stepper service
 func Status(ctx context.Context) (*pb.StatusResponse, error) {
-	ctx, conn, err := connect(ctx)
+	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func Status(ctx context.Context) (*pb.StatusResponse, error) {
 // policies back to their default.  This is used by unit tests to ensure a well
 // known starting state for a test.
 func Reset(ctx context.Context) error {
-	ctx, conn, err := connect(ctx)
+	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
 	if err != nil {
 		return err
 	}
@@ -148,25 +148,6 @@ func Reset(ctx context.Context) error {
 
 	_, err = client.Reset(ctx, &pb.ResetRequest{})
 	return err
-}
-
-// Helper function to connect to the stepper client.
-func connect(ctx context.Context) (context.Context, *grpc.ClientConn, error) {
-	conn, err := grpc.Dial(dialName, dialOpts...)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// TODO: These are placeholder metadata items.  Need to provide the actual ones
-	//       we intend to use.
-	md := metadata.Pairs(
-		"timestamp", time.Now().Format(time.StampNano),
-		"client-id", "web-api-client-us-east-1",
-		"user-id", "some-test-user-id",
-	)
-
-	return metadata.NewOutgoingContext(ctx, md), conn, nil
 }
 
 // Tick provides the current simulated time Tick, or '-1' if the simulated time

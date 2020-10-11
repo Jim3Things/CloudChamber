@@ -7,6 +7,7 @@ const (
 	StackTraceKey   = "cc-stack-trace"
 	SeverityKey     = "cc-severity"
 	ChildSpanKey    = "cc-child-span"
+	ActionKey       = "cc-action"
 
 	// Envelope keys
 	SourceTraceID   = "cc-starting-span-trace-id"

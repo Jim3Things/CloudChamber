@@ -142,7 +142,7 @@ func postHTTPError(ctx context.Context, w http.ResponseWriter, err error) {
 		}
 	}
 
-	_ = tracing.Errorf(ctx, "http error %v: %s", he.StatusCode(), he.Error())
+	_ = tracing.Error(ctx, "http error %v: %s", he.StatusCode(), he.Error())
 	http.Error(w, he.Error(), he.StatusCode())
 }
 
@@ -249,10 +249,10 @@ func NewErrBadMatchType(match string) *HTTPError {
 // NewErrUserInvalidOperation indicates the operation requested for the supplied
 // user account is invalid in some way, likely a non-existent operation code.
 //
-func NewErrUserInvalidOperation(op string) *HTTPError {
+func NewErrUserInvalidOperation(op string, user string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusBadRequest,
-		Base: fmt.Errorf("CloudChamber: invalid user operation requested (?op=%s)", op),
+		Base: fmt.Errorf("CloudChamber: invalid user operation requested (?op=%s) for user %q", op, user),
 	}
 }
 

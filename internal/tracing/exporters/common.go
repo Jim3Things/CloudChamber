@@ -49,6 +49,7 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 		item := log.Event{
 			Text: event.Name,
 			Tick: -1,
+			EventAction: log.Action_Trace,
 		}
 
 		for _, attr := range event.Attributes {
@@ -67,11 +68,22 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 			case tracing.ChildSpanKey:
 				item.SpanId = attr.Value.AsString()
-				item.SpanStart = true
+
+			case tracing.ActionKey:
+				item.EventAction = log.Action(attr.Value.AsInt64())
 			}
 		}
 
-		entry.Event = append(entry.Event, &item)
+		switch item.EventAction {
+		case log.Action_UpdateSpanName:
+			entry.Name = item.Text
+
+		case log.Action_UpdateReason:
+			entry.Reason = item.Text
+
+		default:
+			entry.Event = append(entry.Event, &item)
+		}
 	}
 
 	return entry
@@ -98,7 +110,7 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 // formatted information about that event.  Also used by exporters that emit
 // the trace events to a text-based stream.
 func formatEvent(event *log.Event, leader string) string {
-	if event.SpanStart {
+	if event.EventAction == log.Action_SpanStart {
 		return strings.TrimSuffix(formatSpanStart(event, leader), leader)
 	}
 

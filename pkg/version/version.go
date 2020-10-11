@@ -52,7 +52,7 @@ func Trace() {
 		tracing.WithContextValue(clients.OutsideTime))
 	defer span.End()
 
-	tracing.Infof(ctx, "===== Starting %q at %s =====", fmt.Sprint(os.Args), time.Now().Format(time.RFC1123Z))
+	tracing.Info(ctx, "===== Starting %q at %s =====", fmt.Sprint(os.Args), time.Now().Format(time.RFC1123Z))
 
 	tracing.Info(ctx, toString())
 }
