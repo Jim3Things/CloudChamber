@@ -71,11 +71,18 @@ var namespaceRoots = map[KeyRoot]string{
 }
 
 
-// Options is a
+// Action defines the signature for a function to be invoked when the
+// WithAction option is used.
+//
+type Action func(string) error
+
+// Options is a set of options supplied via zero or more WithXxxx() functions 
 //
 type Options struct {
 	revision int64
 	keysOnly bool
+	useAsPrefix bool
+	action Action
 }
 
 func (options *Options) applyOpts(optionsArray []Option) {
@@ -84,20 +91,47 @@ func (options *Options) applyOpts(optionsArray []Option) {
 	}
 }
 
-// Option is a
+// Option is the signature of the option functions used to select additional
+// optional parameters on a base routine call.
 // 
 type Option func(*Options)
 
-// WithRevision is a
+// WithRevision is an option to supply a specific revision that applies to the
+// request. For example, to modify a basic Read() request to read a specific
+// revision of a record.
 //
 func WithRevision(rev int64) Option {
 	return func(options *Options) {options.revision = rev}
 }
 
-// WithKeysOnly is a
+// WithPrefix is an option used to indicate the supplied name whoult be used
+// as a prefix for the request. This is primarily useful for Read() and Delete()
+// calls to indicate the supplied name is the root for a wildcard operation.
+//
+// Care should be used when applying this option on a Delete() call as a small
+// error could easily lead to an entire namespace being inadvertantly deleted.
+//
+func WithPrefix() Option {
+	return func(options *Options) {options.useAsPrefix = true}
+}
+
+// WithKeysOnly is an option applying to a Read() request to avoid reading any 
+// value(s) associated with the requested set of one or more keys.
+//
+// This option is primarily useful when attempting to determine which keys are
+// present when there is no immediate need to know the associated values. By
+// restricting the amount of data being retrieved, this option may lead to an
+// increase in performance and/or a reduction in consumed resources.
 //
 func WithKeysOnly() Option {
 	return func(options *Options) {options.keysOnly = true}
+}
+
+// WithAction allows a caller to supply an action routine which is invoke
+// on each record being processed within the transaction
+//
+func WithAction(action Action) Option {
+	return func(options *Options) {options.action = action}
 }
 
 
@@ -112,6 +146,11 @@ func getNamespacePrefixFromKeyRoot(r KeyRoot) string {
 
 func getKeyFromKeyRootAndName(r KeyRoot, n string) string {
 	return namespaceRoots[r] + "/" + GetNormalizedName(n)
+}
+
+func getNameFromKeyRootAndKey(r KeyRoot, k string) string {
+	n := strings.TrimPrefix(namespaceRoots[r] + "/", k)
+	return n
 }
 
 // GetKeyFromUsername1 is a utility function to convert a supplied username to
@@ -136,7 +175,43 @@ type Request struct {
 	Reason     string
 	Records    map[string]Record
 	Conditions map[string]Condition
+	Actions    map[string]Action
 }
+
+
+/*
+// Operation indicates which operation should be applied to the item in the request.
+//
+type Operation uint
+
+// The set opf permissible operations on each Item within the set of items in a request
+//
+const (
+	OpRead Operation = iota
+	OpUpdate
+	OpDelete
+)
+
+// Item represents a specific record with 
+//
+type Item struct {
+	Record Record
+	Condition Condition
+	Operation Operation
+	Action Action
+}
+
+
+// Request2 is a struct defining the collection of values needed to make a request
+// of the underlying store. Which values need to be set depend on the request.
+// For example, setting any "value" for a read request is ignored.
+//
+type Request2 struct {
+	Reason     string
+	Items      map[string]Item
+}
+ */
+
 
 // Response is a struct defining the set of values returned from a request.
 //
@@ -257,6 +332,57 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 	}
 
 	tracing.Info(ctx, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
+
+	revision = resp.Revision
+
+	return resp.Revision, nil
+}
+
+// CreateMultiple is a function to create a set of related key, value pairs within a single operation (txn)
+//
+func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[string]string) (revision int64, err error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
+
+	prefix := getNamespacePrefixFromKeyRoot(r)
+
+	tracing.Info(ctx, "Request to create new key set under prefix %q", prefix)
+
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
+
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition),
+	}
+
+	for n, v := range *kvs {
+		k := getKeyFromKeyRootAndName(r, n)
+		request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
+		request.Conditions[k] = ConditionCreate
+	}
+
+	resp, err := store.WriteTxn(ctx, request)
+
+	// Need to strip the namespace prefix and return something described
+	// in terms the caller should recognize
+	//
+	if err != nil {
+		for k := range request.Records {
+			if err == ErrStoreAlreadyExists(k) {
+				n := getNameFromKeyRootAndKey(r, k)
+				return RevisionInvalid, ErrStoreAlreadyExists(n)
+			}
+		}
+	}
+
+	if err != nil {
+		return RevisionInvalid, err
+	}
+
+	tracing.Info(ctx, "Created record set under prefix %q with revision %v", prefix, resp.Revision)
 
 	revision = resp.Revision
 
@@ -401,6 +527,52 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 
 		return value, revision, err
 	}
+}
+
+// Update is a function to conditionally update a value for a single key
+//
+func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64,	v string) (revision int64, err error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(clients.EnsureTickInContext))
+	defer span.End()
+
+	prefix := getNamespacePrefixFromKeyRoot(r)
+	k      := getKeyFromKeyRootAndName(r, n)
+
+	tracing.Info(ctx, "Request to update %q under prefix %q", n, prefix)
+
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
+
+	var condition Condition
+
+	switch {
+	case rev == RevisionInvalid:
+		condition = ConditionUnconditional
+
+	default:
+		condition = ConditionRevisionEqual
+	}
+
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition)}
+
+	request.Records[k] = Record{Revision: rev, Value: v}
+	request.Conditions[k] = condition
+
+	resp, err := store.WriteTxn(ctx, request)
+
+	if err != nil {
+		return RevisionInvalid, err
+	}
+
+	tracing.Info(ctx,
+		"Updated record %q under prefix %q from revision %v to revision %v",
+		n, prefix, rev, resp.Revision)
+
+	return resp.Revision, nil
 }
 
 // UpdateWithEncode is a function to conditionally update a value for a single key
