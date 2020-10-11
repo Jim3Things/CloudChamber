@@ -100,6 +100,136 @@ func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
 		eutvsa.Name, eutvsa.Err)
 }
 
+// ErrZoneAlreadyExists indicates the attempt to create a new zone record
+// failed as that zone already exists.
+//
+type ErrZoneAlreadyExists string
+
+func (ezae ErrZoneAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: zone %q already exists", string(ezae))
+}
+
+// ErrZoneNotFound indicates the attempt to locate a zone record failed as that
+// zone does not exist.
+//
+type ErrZoneNotFound string
+
+func (eznf ErrZoneNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: zone %q not found", string(eznf))
+}
+
+// ErrZoneStaleVersion indicates the attempt to locate a specific version of a
+// zone record failed as either that zone does not exist, or the specific
+// version is no longer present in the store.
+//
+type ErrZoneStaleVersion string
+
+func (ezsv ErrZoneStaleVersion) Error() string {
+	return fmt.Sprintf("CloudChamber: zone %q has a newer version than expected", string(ezsv))
+}
+
+// ErrRackAlreadyExists indicates the attempt to create a new rack record
+// failed as that rack already exists.
+//
+type ErrRackAlreadyExists struct {
+	zone string
+	rack int64
+}
+
+func (erae ErrRackAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: rack %v in zone %q already exists", erae.rack, erae.zone)
+}
+
+// ErrRackNotFound indicates the attempt to operate on a rack record failed
+// as that record cannot be found.
+//
+type ErrRackNotFound struct {
+	zone string
+	rack int64
+}
+
+func (ernf ErrRackNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: rack %v in zone %q was not found", ernf.rack, ernf.zone)
+}
+
+// ErrPduAlreadyExists indicates the attempt to create a new pdu record
+// failed as that pdu already exists.
+//
+type ErrPduAlreadyExists struct {
+	zone string
+	rack int64
+	pdu int64
+}
+
+func (epae ErrPduAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: pdu %v in zone %q, rack %v already exists", epae.pdu, epae.zone, epae.rack)
+}
+
+// ErrPduNotFound indicates the attempt to operate on a pdu record
+// failed as that record cannot be found.
+//
+type ErrPduNotFound struct {
+	zone string
+	rack int64
+	pdu int64
+}
+
+func (epae ErrPduNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: pdu %v in zone %q, rack %v was not found", epae.pdu, epae.zone, epae.rack)
+}
+
+// ErrTorAlreadyExists indicates the attempt to create a new zone record
+// failed as that zone already exists.
+//
+type ErrTorAlreadyExists  struct {
+	zone string
+	rack int64
+	tor int64
+}
+
+func (etae ErrTorAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: tor %v in zone %q, rack %v already exists", etae.tor, etae.zone, etae.rack)
+}
+
+// ErrTorNotFound indicates the attempt to operate on a tor record
+// failed as that record cannot be found.
+//
+type ErrTorNotFound struct {
+	zone string
+	rack int64
+	tor int64
+}
+
+func (etnf ErrTorNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: tor %v in zone %q, rack %v was not found", etnf.tor, etnf.zone, etnf.rack)
+}
+
+// ErrBladeAlreadyExists indicates the attempt to create a new blade record
+// failed as that blade already exists.
+//
+type ErrBladeAlreadyExists struct {
+	zone string
+	rack int64
+	blade int64
+}
+
+func (ebae ErrBladeAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: blade %v in zone %q, rack %v already exists", ebae.rack, ebae.zone, ebae.rack)
+}
+
+// ErrBladeNotFound indicates the attempt to operate on a blade record
+// failed as that record cannot be found.
+//
+type ErrBladeNotFound struct {
+	zone string
+	rack int64
+	blade int64
+}
+
+func (ebnf ErrBladeNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: blade %v in zone %q, rack %v was not found", ebnf.blade, ebnf.zone, ebnf.rack)
+}
+
 // HTTPError is a custom common HTTP error type that includes the status code
 // to use in a response.
 type HTTPError struct {
