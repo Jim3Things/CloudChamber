@@ -131,12 +131,12 @@ func (s *TraceSinkServer) GetAfter(ctx context.Context, request *pb.GetAfterRequ
 	var err error = nil
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 
 	defer func() {
 		// Pick up the current time to avoid repeatedly fetching the same value
-		ctx = common.ContextWithTick(ctx, clients.Tick(ctx))
+		ctx = common.ContextWithTick(ctx, timestamp.Tick(ctx))
 
 		if err != nil {
 			tracing.Warn(ctx, "GetAfter failed: %v", err)
@@ -183,7 +183,7 @@ func (s *TraceSinkServer) GetPolicy(ctx context.Context, _ *pb.GetPolicyRequest)
 	var resp *pb.GetPolicyResponse
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 

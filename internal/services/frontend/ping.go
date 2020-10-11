@@ -11,7 +11,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
@@ -30,7 +30,7 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
 
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Ping Session"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 

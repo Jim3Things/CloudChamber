@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
@@ -49,7 +49,7 @@ func Show() {
 //
 func Trace() {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	tracing.Info(ctx, "===== Starting %q at %s =====", fmt.Sprint(os.Args), time.Now().Format(time.RFC1123Z))

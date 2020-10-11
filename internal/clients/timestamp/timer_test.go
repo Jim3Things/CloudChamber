@@ -1,4 +1,4 @@
-package clients
+package timestamp
 
 import (
 	"context"

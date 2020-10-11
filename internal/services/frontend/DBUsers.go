@@ -34,7 +34,7 @@ type DBUsers struct {
 func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Initialize User DB Connection"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
