@@ -60,11 +60,15 @@ message definition {
         //
         bool enabled = 1;
 
+        // Defines whethor or not power is applied to the pdu itself, and hence the associated ports.
+        //
+        bool powered = 2;
+
         // Defines the overall condition of the pdu. This is orthoganal to the enabling of
         // the pdu. For resources within the pdu to be schedulable, the pdu must be both
         // enabled and the condition must be operational.
         //
-        condition condition = 2;
+        condition condition = 3;
 
         // Defines a power "socket" which is used to provide power to a blade. There is
         // a 1 to 1 mapping of a power port to a blade within a single rack and it is an
@@ -83,11 +87,16 @@ message definition {
         //
         bool enabled = 1;
 
+        // Defines whethor or not power is applied to the tor, and hence determines if the
+        // associated ports are potentially operable.
+        //
+        bool powered = 2;
+
         // Defines the overall condition of the tor. This is orthoganal to the enabling of
         // the tor. For resources within the tor to be schedulable, the tor must be both
         // enabled and the condition must be operational.
         //
-        condition condition = 2;
+        condition condition = 3;
 
         // Defines a network "port" which is used to provide a network connection to a
         // blade. There is a 1 to 1 mapping of a network port to a blade within a single
