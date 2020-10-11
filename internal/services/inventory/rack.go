@@ -24,7 +24,7 @@ const (
 func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
 	r := &rack{
 		ch:     make(chan interface{}),
-		tor:    newTor(def.Tor),
+		tor:    nil,
 		pdu:    nil,
 		blades: make(map[int64]*blade),
 		sm:     nil,
@@ -36,6 +36,7 @@ func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
 	)
 
 	r.pdu = newPdu(def.Pdu, r)
+	r.tor = newTor(def.Tor, r)
 
 	for i, item := range def.Blades {
 		r.blades[i] = newBlade(item)
@@ -43,7 +44,7 @@ func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
 		// These two calls are temporary fixups until the inventory definition
 		// includes the tor and pdu connectors
 		r.pdu.fixConnection(ctx, i)
-		r.tor.fixConnection(i)
+		r.tor.fixConnection(ctx, i)
 	}
 
 	return r

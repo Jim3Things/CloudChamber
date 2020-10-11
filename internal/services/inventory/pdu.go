@@ -11,22 +11,11 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
-// cableState describes the active state of a power cable from the PDU to an
-// individual blade.
-type cableState struct {
-	// on is true if the power is on to the target blade.
-	on bool
-
-	// at is the simulated time tick for the last repair operation to this
-	// cable.
-	at int64
-}
-
 // pdu defines the state required to simulate a PDU in a rack.
 type pdu struct {
 	// cables holds the simulated power cables.  The key is the blade id the
 	// cable is attached to.
-	cables map[int64]cableState
+	cables map[int64]*cable
 
 	// rack holds the pointer to the rack that contains this PDU.
 	holder *rack
@@ -59,7 +48,7 @@ const (
 // done is the fixConnection function below.
 func newPdu(_ *pb.ExternalPdu, r *rack) *pdu {
 	p := &pdu{
-		cables: make(map[int64]cableState),
+		cables: make(map[int64]*cable),
 		holder: r,
 		sm:     nil,
 	}
@@ -78,12 +67,9 @@ func newPdu(_ *pb.ExternalPdu, r *rack) *pdu {
 func (p *pdu) fixConnection(ctx context.Context, id int64) {
 	at := common.TickFromContext(ctx)
 
-	p.sm.At = common.MaxInt64(p.sm.At, at)
+	p.sm.AdvanceGuard(at)
 
-	p.cables[id] = cableState{
-		on: false,
-		at: at,
-	}
+	p.cables[id] = newCable(false, false, at)
 }
 
 // forwardToBlade is a helper function that forwards a message to the target
@@ -151,13 +137,13 @@ func (s *pduWorking) changePower(
 	// There are four values that are relevant to how order and time
 	// are managed here:
 	//
-	// - sm.At: this is the simulated time tick for the latest time any
+	// - sm.Guard: this is the simulated time tick for the latest time any
 	//          operation has executed against this PDU.  It is used as a
 	//          pre-condition check for all PDU-wide operations.
 	//
 	// - cable.at: this is the simulated time tick for the latest time
 	//             an operation executed against this cable.  It is never
-	//             greater than sm.At.  It is used as a pre-condition for any
+	//             greater than sm.Guard.  It is used as a pre-condition for any
 	//             operation that targets that cable.
 	//
 	// - after: this parameter specifies the guard test time for an operation.
@@ -166,7 +152,7 @@ func (s *pduWorking) changePower(
 	//
 	// - occursAt: this is the simulated time tick when the operation executes.
 	//             Structurally, it cannot be smaller than the after value.  It
-	//             is used to update the sm.At and cable.at values, if the
+	//             is used to update the sm.Guard and cable.at values, if the
 	//             guard test succeeds.
 	occursAt := common.TickFromContext(ctx)
 
@@ -176,26 +162,16 @@ func (s *pduWorking) changePower(
 
 	// Change the power on/off state for the full PDU
 	case *services.InventoryAddress_Pdu:
-		if sm.At < after.Ticks {
-
-			// This command is newer than the last one that the PDU received
-			// so it will be executed.  Record the updated last time of
-			// operation.
-			sm.At = occursAt
-
+		if sm.Pass(after.Ticks, occursAt) {
 			// Change power at the PDU.  This only matters if the command is to
 			// turn off the PDU (as this state means that the PDU is on).  And
 			// turning off the PDU means turning off all the cables.
 			if !power.Power {
-				for i, cable := range p.cables {
-					on := cable.on
+				for i := range p.cables {
 
-					p.cables[i] = cableState{
-						on: false,
-						at: occursAt,
-					}
+					changed, err := p.cables[i].force(false, after.Ticks, occursAt)
 
-					if on {
+					if changed && err == nil {
 						// power is on to this blade.  Turn it off, but tell
 						// the blade to not reply, as this is a side effect.
 						p.forwardToBlade(ctx, i, power, nil)
@@ -213,30 +189,26 @@ func (s *pduWorking) changePower(
 		id := elem.BladeId
 
 		if _, ok := p.cables[id]; ok {
-			cable := p.cables[id]
-
-			if cable.at < after.Ticks {
-				// The state machine holds that sm.At is always greater than
+			if changed, err := p.cables[id].set(power.Power, after.Ticks, occursAt); err == nil {
+				// The state machine holds that sm.Guard is always greater than
 				// or equal to any cable.at value.  But not all cable.at values
 				// are the same.  So even though we're moving this cable.at
 				// time forward, it still might be less than some other
-				// cable.at time.  Hence the MaxInt64 call.
-				sm.At = common.MaxInt64(sm.At, occursAt)
+				// cable.at time.
+				sm.AdvanceGuard(occursAt)
 
-				on := cable.on
-
-				p.cables[id] = cableState{
-					on: power.Power,
-					at: occursAt,
-				}
-
-				if on != power.Power {
+				if changed {
 					p.forwardToBlade(ctx, id, power, ch)
 				}
 
 				ch <- successResponse(target, occursAt)
-				return
+			} else if err == errStuck {
+				ch <- failedResponse(target, occursAt, err.Error())
+			} else {
+				ch <- droppedResponse(target, occursAt)
 			}
+
+			return
 		}
 
 		ch <- droppedResponse(target, occursAt)
