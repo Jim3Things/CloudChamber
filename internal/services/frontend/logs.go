@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
@@ -25,7 +25,7 @@ func logsAddRoutes(routeBase *mux.Router) {
 func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Traces After..."),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -77,7 +77,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Traces After..."),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 

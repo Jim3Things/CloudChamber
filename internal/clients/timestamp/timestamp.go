@@ -1,7 +1,7 @@
 // This module provides the basic client methods for using the simulated time
 // service.
 
-package clients
+package timestamp
 
 import (
 	"context"

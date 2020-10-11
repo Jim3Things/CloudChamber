@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
@@ -40,7 +40,7 @@ func stepperAddRoutes(routeBase *mux.Router) {
 func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Simulated Time Service Status"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -53,7 +53,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	stat, err := clients.Status(ctx)
+	stat, err := timestamp.Status(ctx)
 
 	if err != nil {
 		postHTTPError(ctx, w, err)
@@ -74,7 +74,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 func handleAdvance(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Advance Simulated Time"),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	var count int
@@ -106,14 +106,14 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 
 	// Advance the time the request number of ticks
 	for i := 0; i < count; i++ {
-		if err = clients.Advance(ctx); err != nil {
+		if err = timestamp.Advance(ctx); err != nil {
 			postHTTPError(ctx, w, err)
 			return
 		}
 	}
 
 	// .. and get the current time to return in the body of the response
-	ctx = common.ContextWithTick(ctx, clients.Tick(ctx))
+	ctx = common.ContextWithTick(ctx, timestamp.Tick(ctx))
 	w.Header().Set("Content-Type", "application/json")
 
 	p := jsonpb.Marshaler{}
@@ -129,7 +129,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 func handleSetMode(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Set Simulated Time Policy"),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	vars := mux.Vars(r)
@@ -191,7 +191,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = clients.SetPolicy(ctx, policy, delay, match); err != nil {
+	if err = timestamp.SetPolicy(ctx, policy, delay, match); err != nil {
 		postHTTPError(ctx, w, NewErrStepperFailedToSetPolicy())
 		return
 	}
@@ -208,11 +208,11 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	after := vars["after"]
 
-	var data clients.TimeData
+	var data timestamp.TimeData
 
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Wait Until Simulated Time After..."),
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	err := doSessionHeader(
@@ -229,7 +229,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 			}
 
 			tracing.UpdateSpanName(ctx, "Wait Until Simulated Time After %d", afterTick)
-			data = <-clients.After(ctx, &ct.Timestamp{Ticks: afterTick + 1})
+			data = <-timestamp.After(ctx, &ct.Timestamp{Ticks: afterTick + 1})
 			if data.Err != nil {
 				return data.Err
 			}
@@ -256,7 +256,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 func handleGetNow(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get Current Simulated Time"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 

@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
@@ -261,7 +261,7 @@ func TestStoreWriteReadTxn(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadTxn"
@@ -303,7 +303,7 @@ func TestStoreWriteReadTxnRequired(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadTxnRequired"
@@ -358,7 +358,7 @@ func TestStoreWriteReadTxnOptional(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadTxnOptional"
@@ -414,7 +414,7 @@ func TestStoreWriteReadMultipleTxn(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadMultipleTxn"
@@ -458,7 +458,7 @@ func TestStoreWriteReadMultipleTxnRequired(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadMultipleTxnRequired"
@@ -526,7 +526,7 @@ func TestStoreWriteReadMultipleTxnOptional(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadMultipleTxnOptional"
@@ -581,7 +581,7 @@ func TestStoreWriteReadMultipleTxnPartial(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadMultipleTxnPartial"
@@ -657,7 +657,7 @@ func TestStoreWriteDeleteTxn(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteDeleteTxn"
@@ -728,7 +728,7 @@ func TestStoreWriteDeleteTxnDeleteAbsent(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteDeleteTxnDeleteAbsent"
@@ -806,7 +806,7 @@ func TestStoreWriteDeleteMultipleTxnRequired(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteDeleteMultipleTxnRequired"
@@ -899,7 +899,7 @@ func TestStoreWriteDeleteMultipleTxnOptional(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteDeleteMultipleTxnOptional"
@@ -979,7 +979,7 @@ func TestStoreWriteDeleteMultipleTxnPartialRequired(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteDeleteMultipleTxnPartial"
@@ -1111,7 +1111,7 @@ func TestStoreWriteDeleteMultipleTxnPartialOptional(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteDeleteMultipleTxnPartialOptional"
@@ -1188,7 +1188,7 @@ func TestStoreWriteDeleteWithPrefix(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteDeleteWithPrefix"
@@ -1253,7 +1253,7 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteReadDeleteWithoutConnect"
@@ -1415,7 +1415,7 @@ func TestStoreWriteMultipleTxnCreate(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteMultipleTxnCreate"
@@ -1478,7 +1478,7 @@ func TestStoreWriteMultipleTxnOverwrite(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteMultipleTxnOverwrite"
@@ -1544,7 +1544,7 @@ func TestStoreWriteMultipleTxnCompareEqual(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreWriteMultipleTxnCompareEqual"
@@ -1616,7 +1616,7 @@ func TestStoreListWithPrefix(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreListWithPrefix"
@@ -1680,7 +1680,7 @@ func TestStoreListWithPrefixEmptySet(t *testing.T) {
 	defer utf.Close()
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	testName := "TestStoreListWithPrefixEmptySet"

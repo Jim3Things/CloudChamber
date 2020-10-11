@@ -13,7 +13,7 @@ import (
 
 	"github.com/spf13/viper"
 
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -234,7 +234,7 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Read Cloud Chamber Configuration"),
 		tracing.AsInternal(),
-		tracing.WithContextValue(clients.OutsideTime))
+		tracing.WithContextValue(timestamp.OutsideTime))
 	defer span.End()
 
 	if err := viper.ReadInConfig(); err != nil {
