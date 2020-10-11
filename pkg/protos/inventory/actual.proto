@@ -11,3 +11,5 @@ option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 message actual {
 
 }
+
+
