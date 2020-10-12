@@ -65,6 +65,11 @@ message InventoryRepairMsg {
 
         // boot defines the (re-)booting action.
         BootStyle boot = 4;
+
+        // connect defines whether the target network cable is connected or
+        // not.  The value is true if it is connected, otherwise it is false.
+        // This repair must target a blade.
+        bool connect = 5;
     }
 }
 

@@ -72,14 +72,6 @@ func (p *pdu) fixConnection(ctx context.Context, id int64) {
 	p.cables[id] = newCable(false, false, at)
 }
 
-// forwardToBlade is a helper function that forwards a message to the target
-// blade in the containing rack.
-func (p *pdu) forwardToBlade(ctx context.Context, id int64, msg interface{}, ch chan interface{}) {
-	if b, ok := p.holder.blades[id]; ok {
-		b.Receive(ctx, msg, ch)
-	}
-}
-
 // newStatusReport is a helper function to construct a status response for this
 // PDU.
 func (p *pdu) newStatusReport(
@@ -174,7 +166,7 @@ func (s *pduWorking) changePower(
 					if changed && err == nil {
 						// power is on to this blade.  Turn it off, but tell
 						// the blade to not reply, as this is a side effect.
-						p.forwardToBlade(ctx, i, power, nil)
+						p.holder.forwardToBlade(ctx, i, power, nil)
 					}
 				}
 
@@ -198,7 +190,7 @@ func (s *pduWorking) changePower(
 				sm.AdvanceGuard(occursAt)
 
 				if changed {
-					p.forwardToBlade(ctx, id, power, ch)
+					p.holder.forwardToBlade(ctx, id, power, ch)
 				}
 
 				ch <- successResponse(target, occursAt)

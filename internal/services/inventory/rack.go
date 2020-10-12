@@ -70,3 +70,11 @@ type rackFailed struct {
 }
 
 func (s *rackFailed) Name() string { return "failed" }
+
+// forwardToBlade is a helper function that forwards a message to the target
+// blade in this rack.
+func (r *rack) forwardToBlade(ctx context.Context, id int64, msg interface{}, ch chan interface{}) {
+	if b, ok := r.blades[id]; ok {
+		b.Receive(ctx, msg, ch)
+	}
+}
