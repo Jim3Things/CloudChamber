@@ -1,4 +1,4 @@
-package clients
+package trace_sink
 
 import (
 	"context"

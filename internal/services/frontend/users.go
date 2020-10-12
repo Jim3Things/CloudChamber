@@ -716,7 +716,7 @@ func formatUser(name string, user *pb.UserPublic) string {
 	}
 
 	if user.CanManageAccounts {
-		attrs = append(attrs, "can managed accounts")
+		attrs = append(attrs, "can manage accounts")
 	}
 
 	desc := strings.Join(attrs, ", ")
