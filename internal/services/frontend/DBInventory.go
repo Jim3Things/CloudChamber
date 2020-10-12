@@ -19,7 +19,7 @@ import (
 	"sync"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -91,7 +91,7 @@ var dbInventory *DBInventory
 func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Initialize Inventory DB Connection"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -139,7 +139,7 @@ func (m *DBInventory) LoadFromStore(ctx context.Context) error {
 func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConfig) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Initialize User DB Connection"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -171,7 +171,7 @@ func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConf
 func (m *DBInventory) reconcileNewInventory(ctx context.Context, zone *pb.ExternalZone) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Reconcile current inventory with update"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 

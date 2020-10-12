@@ -7,9 +7,9 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 
-	"google.golang.org/protobuf/runtime/protoiface"
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
 // KeyRoot is used to describe which part of the store namespace
@@ -342,7 +342,7 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 //
 func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[string]string) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
@@ -533,7 +533,7 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 //
 func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64,	v string) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(clients.EnsureTickInContext))
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
