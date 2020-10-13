@@ -27,7 +27,8 @@ type cable struct {
 	faulted bool
 }
 
-
+// newCable creates a new cable instance with the specified state and guard
+// values.
 func newCable(on bool, faulted bool, at int64) *cable {
 	return &cable{
 		Guarded: common.Guarded{
@@ -38,7 +39,9 @@ func newCable(on bool, faulted bool, at int64) *cable {
 	}
 }
 
-// set
+// set changes the on/off state for the cable, contingent upon the guard being
+// met and the cable not being faulted.  It returns whether the cable state
+// changed, and an error if the conditions for changing were not met.
 func (c *cable) set(offOn bool, guard int64, at int64) (bool, error) {
 	if c.faulted {
 		return false, errStuck
@@ -54,6 +57,8 @@ func (c *cable) set(offOn bool, guard int64, at int64) (bool, error) {
 	return c.on != startState, nil
 }
 
+// fault sets the cable to faulted, as well as the actual underlying state.  It
+// also requires that the guard check be met.
 func (c *cable) fault(offOn bool, guard int64, at int64) error {
 	if !c.Pass(guard, at) {
 		return errTooLate
@@ -65,6 +70,7 @@ func (c *cable) fault(offOn bool, guard int64, at int64) error {
 	return nil
 }
 
+// fix is the inverse of fault, in that it clears the faulted state.
 func (c *cable) fix(guard int64, at int64) error {
 	if !c.Pass(guard, at) {
 		return errTooLate
@@ -75,6 +81,7 @@ func (c *cable) fix(guard int64, at int64) error {
 	return nil
 }
 
+// force sets the underlying state of the cable, even if it is faulted.
 func (c *cable) force(offOn bool, guard int64, at int64) (bool, error) {
 	if !c.Pass(guard, at) {
 		return false, errTooLate
