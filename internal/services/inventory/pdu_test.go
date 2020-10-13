@@ -52,6 +52,7 @@ func (ts *PduTestSuite) TestCreatePdu() {
 
 	for _, c := range p.cables {
 		assert.False(c.on)
+		assert.False(c.faulted)
 	}
 }
 
@@ -246,6 +247,7 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
 	assert.Equal(common.TickFromContext(ctx), r.pdu.cables[0].Guard)
 	assert.True(r.pdu.cables[0].on)
+	assert.False(r.pdu.cables[0].faulted)
 
 	assert.Equal("working", r.pdu.sm.Current.Name())
 }

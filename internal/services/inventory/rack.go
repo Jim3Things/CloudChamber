@@ -41,7 +41,7 @@ func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
 	for i, item := range def.Blades {
 		r.blades[i] = newBlade(item)
 
-		// These two calls are temporary fixups until the inventory definition
+		// These two calls are temporary fix-ups until the inventory definition
 		// includes the tor and pdu connectors
 		r.pdu.fixConnection(ctx, i)
 		r.tor.fixConnection(ctx, i)

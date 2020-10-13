@@ -24,11 +24,6 @@ type pdu struct {
 	sm *sm.SimpleSM
 }
 
-// Receive handles incoming messages for the PDU.
-func (p *pdu) Receive(ctx context.Context, msg interface{}, ch chan interface{}) {
-	p.sm.Receive(ctx, msg, ch)
-}
-
 const (
 	// pduWorkingState is the state ID for the PDU powered on and working
 	// state.
@@ -70,6 +65,11 @@ func (p *pdu) fixConnection(ctx context.Context, id int64) {
 	p.sm.AdvanceGuard(at)
 
 	p.cables[id] = newCable(false, false, at)
+}
+
+// Receive handles incoming messages for the PDU.
+func (p *pdu) Receive(ctx context.Context, msg interface{}, ch chan interface{}) {
+	p.sm.Receive(ctx, msg, ch)
 }
 
 // newStatusReport is a helper function to construct a status response for this
