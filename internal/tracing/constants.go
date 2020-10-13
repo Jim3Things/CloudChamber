@@ -13,4 +13,11 @@ const (
 	SourceTraceID   = "cc-starting-span-trace-id"
 	SourceSpanID    = "cc-starting-span-span-id"
 	SourceTraceFlgs = "cc-starting-span-trace-flags"
+
+	// rpc injection keys
+	InfraSourceKey  = "cc-infra"
+
+	// rpc infra source key values
+	IsInfraSource    = "infra"
+	IsNotInfraSource = "not" + IsInfraSource
 )

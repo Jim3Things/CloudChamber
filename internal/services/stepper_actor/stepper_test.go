@@ -10,7 +10,6 @@ import (
 
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/assert"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
@@ -130,19 +129,13 @@ func testDelay(t *testing.T, ctx context.Context, atLeast int64, jitter int64) {
 }
 
 func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
+	ctx := context.Background()
 	conn, err := grpc.Dial(
 		"bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(clienttrace.Interceptor))
 	assert.Nilf(t, err, "Failed to dial bufnet: %v", err)
-
-	md := metadata.Pairs(
-		"timestamp", time.Now().Format(time.StampNano),
-		"client-id", "web-api-client-us-east-1",
-		"user-id", "some-test-user-id",
-	)
-	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
 	client = pb.NewStepperClient(conn)
 	_, err = client.Reset(ctx, &pb.ResetRequest{})

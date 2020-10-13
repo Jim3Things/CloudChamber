@@ -2,10 +2,8 @@ package trace_sink
 
 import (
 	"context"
-	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
@@ -32,7 +30,7 @@ func InitSinkClient(name string, opts ...grpc.DialOption) {
 // Reset forcibly resets the trace sink to its initial state.  This is intended
 // to support unit tests
 func Reset(ctx context.Context) error {
-	ctx, conn, err := connect(ctx)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return err
 	}
@@ -48,7 +46,7 @@ func Reset(ctx context.Context) error {
 
 // Append adds a log entry to the trace sink
 func Append(ctx context.Context, entry *log.Entry) error {
-	ctx, conn, err := connect(ctx)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return err
 	}
@@ -63,7 +61,7 @@ func Append(ctx context.Context, entry *log.Entry) error {
 
 // GetPolicy obtains the current trace sink policy and returns it
 func GetPolicy(ctx context.Context) (*pb.GetPolicyResponse, error) {
-	ctx, conn, err := connect(ctx)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +82,7 @@ func GetTraces(ctx context.Context, start int64, maxCount int64) <-chan TraceDat
 	ch := make(chan TraceData)
 
 	go func(res chan<- TraceData) {
-		ctx, conn, err := connect(ctx)
+		conn, err := grpc.Dial(dialName, dialOpts...)
 		if err != nil {
 			res <- TraceData{
 				Traces: nil,
@@ -107,24 +105,4 @@ func GetTraces(ctx context.Context, start int64, maxCount int64) <-chan TraceDat
 	}(ch)
 
 	return ch
-}
-
-// connect is a helper function that sets up the communication context for
-// the grpc client.
-func connect(ctx context.Context) (context.Context, *grpc.ClientConn, error) {
-	conn, err := grpc.Dial(dialName, dialOpts...)
-
-	if err != nil {
-		return nil, nil, err
-	}
-
-	// TODO: These are placeholder metadata items.  Need to provide the actual ones
-	//       we intend to use.
-	md := metadata.Pairs(
-		"timestamp", time.Now().Format(time.StampNano),
-		"client-id", "web-api-client-us-east-1",
-		"user-id", "some-test-user-id",
-	)
-
-	return metadata.NewOutgoingContext(ctx, md), conn, nil
 }

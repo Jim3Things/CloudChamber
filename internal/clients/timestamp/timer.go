@@ -163,8 +163,8 @@ func (t *Timers) listener(epoch int, now int64) {
 // continues until either there are no more waiters, or until there is an error
 // in contacting the simulated time service.  Any decision to resume after some
 // interval or exit is then made by the caller.
-func (t *Timers) listenUntilFailure(startCtx context.Context, epoch int, now int64) int64 {
-	ctx, conn, err := grpcConnect(startCtx, t.dialName, t.dialOpts)
+func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) int64 {
+	conn, err := grpc.Dial(t.dialName, t.dialOpts...)
 	defer func() { _ = conn.Close() }()
 
 	client := pb.NewStepperClient(conn)
