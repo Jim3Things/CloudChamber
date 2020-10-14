@@ -14,9 +14,9 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
-// spanEx extends the OpenTelemetry Span structure with additional features
+// SpanEx extends the OpenTelemetry Span structure with additional features
 // needed by CloudChamber
-type spanEx struct {
+type SpanEx struct {
 	// Original OpenTelemetry span
 	trace.Span
 
@@ -28,7 +28,7 @@ type decorator func(ctx context.Context) context.Context
 
 // Mask applies the policy that a child span of a span that is marked as
 // infrastructure (span kind is internal) should also be market as internal.
-func (s *spanEx) Mask(kind trace.SpanKind) trace.SpanKind {
+func (s *SpanEx) Mask(kind trace.SpanKind) trace.SpanKind {
 	if s.isInternal {
 		return trace.SpanKindInternal
 	}
@@ -90,6 +90,7 @@ func StartSpan(
 		stackTrace:  StackTrace(),
 		tick:        -1,
 		decorations: []decorator{},
+
 	}
 
 	for _, opt := range options {
@@ -98,7 +99,7 @@ func StartSpan(
 
 	parent := trace.SpanFromContext(ctx)
 
-	if s, ok := parent.(spanEx); ok {
+	if s, ok := parent.(SpanEx); ok {
 		cfg.kind = s.Mask(cfg.kind)
 	}
 
@@ -120,7 +121,7 @@ func StartSpan(
 			kv.String(ChildSpanKey, span.SpanContext().SpanID.String()))
 	}
 
-	ccSpan := spanEx{
+	ccSpan := SpanEx{
 		Span:       span,
 		isInternal: cfg.kind == trace.SpanKindInternal,
 	}

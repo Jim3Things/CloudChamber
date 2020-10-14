@@ -28,7 +28,9 @@ func Interceptor(
 	invoker grpc.UnaryInvoker,
 	opts ...grpc.CallOption) error {
 	requestMetadata, _ := metadata.FromOutgoingContext(ctx)
+
 	metadataCopy := requestMetadata.Copy()
+	metadataCopy.Set(tracing.InfraSourceKey, parentIsInfra(ctx))
 
 	grpctrace.Inject(ctx, &metadataCopy)
 	ctx = metadata.NewOutgoingContext(ctx, metadataCopy)
@@ -67,4 +69,19 @@ func decodeGrpcErr(err error) (log.Severity, string) {
 	}
 
 	return sev, msg
+}
+
+// parentIsInfra returns the string value that denotes whether or not the
+// current active span is an infrastructure span.
+func parentIsInfra(ctx context.Context) string {
+
+	parent := trace.SpanFromContext(ctx)
+
+	if s, ok := parent.(tracing.SpanEx); ok {
+		if s.Mask(trace.SpanKindServer) == trace.SpanKindInternal {
+			return tracing.IsInfraSource
+		}
+	}
+
+	return tracing.IsNotInfraSource
 }

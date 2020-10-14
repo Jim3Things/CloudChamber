@@ -27,7 +27,7 @@ type TimeData struct {
 	Err  error
 }
 
-// InitTimestamp stores the information needed to be able to grpcConnect to the
+// InitTimestamp stores the information needed to be able to GrpcConnect to the
 // Stepper service.
 func InitTimestamp(name string, opts ...grpc.DialOption) {
 	dialName = name
@@ -37,7 +37,7 @@ func InitTimestamp(name string, opts ...grpc.DialOption) {
 
 // SetPolicy sets the stepper policy
 func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
-	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Dur
 
 // Advance the simulated time, assuming that the policy mode is manual
 func Advance(ctx context.Context) error {
-	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return err
 	}
@@ -75,7 +75,7 @@ func Advance(ctx context.Context) error {
 
 // Now gets the current simulated time.
 func Now(ctx context.Context) (*ct.Timestamp, error) {
-	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 
 	go func(ctx context.Context, res chan<- TimeData) {
-		ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
+		conn, err := grpc.Dial(dialName, dialOpts...)
 		if err != nil {
 			res <- TimeData{
 				Time: nil,
@@ -121,7 +121,7 @@ func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 
 // Status retrieves the status of the Stepper service
 func Status(ctx context.Context) (*pb.StatusResponse, error) {
-	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +137,7 @@ func Status(ctx context.Context) (*pb.StatusResponse, error) {
 // policies back to their default.  This is used by unit tests to ensure a well
 // known starting state for a test.
 func Reset(ctx context.Context) error {
-	ctx, conn, err := grpcConnect(ctx, dialName, dialOpts)
+	conn, err := grpc.Dial(dialName, dialOpts...)
 	if err != nil {
 		return err
 	}

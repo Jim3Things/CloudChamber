@@ -23,17 +23,17 @@ func Interceptor(
 	requestMetadata, _ := metadata.FromIncomingContext(ctxIn)
 	metadataCopy := requestMetadata.Copy()
 
+	kind := calculateKind(metadataCopy.Get(tracing.InfraSourceKey), trace.SpanKindServer)
+
 	entries, spanCtx := grpctrace.Extract(ctxIn, &metadataCopy)
-	ctx := correlation.ContextWithMap(ctxIn, correlation.NewMap(correlation.MapUpdate{
-		MultiKV: entries,
-	}))
+	ctx := correlation.ContextWithMap(ctxIn, correlation.NewMap(correlation.MapUpdate { MultiKV: entries }))
 
 	tr := global.TraceProvider().Tracer("")
 
 	ctx, span := tr.Start(
 		ctx,
 		info.FullMethod,
-		trace.WithSpanKind(trace.SpanKindServer),
+		trace.WithSpanKind(kind),
 		trace.WithNewRoot(),
 		trace.LinkedTo(spanCtx),
 		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
@@ -41,4 +41,15 @@ func Interceptor(
 	defer span.End()
 
 	return handler(ctx, req)
+}
+
+// calculateKind returns the span kind to use: either the default one that the
+// caller provided, or SpanKindInternal if the supplied infra key value says
+// that the grpc client was called from within an infrastructure span.
+func calculateKind(values []string, kind trace.SpanKind) trace.SpanKind {
+	if len(values) != 1 || values[0] != tracing.IsInfraSource {
+		return kind
+	}
+
+	return trace.SpanKindInternal
 }

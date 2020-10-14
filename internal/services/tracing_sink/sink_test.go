@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
@@ -54,19 +53,13 @@ func bufDialer(_ context.Context, _ string) (net.Conn, error) {
 }
 
 func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
+	ctx := context.Background()
 	conn, err := grpc.Dial(
 		"bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ct.Interceptor))
 	assert.Nilf(t, err, "Failed to dial bufnet: %v", err)
-
-	md := metadata.Pairs(
-		"timestamp", time.Now().Format(time.StampNano),
-		"client-id", "web-api-client-us-east-1",
-		"user-id", "some-test-user-id",
-	)
-	ctx := metadata.NewOutgoingContext(context.Background(), md)
 
 	client = pb.NewTraceSinkClient(conn)
 
