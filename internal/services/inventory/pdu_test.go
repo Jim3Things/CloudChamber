@@ -50,8 +50,9 @@ func (ts *PduTestSuite) TestCreatePdu() {
 
 	assert.Equal("working", p.sm.Current.Name())
 
-	for _, cable := range p.cables {
-		assert.False(cable.on)
+	for _, c := range p.cables {
+		assert.False(c.on)
+		assert.False(c.faulted)
 	}
 }
 
@@ -67,10 +68,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	ctx = common.ContextWithTick(ctx, 2)
 
 	for i := range r.pdu.cables {
-		r.pdu.cables[i] = cableState{
-			on: true,
-			at: 0,
-		}
+		r.pdu.cables[i] = newCable(true, false, 0)
 	}
 
 	rsp := make(chan interface{})
@@ -104,8 +102,8 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 
 	assert.Equal("working", r.pdu.sm.Current.Name())
 
-	for _, cable := range r.pdu.cables {
-		assert.True(cable.on)
+	for _, c := range r.pdu.cables {
+		assert.True(c.on)
 	}
 
 	assert.Equal("invalid target specified, request ignored", reason.Failed)
@@ -151,8 +149,8 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 	assert.Equal(msg.Target, repairResp.Source)
 	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
 
-	for _, cable := range r.pdu.cables {
-		assert.False(cable.on)
+	for _, c := range r.pdu.cables {
+		assert.False(c.on)
 	}
 
 	assert.Equal("off", r.pdu.sm.Current.Name())
@@ -198,8 +196,8 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 	assert.Equal(msg.Target, repairResp.Source)
 	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
 
-	for _, cable := range r.pdu.cables {
-		assert.False(cable.on)
+	for _, c := range r.pdu.cables {
+		assert.False(c.on)
 	}
 
 	assert.Equal("working", r.pdu.sm.Current.Name())
@@ -246,11 +244,164 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	assert.Equal(msg.Target, repairResp.Source)
 	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
-	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.At)
-	assert.Equal(common.TickFromContext(ctx), r.pdu.cables[0].at)
+	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
+	assert.Equal(common.TickFromContext(ctx), r.pdu.cables[0].Guard)
 	assert.True(r.pdu.cables[0].on)
+	assert.False(r.pdu.cables[0].faulted)
 
 	assert.Equal("working", r.pdu.sm.Current.Name())
+}
+
+func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	startTime := int64(1)
+	ctx := common.ContextWithTick(context.Background(), startTime)
+
+	rackDef := createDummyRack(2)
+
+	r := newRack(ctx, rackDef)
+	ctx = common.ContextWithTick(ctx, 2)
+
+	rsp := make(chan interface{})
+
+	msg := &services.InventoryRepairMsg{
+		Target: &services.InventoryAddress{
+			Rack:    "",
+			Element: &services.InventoryAddress_BladeId{
+				BladeId: 0,
+			},
+		},
+		After:  &ct.Timestamp{Ticks: startTime - 1},
+		Action: &services.InventoryRepairMsg_Power{
+			Power: true,
+		},
+	}
+
+	go func() {
+		r.pdu.Receive(ctx, msg, rsp)
+	}()
+
+	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
+	assert.NotNil(res)
+
+	repairResp, ok := res.(*services.InventoryRepairResp)
+	require.True(ok)
+
+	_, ok = repairResp.Rsp.(*services.InventoryRepairResp_Dropped)
+	require.True(ok)
+
+	assert.Equal(msg.Target, repairResp.Source)
+	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+	assert.Equal(startTime, r.pdu.sm.Guard)
+	assert.Equal(startTime, r.pdu.cables[0].Guard)
+	assert.False(r.pdu.cables[0].on)
+
+	assert.Equal("working", r.pdu.sm.Current.Name())
+}
+
+func (ts *PduTestSuite) TestStuckCable() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx := common.ContextWithTick(context.Background(), 1)
+
+	rackDef := createDummyRack(2)
+
+	r := newRack(ctx, rackDef)
+
+	startTime := common.TickFromContext(ctx)
+	require.Nil(r.pdu.cables[0].fault(false, startTime, startTime))
+	ctx = common.ContextWithTick(ctx, 2)
+
+	rsp := make(chan interface{})
+
+	msg := &services.InventoryRepairMsg{
+		Target: &services.InventoryAddress{
+			Rack:    "",
+			Element: &services.InventoryAddress_BladeId{
+				BladeId: 0,
+			},
+		},
+		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+		Action: &services.InventoryRepairMsg_Power{
+			Power: true,
+		},
+	}
+
+	go func() {
+		r.pdu.Receive(ctx, msg, rsp)
+	}()
+
+	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
+	assert.NotNil(res)
+
+	repairResp, ok := res.(*services.InventoryRepairResp)
+	require.True(ok)
+
+	resp, ok := repairResp.Rsp.(*services.InventoryRepairResp_Failed)
+	require.True(ok)
+	assert.Equal(resp.Failed, "cable is faulted")
+
+	assert.Equal(msg.Target, repairResp.Source)
+	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+	assert.Equal(startTime, r.pdu.sm.Guard)
+	assert.Equal(startTime, r.pdu.cables[0].Guard)
+	assert.False(r.pdu.cables[0].on)
+	assert.Equal(true, r.pdu.cables[0].faulted)
+
+	assert.Equal("working", r.pdu.sm.Current.Name())
+}
+
+func (ts *PduTestSuite) TestStuckCablePduOff() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx := common.ContextWithTick(context.Background(), 1)
+
+	rackDef := createDummyRack(2)
+
+	r := newRack(ctx, rackDef)
+
+	startTime := common.TickFromContext(ctx)
+	require.Nil(r.pdu.cables[0].fault(true, startTime, startTime))
+	ctx = common.ContextWithTick(ctx, 2)
+
+	rsp := make(chan interface{})
+
+	msg := &services.InventoryRepairMsg{
+		Target: &services.InventoryAddress{
+			Rack:    "",
+			Element: &services.InventoryAddress_Pdu{},
+		},
+		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+		Action: &services.InventoryRepairMsg_Power{
+			Power: false,
+		},
+	}
+
+	go func() {
+		r.pdu.Receive(ctx, msg, rsp)
+	}()
+
+	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
+	assert.NotNil(res)
+
+	repairResp, ok := res.(*services.InventoryRepairResp)
+	require.True(ok)
+
+	_, ok = repairResp.Rsp.(*services.InventoryRepairResp_Dropped)
+	require.True(ok)
+
+	assert.Equal(msg.Target, repairResp.Source)
+	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+
+	for _, c := range r.pdu.cables {
+		assert.False(c.on)
+	}
+
+	assert.Equal("off", r.pdu.sm.Current.Name())
 }
 
 func TestPduTestSuite(t *testing.T) {

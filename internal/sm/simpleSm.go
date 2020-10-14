@@ -43,6 +43,7 @@ func (x *NullState) Name() string { return "NullState" }
 // issues of concurrency and lifecycle management are handled by some external
 // logic.
 type SimpleSM struct {
+	common.Guarded
 
 	// CurrentIndex holds the index to the current state
 	CurrentIndex int
@@ -59,9 +60,6 @@ type SimpleSM struct {
 	// Parent points to the structure that holds this state machine, and likely
 	// holds global context that the state actions need.
 	Parent interface{}
-
-	// At is the simulated time tick when the current state was entered.
-	At int64
 }
 
 // StateDecl defines the type expected for a state declaration decorator when
@@ -120,7 +118,7 @@ func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
 
 	sm.CurrentIndex = newState
 	sm.Current = cur
-	sm.At = common.TickFromContext(ctx)
+	sm.AdvanceGuard(common.TickFromContext(ctx))
 	return nil
 }
 
