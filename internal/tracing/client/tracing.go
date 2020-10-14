@@ -71,8 +71,8 @@ func decodeGrpcErr(err error) (log.Severity, string) {
 	return sev, msg
 }
 
-// parentIsInfra sets returns the string value that denotes whether the current
-// active span is an infrastructure span.
+// parentIsInfra returns the string value that denotes whether or not the
+// current active span is an infrastructure span.
 func parentIsInfra(ctx context.Context) string {
 
 	parent := trace.SpanFromContext(ctx)
