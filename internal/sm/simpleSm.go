@@ -2,10 +2,26 @@ package sm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
+
+type Response struct {
+	Err error
+	At  int64
+	Msg interface{}
+}
+
+type UnexpectedMessage struct {
+	Msg   string
+	State string
+}
+
+func (um *UnexpectedMessage) Error() string {
+	return fmt.Sprintf("unexpected message %q while in state %q", um.Msg, um.State)
+}
 
 // SimpleSMState defines the methods used for state actions and transitions.
 type SimpleSMState interface {
@@ -15,7 +31,7 @@ type SimpleSMState interface {
 
 	// Receive is called on the active start implementation when a new
 	// incoming message arrives
-	Receive(ctx context.Context, sm *SimpleSM, msg interface{}, ch chan interface{})
+	Receive(ctx context.Context, sm *SimpleSM, msg interface{}, ch chan *Response)
 
 	// Leave is called when a state transition moves away from this state
 	Leave(ctx context.Context, sm *SimpleSM)
@@ -31,13 +47,35 @@ type NullState struct{}
 func (*NullState) Enter(context.Context, *SimpleSM) error { return nil }
 
 // Receive is the default (no-action) implementation.
-func (*NullState) Receive(context.Context, *SimpleSM, interface{}, chan interface{}) {}
+func (*NullState) Receive(ctx context.Context, sm *SimpleSM, msg interface{}, ch chan *Response) {
+	ch <- &Response{
+		Err: &UnexpectedMessage{
+			Msg:   fmt.Sprintf("%v", msg),
+			State: sm.Current.Name(),
+		},
+		At:  common.TickFromContext(ctx),
+		Msg: nil,
+	}
+}
 
 // Leave is the default (no-action) implementation.
 func (*NullState) Leave(context.Context, *SimpleSM) {}
 
 // Name returns the string identifying the null state
-func (x *NullState) Name() string { return "NullState" }
+func (*NullState) Name() string { return "NullState" }
+
+// TerminalState is the default final state implementation.
+type TerminalState struct {
+	NullState
+}
+
+// Enter marks this state machine as terminated.
+func (*TerminalState) Enter(_ context.Context, sm *SimpleSM) error {
+	sm.Terminated = true
+	return nil
+}
+
+func (*TerminalState) Name() string { return "Terminated" }
 
 // SimpleSM defines a simplified state machine structure. It assumes that the
 // issues of concurrency and lifecycle management are handled by some external
@@ -60,6 +98,9 @@ type SimpleSM struct {
 	// Parent points to the structure that holds this state machine, and likely
 	// holds global context that the state actions need.
 	Parent interface{}
+
+	// Terminated is true if the state machine has reached its final state.
+	Terminated bool
 }
 
 // StateDecl defines the type expected for a state declaration decorator when
@@ -101,6 +142,7 @@ func NewSimpleSM(parent interface{}, decls ...StateDecl) *SimpleSM {
 		FirstState:   firstState,
 		States:       states,
 		Parent:       parent,
+		Terminated:   false,
 	}
 }
 
@@ -112,7 +154,7 @@ func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
 	cur.Leave(ctx, nil)
 
 	cur = sm.States[newState]
-	if err := cur.Enter(ctx, nil); err != nil {
+	if err := cur.Enter(ctx, sm); err != nil {
 		return tracing.Error(ctx, err)
 	}
 
@@ -124,7 +166,7 @@ func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
 
 // Receive processes an incoming message by routing it to the active state
 // handler.
-func (sm *SimpleSM) Receive(ctx context.Context, msg interface{}, ch chan interface{}) {
+func (sm *SimpleSM) Receive(ctx context.Context, msg interface{}, ch chan *Response) {
 	sm.Current.Receive(ctx, sm, msg, ch)
 }
 

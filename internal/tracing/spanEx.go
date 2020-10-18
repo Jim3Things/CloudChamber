@@ -45,6 +45,8 @@ type startSpanConfig struct {
 	tick        int64
 	decorations []decorator
 	reason      string
+	link        trace.SpanContext
+	newRoot     bool
 }
 
 // StartSpanOption denotes optional decoration methods used on StartSpan
@@ -79,6 +81,49 @@ func WithReason(reason string) StartSpanOption {
 	}
 }
 
+// WithLink adds a link-to target, if there is one, to the span.
+func WithLink(sc trace.SpanContext) StartSpanOption {
+	return func(cfg *startSpanConfig) {
+		cfg.link = sc
+	}
+}
+
+// mayLinkTo is used in the underlying trace span call.  It either returns
+// via normal LinkedTo, if there is a link-to span context, or a null
+// operation that does not decorate the trace span, if it does not.
+func mayLinkTo(sc trace.SpanContext) trace.StartOption {
+	if sc.HasSpanID() && sc.HasTraceID() {
+		return trace.LinkedTo(sc)
+	}
+
+	return nullOption()
+}
+
+// WithNewRoot specifies that the span is to start a new top level span, even
+// if there is a potential parent span available in the context.
+func WithNewRoot() StartSpanOption {
+	return func(cfg *startSpanConfig) {
+		cfg.newRoot = true
+	}
+}
+
+// mayNewRoot is used in the underlying trace span call.  It either signals
+// that this is a new root, if that option had been selected, or a null
+// operation that does not decorate the trace span call, if it does not.
+func mayNewRoot(newRoot bool) trace.StartOption {
+	if newRoot {
+		return trace.WithNewRoot()
+	}
+
+	return nullOption()
+}
+
+// nullOption is a helper function that can be added to a trace span call, but
+// performs no decoration.
+func nullOption() trace.StartOption {
+	return func(s *trace.StartConfig) {}
+}
+
 // StartSpan creates a new tracing span, with the attributes and linkages
 // that the Cloud Chamber logging system expects
 func StartSpan(
@@ -90,6 +135,8 @@ func StartSpan(
 		stackTrace:  StackTrace(),
 		tick:        -1,
 		decorations: []decorator{},
+		link:        trace.SpanContext{},
+		newRoot:     false,
 
 	}
 
@@ -107,6 +154,8 @@ func StartSpan(
 
 	ctxChild, span := tr.Start(ctx, cfg.name,
 		trace.WithSpanKind(cfg.kind),
+		mayLinkTo(cfg.link),
+		mayNewRoot(cfg.newRoot),
 		trace.WithAttributes(kv.String(ReasonKey, cfg.reason)),
 		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
 

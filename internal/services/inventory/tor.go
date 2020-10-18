@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
@@ -67,16 +68,19 @@ func (t *tor) fixConnection(ctx context.Context, id int64) {
 }
 
 // Receive handles incoming messages for the TOR.
-func (t *tor) Receive(ctx context.Context, msg interface{}, ch chan interface{}) {
+func (t *tor) Receive(ctx context.Context, msg interface{}, ch chan *sm.Response) {
 	t.sm.Receive(ctx, msg, ch)
 }
 
 // newStatusReport is a helper function to construct a status response for this
 // TOR.
-func (t *tor) newStatusReport(
+func (t *tor)  newStatusReport(
 	ctx context.Context,
-	target *services.InventoryAddress) *services.InventoryStatusResp {
-	return nil
+	target *services.InventoryAddress) *sm.Response {
+	return &sm.Response{
+		Err: errors.New("not yet implemented"),
+		Msg: nil,
+	}
 }
 
 // torWorking is the state a TOR is in when it is functioning correctly.
@@ -85,7 +89,7 @@ type torWorking struct {
 }
 
 // Receive processes incoming requests for this state.
-func (s *torWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
+func (s *torWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan *sm.Response) {
 	t := sm.Parent.(*tor)
 
 	switch msg := msg.(type) {
@@ -96,7 +100,7 @@ func (s *torWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface
 		}
 
 		// Any other type of repair command, the tor ignores.
-		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
+		ch <- droppedResponse(common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:
@@ -122,7 +126,7 @@ func (s *torWorking) changeConnection(
 	target *services.InventoryAddress,
 	after *ct.Timestamp,
 	connect *services.InventoryRepairMsg_Connect,
-	ch chan interface{}) {
+	ch chan *sm.Response) {
 	t := sm.Parent.(*tor)
 
 	occursAt := common.TickFromContext(ctx)
@@ -140,19 +144,18 @@ func (s *torWorking) changeConnection(
 					t.holder.forwardToBlade(ctx, id, connect, ch)
 				}
 
-				ch <- successResponse(target, occursAt)
-			} else if err == errStuck {
-				ch <- failedResponse(target, occursAt, err.Error())
+				ch <- successResponse(occursAt)
+			} else if err == ErrStuck {
+				ch <- failedResponse(occursAt, err)
 			} else {
-				ch <- droppedResponse(target, occursAt)
+				ch <- droppedResponse(occursAt)
 			}
 
 			return
 		}
 
 	default:
-		ch <- failedResponse(
-			target, occursAt, "invalid target specified, request ignored")
+		ch <- failedResponse(occursAt, ErrInvalidTarget)
 	}
 }
 
@@ -164,14 +167,14 @@ type torStuck struct {
 }
 
 // Receive processes incoming requests for this state.
-func (s *torStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
+func (s *torStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan *sm.Response) {
 	t := sm.Parent.(*tor)
 
 	switch msg := msg.(type) {
 	case *services.InventoryRepairMsg:
 		// the TOR is not responding to commands, so no repairs can be
 		// processed.
-		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
+		ch <- droppedResponse(common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:

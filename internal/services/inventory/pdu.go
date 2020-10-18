@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"errors"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
@@ -68,7 +69,7 @@ func (p *pdu) fixConnection(ctx context.Context, id int64) {
 }
 
 // Receive handles incoming messages for the PDU.
-func (p *pdu) Receive(ctx context.Context, msg interface{}, ch chan interface{}) {
+func (p *pdu) Receive(ctx context.Context, msg interface{}, ch chan *sm.Response) {
 	p.sm.Receive(ctx, msg, ch)
 }
 
@@ -76,8 +77,11 @@ func (p *pdu) Receive(ctx context.Context, msg interface{}, ch chan interface{})
 // PDU.
 func (p *pdu) newStatusReport(
 	ctx context.Context,
-	target *services.InventoryAddress) *services.InventoryStatusResp {
-	return nil
+	target *services.InventoryAddress) *sm.Response {
+	return &sm.Response{
+		Err: errors.New("not yet implemented"),
+		Msg: nil,
+	}
 }
 
 // pduWorking is the state a PDU is in when it is turned on and functional.
@@ -86,7 +90,7 @@ type pduWorking struct {
 }
 
 // Receive processes incoming requests for this state.
-func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
+func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan *sm.Response) {
 	p := sm.Parent.(*pdu)
 
 	switch msg := msg.(type) {
@@ -97,7 +101,7 @@ func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface
 		}
 
 		// Any other type of repair command, the pdu ignores.
-		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
+		ch <- droppedResponse(common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:
@@ -123,7 +127,7 @@ func (s *pduWorking) changePower(
 	target *services.InventoryAddress,
 	after *ct.Timestamp,
 	power *services.InventoryRepairMsg_Power,
-	ch chan interface{}) {
+	ch chan *sm.Response) {
 	p := sm.Parent.(*pdu)
 
 	// There are four values that are relevant to how order and time
@@ -174,7 +178,7 @@ func (s *pduWorking) changePower(
 			}
 		}
 
-		ch <- droppedResponse(target, occursAt)
+		ch <- droppedResponse(occursAt)
 
 	// Change the power on/off state for an individual blade
 	case *services.InventoryAddress_BladeId:
@@ -193,21 +197,20 @@ func (s *pduWorking) changePower(
 					p.holder.forwardToBlade(ctx, id, power, ch)
 				}
 
-				ch <- successResponse(target, occursAt)
-			} else if err == errStuck {
-				ch <- failedResponse(target, occursAt, err.Error())
+				ch <- successResponse(occursAt)
+			} else if err == ErrStuck {
+				ch <- failedResponse(occursAt, err)
 			} else {
-				ch <- droppedResponse(target, occursAt)
+				ch <- droppedResponse(occursAt)
 			}
 
 			return
 		}
 
-		ch <- droppedResponse(target, occursAt)
+		ch <- droppedResponse(occursAt)
 
 	default:
-		ch <- failedResponse(
-			target, occursAt, "invalid target specified, request ignored")
+		ch <- failedResponse(occursAt, ErrInvalidTarget)
 	}
 }
 
@@ -217,13 +220,13 @@ type pduOff struct {
 }
 
 // Receive processes incoming requests for this state.
-func (s *pduOff) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
+func (s *pduOff) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan *sm.Response) {
 	p := sm.Parent.(*pdu)
 
 	switch msg := msg.(type) {
 	case *services.InventoryRepairMsg:
 		// Powered off, so no repairs can be processed.
-		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
+		ch <- droppedResponse(common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:
@@ -246,14 +249,14 @@ type pduStuck struct {
 }
 
 // Receive processes incoming requests for this state.
-func (s *pduStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan interface{}) {
+func (s *pduStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan *sm.Response) {
 	p := sm.Parent.(*pdu)
 
 	switch msg := msg.(type) {
 	case *services.InventoryRepairMsg:
 		// the PDU is not responding to commands, so no repairs can be
 		// processed.
-		ch <- droppedResponse(msg.Target, common.TickFromContext(ctx))
+		ch <- droppedResponse(common.TickFromContext(ctx))
 		return
 
 	case *services.InventoryStatusMsg:

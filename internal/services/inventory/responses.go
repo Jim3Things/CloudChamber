@@ -4,45 +4,45 @@ package inventory
 // messages to repair operations.
 
 import (
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
+	"errors"
+
+	"github.com/Jim3Things/CloudChamber/internal/sm"
+)
+
+var (
+	ErrStuck   = errors.New("cable is faulted")
+	ErrTooLate = errors.New("cable modified after the requested time")
+
+	ErrRepairMessageDropped = errors.New("repair message dropped")
+	ErrInvalidTarget        = errors.New("invalid target specified, request ignored")
 )
 
 // droppedResponse constructs a dropped response message with the correct time
 // and target.
-func droppedResponse(
-	target *services.InventoryAddress,
-	occursAt int64) *services.InventoryRepairResp {
-	return &services.InventoryRepairResp{
-		Source: target,
-		At:     &ct.Timestamp{Ticks: occursAt},
-		Rsp:    &services.InventoryRepairResp_Dropped{},
+func droppedResponse(occursAt int64) *sm.Response {
+	return &sm.Response{
+		Err: ErrRepairMessageDropped,
+		At:  occursAt,
+		Msg: nil,
 	}
 }
 
 // failedResponse constructs a failure response message with the correct time,
 // target, and reason.
-func failedResponse(
-	target *services.InventoryAddress,
-	occursAt int64,
-	msg string) *services.InventoryRepairResp {
-	return &services.InventoryRepairResp{
-		Source: target,
-		At:     &ct.Timestamp{Ticks: occursAt},
-		Rsp:    &services.InventoryRepairResp_Failed{
-			Failed: msg,
-		},
+func failedResponse(occursAt int64, err error) *sm.Response {
+	return &sm.Response{
+		Err: err,
+		At:  occursAt,
+		Msg: nil,
 	}
 }
 
 // successResponse constructs a success response message with the correct time
 // and target.
-func successResponse(
-	target *services.InventoryAddress,
-	occursAt int64) *services.InventoryRepairResp {
-	return &services.InventoryRepairResp{
-		Source: target,
-		At:     &ct.Timestamp{Ticks: occursAt},
-		Rsp:    &services.InventoryRepairResp_Success{},
+func successResponse(occursAt int64) *sm.Response {
+	return &sm.Response{
+		Err: nil,
+		At:  occursAt,
+		Msg: nil,
 	}
 }
