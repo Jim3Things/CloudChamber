@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 
+	"go.opentelemetry.io/otel/api/trace"
+
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
@@ -68,13 +69,13 @@ func (t *tor) fixConnection(ctx context.Context, id int64) {
 }
 
 // Receive handles incoming messages for the TOR.
-func (t *tor) Receive(ctx context.Context, msg interface{}, ch chan *sm.Response) {
-	t.sm.Receive(ctx, msg, ch)
+func (t *tor) Receive(ctx context.Context, msg *sm.Envelope) {
+	t.sm.Receive(ctx, msg)
 }
 
 // newStatusReport is a helper function to construct a status response for this
 // TOR.
-func (t *tor)  newStatusReport(
+func (t *tor) newStatusReport(
 	ctx context.Context,
 	target *services.InventoryAddress) *sm.Response {
 	return &sm.Response{
@@ -89,29 +90,25 @@ type torWorking struct {
 }
 
 // Receive processes incoming requests for this state.
-func (s *torWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan *sm.Response) {
+func (s *torWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envelope) {
 	t := sm.Parent.(*tor)
 
-	switch msg := msg.(type) {
+	switch body := msg.Msg.(type) {
 	case *services.InventoryRepairMsg:
-		if connect, ok := msg.GetAction().(*services.InventoryRepairMsg_Connect); ok {
-			s.changeConnection(ctx, sm, msg.Target, msg.After, connect, ch)
+		if connect, ok := body.GetAction().(*services.InventoryRepairMsg_Connect); ok {
+			s.changeConnection(ctx, sm, body.Target, body.After, connect, msg.CH)
 			return
 		}
 
 		// Any other type of repair command, the tor ignores.
-		ch <- droppedResponse(common.TickFromContext(ctx))
-		return
+		msg.CH <- droppedResponse(common.TickFromContext(ctx))
 
 	case *services.InventoryStatusMsg:
-		ch <- t.newStatusReport(ctx, msg.Target)
-		return
+		msg.CH <- t.newStatusReport(ctx, body.Target)
 
 	default:
-		// Invalid message.  This should not happen, and we have no way to
-		// send an error back.  Panic.
-		tracing.Fatal(ctx, "Invalid message received: %v", msg)
-		return
+		// Invalid message.
+		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 
@@ -122,15 +119,14 @@ func (s *torWorking) Name() string { return "working" }
 // network cable in the TOR.
 func (s *torWorking) changeConnection(
 	ctx context.Context,
-	sm *sm.SimpleSM,
+	machine *sm.SimpleSM,
 	target *services.InventoryAddress,
 	after *ct.Timestamp,
 	connect *services.InventoryRepairMsg_Connect,
 	ch chan *sm.Response) {
-	t := sm.Parent.(*tor)
+	t := machine.Parent.(*tor)
 
 	occursAt := common.TickFromContext(ctx)
-
 
 	switch elem := target.Element.(type) {
 	case *services.InventoryAddress_BladeId:
@@ -138,14 +134,24 @@ func (s *torWorking) changeConnection(
 
 		if _, ok := t.cables[id]; ok {
 			if changed, err := t.cables[id].set(connect.Connect, after.Ticks, occursAt); err == nil {
-				sm.AdvanceGuard(occursAt)
+				machine.AdvanceGuard(occursAt)
 
 				if changed {
-					t.holder.forwardToBlade(ctx, id, connect, ch)
+					fwd := &sm.Envelope{
+						CH:   ch,
+						Span: trace.SpanFromContext(ctx).SpanContext(),
+						Msg:  &services.InventoryRepairMsg{
+							Target: target,
+							After:  after,
+							Action: connect,
+						},
+					}
+
+					t.holder.forwardToBlade(ctx, id, fwd)
 				}
 
 				ch <- successResponse(occursAt)
-			} else if err == ErrStuck {
+			} else if err == ErrCableStuck {
 				ch <- failedResponse(occursAt, err)
 			} else {
 				ch <- droppedResponse(occursAt)
@@ -167,22 +173,21 @@ type torStuck struct {
 }
 
 // Receive processes incoming requests for this state.
-func (s *torStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg interface{}, ch chan *sm.Response) {
+func (s *torStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envelope) {
 	t := sm.Parent.(*tor)
 
-	switch msg := msg.(type) {
+	switch body := msg.Msg.(type) {
 	case *services.InventoryRepairMsg:
 		// the TOR is not responding to commands, so no repairs can be
 		// processed.
-		ch <- droppedResponse(common.TickFromContext(ctx))
-		return
+		msg.CH <- droppedResponse(common.TickFromContext(ctx))
 
 	case *services.InventoryStatusMsg:
-		ch <- t.newStatusReport(ctx, msg.Target)
-		return
+		msg.CH <- t.newStatusReport(ctx, body.Target)
 
 	default:
-		return
+		// Invalid message.
+		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 

@@ -5,13 +5,14 @@ package inventory
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 )
 
 var (
-	ErrStuck   = errors.New("cable is faulted")
-	ErrTooLate = errors.New("cable modified after the requested time")
+	ErrCableStuck = errors.New("cable is faulted")
+	ErrTooLate    = errors.New("inventory element modified after the requested time")
 
 	ErrRepairMessageDropped = errors.New("repair message dropped")
 	ErrInvalidTarget        = errors.New("invalid target specified, request ignored")
@@ -42,6 +43,19 @@ func failedResponse(occursAt int64, err error) *sm.Response {
 func successResponse(occursAt int64) *sm.Response {
 	return &sm.Response{
 		Err: nil,
+		At:  occursAt,
+		Msg: nil,
+	}
+}
+
+// unexpectedMessageResponse constructs a failure response for the case where
+// the incoming request arrives when it is unexpected by the state machine.
+func unexpectedMessageResponse(s sm.SimpleSMState, occursAt int64, body interface{}) *sm.Response {
+	return &sm.Response{
+		Err: &sm.UnexpectedMessage{
+			Msg:   fmt.Sprintf("%v", body),
+			State: s.Name(),
+		},
 		At:  occursAt,
 		Msg: nil,
 	}

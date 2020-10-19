@@ -15,6 +15,6 @@ func newBlade(b *common.BladeCapacity) *blade {
 	return nil
 }
 
-func (b *blade) Receive(ctx context.Context, msg interface{}, ch chan *sm.Response) {
+func (b *blade) Receive(ctx context.Context, msg *sm.Envelope) {
 
 }

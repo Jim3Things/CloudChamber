@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
@@ -84,19 +85,23 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Tor{},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Connect{
-			Connect: false,
+	badMsg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg: &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Tor{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Connect{
+				Connect: false,
+			},
 		},
 	}
 
 	go func() {
-		t.Receive(ctx, badMsg, rsp)
+		t.Receive(ctx, badMsg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -129,21 +134,25 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack: "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg: &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Connect{
-			Connect: true,
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Connect{
+				Connect: true,
+			},
 		},
 	}
 
 	go func() {
-		t.Receive(ctx, msg, rsp)
+		t.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -175,21 +184,25 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack: "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg: &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After: &ct.Timestamp{Ticks: startTime - 1},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+			After: &ct.Timestamp{Ticks: startTime - 1},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		t.Receive(ctx, msg, rsp)
+		t.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -223,27 +236,31 @@ func (ts *TorTestSuite) TestStuckCable() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack: "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Connect{
-			Connect: true,
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Connect{
+				Connect: true,
+			},
 		},
 	}
 
 	go func() {
-		t.Receive(ctx, msg, rsp)
+		t.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(ErrStuck, res.Err)
+	assert.Equal(ErrCableStuck, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 

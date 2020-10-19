@@ -52,7 +52,7 @@ func (ts *RackTestSuite) TestStartStopRack() {
 	ctx := common.ContextWithTick(context.Background(), 1)
 
 	rackDef := createDummyRack(2)
-	ctx, span := tracing.StartSpan(ctx, tracing.WithName("test rack creation"))
+	ctx, span := tracing.StartSpan(ctx, tracing.WithName("test rack start and stop"))
 	r := newRack(ctx, rackDef)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))

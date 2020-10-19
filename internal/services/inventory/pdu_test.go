@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
@@ -83,19 +84,23 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Tor{},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: false,
+	badMsg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Tor{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: false,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, badMsg, rsp)
+		r.pdu.Receive(ctx, badMsg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -126,19 +131,23 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Pdu{},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: false,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Pdu{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: false,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -168,19 +177,23 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Pdu{},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Pdu{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -210,21 +223,25 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack: "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -254,21 +271,25 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack: "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After: &ct.Timestamp{Ticks: startTime - 1},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+			After: &ct.Timestamp{Ticks: startTime - 1},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
@@ -301,27 +322,31 @@ func (ts *PduTestSuite) TestStuckCable() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack: "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(ErrStuck, res.Err)
+	assert.Equal(ErrCableStuck, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -349,19 +374,23 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Pdu{},
-		},
-		After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: false,
+	msg := &sm.Envelope{
+		CH:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Pdu{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: false,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)

@@ -37,7 +37,7 @@ func newCable(on bool, faulted bool, at int64) *cable {
 // changed, and an error if the conditions for changing were not met.
 func (c *cable) set(offOn bool, guard int64, at int64) (bool, error) {
 	if c.faulted {
-		return false, ErrStuck
+		return false, ErrCableStuck
 	}
 
 	if !c.Pass(guard, at) {
