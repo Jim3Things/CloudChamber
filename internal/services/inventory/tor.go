@@ -96,19 +96,19 @@ func (s *torWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envel
 	switch body := msg.Msg.(type) {
 	case *services.InventoryRepairMsg:
 		if connect, ok := body.GetAction().(*services.InventoryRepairMsg_Connect); ok {
-			s.changeConnection(ctx, sm, body.Target, body.After, connect, msg.CH)
+			s.changeConnection(ctx, sm, body.Target, body.After, connect, msg.Ch)
 			return
 		}
 
 		// Any other type of repair command, the tor ignores.
-		msg.CH <- droppedResponse(common.TickFromContext(ctx))
+		msg.Ch <- droppedResponse(common.TickFromContext(ctx))
 
 	case *services.InventoryStatusMsg:
-		msg.CH <- t.newStatusReport(ctx, body.Target)
+		msg.Ch <- t.newStatusReport(ctx, body.Target)
 
 	default:
 		// Invalid message.
-		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 
@@ -138,7 +138,7 @@ func (s *torWorking) changeConnection(
 
 				if changed {
 					fwd := &sm.Envelope{
-						CH:   ch,
+						Ch:   ch,
 						Span: trace.SpanFromContext(ctx).SpanContext(),
 						Msg:  &services.InventoryRepairMsg{
 							Target: target,
@@ -180,14 +180,14 @@ func (s *torStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envelop
 	case *services.InventoryRepairMsg:
 		// the TOR is not responding to commands, so no repairs can be
 		// processed.
-		msg.CH <- droppedResponse(common.TickFromContext(ctx))
+		msg.Ch <- droppedResponse(common.TickFromContext(ctx))
 
 	case *services.InventoryStatusMsg:
-		msg.CH <- t.newStatusReport(ctx, body.Target)
+		msg.Ch <- t.newStatusReport(ctx, body.Target)
 
 	default:
 		// Invalid message.
-		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 

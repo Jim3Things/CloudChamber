@@ -13,8 +13,8 @@ import (
 // Envelope holds an incoming request to the state machine, along with context
 // needed to process and respond to it.
 type Envelope struct {
-	// CH is the channel that the completion response is to be sent over.
-	CH chan *Response
+	// Ch is the channel that the completion response is to be sent over.
+	Ch chan *Response
 
 	// Span is the tracing span context that is logically associated with this
 	// request.
@@ -76,7 +76,7 @@ func (*NullState) Enter(context.Context, *SimpleSM) error { return nil }
 
 // Receive is the default (no-action) implementation.
 func (*NullState) Receive(ctx context.Context, sm *SimpleSM, msg *Envelope) {
-	msg.CH <- &Response{
+	msg.Ch <- &Response{
 		Err: &UnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", msg),
 			State: sm.Current.Name(),

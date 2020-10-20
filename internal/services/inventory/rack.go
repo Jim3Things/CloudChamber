@@ -98,7 +98,7 @@ func (r *rack) start(ctx context.Context) error {
 	repl := make(chan *sm.Response)
 
 	r.ch <- &sm.Envelope{
-		CH:   repl,
+		Ch:   repl,
 		Span: trace.SpanFromContext(ctx).SpanContext(),
 		Msg:  &startSim{},
 	}
@@ -117,7 +117,7 @@ func (r *rack) stop(ctx context.Context) {
 	repl := make(chan *sm.Response)
 
 	r.ch <- &sm.Envelope{
-		CH:   repl,
+		Ch:   repl,
 		Span: trace.SpanFromContext(ctx).SpanContext(),
 		Msg:  &stopSim{},
 	}
@@ -129,7 +129,7 @@ func (r *rack) stop(ctx context.Context) {
 // state machine handler.
 func (r *rack) Receive(ctx context.Context, msg interface{}, ch chan *sm.Response) {
 	r.ch <- &sm.Envelope{
-		CH:   ch,
+		Ch:   ch,
 		Span: trace.SpanFromContext(ctx).SpanContext(),
 		Msg:  msg,
 	}
@@ -172,7 +172,7 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 			err = machine.ChangeState(ctx, rackWorkingState)
 		}
 
-		msg.CH <- &sm.Response {
+		msg.Ch <- &sm.Response {
 			Err: err,
 			At: at,
 			Msg: nil,
@@ -180,7 +180,7 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 
 	case *stopSim:
 		// Stop the rack simulation
-		msg.CH <- &sm.Response {
+		msg.Ch <- &sm.Response {
 			Err: machine.ChangeState(ctx, rackTerminalState),
 			At:  at,
 			Msg: nil,
@@ -188,7 +188,7 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 
 	default:
 		// All other requests are illegal
-		msg.CH <- unexpectedMessageResponse(s, at, body)
+		msg.Ch <- unexpectedMessageResponse(s, at, body)
 	}
 }
 
@@ -215,7 +215,7 @@ func (s *rackWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg *sm
 			// The PDU is the one component that we can access without
 			// using the TOR as a network hop.  This reflects an
 			// intentional simplification in the simulation: that the
-			// TOR cannot disconnect the PDU, and hte PDU cannot stop
+			// TOR cannot disconnect the PDU, and the PDU cannot stop
 			// the TOR.  In real life, these are probably possible, but
 			// for now we simplify our world by avoiding that.
 			r.pdu.Receive(ctx, msg)
@@ -239,14 +239,14 @@ func (s *rackWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg *sm
 
 	case *stopSim:
 		// Stop the rack simulation.
-		msg.CH <- &sm.Response{
+		msg.Ch <- &sm.Response{
 			Err: machine.ChangeState(ctx, rackTerminalState),
 			At:  common.TickFromContext(ctx),
 			Msg: nil,
 		}
 
 	default:
-		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 

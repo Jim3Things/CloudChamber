@@ -85,7 +85,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	rsp := make(chan *sm.Response)
 
 	badMsg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -132,7 +132,7 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -178,7 +178,7 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -224,7 +224,7 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -272,7 +272,7 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -323,7 +323,7 @@ func (ts *PduTestSuite) TestStuckCable() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -375,7 +375,7 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{

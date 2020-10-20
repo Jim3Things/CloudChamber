@@ -97,19 +97,19 @@ func (s *pduWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envel
 	switch body := msg.Msg.(type) {
 	case *services.InventoryRepairMsg:
 		if power, ok := body.GetAction().(*services.InventoryRepairMsg_Power); ok {
-			s.changePower(ctx, sm, body.Target, body.After, power, msg.CH)
+			s.changePower(ctx, sm, body.Target, body.After, power, msg.Ch)
 			return
 		}
 
 		// Any other type of repair command, the pdu ignores.
-		msg.CH <- droppedResponse(common.TickFromContext(ctx))
+		msg.Ch <- droppedResponse(common.TickFromContext(ctx))
 
 	case *services.InventoryStatusMsg:
-		msg.CH <- p.newStatusReport(ctx, body.Target)
+		msg.Ch <- p.newStatusReport(ctx, body.Target)
 
 	default:
 		// Invalid message.
-		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 
@@ -168,9 +168,10 @@ func (s *pduWorking) changePower(
 
 					if changed && err == nil {
 						// power is on to this blade.  Turn it off, but tell
-						// the blade to not reply, as this is a side effect.
+						// the blade to not reply, as the blade action is a
+						// side effect of the PDU change.
 						fwd := &sm.Envelope{
-							CH:   nil,
+							Ch:   nil,
 							Span: sc,
 							Msg:  &services.InventoryRepairMsg{
 								Target: target,
@@ -204,7 +205,7 @@ func (s *pduWorking) changePower(
 
 				if changed {
 					fwd := &sm.Envelope{
-						CH:   ch,
+						Ch:   ch,
 						Span: trace.SpanFromContext(ctx).SpanContext(),
 						Msg:  &services.InventoryRepairMsg{
 							Target: target,
@@ -245,13 +246,13 @@ func (s *pduOff) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envelope)
 	switch body := msg.Msg.(type) {
 	case *services.InventoryRepairMsg:
 		// Powered off, so no repairs can be processed.
-		msg.CH <- droppedResponse(common.TickFromContext(ctx))
+		msg.Ch <- droppedResponse(common.TickFromContext(ctx))
 
 	case *services.InventoryStatusMsg:
-		msg.CH <- p.newStatusReport(ctx, body.Target)
+		msg.Ch <- p.newStatusReport(ctx, body.Target)
 
 	default:
-		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 
@@ -273,14 +274,14 @@ func (s *pduStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envelop
 	case *services.InventoryRepairMsg:
 		// the PDU is not responding to commands, so no repairs can be
 		// processed.
-		msg.CH <- droppedResponse(common.TickFromContext(ctx))
+		msg.Ch <- droppedResponse(common.TickFromContext(ctx))
 
 	case *services.InventoryStatusMsg:
-		msg.CH <- p.newStatusReport(ctx, body.Target)
+		msg.Ch <- p.newStatusReport(ctx, body.Target)
 
 	default:
 		// Invalid message.
-		msg.CH <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 

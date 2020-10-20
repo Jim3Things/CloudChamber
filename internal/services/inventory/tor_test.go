@@ -86,7 +86,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	rsp := make(chan *sm.Response)
 
 	badMsg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg: &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -135,7 +135,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg: &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -185,7 +185,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg: &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
@@ -237,7 +237,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 	rsp := make(chan *sm.Response)
 
 	msg := &sm.Envelope{
-		CH:   rsp,
+		Ch:   rsp,
 		Span: trace.SpanContext{},
 		Msg:  &services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
