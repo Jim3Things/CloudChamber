@@ -7,8 +7,6 @@ import (
 
 	"github.com/AsynkronIT/protoactor-go/actor"
 	"github.com/golang/protobuf/ptypes/empty"
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/kv"
 	trc "go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -23,18 +21,11 @@ import (
 // The span is terminated when the actor returns.
 func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 	return func(c actor.ReceiverContext, envelope *actor.MessageEnvelope) {
-		tr := global.TraceProvider().Tracer("")
-
-		ctxIn := annotatedContext(context.Background(), envelope)
-
-		ctx, span := tr.Start(
-			ctxIn,
-			fmt.Sprintf("Actor %q/Receive", c.Self()),
-			trc.WithSpanKind(trc.SpanKindServer),
-			trc.WithNewRoot(),
-			trc.LinkedTo(spanContextFromEnvelope(envelope)),
-			trc.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
-		)
+		ctx, span := tracing.StartSpan(
+			annotatedContext(context.Background(), envelope),
+			tracing.WithName(fmt.Sprintf("Actor %q/Receive", c.Self())),
+			tracing.WithLink(spanContextFromEnvelope(envelope)),
+			tracing.WithNewRoot())
 
 		defer func() {
 			ClearSpan(c.Self())

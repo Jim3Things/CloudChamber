@@ -6,8 +6,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
+	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
@@ -33,6 +35,15 @@ func (ts *PduTestSuite) TearDownTest() {
 	ts.utf.Close()
 }
 
+func (ts *PduTestSuite) completeWithin(ch <-chan *sm.Response, delay time.Duration) *sm.Response {
+	select {
+	case res := <-ch:
+		return res
+	case <-time.After(delay):
+		return nil
+	}
+}
+
 func (ts *PduTestSuite) TestCreatePdu() {
 	require := ts.Require()
 	assert := ts.Assert()
@@ -41,7 +52,7 @@ func (ts *PduTestSuite) TestCreatePdu() {
 
 	r := newRack(context.Background(), rackDef)
 	require.NotNil(r)
-	assert.Equal("working", r.sm.Current.Name())
+	assert.Equal("AwaitingStart", r.sm.Current.Name())
 
 	p := r.pdu
 	require.NotNil(p)
@@ -71,42 +82,40 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 		r.pdu.cables[i] = newCable(true, false, 0)
 	}
 
-	rsp := make(chan interface{})
+	rsp := make(chan *sm.Response)
 
-	badMsg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Tor{},
-		},
-		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: false,
+	badMsg := &sm.Envelope{
+		Ch:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Tor{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: false,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, badMsg, rsp)
+		r.pdu.Receive(ctx, badMsg)
 	}()
 
-	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
-	assert.NotNil(res)
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
 
-	repairResp, ok := res.(*services.InventoryRepairResp)
-	require.True(ok)
-
-	reason, ok := repairResp.Rsp.(*services.InventoryRepairResp_Failed)
-	require.True(ok)
-
-	assert.Equal(badMsg.Target, repairResp.Source)
-	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+	assert.Error(res.Err)
+	assert.Equal(ErrInvalidTarget, res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
 
 	assert.Equal("working", r.pdu.sm.Current.Name())
 
 	for _, c := range r.pdu.cables {
 		assert.True(c.on)
 	}
-
-	assert.Equal("invalid target specified, request ignored", reason.Failed)
 }
 
 func (ts *PduTestSuite) TestPowerOffPdu() {
@@ -120,34 +129,33 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
-	rsp := make(chan interface{})
+	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Pdu{},
-		},
-		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: false,
+	msg := &sm.Envelope{
+		Ch:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Pdu{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: false,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
-	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
-	assert.NotNil(res)
-
-	repairResp, ok := res.(*services.InventoryRepairResp)
-	require.True(ok)
-
-	_, ok = repairResp.Rsp.(*services.InventoryRepairResp_Dropped)
-	require.True(ok)
-
-	assert.Equal(msg.Target, repairResp.Source)
-	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	require.Error(res.Err)
+	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
@@ -167,34 +175,33 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
-	rsp := make(chan interface{})
+	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Pdu{},
-		},
-		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+	msg := &sm.Envelope{
+		Ch:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Pdu{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
-	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
-	assert.NotNil(res)
-
-	repairResp, ok := res.(*services.InventoryRepairResp)
-	require.True(ok)
-
-	_, ok = repairResp.Rsp.(*services.InventoryRepairResp_Dropped)
-	require.True(ok)
-
-	assert.Equal(msg.Target, repairResp.Source)
-	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	require.Error(res.Err)
+	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
@@ -214,36 +221,34 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
-	rsp := make(chan interface{})
+	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		Ch:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
-	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
-	assert.NotNil(res)
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	assert.NoError(res.Err)
 
-	repairResp, ok := res.(*services.InventoryRepairResp)
-	require.True(ok)
-
-	_, ok = repairResp.Rsp.(*services.InventoryRepairResp_Success)
-	require.True(ok)
-
-	assert.Equal(msg.Target, repairResp.Source)
-	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
 	assert.Equal(common.TickFromContext(ctx), r.pdu.cables[0].Guard)
 	assert.True(r.pdu.cables[0].on)
@@ -264,36 +269,36 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
-	rsp := make(chan interface{})
+	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		Ch:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After:  &ct.Timestamp{Ticks: startTime - 1},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+			After: &ct.Timestamp{Ticks: startTime - 1},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
-	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
-	assert.NotNil(res)
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	require.Error(res.Err)
+	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
 
-	repairResp, ok := res.(*services.InventoryRepairResp)
-	require.True(ok)
-
-	_, ok = repairResp.Rsp.(*services.InventoryRepairResp_Dropped)
-	require.True(ok)
-
-	assert.Equal(msg.Target, repairResp.Source)
-	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
 	assert.Equal(startTime, r.pdu.sm.Guard)
 	assert.Equal(startTime, r.pdu.cables[0].Guard)
 	assert.False(r.pdu.cables[0].on)
@@ -315,37 +320,36 @@ func (ts *PduTestSuite) TestStuckCable() {
 	require.Nil(r.pdu.cables[0].fault(false, startTime, startTime))
 	ctx = common.ContextWithTick(ctx, 2)
 
-	rsp := make(chan interface{})
+	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_BladeId{
-				BladeId: 0,
+	msg := &sm.Envelope{
+		Ch:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack: "",
+				Element: &services.InventoryAddress_BladeId{
+					BladeId: 0,
+				},
 			},
-		},
-		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: true,
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: true,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
-	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
-	assert.NotNil(res)
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	assert.Error(res.Err)
+	assert.Equal(ErrCableStuck, res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
 
-	repairResp, ok := res.(*services.InventoryRepairResp)
-	require.True(ok)
-
-	resp, ok := repairResp.Rsp.(*services.InventoryRepairResp_Failed)
-	require.True(ok)
-	assert.Equal(resp.Failed, "cable is faulted")
-
-	assert.Equal(msg.Target, repairResp.Source)
-	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
 	assert.Equal(startTime, r.pdu.sm.Guard)
 	assert.Equal(startTime, r.pdu.cables[0].Guard)
 	assert.False(r.pdu.cables[0].on)
@@ -368,34 +372,33 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 	require.Nil(r.pdu.cables[0].fault(true, startTime, startTime))
 	ctx = common.ContextWithTick(ctx, 2)
 
-	rsp := make(chan interface{})
+	rsp := make(chan *sm.Response)
 
-	msg := &services.InventoryRepairMsg{
-		Target: &services.InventoryAddress{
-			Rack:    "",
-			Element: &services.InventoryAddress_Pdu{},
-		},
-		After:  &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-		Action: &services.InventoryRepairMsg_Power{
-			Power: false,
+	msg := &sm.Envelope{
+		Ch:   rsp,
+		Span: trace.SpanContext{},
+		Msg:  &services.InventoryRepairMsg{
+			Target: &services.InventoryAddress{
+				Rack:    "",
+				Element: &services.InventoryAddress_Pdu{},
+			},
+			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
+			Action: &services.InventoryRepairMsg_Power{
+				Power: false,
+			},
 		},
 	}
 
 	go func() {
-		r.pdu.Receive(ctx, msg, rsp)
+		r.pdu.Receive(ctx, msg)
 	}()
 
-	res := common.CompleteWithinInterface(rsp, time.Duration(1) * time.Second)
-	assert.NotNil(res)
-
-	repairResp, ok := res.(*services.InventoryRepairResp)
-	require.True(ok)
-
-	_, ok = repairResp.Rsp.(*services.InventoryRepairResp_Dropped)
-	require.True(ok)
-
-	assert.Equal(msg.Target, repairResp.Source)
-	assert.Equal(common.TickFromContext(ctx), repairResp.At.Ticks)
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	require.Error(res.Err)
+	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
