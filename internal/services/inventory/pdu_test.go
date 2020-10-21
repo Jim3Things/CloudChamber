@@ -67,7 +67,6 @@ func execute(ctx context.Context, msg *sm.Envelope, action func(ctx2 context.Con
 
 		c2 = common.ContextWithTick(c2, tick)
 
-
 		action(c2, msg)
 
 		s.End()
