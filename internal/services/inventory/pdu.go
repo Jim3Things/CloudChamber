@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"go.opentelemetry.io/otel/api/trace"
-
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
@@ -160,8 +158,6 @@ func (s *pduWorking) changePower(
 			// turn off the PDU (as this state means that the PDU is on).  And
 			// turning off the PDU means turning off all the cables.
 			if !power.Power {
-				sc := trace.SpanFromContext(ctx).SpanContext()
-
 				for i := range p.cables {
 
 					changed, err := p.cables[i].force(false, after.Ticks, occursAt)
@@ -170,15 +166,14 @@ func (s *pduWorking) changePower(
 						// power is on to this blade.  Turn it off, but tell
 						// the blade to not reply, as the blade action is a
 						// side effect of the PDU change.
-						fwd := &sm.Envelope{
-							Ch:   nil,
-							Span: sc,
-							Msg:  &services.InventoryRepairMsg{
+						fwd := sm.NewEnvelope(
+							ctx,
+							&services.InventoryRepairMsg{
 								Target: target,
 								After:  after,
 								Action: power,
 							},
-						}
+							nil)
 
 						p.holder.forwardToBlade(ctx, i, fwd)
 					}
@@ -204,15 +199,14 @@ func (s *pduWorking) changePower(
 				machine.AdvanceGuard(occursAt)
 
 				if changed {
-					fwd := &sm.Envelope{
-						Ch:   ch,
-						Span: trace.SpanFromContext(ctx).SpanContext(),
-						Msg:  &services.InventoryRepairMsg{
+					fwd := sm.NewEnvelope(
+						ctx,
+						&services.InventoryRepairMsg{
 							Target: target,
 							After:  after,
 							Action: power,
 						},
-					}
+						ch)
 
 					p.holder.forwardToBlade(ctx, id, fwd)
 				}

@@ -6,10 +6,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
@@ -35,6 +35,20 @@ func (ts *PduTestSuite) TearDownTest() {
 	ts.utf.Close()
 }
 
+func createDummyRack(bladeCount int) *pb.ExternalRack {
+	rackDef := &pb.ExternalRack{
+		Pdu:    &pb.ExternalPdu{},
+		Tor:    &pb.ExternalTor{},
+		Blades: make(map[int64]*ct.BladeCapacity),
+	}
+
+	for i := 0; i < bladeCount; i++ {
+		rackDef.Blades[int64(i)] = &ct.BladeCapacity{}
+	}
+
+	return rackDef
+}
+
 func (ts *PduTestSuite) completeWithin(ch <-chan *sm.Response, delay time.Duration) *sm.Response {
 	select {
 	case res := <-ch:
@@ -42,6 +56,22 @@ func (ts *PduTestSuite) completeWithin(ch <-chan *sm.Response, delay time.Durati
 	case <-time.After(delay):
 		return nil
 	}
+}
+
+func execute(ctx context.Context, msg *sm.Envelope, action func(ctx2 context.Context, envelope *sm.Envelope)) {
+	go func(tick int64, msg *sm.Envelope) {
+		c2, s := tracing.StartSpan(context.Background(),
+			tracing.WithName("Executing simulated inventory operation"),
+			tracing.WithNewRoot(),
+			tracing.WithLink(msg.Span, msg.Link))
+
+		c2 = common.ContextWithTick(c2, tick)
+
+
+		action(c2, msg)
+
+		s.End()
+	}(common.TickFromContext(ctx), msg)
 }
 
 func (ts *PduTestSuite) TestCreatePdu() {
@@ -78,16 +108,19 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test bad power target"))
+
 	for i := range r.pdu.cables {
 		r.pdu.cables[i] = newCable(true, false, 0)
 	}
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
+	badMsg := sm.NewEnvelope(
+		ctx,
+		&services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
 				Rack:    "",
 				Element: &services.InventoryAddress_Tor{},
@@ -97,11 +130,11 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 				Power: false,
 			},
 		},
-	}
+		rsp)
 
-	go func() {
-		r.pdu.Receive(ctx, badMsg)
-	}()
+	span.End()
+
+	execute(ctx, badMsg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -129,12 +162,15 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering off a PDU"))
+
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
+	msg := sm.NewEnvelope(
+		ctx,
+		&services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
 				Rack:    "",
 				Element: &services.InventoryAddress_Pdu{},
@@ -144,11 +180,11 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 				Power: false,
 			},
 		},
-	}
+		rsp)
 
-	go func() {
-		r.pdu.Receive(ctx, msg)
-	}()
+	span.End()
+
+	execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -175,12 +211,15 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering on a PDU"))
+
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
+	msg := sm.NewEnvelope(
+		ctx,
+		&services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
 				Rack:    "",
 				Element: &services.InventoryAddress_Pdu{},
@@ -190,11 +229,11 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 				Power: true,
 			},
 		},
-	}
+		rsp)
 
-	go func() {
-		r.pdu.Receive(ctx, msg)
-	}()
+	span.End()
+
+	execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -221,12 +260,15 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering on a blade"))
+
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
+	msg := sm.NewEnvelope(
+		ctx,
+		&services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
 				Rack: "",
 				Element: &services.InventoryAddress_BladeId{
@@ -238,11 +280,11 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 				Power: true,
 			},
 		},
-	}
+		rsp)
 
-	go func() {
-		r.pdu.Receive(ctx, msg)
-	}()
+	span.End()
+
+	execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -269,12 +311,15 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	r := newRack(ctx, rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering on a blade (too late)"))
+
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
+	msg := sm.NewEnvelope(
+		ctx,
+		&services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
 				Rack: "",
 				Element: &services.InventoryAddress_BladeId{
@@ -286,11 +331,11 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 				Power: true,
 			},
 		},
-	}
+		rsp)
 
-	go func() {
-		r.pdu.Receive(ctx, msg)
-	}()
+	span.End()
+
+	execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -320,12 +365,15 @@ func (ts *PduTestSuite) TestStuckCable() {
 	require.Nil(r.pdu.cables[0].fault(false, startTime, startTime))
 	ctx = common.ContextWithTick(ctx, 2)
 
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering on a blade (stuck cable)"))
+
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
+	msg := sm.NewEnvelope(
+		ctx,
+		&services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
 				Rack: "",
 				Element: &services.InventoryAddress_BladeId{
@@ -337,11 +385,11 @@ func (ts *PduTestSuite) TestStuckCable() {
 				Power: true,
 			},
 		},
-	}
+		rsp)
 
-	go func() {
-		r.pdu.Receive(ctx, msg)
-	}()
+	span.End()
+
+	execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -365,19 +413,21 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 	ctx := common.ContextWithTick(context.Background(), 1)
 
 	rackDef := createDummyRack(2)
-
 	r := newRack(ctx, rackDef)
 
 	startTime := common.TickFromContext(ctx)
 	require.Nil(r.pdu.cables[0].fault(true, startTime, startTime))
 	ctx = common.ContextWithTick(ctx, 2)
 
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering off a pdu (stuck cable)"))
+
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
+	msg := sm.NewEnvelope(
+		ctx,
+		&services.InventoryRepairMsg{
 			Target: &services.InventoryAddress{
 				Rack:    "",
 				Element: &services.InventoryAddress_Pdu{},
@@ -387,11 +437,11 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 				Power: false,
 			},
 		},
-	}
+		rsp)
 
-	go func() {
-		r.pdu.Receive(ctx, msg)
-	}()
+	span.End()
+
+	execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -409,18 +459,4 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 
 func TestPduTestSuite(t *testing.T) {
 	suite.Run(t, new(PduTestSuite))
-}
-
-func createDummyRack(bladeCount int) *pb.ExternalRack {
-	rackDef := &pb.ExternalRack{
-		Pdu:    &pb.ExternalPdu{},
-		Tor:    &pb.ExternalTor{},
-		Blades: make(map[int64]*ct.BladeCapacity),
-	}
-
-	for i := 0; i < bladeCount; i++ {
-		rackDef.Blades[int64(i)] = &ct.BladeCapacity{}
-	}
-
-	return rackDef
 }

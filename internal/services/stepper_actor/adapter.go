@@ -17,18 +17,18 @@ import (
 )
 
 const (
-	// This is the standard timeout given for the synchronous processing of the
-	// local actor.  This is used for almost all calls.
+	// ActorTimeout is the standard timeout given for the synchronous
+	// processing of the local actor.  This is used for almost all calls.
 	ActorTimeout = 1 * time.Second
 
-	// This is the value used to indicate no timeout.  This is used for Delay
-	// processing, as that call will wait for an indefinite time (until enough
-	// simulated time passes)
+	// NoTimeout is the value used to indicate no timeout.  This is used for
+	// Delay processing, as that call will wait for an indefinite time (until
+	// enough simulated time passes)
 	NoTimeout = -1 * time.Second
 )
 
-// Define the grpc server that is used solely as an adapter to an attached
-// stepper service actor.
+// servers defines the grpc server that is used solely as an adapter to an
+// attached stepper service actor.
 type server struct {
 	pb.UnimplementedStepperServer
 
@@ -41,8 +41,9 @@ func (s *server) Attach(pid *actor.PID) {
 	s.pid = pid
 }
 
-// Set the default policy.  Note that this is a direct call, not one that
-// passes through the grpc listener.
+// SetDefaultPolicy sets the stepper policy to use when first initialized.
+// Note that this is a direct call, not one that passes through the grpc
+// listener.
 func (s *server) SetDefaultPolicy(p pb.StepperPolicy) error {
 	delay := &duration.Duration{Seconds: 1}
 	if p != pb.StepperPolicy_Measured {
@@ -137,7 +138,7 @@ func asEmpty(res interface{}, err error) (*empty.Empty, error) {
 	return nil, err
 }
 
-// Convert the return pair into (StatusResposne, error) types
+// Convert the return pair into (StatusResponse, error) types
 func asStatusResponse(res interface{}, err error) (*pb.StatusResponse, error) {
 	if err == nil {
 		return res.(*pb.StatusResponse), err
@@ -160,7 +161,13 @@ func msgToError(msg interface{}, err error) (interface{}, error) {
 
 // Get the current span context and encode it into the outgoing message header
 func actorContext(ctx context.Context) *actor.RootContext {
-	spanContext := trace.SpanFromContext(ctx).SpanContext()
+	span := trace.SpanFromContext(ctx)
+	tag, ok := tracing.GetAndMarkLink(span)
+	if ok {
+		tracing.AddLink(ctx, tag)
+	}
+
+	spanContext := span.SpanContext()
 	flags := strconv.Itoa(int(spanContext.TraceFlags))
 
 	return actor.NewRootContext(nil).
@@ -170,6 +177,7 @@ func actorContext(ctx context.Context) *actor.RootContext {
 					envelope.SetHeader(tracing.SourceTraceID, spanContext.TraceID.String())
 					envelope.SetHeader(tracing.SourceSpanID, spanContext.SpanID.String())
 					envelope.SetHeader(tracing.SourceTraceFlgs, flags)
+					envelope.SetHeader(tracing.LinkTagKey, tag)
 
 					next(ctx, target, envelope)
 				}

@@ -27,10 +27,18 @@ func Interceptor(
 	cc *grpc.ClientConn,
 	invoker grpc.UnaryInvoker,
 	opts ...grpc.CallOption) error {
+
+	parent := trace.SpanFromContext(ctx)
+
 	requestMetadata, _ := metadata.FromOutgoingContext(ctx)
 
 	metadataCopy := requestMetadata.Copy()
-	metadataCopy.Set(tracing.InfraSourceKey, parentIsInfra(ctx))
+	metadataCopy.Set(tracing.InfraSourceKey, parentIsInfra(parent))
+
+	if linkTag, ok := tracing.GetAndMarkLink(parent); ok {
+		metadataCopy.Set(tracing.LinkTagKey, linkTag)
+		tracing.AddLink(ctx, linkTag)
+	}
 
 	grpctrace.Inject(ctx, &metadataCopy)
 	ctx = metadata.NewOutgoingContext(ctx, metadataCopy)
@@ -39,7 +47,7 @@ func Interceptor(
 
 	sev, resultMsg := decodeGrpcErr(err)
 
-	trace.SpanFromContext(ctx).AddEvent(
+	parent.AddEvent(
 		ctx,
 		method,
 		kv.Int64(tracing.SeverityKey, int64(sev)),
@@ -73,10 +81,7 @@ func decodeGrpcErr(err error) (log.Severity, string) {
 
 // parentIsInfra returns the string value that denotes whether or not the
 // current active span is an infrastructure span.
-func parentIsInfra(ctx context.Context) string {
-
-	parent := trace.SpanFromContext(ctx)
-
+func parentIsInfra(parent trace.Span) string {
 	if s, ok := parent.(tracing.SpanEx); ok {
 		if s.Mask(trace.SpanKindServer) == trace.SpanKindInternal {
 			return tracing.IsInfraSource
@@ -85,3 +90,4 @@ func parentIsInfra(ctx context.Context) string {
 
 	return tracing.IsNotInfraSource
 }
+

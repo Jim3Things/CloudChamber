@@ -30,17 +30,47 @@ enum impact {
     Execute = 5;
 }
 
+// Describe the actions to take when reading an event entry.
 enum action {
+    // Trace is the most common type of event.  The contents are added to a serial
+    // list in the span, and the formatters will display the entry's data as a
+    // child trace event.
     Trace = 0;
+
+    // UpdateSpanName and UpdateReason are directives to edit the containing span
+    // information.  The first replaces the span's name field, and the second
+    // replaces the span's reason text. This allows for better descriptions for a
+    // span once the details have been better understood - e.g. 'logging in a user'
+    // vs. 'logging in user "admin"'.
     UpdateSpanName = 1;
     UpdateReason = 2;
+
+    // SpanStart is used to place the child span in the correct spot in the
+    // sequence of events in the containing span.  It identifies the child span's
+    // ID.  Structured formatters will expand the child span at this point in the
+    // sequence in order to keep a time order.  Note that parent/child span
+    // relationships are strong - they can safely assume that both spans will
+    // complete, they will execute in the same process, and that completion of the
+    // overall trace ID is not complete until both are complete.
     SpanStart = 3;
+
+    // AddLink is used to place a the request point that may result in a linked
+    // span.  It has an associated ID that is assigned by the active span at the
+    // point of the request, as the future linked span id cannot yet be known.
+    // Note that linked spans have a much looser relationship than parent/child
+    // spans.  The linked span may not be required to complete a logical trace
+    // sequence.  It may not execute in the same process as the initiator.  It
+    // may not even execute.  Consequently, structured formatters consider the
+    // linked information as soft (optional) parent/child relationships.  If they
+    // can put them into a logical execution tree, they do so.  If they cannot,
+    // then they do not.
+    AddLink = 4;
 }
 
 enum severity {
     Debug = 0;
 
-    // This is the severity use to denote an explanatory entry
+    // This is the severity use to denote a purely explanatory entry
     Reason = 1;
 
     Info = 2;
@@ -80,6 +110,9 @@ message event {
 
     // Child's span ID.  Ignored if the action is not SpanStart.
     string span_id = 8;
+
+    // Outgoing link ID.  Ignored if the action is not AddLink.
+    string link_id = 9;
 }
 
 // Describe a full correlated span, consisting of zero or more events.
@@ -107,4 +140,13 @@ message entry {
     // Friendly string describing the purpose of the logic covered by this
     // entry.
     string reason = 9;
+
+    // The link tag associated with an AddLink event at the source span,
+    // if present.
+    string starting_link = 10;
+
+    // The link span ID and trace ID identify the active span at the point
+    // where the request to start a new related span was made.
+    string link_spanID = 11;
+    string link_traceID = 12;
 }
