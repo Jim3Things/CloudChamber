@@ -14,6 +14,9 @@ const (
 	SourceSpanID    = "cc-starting-span-span-id"
 	SourceTraceFlgs = "cc-starting-span-trace-flags"
 
+	// link tracking keys
+	LinkTagKey      = "cc-link-tag"
+
 	// rpc injection keys
 	InfraSourceKey  = "cc-infra"
 

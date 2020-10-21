@@ -3,8 +3,6 @@ package inventory
 import (
 	"context"
 
-	"go.opentelemetry.io/otel/api/trace"
-
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
@@ -45,8 +43,8 @@ type stopSim struct {}
 
 // newRack creates a new simulated rack using the supplied inventory definition
 // entries to determine its structure.  The resulting rack is healthy, not yet
-// started, all blades are powered off, and all network connections are
-// unprogrammed.
+// started, all blades are powered off, and all network connections are not yet
+// programmed.
 func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
 	return newRackInternal(ctx, def, newPdu, newTor)
 }
@@ -97,11 +95,7 @@ func (r *rack) start(ctx context.Context) error {
 
 	repl := make(chan *sm.Response)
 
-	r.ch <- &sm.Envelope{
-		Ch:   repl,
-		Span: trace.SpanFromContext(ctx).SpanContext(),
-		Msg:  &startSim{},
-	}
+	r.ch <- sm.NewEnvelope(ctx, &startSim{}, repl)
 
 	res := <- repl
 
@@ -116,11 +110,7 @@ func (r *rack) start(ctx context.Context) error {
 func (r *rack) stop(ctx context.Context) {
 	repl := make(chan *sm.Response)
 
-	r.ch <- &sm.Envelope{
-		Ch:   repl,
-		Span: trace.SpanFromContext(ctx).SpanContext(),
-		Msg:  &stopSim{},
-	}
+	r.ch <- sm.NewEnvelope(ctx, &stopSim{}, repl)
 
 	<-repl
 }
@@ -128,11 +118,7 @@ func (r *rack) stop(ctx context.Context) {
 // Receive handles incoming requests from outside, forwarding to the rack's
 // state machine handler.
 func (r *rack) Receive(ctx context.Context, msg interface{}, ch chan *sm.Response) {
-	r.ch <- &sm.Envelope{
-		Ch:   ch,
-		Span: trace.SpanFromContext(ctx).SpanContext(),
-		Msg:  msg,
-	}
+	r.ch <- sm.NewEnvelope(ctx, msg, ch)
 }
 
 // simulate is the main function for the rack simulation.
@@ -143,7 +129,7 @@ func (r *rack) simulate() {
 		ctx, span := tracing.StartSpan(context.Background(),
 			tracing.WithName("Executing simulated inventory operation"),
 			tracing.WithNewRoot(),
-			tracing.WithLink(msg.Span),
+			tracing.WithLink(msg.Span, msg.Link),
 			tracing.WithContextValue(timestamp.EnsureTickInContext))
 
 		r.sm.Current.Receive(ctx, r.sm, msg)
@@ -166,7 +152,8 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 
 	switch body := msg.Msg.(type) {
 	case *startSim:
-		// Start the rack simulation
+		tracing.Info(ctx, "Starting the rack simulation")
+
 		err := r.sm.Start(ctx)
 		if err == nil {
 			err = machine.ChangeState(ctx, rackWorkingState)
@@ -179,7 +166,8 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 		}
 
 	case *stopSim:
-		// Stop the rack simulation
+		tracing.Info(ctx, "Stopping the rack simulation")
+
 		msg.Ch <- &sm.Response {
 			Err: machine.ChangeState(ctx, rackTerminalState),
 			At:  at,
@@ -187,7 +175,8 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 		}
 
 	default:
-		// All other requests are illegal
+		_ = tracing.Error(ctx, "Encountered an unexpected message: %v", body)
+
 		msg.Ch <- unexpectedMessageResponse(s, at, body)
 	}
 }

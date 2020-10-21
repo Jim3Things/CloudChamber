@@ -4,8 +4,6 @@ import (
 	"context"
 
 	"go.opentelemetry.io/otel/api/correlation"
-	"go.opentelemetry.io/otel/api/global"
-	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/instrumentation/grpctrace"
 	"google.golang.org/grpc"
@@ -24,19 +22,17 @@ func Interceptor(
 	metadataCopy := requestMetadata.Copy()
 
 	kind := calculateKind(metadataCopy.Get(tracing.InfraSourceKey), trace.SpanKindServer)
+	tag := calculateTag(metadataCopy.Get(tracing.LinkTagKey))
 
 	entries, spanCtx := grpctrace.Extract(ctxIn, &metadataCopy)
 	ctx := correlation.ContextWithMap(ctxIn, correlation.NewMap(correlation.MapUpdate { MultiKV: entries }))
 
-	tr := global.TraceProvider().Tracer("")
-
-	ctx, span := tr.Start(
+	ctx, span := tracing.StartSpan(
 		ctx,
-		info.FullMethod,
-		trace.WithSpanKind(kind),
-		trace.WithNewRoot(),
-		trace.LinkedTo(spanCtx),
-		trace.WithAttributes(kv.String(tracing.StackTraceKey, tracing.StackTrace())),
+		tracing.WithName(info.FullMethod),
+		tracing.WithKind(kind),
+		tracing.WithNewRoot(),
+		tracing.WithLink(spanCtx, tag),
 	)
 	defer span.End()
 
@@ -52,4 +48,12 @@ func calculateKind(values []string, kind trace.SpanKind) trace.SpanKind {
 	}
 
 	return trace.SpanKindInternal
+}
+
+func calculateTag(values []string) string {
+	if len(values) != 1 {
+		return ""
+	}
+
+	return values[0]
 }

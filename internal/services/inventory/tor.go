@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 
-	"go.opentelemetry.io/otel/api/trace"
-
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
@@ -137,15 +135,14 @@ func (s *torWorking) changeConnection(
 				machine.AdvanceGuard(occursAt)
 
 				if changed {
-					fwd := &sm.Envelope{
-						Ch:   ch,
-						Span: trace.SpanFromContext(ctx).SpanContext(),
-						Msg:  &services.InventoryRepairMsg{
+					fwd := sm.NewEnvelope(
+						ctx,
+						&services.InventoryRepairMsg{
 							Target: target,
 							After:  after,
 							Action: connect,
 						},
-					}
+						ch)
 
 					t.holder.forwardToBlade(ctx, id, fwd)
 				}

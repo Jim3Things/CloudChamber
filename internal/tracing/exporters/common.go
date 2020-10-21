@@ -33,6 +33,9 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 		Status:         fmt.Sprintf("%v: %v", data.StatusCode, data.StatusMessage),
 		StackTrace:     "",
 		Reason:         "",
+		StartingLink:   "",
+		LinkSpanID:     "",
+		LinkTraceID:    "",
 	}
 
 	for _, attr := range data.Attributes {
@@ -42,6 +45,13 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 		case tracing.ReasonKey:
 			entry.Reason = attr.Value.AsString()
+
+		case tracing.LinkTagKey:
+			entry.StartingLink = attr.Value.AsString()
+			if len(data.Links) > 0 {
+				entry.LinkSpanID = data.Links[0].SpanID.String()
+				entry.LinkTraceID = data.Links[0].TraceID.String()
+			}
 		}
 	}
 
@@ -69,6 +79,9 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 			case tracing.ChildSpanKey:
 				item.SpanId = attr.Value.AsString()
 
+			case tracing.LinkTagKey:
+				item.LinkId = attr.Value.AsString()
+
 			case tracing.ActionKey:
 				item.EventAction = log.Action(attr.Value.AsInt64())
 			}
@@ -95,9 +108,10 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 	stack := doIndent(entry.GetStackTrace(), tab)
 
 	return doIndent(fmt.Sprintf(
-		"[%s:%s]%s%s %s %s(%s):\n%s\n",
+		"[%s:%s]%s%s%s %s %s(%s):\n%s\n",
 		entry.GetSpanID(),
 		entry.GetParentID(),
+		formatLink(entry.GetStartingLink(), entry.GetLinkSpanID(), entry.GetLinkTraceID()),
 		deferredFlag(deferred),
 		infraFlag(entry.GetInfrastructure()),
 		entry.GetStatus(),
@@ -110,11 +124,16 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 // formatted information about that event.  Also used by exporters that emit
 // the trace events to a text-based stream.
 func formatEvent(event *log.Event, leader string) string {
-	if event.EventAction == log.Action_SpanStart {
-		return strings.TrimSuffix(formatSpanStart(event, leader), leader)
-	}
+	switch event.EventAction {
+	case log.Action_AddLink:
+		return strings.TrimSuffix(formatAddLink(event, leader), leader)
 
-	return strings.TrimSuffix(formatNormalEvent(event, leader), leader)
+	case log.Action_SpanStart:
+		return strings.TrimSuffix(formatSpanStart(event, leader), leader)
+
+	default:
+		return strings.TrimSuffix(formatNormalEvent(event, leader), leader)
+	}
 }
 
 // formatSpanStart produces a string for a 'create child span' event
@@ -132,6 +151,23 @@ func formatSpanStart(event *log.Event, leader string) string {
 		"  @%4d: Start Child Span: %s\n%s\n",
 		event.GetTick(),
 		event.GetSpanId(),
+		stack), leader)
+}
+
+func formatAddLink(event *log.Event, leader string) string {
+	stack := tab + strings.ReplaceAll(event.GetStackTrace(), "\n", "\n"+tab)
+
+	if event.GetTick() < 0 {
+		return doIndent(fmt.Sprintf(
+			"       : Add link: %s\n%s\n",
+			event.GetLinkId(),
+			stack), leader)
+	}
+
+	return doIndent(fmt.Sprintf(
+		"  @%4d: Add link: %s\n%s\n",
+		event.GetTick(),
+		event.GetLinkId(),
 		stack), leader)
 }
 
@@ -194,6 +230,14 @@ func infraFlag(value bool) string {
 func deferredFlag(value bool) string {
 	if value {
 		return " (deferred)"
+	}
+
+	return ""
+}
+
+func formatLink(tag string, spanID string, traceID string) string {
+	if len(tag) > 0 {
+		return fmt.Sprintf("<-[%s:%s@%s] ", spanID, traceID, tag)
 	}
 
 	return ""

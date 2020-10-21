@@ -4,15 +4,22 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	log2 "log"
+	"log"
+	"sync/atomic"
 
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
+	pbl "github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
+
+// linkID is a global number that is used to ensure that add-link traces and
+// associated link-tag values are unique, at least within a span.  Using a
+// global like this, with an atomic update, avoids modifying the SpanEx state,
+// and the resulting need to create a new updated context.
+var linkID int64 = 0
 
 // SpanEx extends the OpenTelemetry Span structure with additional features
 // needed by CloudChamber
@@ -46,6 +53,7 @@ type startSpanConfig struct {
 	decorations []decorator
 	reason      string
 	link        trace.SpanContext
+	linkTag		string
 	newRoot     bool
 }
 
@@ -66,6 +74,13 @@ func AsInternal() StartSpanOption {
 	}
 }
 
+// WithKind sets the span kind to that specified in the argument.
+func WithKind(kind trace.SpanKind) StartSpanOption {
+	return func(cfg *startSpanConfig) {
+		cfg.kind = kind
+	}
+}
+
 // WithContextValue decorates the resulting context using the supplied function
 func WithContextValue(action decorator) StartSpanOption {
 	return func(cfg *startSpanConfig) {
@@ -82,9 +97,10 @@ func WithReason(reason string) StartSpanOption {
 }
 
 // WithLink adds a link-to target, if there is one, to the span.
-func WithLink(sc trace.SpanContext) StartSpanOption {
+func WithLink(sc trace.SpanContext, tag string) StartSpanOption {
 	return func(cfg *startSpanConfig) {
 		cfg.link = sc
+		cfg.linkTag = tag
 	}
 }
 
@@ -94,6 +110,18 @@ func WithLink(sc trace.SpanContext) StartSpanOption {
 func mayLinkTo(sc trace.SpanContext) trace.StartOption {
 	if sc.HasSpanID() && sc.HasTraceID() {
 		return trace.LinkedTo(sc)
+	}
+
+	return nullOption()
+}
+
+// mayLinkTag is a parallel helper function that supplied teh unique add-link
+// value to allow for this span to be correctly placed relative to the caller's
+// sequence of actions.  If no such tag is present, this adds nothing to the
+// start span operation.
+func mayLinkTag(tag string) trace.StartOption {
+	if len(tag) > 0 {
+		return trace.WithAttributes(kv.String(LinkTagKey, tag))
 	}
 
 	return nullOption()
@@ -136,6 +164,7 @@ func StartSpan(
 		tick:        -1,
 		decorations: []decorator{},
 		link:        trace.SpanContext{},
+		linkTag:     "",
 		newRoot:     false,
 
 	}
@@ -155,6 +184,7 @@ func StartSpan(
 	ctxChild, span := tr.Start(ctx, cfg.name,
 		trace.WithSpanKind(cfg.kind),
 		mayLinkTo(cfg.link),
+		mayLinkTag(cfg.linkTag),
 		mayNewRoot(cfg.newRoot),
 		trace.WithAttributes(kv.String(ReasonKey, cfg.reason)),
 		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
@@ -163,16 +193,16 @@ func StartSpan(
 		parent.AddEvent(
 			ctxChild,
 			cfg.name,
-			kv.Int64(ActionKey, int64(log.Action_SpanStart)),
+			kv.Int64(ActionKey, int64(pbl.Action_SpanStart)),
 			kv.Int64(StepperTicksKey, cfg.tick),
-			kv.Int64(SeverityKey, int64(log.Severity_Info)),
+			kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 			kv.String(StackTraceKey, StackTrace()),
 			kv.String(ChildSpanKey, span.SpanContext().SpanID.String()))
 	}
 
 	ccSpan := SpanEx{
-		Span:       span,
-		isInternal: cfg.kind == trace.SpanKindInternal,
+		Span:        span,
+		isInternal:  cfg.kind == trace.SpanKindInternal,
 	}
 
 	for _, action := range cfg.decorations {
@@ -189,9 +219,9 @@ func UpdateSpanName(ctx context.Context, a ...interface{}) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
-		kv.Int64(ActionKey, int64(log.Action_UpdateSpanName)),
+		kv.Int64(ActionKey, int64(pbl.Action_UpdateSpanName)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Info)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, formatIf(a...)))
 }
@@ -202,11 +232,38 @@ func UpdateSpanReason(ctx context.Context, a ...interface{}) {
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
 		MethodName(2),
-		kv.Int64(ActionKey, int64(log.Action_UpdateReason)),
+		kv.Int64(ActionKey, int64(pbl.Action_UpdateReason)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Info)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, formatIf(a...)))
+}
+
+// AddLink adds an event that marks the point where a request was made that may
+// result in a related span.  This contains the unique link tag that the target
+// span should also provide, with the intention that a structured formatter can
+// place that target span in the correct place in the execution sequence.
+func AddLink(ctx context.Context, tag string) {
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		kv.Int64(ActionKey, int64(pbl.Action_AddLink)),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(LinkTagKey, tag))
+}
+
+// GetAndMarkLink returns a string link tag, assuming that this is an extended
+// span.
+func GetAndMarkLink(parent trace.Span) (string, bool) {
+	if _, ok := parent.(SpanEx); ok {
+		val := atomic.AddInt64(&linkID, 1)
+
+		return fmt.Sprintf("link-%d", val), true
+	}
+
+	return "", false
 }
 
 // There should be an Xxx method for every severity level, plus some specific
@@ -222,7 +279,7 @@ func Info(ctx context.Context, a ...interface{}) {
 		ctx,
 		MethodName(2),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Info)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, formatIf(a...)))
 }
@@ -234,7 +291,7 @@ func OnEnter(ctx context.Context, msg string) {
 		ctx,
 		fmt.Sprintf("On %q entry", MethodName(2)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Info)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, msg))
 }
@@ -245,7 +302,7 @@ func Warn(ctx context.Context, a ...interface{}) {
 		ctx,
 		MethodName(2),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Warning)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, formatIf(a...)))
 }
@@ -271,7 +328,7 @@ func Error(ctx context.Context, a ...interface{}) error {
 
 // Fatal traces the error, and then terminates the process.
 func Fatal(ctx context.Context, a ...interface{}) {
-	log2.Fatal(Error(ctx, a))
+	log.Fatal(Error(ctx, a))
 }
 
 // --- Exported trace invocation methods
@@ -284,7 +341,7 @@ func logError(ctx context.Context, err error) error {
 		ctx,
 		fmt.Sprintf("Error from %q", MethodName(3)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(log.Severity_Error)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Error)),
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, err.Error()))
 

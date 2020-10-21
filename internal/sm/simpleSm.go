@@ -20,8 +20,29 @@ type Envelope struct {
 	// request.
 	Span trace.SpanContext
 
+	// Link is the link tag to associate the caller's span with the execution
+	// span.
+	Link string
+
 	// Msg is the incoming request itself.
 	Msg interface{}
+}
+
+// NewEnvelope creates a new Envelope instance with the span linkage, body, and
+// reply channels correctly established.
+func NewEnvelope(ctx context.Context, msg interface{}, ch chan *Response) *Envelope {
+	span := trace.SpanFromContext(ctx)
+	tag, ok := tracing.GetAndMarkLink(span)
+	if ok {
+		tracing.AddLink(ctx, tag)
+	}
+
+	return &Envelope {
+		Ch:   ch,
+		Span: span.SpanContext(),
+		Link: tag,
+		Msg:  msg,
+	}
 }
 
 // Response holds the completion response for a processed request, whether it
@@ -41,7 +62,7 @@ type Response struct {
 }
 
 // UnexpectedMessage is the standard error when an incoming request arrives in
-// a state that is not expecteding it.
+// a state that is not expecting it.
 type UnexpectedMessage struct {
 	Msg   string
 	State string
@@ -103,6 +124,7 @@ func (*TerminalState) Enter(_ context.Context, sm *SimpleSM) error {
 	return nil
 }
 
+// Name returns the string identifying the terminal state
 func (*TerminalState) Name() string { return "Terminated" }
 
 // SimpleSM defines a simplified state machine structure. It assumes that the
@@ -177,7 +199,12 @@ func NewSimpleSM(parent interface{}, decls ...StateDecl) *SimpleSM {
 // ChangeState changes the current state.  Leave the old state, try to
 // enter the new state, and declare that state as current if successful.
 func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
-	tracing.Info(ctx, "Change state to %q", sm.States[newState].Name())
+	tracing.Info(
+		ctx,
+		"Change state from %q to %q",
+		sm.Current.Name(),
+		sm.States[newState].Name())
+
 	cur := sm.Current
 	cur.Leave(ctx, nil)
 
@@ -189,6 +216,7 @@ func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
 	sm.CurrentIndex = newState
 	sm.Current = cur
 	sm.AdvanceGuard(common.TickFromContext(ctx))
+
 	return nil
 }
 
