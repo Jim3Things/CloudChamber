@@ -11,286 +11,284 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
+type InventoryTestSuite struct {
+	testSuiteCore
+}
+
+func (ts *InventoryTestSuite) racksPath() string { return ts.baseURI + "/api/racks/" }
+
 // First DBInventory unit test
-func TestInventoryListRacks(t *testing.T) {
+func (ts *InventoryTestSuite) TestListRacks() {
+	assert := ts.Assert()
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-
-	request := httptest.NewRequest("GET", "/api/racks/", nil)
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	request := httptest.NewRequest("GET", ts.racksPath(), nil)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
 	list := &pb.ExternalZoneSummary{}
-	err := getJSONBody(response, list)
-	assert.Nilf(t, err, "Failed to convert racks list to valid json.  err: %v", err)
+	err := ts.getJSONBody(response, list)
+	assert.Nilf(err, "Failed to convert racks list to valid json.  err: %v", err)
 
-	assert.Equal(t, int64(8), list.MaxBladeCount)
-	assert.Equal(t, int64(32), list.MaxCapacity.Cores)
-	assert.Equal(t, int64(16834), list.MaxCapacity.MemoryInMb)
-	assert.Equal(t, int64(240), list.MaxCapacity.DiskInGb)
-	assert.Equal(t, int64(2*1024), list.MaxCapacity.NetworkBandwidthInMbps)
-	assert.Equal(t, 8, len(list.Racks))
+	assert.Equal(int64(8), list.MaxBladeCount)
+	assert.Equal(int64(32), list.MaxCapacity.Cores)
+	assert.Equal(int64(16834), list.MaxCapacity.MemoryInMb)
+	assert.Equal(int64(240), list.MaxCapacity.DiskInGb)
+	assert.Equal(int64(2*1024), list.MaxCapacity.NetworkBandwidthInMbps)
+	assert.Equal(8, len(list.Racks))
 
 	r, ok := list.Racks["rack1"]
-	assert.True(t, ok)
-	assert.Equal(t, "/api/racks/rack1", r.Uri)
+	assert.True(ok)
+	assert.Equal(ts.racksPath()+"rack1", r.Uri)
 
 	r, ok = list.Racks["rack2"]
-	assert.True(t, ok)
-	assert.Equal(t, "/api/racks/rack2", r.Uri)
+	assert.True(ok)
+	assert.Equal(ts.racksPath()+"rack2", r.Uri)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 // Inventory rack read test
-func TestInventoryRackRead(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestRackRead() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/Rack1"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "Rack1"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
+	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	rack := &pb.ExternalRack{}
-	err := getJSONBody(response, rack)
-	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+	err := ts.getJSONBody(response, rack)
+	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, 8, len(rack.Blades))
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal(8, len(rack.Blades))
 	_, ok := rack.Blades[1]
-	assert.True(t, ok, "Blade 1 not found")
+	assert.True(ok, "Blade 1 not found")
 	_, ok = rack.Blades[2]
-	assert.True(t, ok, "Blade 2 not found")
+	assert.True(ok, "Blade 2 not found")
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 // Reading a rack that does not exist - should get status not found error
-func TestInventoryUnknownRack(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestUnknownRack() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/Rack9"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "Rack9"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryListBlades(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestListBlades() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", "/api/racks/rack1/blades", nil)
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	request := httptest.NewRequest("GET", ts.racksPath()+"rack1/blades", nil)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	body, err := getBody(response)
-	assert.Equal(t, "text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
-	s := string(body)                   // Converted into a string
-	var splits = strings.Split(s, "\n") // Created an array per line
+	body, err := ts.getBody(response)
+	assert.Equal("text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
+
+	var splits = strings.Split(string(body), "\n") // Created an array per line
 
 	expected := []string{
-		"/api/racks/rack1/blades/1",
-		"/api/racks/rack1/blades/2",
-		"/api/racks/rack1/blades/3",
-		"/api/racks/rack1/blades/4",
-		"/api/racks/rack1/blades/5",
-		"/api/racks/rack1/blades/6",
-		"/api/racks/rack1/blades/7",
-		"/api/racks/rack1/blades/8",
+		ts.racksPath() + "rack1/blades/1",
+		ts.racksPath() + "rack1/blades/2",
+		ts.racksPath() + "rack1/blades/3",
+		ts.racksPath() + "rack1/blades/4",
+		ts.racksPath() + "rack1/blades/5",
+		ts.racksPath() + "rack1/blades/6",
+		ts.racksPath() + "rack1/blades/7",
+		ts.racksPath() + "rack1/blades/8",
 		"",
 	}
 
-	assert.Equal(t, splits[0], "Blades in \"rack1\" (List)")
-	assert.ElementsMatch(t, expected, splits[1:])
+	assert.Equal(splits[0], "Blades in \"rack1\" (List)")
+	assert.ElementsMatch(expected, splits[1:])
 
-	assert.Nil(t, err)
+	assert.NoError(err)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryUnknownBlade(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestUnknownBlade() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/9"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/9"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryNegativeBlade(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestNegativeBlade() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/-1"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/-1"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryZeroBlade(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestZeroBlade() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/0"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/0"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryStringBlade(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestStringBlade() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/Jeff"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/Jeff"), nil)
 	request.Header.Set("Content-Type", "application/json")
-	response = doHTTP(request, response.Cookies())
+	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned the expected error: %d", response.StatusCode)
+	assert.Equal(
+		http.StatusBadRequest,
+		response.StatusCode,
+		"Handler returned the expected error: %d", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryBadRackBlade(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestBadRackBlade() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack9/blades/2"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack9/blades/2"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryBladeRead(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestBladeRead() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/1"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/1"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
 
 	blade := &common.BladeCapacity{}
-	err := getJSONBody(response, blade)
-	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+	err := ts.getJSONBody(response, blade)
+	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, int64(16), blade.Cores)
-	assert.Equal(t, int64(16834), blade.MemoryInMb)
-	assert.Equal(t, "X64", blade.Arch)
-	assert.Equal(t, int64(240), blade.DiskInGb)
-	assert.Equal(t, int64(2048), blade.NetworkBandwidthInMbps)
-	assert.Equal(t, 0, len(blade.Accelerators))
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal(int64(16), blade.Cores)
+	assert.Equal(int64(16834), blade.MemoryInMb)
+	assert.Equal("X64", blade.Arch)
+	assert.Equal(int64(240), blade.DiskInGb)
+	assert.Equal(int64(2048), blade.NetworkBandwidthInMbps)
+	assert.Equal(0, len(blade.Accelerators))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
-
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestInventoryBlade2Read(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestBlade2Read() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, "/api/racks/rack1/blades/2"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/2"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
+	response = ts.doHTTP(request, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
 
 	blade := &common.BladeCapacity{}
-	err := getJSONBody(response, blade)
-	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+	err := ts.getJSONBody(response, blade)
+	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, int64(32), blade.Cores)
-	assert.Equal(t, int64(16834), blade.MemoryInMb)
-	assert.Equal(t, "X64", blade.Arch)
-	assert.Equal(t, int64(120), blade.DiskInGb)
-	assert.Equal(t, int64(2048), blade.NetworkBandwidthInMbps)
-	assert.Equal(t, 0, len(blade.Accelerators))
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal(int64(32), blade.Cores)
+	assert.Equal(int64(16834), blade.MemoryInMb)
+	assert.Equal("X64", blade.Arch)
+	assert.Equal(int64(120), blade.DiskInGb)
+	assert.Equal(int64(2048), blade.NetworkBandwidthInMbps)
+	assert.Equal(0, len(blade.Accelerators))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-// The purpose of this test is to check that the Inventory function get executed in a valid & established http session only
-func TestInventoryNoSession(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+// The purpose of this test is to check that the Inventory function get
+// executed in a valid & established http session only
+func (ts *InventoryTestSuite) TestNoSession() {
+	assert := ts.Assert()
 
-	request := httptest.NewRequest("GET", "/api/racks/", nil)
-	response := doHTTP(request, nil)
+	request := httptest.NewRequest("GET", ts.racksPath(), nil)
+	response := ts.doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+	assert.Equal(http.StatusForbidden, response.StatusCode,
 		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
 }
 
-func TestInventoryNoSessionRack(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestNoSessionRack() {
+	assert := ts.Assert()
 
-	request := httptest.NewRequest("GET", "/api/racks/rack1", nil)
-	response := doHTTP(request, nil)
+	request := httptest.NewRequest("GET", ts.racksPath()+"rack1", nil)
+	response := ts.doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+	assert.Equal(http.StatusForbidden, response.StatusCode,
 		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
 }
 
-func TestInventoryNoSessionBlade(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *InventoryTestSuite) TestNoSessionBlade() {
+	assert := ts.Assert()
 
-	request := httptest.NewRequest("GET", "/api/racks/rack1/Blades/1", nil)
-	response := doHTTP(request, nil)
+	request := httptest.NewRequest("GET", ts.racksPath()+"rack1/Blades/1", nil)
+	response := ts.doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode,
+	assert.Equal(http.StatusForbidden, response.StatusCode,
 		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
+}
+
+func TestInventoryTestSuite(t *testing.T) {
+	suite.Run(t, new(InventoryTestSuite))
 }
