@@ -153,7 +153,8 @@ func (ts *testSuiteCore) getJSONBody(resp *http.Response, v proto.Message) error
 //  b) that string fully upper-cased
 //  c) that string fully lower-cased
 //
-// This allows validation that case insensitive string handling is.
+// This allows validation that case insensitive string handling is functioning
+// correctly.
 func (ts *testSuiteCore) randomCase(val string) string {
 	switch rand.Intn(3) {
 	case 0:

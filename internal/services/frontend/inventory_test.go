@@ -22,6 +22,11 @@ type InventoryTestSuite struct {
 }
 
 func (ts *InventoryTestSuite) racksPath() string { return ts.baseURI + "/api/racks/" }
+func (ts *InventoryTestSuite) rackInPath(rack string) string { return ts.racksPath() + rack + "/"}
+func (ts *InventoryTestSuite) bladesInPath(rack string) string { return ts.rackInPath(rack) + "blades/"}
+func (ts *InventoryTestSuite) bladeInPath(rack string, bladeID int) string {
+	return fmt.Sprintf("%s%d", ts.bladesInPath(rack), bladeID)
+}
 
 // First DBInventory unit test
 func (ts *InventoryTestSuite) TestListRacks() {
@@ -47,11 +52,11 @@ func (ts *InventoryTestSuite) TestListRacks() {
 
 	r, ok := list.Racks["rack1"]
 	assert.True(ok)
-	assert.Equal(ts.racksPath()+"rack1", r.Uri)
+	assert.Equal(ts.rackInPath("rack1"), r.Uri)
 
 	r, ok = list.Racks["rack2"]
 	assert.True(ok)
-	assert.Equal(ts.racksPath()+"rack2", r.Uri)
+	assert.Equal(ts.rackInPath("rack2"), r.Uri)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -62,7 +67,7 @@ func (ts *InventoryTestSuite) TestRackRead() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "Rack1"), nil)
+	request := httptest.NewRequest("GET", ts.rackInPath("Rack1"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -89,7 +94,7 @@ func (ts *InventoryTestSuite) TestUnknownRack() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "Rack9"), nil)
+	request := httptest.NewRequest("GET", ts.rackInPath("Rack9"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -103,7 +108,7 @@ func (ts *InventoryTestSuite) TestListBlades() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", ts.racksPath()+"rack1/blades", nil)
+	request := httptest.NewRequest("GET", ts.bladesInPath("rack1"), nil)
 	response = ts.doHTTP(request, response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
@@ -113,14 +118,14 @@ func (ts *InventoryTestSuite) TestListBlades() {
 	var splits = strings.Split(string(body), "\n") // Created an array per line
 
 	expected := []string{
-		ts.racksPath() + "rack1/blades/1",
-		ts.racksPath() + "rack1/blades/2",
-		ts.racksPath() + "rack1/blades/3",
-		ts.racksPath() + "rack1/blades/4",
-		ts.racksPath() + "rack1/blades/5",
-		ts.racksPath() + "rack1/blades/6",
-		ts.racksPath() + "rack1/blades/7",
-		ts.racksPath() + "rack1/blades/8",
+		ts.bladeInPath("rack1", 1),
+		ts.bladeInPath("rack1", 2),
+		ts.bladeInPath("rack1", 3),
+		ts.bladeInPath("rack1", 4),
+		ts.bladeInPath("rack1", 5),
+		ts.bladeInPath("rack1", 6),
+		ts.bladeInPath("rack1", 7),
+		ts.bladeInPath("rack1", 8),
 		"",
 	}
 
@@ -137,7 +142,7 @@ func (ts *InventoryTestSuite) TestUnknownBlade() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/9"), nil)
+	request := httptest.NewRequest("GET", ts.bladeInPath("rack1", 9), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -151,7 +156,7 @@ func (ts *InventoryTestSuite) TestNegativeBlade() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/-1"), nil)
+	request := httptest.NewRequest("GET", ts.bladeInPath("rack1", -1), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -165,7 +170,7 @@ func (ts *InventoryTestSuite) TestZeroBlade() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/0"), nil)
+	request := httptest.NewRequest("GET", ts.bladeInPath("rack1", 0), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -179,7 +184,7 @@ func (ts *InventoryTestSuite) TestStringBlade() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/Jeff"), nil)
+	request := httptest.NewRequest("GET", ts.bladesInPath("rack1") + "Jeff", nil)
 	request.Header.Set("Content-Type", "application/json")
 	response = ts.doHTTP(request, response.Cookies())
 
@@ -196,7 +201,7 @@ func (ts *InventoryTestSuite) TestBadRackBlade() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack9/blades/2"), nil)
+	request := httptest.NewRequest("GET", ts.bladeInPath("rack9", 2), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -210,7 +215,7 @@ func (ts *InventoryTestSuite) TestBladeRead() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/1"), nil)
+	request := httptest.NewRequest("GET", ts.bladeInPath("rack1", 1), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -236,7 +241,7 @@ func (ts *InventoryTestSuite) TestBlade2Read() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.racksPath(), "rack1/blades/2"), nil)
+	request := httptest.NewRequest("GET", ts.bladeInPath("rack1", 2), nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
@@ -272,7 +277,7 @@ func (ts *InventoryTestSuite) TestNoSession() {
 func (ts *InventoryTestSuite) TestNoSessionRack() {
 	assert := ts.Assert()
 
-	request := httptest.NewRequest("GET", ts.racksPath()+"rack1", nil)
+	request := httptest.NewRequest("GET", ts.rackInPath("rack1"), nil)
 	response := ts.doHTTP(request, nil)
 
 	assert.Equal(http.StatusForbidden, response.StatusCode,
@@ -282,7 +287,7 @@ func (ts *InventoryTestSuite) TestNoSessionRack() {
 func (ts *InventoryTestSuite) TestNoSessionBlade() {
 	assert := ts.Assert()
 
-	request := httptest.NewRequest("GET", ts.racksPath()+"rack1/Blades/1", nil)
+	request := httptest.NewRequest("GET", ts.bladeInPath("rack1", 1), nil)
 	response := ts.doHTTP(request, nil)
 
 	assert.Equal(http.StatusForbidden, response.StatusCode,
