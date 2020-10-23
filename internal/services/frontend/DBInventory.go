@@ -77,6 +77,8 @@ type DBInventory struct {
 	MaxBladeCount int64
 	MaxCapacity   *ct.BladeCapacity
 	Store *store.Store
+
+	zones map[string]*pb.DefinitionZone
 }
 
 var dbInventory *DBInventory
@@ -89,14 +91,8 @@ var dbInventory *DBInventory
 // definition file
 //
 func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Initialize Inventory DB Connection"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
 	if dbInventory == nil {
-		dbInventory = &DBInventory{
+		db := &DBInventory{
 			mutex: sync.RWMutex{},
 			Zone: nil,
 			MaxBladeCount: 0,
@@ -104,17 +100,42 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			Store: store.NewStore(),
 		}
 
-		if err = dbInventory.Store.Connect(); err != nil {
+		if err = db.Initialize(ctx, cfg); err != nil {
 			return err
 		}
 
-		if err = dbInventory.LoadFromStore(ctx); err != nil {
-			return err
+		if dbInventory == nil {
+			dbInventory = db
 		}
+	}
 
-		if err = dbInventory.UpdateFromFile(ctx, cfg); err != nil {
-			return err
-		}
+	return nil
+}
+
+// Initialize initializes an existing, but currently un-initialized DB Inventory
+// structure. This involves connecting to the store, loading the current inventory
+// definition from the definition file, and sending updates to the store to
+// reconcile the persisted state. Note that changes to the store may in turn 
+// trigger any currently established watch handlers leading to updates elsewhere
+// in the system.
+//
+func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) (err error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Initialize Inventory DB Connection"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	if err = m.Store.Connect(); err != nil {
+		return err
+	}
+
+	if err = m.LoadFromStore(ctx); err != nil {
+		return err
+	}
+
+	if err = m.UpdateFromFile(ctx, cfg); err != nil {
+		return err
 	}
 
 	return nil
