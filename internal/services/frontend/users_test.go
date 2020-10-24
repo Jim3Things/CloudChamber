@@ -15,36 +15,46 @@ import (
 	"testing"
 
 	"github.com/golang/protobuf/jsonpb"
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
-const (
-	userURI       = "/api/users/"
-	admin         = userURI + adminAccountName
-	alice         = userURI + "Alice"
-	bob           = userURI + "Bob"
-	alicePassword = "test"
-	bobPassword   = "test2"
-)
+type UserTestSuite struct {
+	testSuiteCore
 
-var (
-	aliceDef = &pb.UserDefinition{
-		Password:          alicePassword,
+	aliceDef *pb.UserDefinition
+	bobDef   *pb.UserDefinition
+
+	knownNames map[string]string
+}
+
+func (ts *UserTestSuite) userPath() string      { return ts.baseURI + "/api/users/" }
+func (ts *UserTestSuite) admin() string         { return ts.userPath() + ts.adminAccountName() }
+func (ts *UserTestSuite) alice() string         { return ts.userPath() + "Alice" }
+func (ts *UserTestSuite) bob() string           { return ts.userPath() + "Bob" }
+func (ts *UserTestSuite) alicePassword() string { return "test" }
+func (ts *UserTestSuite) bobPassword() string   { return "test2" }
+
+func (ts *UserTestSuite) SetupSuite() {
+	ts.testSuiteCore.SetupSuite()
+
+	ts.aliceDef = &pb.UserDefinition{
+		Password:          ts.alicePassword(),
 		Enabled:           true,
 		CanManageAccounts: false,
 	}
-	bobDef = &pb.UserDefinition{
-		Password:          bobPassword,
+
+	ts.bobDef = &pb.UserDefinition{
+		Password:          ts.bobPassword(),
 		Enabled:           true,
 		CanManageAccounts: false,
 	}
 
 	// The user URLs that have been added and not deleted during the test run.
 	// Note that this does not include any predefined users, such as Admin.
-	knownNames = make(map[string]string)
-)
+	ts.knownNames = make(map[string]string)
+}
 
 // Ensure that the specified account exists.  This function first checks if it
 // is already known, returning that account's current revision if it is.  If it
@@ -53,85 +63,123 @@ var (
 //
 // Note that this is mostly used by unit tests in order to support running any
 // unit test in isolation from the overall flow.
-func ensureAccount(t *testing.T, user string, u *pb.UserDefinition, cookies []*http.Cookie) (int64, []*http.Cookie) {
-	path := baseURI + userURI + user
+func (ts *UserTestSuite) ensureAccount(
+	user string,
+	u *pb.UserDefinition,
+	cookies []*http.Cookie) (int64, []*http.Cookie) {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+
+	path := ts.userPath() + user
 
 	req := httptest.NewRequest("GET", path, nil)
 	req.Header.Set("Content-Type", "application/json")
-	response := doHTTP(req, cookies)
+	response := ts.doHTTP(req, cookies)
 	_ = response.Body.Close()
 
 	// If we found the user, just return the existing revision and cookies
 	if response.StatusCode == http.StatusOK {
-		t.Logf("Found existing user %q.", user)
+		logf("Found existing user %q.", user)
 
 		var rev int64
 		rev, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
-		assert.Nilf(t, err, fmt.Sprintf("Error parsing ETag. Value received is : %q", err))
+		assert.NoError(err, "Error parsing ETag. Value received is : %q", err)
 
 		return rev, response.Cookies()
 	}
 
 	// Didn't find the user, create a new incarnation of it.
-	t.Logf("Did not find user %q.  Creating it from scratch.", user)
+	logf("Did not find user %q.  Creating it from scratch.", user)
 
 	var buf bytes.Buffer
 	w := bufio.NewWriter(&buf)
 
 	p := jsonpb.Marshaler{}
 	err := p.Marshal(w, u)
-	assert.Nilf(t, err, fmt.Sprintf("Error formatting the new user definition. err = %v", err))
+	assert.NoError(err)
 	_ = w.Flush()
 	r := bufio.NewReader(&buf)
 
 	req = httptest.NewRequest("POST", path, r)
 	req.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(req, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	response = ts.doHTTP(req, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode)
 
-	knownNames[path] = path
+	ts.knownNames[path] = path
 
 	tagString := response.Header.Get("ETag")
 	tag, err := strconv.ParseInt(tagString, 10, 64)
-	assert.Nilf(t, err, fmt.Sprintf("Error parsing ETag. tag = %q, err = %v", tagString, err))
+	assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 	return tag, response.Cookies()
 }
 
-func testUserRead(t *testing.T, path string, cookies []*http.Cookie) (*http.Response, *pb.UserPublic) {
+func (ts *UserTestSuite) userRead(path string, cookies []*http.Cookie) (*http.Response, *pb.UserPublic) {
+	assert := ts.Assert()
+
 	request := httptest.NewRequest("GET", path, nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response := doHTTP(request, cookies)
+	response := ts.doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusOK, response.StatusCode)
 
 	user := &pb.UserPublic{}
-	err := getJSONBody(response, user)
-	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+	err := ts.getJSONBody(response, user)
+	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
 	return response, user
 }
 
-func testUserSetPassword(t *testing.T, name string, upd *pb.UserPassword, rev int64, cookies []*http.Cookie) (*http.Response, int64) {
-	r, err := toJSONReader(upd)
-	assert.Nilf(t, err, "Failed to format UserPassword, err = %v", err)
+func (ts *UserTestSuite) setPassword(
+	name string,
+	upd *pb.UserPassword,
+	rev int64,
+	cookies []*http.Cookie) (*http.Response, int64) {
+	assert := ts.Assert()
 
-	path := baseURI + userURI + name + "?password"
+	r, err := ts.toJSONReader(upd)
+	assert.NoError(err)
+
+	path := ts.userPath() + name + "?password"
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
 
-	response := doHTTP(request, cookies)
+	response := ts.doHTTP(request, cookies)
 
 	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
-	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
+	assert.NoError(err)
 
 	return response, match
+}
+
+func (ts *UserTestSuite) userUpdate(
+	path string,
+	upd *pb.UserUpdate,
+	rev int64,
+	cookies []*http.Cookie) (*http.Response, int64) {
+	assert := ts.Assert()
+
+	r, err := ts.toJSONReader(upd)
+	assert.NoError(err, "Failed to format UserUpdate, err = %v", err)
+
+	request := httptest.NewRequest("PUT", path, r)
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+
+	response := ts.doHTTP(request, cookies)
+	assert.Equal(http.StatusOK, response.StatusCode)
+
+	tagString := response.Header.Get("ETag")
+	tag, err := strconv.ParseInt(tagString, 10, 64)
+	assert.NoError(err, fmt.Sprintf("Error parsing ETag. tag = %q, err = %v", tagString, err))
+
+	return response, tag
 }
 
 // --- Helper functions
@@ -145,370 +193,387 @@ func testUserSetPassword(t *testing.T, name string, upd *pb.UserPassword, rev in
 
 // +++ Login tests
 
-func TestUsersLoginSessionSimple(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestLoginSessionSimple() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword))
-	response := doHTTP(request, nil)
-	body, err := getBody(response)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.admin()), strings.NewReader(ts.adminPassword()))
+	response := ts.doHTTP(request, nil)
+	body, err := ts.getBody(response)
 
-	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//     (note that this also checks that the username match is case insensitive)
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, strings.ToUpper(admin)), nil)
-	response = doHTTP(request, response.Cookies())
-	body, err = getBody(response)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s?op=logout", strings.ToUpper(ts.admin())), nil)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err = ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", admin, err)
+	assert.NoError(
+		err,
+		"Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
 
-	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
-func TestUsersLoginSessionRepeat(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestLoginSessionRepeat() {
+	assert := ts.Assert()
 
 	// login for the first time, should succeed
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// login for the second iteration, should succeed
-	response = doLogin(t, randomCase(adminAccountName), adminPassword, response.Cookies())
+	response = ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), response.Cookies())
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
-func TestUsersLoginDupLogins(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestLoginDupLogins() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
 
 	// login for the first time, should succeed
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// now repeat the attempt to login again, which should fail
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword))
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.admin()), strings.NewReader(ts.adminPassword()))
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", admin, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
 
-	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// .. and let's just try with another user, which should also fail
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, bob), strings.NewReader("test2"))
-	response = doHTTP(request, response.Cookies())
-	body, err = getBody(response)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.bob()), strings.NewReader("test2"))
+	response = ts.doHTTP(request, response.Cookies())
+	body, err = ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", bob, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.bob(), err)
 
-	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// ... and logout, which should succeed
 	//
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
 }
 
-func TestUsersLoginLogoutDiffAccounts(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestLoginLogoutDiffAccounts() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
 	// login for the first time, should succeed
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... next we need a second account that we're sure exists
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
 
 	// ... and now try to logout from it, which should not succeed
 	//
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, alice), nil)
-	response = doHTTP(request, cookies)
-	body, err := getBody(response)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=logout", ts.alice()), nil)
+	response = ts.doHTTP(request, cookies)
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.alice(), err)
 
-	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... and logout, which should succeed
 	//
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
 }
 
-func TestUsersDoubleLogout(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestDoubleLogout() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
 	// login for the first time, should succeed
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... logout, which should succeed
 	//
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... logout again, which should fail
 	//
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=logout", baseURI, admin), nil)
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=logout", ts.admin()), nil)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", admin, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
 
-	t.Logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 }
 
-func TestUsersLoginSessionBadPassword(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestLoginSessionBadPassword() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
 	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin), strings.NewReader(adminPassword+"rubbish"))
-	response := doHTTP(request, nil)
-	body, err := getBody(response)
+	request := httptest.NewRequest(
+		"PUT",
+		fmt.Sprintf("%s?op=login", ts.admin()),
+		strings.NewReader(ts.adminPassword()+"rubbish"))
+	response := ts.doHTTP(request, nil)
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI+admin, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
 
-	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now just validate that there really isn't an active session here.
-	response = doLogin(t, randomCase(adminAccountName), adminPassword, response.Cookies())
+	response = ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), response.Cookies())
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersLoginSessionNoUser(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestLoginSessionNoUser() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
-	// login for the first time, should succeed
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=login", baseURI, admin+"Bogus"), strings.NewReader(adminPassword))
-	response := doHTTP(request, nil)
-	body, err := getBody(response)
+	// login for the first time, the http call should succeed, but fail the login
+	request := httptest.NewRequest(
+		"PUT",
+		fmt.Sprintf("%s%s?op=login", ts.admin(), "Bogus"),
+		strings.NewReader(ts.adminPassword()))
+	response := ts.doHTTP(request, nil)
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", baseURI+admin, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
 
-	t.Logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, 1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now just validate that there really isn't an active session here.
-	response = doLogin(t, randomCase(adminAccountName), adminPassword, response.Cookies())
+	response = ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), response.Cookies())
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 // --- Login tests
 
 // +++ User creation tests
 
-func TestUsersCreate(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestCreate() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
-	path := baseURI + alice + "2"
+	path := ts.alice() + "2"
 
-	r, err := toJSONReader(aliceDef)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
+	r, err := ts.toJSONReader(ts.aliceDef)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	request := httptest.NewRequest("POST", path, r)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", path, err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"User \"Alice2\" created.  enabled: true, can manage accounts: false", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	knownNames[path] = path
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.knownNames[path] = path
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersCreateDup(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestCreateDup() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
-	r, err := toJSONReader(aliceDef)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
+	r, err := ts.toJSONReader(ts.aliceDef)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
 
-	request := httptest.NewRequest("POST", fmt.Sprintf("%s%s", baseURI, alice), r)
+	request := httptest.NewRequest("POST", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, cookies)
-	body, err := getBody(response)
+	response = ts.doHTTP(request, cookies)
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"CloudChamber: user \"Alice\" already exists\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersCreateBadData(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestCreateBadData() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	request := httptest.NewRequest(
 		"POST",
-		fmt.Sprintf("%s%s%s", baseURI, userURI, "Alice2"),
+		ts.alice()+"2",
 		strings.NewReader("{\"enabled\":123,\"manageAccounts\":false, \"password\":\"test\"}"))
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"json: cannot unmarshal number into Go value of type bool\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersCreateNoPriv(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestCreateNoPrivilege() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
-	r, err := toJSONReader(bobDef)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
+	r, err := ts.toJSONReader(ts.bobDef)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	response := doLogin(t, "Alice", alicePassword, nil)
+	response := ts.doLogin("Alice", ts.alicePassword(), nil)
 
-	request := httptest.NewRequest("POST", fmt.Sprintf("%s%s", baseURI, bob), r)
+	request := httptest.NewRequest("POST", ts.bob(), r)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"CloudChamber: permission denied\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, "Alice", response.Cookies())
+	ts.doLogout("Alice", response.Cookies())
 }
 
-func TestUsersCreateNoSession(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestCreateNoSession() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
-	path := baseURI + alice + "2"
+	path := ts.alice() + "2"
 
-	r, err := toJSONReader(aliceDef)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
+	r, err := ts.toJSONReader(ts.aliceDef)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	request := httptest.NewRequest("POST", path, r)
 	request.Header.Set("Content-Type", "application/json")
 
-	response := doHTTP(request, nil)
-	body, err := getBody(response)
+	response := ts.doHTTP(request, nil)
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"CloudChamber: permission denied\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 }
@@ -517,38 +582,37 @@ func TestUsersCreateNoSession(t *testing.T) {
 
 // +++ Known users list tests
 
-func TestUsersList(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestList() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
+	request := httptest.NewRequest("GET", ts.userPath(), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
+	response = ts.doHTTP(request, response.Cookies())
 	users := &pb.UserList{}
-	err := getJSONBody(response, users)
-	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+	err := ts.getJSONBody(response, users)
+	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now verify that the list of names matches our expectations.
 	// First, form an array of names from the returned structure
 	addresses := make([]string, 0, len(users.Users))
 	for _, entry := range users.Users {
-		assert.True(t, strings.HasSuffix(entry.Uri, entry.Name))
-		if strings.EqualFold(entry.Name, adminAccountName) {
-			assert.True(t, entry.Protected)
+		assert.True(strings.HasSuffix(entry.Uri, entry.Name))
+		if strings.EqualFold(entry.Name, ts.adminAccountName()) {
+			assert.True(entry.Protected)
 		}
 
 		addresses = append(addresses, entry.Uri)
 	}
 
 	// .. and then verify that all following lines correctly consist of all the expected names
-	match := knownNames
-	match[baseURI+admin] = baseURI + admin
+	match := ts.knownNames
+	match[ts.admin()] = ts.admin()
 
 	// .. this involves converting the set of keys to an array for matching
 	keys := make([]string, 0, len(match))
@@ -556,119 +620,118 @@ func TestUsersList(t *testing.T) {
 		keys = append(keys, k)
 	}
 
-	assert.ElementsMatchf(t, keys, addresses, "elements did not match\nReturned Value: %s\nMatch Values: %v", addresses, keys)
+	assert.ElementsMatchf(keys, addresses, "elements did not match\nReturned Value: %s\nMatch Values: %v", addresses, keys)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersListNoPriv(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestListNoPrivilege() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	response = doLogout(t, randomCase(adminAccountName), cookies)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
-	response = doLogin(t, "Alice", alicePassword, response.Cookies())
+	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", baseURI, userURI), nil)
+	request := httptest.NewRequest("GET", ts.userPath(), nil)
 
-	response = doHTTP(request, response.Cookies())
-	_, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	_, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "alice", response.Cookies())
+	ts.doLogout("alice", response.Cookies())
 }
 
 // --- Known user list tests
 
 // +++ Get user details tests
 
-func TestUsersRead(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestRead() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, randomCase(adminAccountName)), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.userPath(), ts.randomCase(ts.adminAccountName())), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
+	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	user := &pb.UserPublic{}
-	err := getJSONBody(response, user)
-	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+	err := ts.getJSONBody(response, user)
+	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
 	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
-	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
-	assert.Less(t, int64(1), match)
+	assert.NoError(err, "failed to convert the ETag to valid int64")
+	assert.Less(int64(1), match)
 
-	assert.True(t, user.Enabled)
-	assert.True(t, user.CanManageAccounts)
-	assert.True(t, user.NeverDelete)
+	assert.True(user.Enabled)
+	assert.True(user.CanManageAccounts)
+	assert.True(user.NeverDelete)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersReadUnknownUser(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestReadUnknownUser() {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "BadUser"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.userPath(), "BadUser"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-	t.Log(string(body))
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
+	log(string(body))
 
-	assert.Nilf(t, err, "Expected no error in getting body.  err=%v", err)
-	assert.NotEqual(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.NoError(err, "Expected no error in getting body.  err=%v", err)
+	assert.NotEqual("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersReadNoPriv(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestReadNoPrivilege() {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	response = doLogout(t, randomCase(adminAccountName), cookies)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
-	response = doLogin(t, "Alice", alicePassword, response.Cookies())
+	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s%s", baseURI, userURI, "BadUser"), nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.userPath(), "BadUser"), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-	t.Log(string(body))
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
+	log(string(body))
 
-	assert.Nilf(t, err, "Expected no error in getting body.  err=%v", err)
-	assert.NotEqual(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.NoError(err, "Expected no error in getting body.  err=%v", err)
+	assert.NotEqual("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "alice", response.Cookies())
+	ts.doLogout("alice", response.Cookies())
 }
 
 // --- Get user details tests
 
 // +++ User operation (?op=) tests
 
-func TestUsersOperationIllegal(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestOperationIllegal() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
 	// Verify a bunch of failure cases. Specifically,
 	// - that a naked op fails
@@ -676,35 +739,35 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 	// Case 1, check that naked op fails
 	//
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op", baseURI, alice), nil)
-	response := doHTTP(request, nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op", ts.alice()), nil)
+	response := ts.doHTTP(request, nil)
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.alice(), err)
 
-	t.Logf("[?op]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"CloudChamber: invalid user operation requested (?op=) for user \"alice\"\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// Case 2, check that an invalid op fails
 	//
-	request = httptest.NewRequest("PUT", fmt.Sprintf("%s%s?op=testInvalid", baseURI, alice), nil)
-	response = doHTTP(request, response.Cookies())
-	body, err = getBody(response)
+	request = httptest.NewRequest("PUT", fmt.Sprintf("%s?op=testInvalid", ts.alice()), nil)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err = ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", alice, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.alice(), err)
 
-	t.Logf("[?op=testInvalid]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[?op=testInvalid]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"CloudChamber: invalid user operation requested (?op=testInvalid) for user \"alice\"\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 }
@@ -713,34 +776,33 @@ func TestUsersOperationIllegal(t *testing.T) {
 
 // +++ Update user tests
 
-func TestUsersUpdate(t *testing.T) {
+func (ts *UserTestSuite) TestUpdateSuccess() {
+	assert := ts.Assert()
+
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	r, err := ts.toJSONReader(aliceUpd)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	r, err := toJSONReader(aliceUpd)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
-
-	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, alice), r)
+	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
 
-	response = doHTTP(request, cookies)
-	assert.Equal(t, "application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	response = ts.doHTTP(request, cookies)
+	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
 	user := &pb.UserPublic{}
-	err = getJSONBody(response, user)
-	assert.Nilf(t, err, "Failed to convert body to valid json.  err: %v", err)
+	err = ts.getJSONBody(response, user)
+	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
 	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
-	assert.Nilf(t, err, "failed to convert the ETag to valid int64")
+	assert.NoError(err, "failed to convert the ETag to valid int64")
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -750,64 +812,65 @@ func TestUsersUpdate(t *testing.T) {
 	//
 	// So a "rev + 1" style test is not appropriate.
 	//
-	assert.Less(t, rev, match)
+	assert.Less(rev, match)
 
-	assert.True(t, user.Enabled)
-	assert.True(t, user.CanManageAccounts)
-	assert.False(t, user.NeverDelete)
+	assert.True(user.Enabled)
+	assert.True(user.CanManageAccounts)
+	assert.False(user.NeverDelete)
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersUpdateBadData(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestUpdateBadData() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+	log := ts.T().Log
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
 
 	request := httptest.NewRequest(
 		"PUT",
-		fmt.Sprintf("%s%s", baseURI, alice),
+		ts.alice(),
 		strings.NewReader("{\"enabled\":123,\"manageAccounts\":false, \"password\":\"test\"}"))
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
 
-	response = doHTTP(request, cookies)
-	body, err := getBody(response)
+	response = ts.doHTTP(request, cookies)
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Failed to read body returned from call to handler for route %v: %v", userURI, err)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
 
-	t.Logf("[%s]: SC=%v, Content-Type='%v'\n", userURI, response.StatusCode, response.Header.Get("Content-Type"))
-	t.Log(string(body))
+	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
+	log(string(body))
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal(t,
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(
 		"json: cannot unmarshal number into Go value of type bool\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersUpdateBadMatch(t *testing.T) {
+func (ts *UserTestSuite) TestUpdateBadMatch() {
+	assert := ts.Assert()
+	log := ts.T().Log
+
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	r, err := ts.toJSONReader(aliceUpd)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	r, err := toJSONReader(aliceUpd)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
-
-	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, alice), r)
+	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	request := httptest.NewRequest("PUT", ts.alice(), r)
 
 	// Poison the revision
 	rev += 10
@@ -815,129 +878,113 @@ func TestUsersUpdateBadMatch(t *testing.T) {
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
 
-	response = doHTTP(request, cookies)
-	body, err := getBody(response)
+	response = ts.doHTTP(request, cookies)
+	body, err := ts.getBody(response)
 
-	t.Log(string(body))
-	assert.Nilf(t, err, "Failed to get response body.  err: %v", err)
+	log(string(body))
+	assert.NoError(err, "Failed to get response body.  err: %v", err)
 
-	assert.Equal(t, http.StatusConflict, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusConflict, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersUpdateBadMatchSyntax(t *testing.T) {
+func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
+	assert := ts.Assert()
+	log := ts.T().Log
+
 	aliceUpd := &pb.UserDefinition{
-		Password:          alicePassword,
+		Password:          ts.alicePassword(),
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	r, err := ts.toJSONReader(aliceUpd)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	r, err := toJSONReader(aliceUpd)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
-
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, alice), r)
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	request := httptest.NewRequest("PUT", ts.alice(), r)
 
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", "abc")
 
-	response = doHTTP(request, cookies)
-	body, err := getBody(response)
+	response = ts.doHTTP(request, cookies)
+	body, err := ts.getBody(response)
 
-	t.Log(string(body))
-	assert.Nilf(t, err, "Failed to get response body.  err: %v", err)
+	log(string(body))
+	assert.NoError(err, "Failed to get response body.  err: %v", err)
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersUpdateNoUser(t *testing.T) {
+func (ts *UserTestSuite) TestUpdateNoUser() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+
 	upd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	r, err := ts.toJSONReader(upd)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	r, err := toJSONReader(upd)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
-
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, userURI+"BadUser"), r)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.userPath(), "BadUser"), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", "1"))
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-	t.Logf(string(body))
-	assert.Nilf(t, err, "Error reading body, err = %v", err)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
+	logf(string(body))
+	assert.NoError(err, "Error reading body, err = %v", err)
 
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersUpdateNoPriv(t *testing.T) {
+func (ts *UserTestSuite) TestUpdateNoPrivilege() {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	rev, cookies := ts.ensureAccount("Bob", ts.bobDef, cookies)
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	rev, cookies := ensureAccount(t, "Bob", bobDef, cookies)
-	response = doLogout(t, randomCase(adminAccountName), cookies)
+	response = ts.doLogin("Bob", ts.bobPassword(), response.Cookies())
 
-	response = doLogin(t, "Bob", bobPassword, response.Cookies())
+	r, err := ts.toJSONReader(aliceUpd)
+	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	r, err := toJSONReader(aliceUpd)
-	assert.Nilf(t, err, "Failed to format UserDefinition, err = %v", err)
-
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, alice), r)
+	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	t.Logf(string(body))
+	logf(string(body))
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "bob", response.Cookies())
+	ts.doLogout("bob", response.Cookies())
 }
 
-func testUsersUpdate(t *testing.T, path string, upd *pb.UserUpdate, rev int64, cookies []*http.Cookie) (*http.Response, int64) {
-	r, err := toJSONReader(upd)
-	assert.Nilf(t, err, "Failed to format UserUpdate, err = %v", err)
+func (ts *UserTestSuite) TestUpdateExpandRights() {
+	assert := ts.Assert()
 
-	request := httptest.NewRequest("PUT", path, r)
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
-
-	response := doHTTP(request, cookies)
-	assert.Equal(t, http.StatusOK, response.StatusCode)
-
-	tagString := response.Header.Get("ETag")
-	tag, err := strconv.ParseInt(tagString, 10, 64)
-	assert.Nilf(t, err, fmt.Sprintf("Error parsing ETag. tag = %q, err = %v", tagString, err))
-
-	return response, tag
-}
-
-func TestUsersUpdateExpandRights(t *testing.T) {
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
 		CanManageAccounts: true,
@@ -948,173 +995,166 @@ func TestUsersUpdateExpandRights(t *testing.T) {
 		CanManageAccounts: false,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
 
-	path := baseURI + alice
+	response, rev = ts.userUpdate(ts.alice(), aliceOriginal, rev, cookies)
+	_, err := ts.getBody(response)
+	assert.NoError(err)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
-	response, rev = testUsersUpdate(t, path, aliceOriginal, rev, cookies)
-	_, err := getBody(response)
-	assert.Nil(t, err)
+	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
 
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	r, err := ts.toJSONReader(aliceUpd)
+	assert.NoError(err, "Failed to format UserUpdate, err = %v", err)
 
-	response = doLogin(t, "Alice", alicePassword, response.Cookies())
-
-	r, err := toJSONReader(aliceUpd)
-	assert.Nilf(t, err, "Failed to format UserUpdate, err = %v", err)
-
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", baseURI, alice), r)
+	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
-	assert.Equal(t, "CloudChamber: permission denied\n", string(body))
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
+	assert.Equal("CloudChamber: permission denied\n", string(body))
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now verify that the entry has not been changed
-	response, user := testUserRead(t, baseURI+alice, response.Cookies())
-	assert.False(t, user.CanManageAccounts)
-	assert.True(t, user.Enabled)
-	assert.False(t, user.NeverDelete)
+	response, user := ts.userRead(ts.alice(), response.Cookies())
+	assert.False(user.CanManageAccounts)
+	assert.True(user.Enabled)
+	assert.False(user.NeverDelete)
 
-	doLogout(t, "Alice", response.Cookies())
+	ts.doLogout("Alice", response.Cookies())
 }
 
 // --- Update user tests
 
 // +++ Delete user tests
 
-func TestUsersDelete(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestDelete() {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	path := fmt.Sprintf("%s%s", baseURI, alice)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	request := httptest.NewRequest("DELETE", path, nil)
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	request := httptest.NewRequest("DELETE", ts.alice(), nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, cookies)
-	body, err := getBody(response)
+	response = ts.doHTTP(request, cookies)
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Unable to retrieve response body, err = %v", err)
-	t.Log(string(body))
+	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
+	log(string(body))
 
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	delete(knownNames, "Alice")
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	delete(ts.knownNames, "Alice")
 
 	// Now verify the deletion by trying to get the user
 
-	request = httptest.NewRequest("GET", path, nil)
+	request = httptest.NewRequest("GET", ts.alice(), nil)
 
-	response = doHTTP(request, response.Cookies())
-	body, err = getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err = ts.getBody(response)
 
-	assert.Nilf(t, err, "Unable to retrieve response body, err = %v", err)
-	t.Log(string(body))
+	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
+	log(string(body))
 
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Found deleted user %q", path)
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Found deleted user %q", ts.alice())
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersDeleteNoUser(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestDeleteNoUser() {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	path := fmt.Sprintf("%s%s", baseURI, alice+"Bogus")
+	path := ts.alice() + "Bogus"
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	request := httptest.NewRequest("DELETE", path, nil)
 	request.Header.Set("Content-Type", "application/json")
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Unable to retrieve response body, err = %v", err)
-	t.Log(string(body))
+	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
+	log(string(body))
 
-	assert.Equal(t, http.StatusNotFound, response.StatusCode, "Found deleted user %q", path)
+	assert.Equal(http.StatusNotFound, response.StatusCode, "Found deleted user %q", path)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestUsersDeleteNoPriv(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestDeleteNoPrivilege() {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	_, cookies = ensureAccount(t, "Bob", bobDef, cookies)
-	response = doLogout(t, randomCase(adminAccountName), cookies)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies = ts.ensureAccount("Bob", ts.bobDef, cookies)
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
-	response = doLogin(t, "Bob", bobPassword, response.Cookies())
+	response = ts.doLogin("Bob", ts.bobPassword(), response.Cookies())
 
-	request := httptest.NewRequest("DELETE", fmt.Sprintf("%s%s", baseURI, alice), nil)
+	request := httptest.NewRequest("DELETE", ts.alice(), nil)
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Unable to retrieve response body, err = %v", err)
-	t.Logf(string(body))
+	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
+	log(string(body))
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "bob", response.Cookies())
+	ts.doLogout("bob", response.Cookies())
 }
 
-func TestUsersDeleteProtected(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *UserTestSuite) TestDeleteProtected() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("DELETE", fmt.Sprintf("%s%s", baseURI, admin), nil)
+	request := httptest.NewRequest("DELETE", ts.admin(), nil)
 
-	response = doHTTP(request, response.Cookies())
-	body, err := getBody(response)
+	response = ts.doHTTP(request, response.Cookies())
+	body, err := ts.getBody(response)
 
-	assert.Nilf(t, err, "Unable to retrieve response body, err = %v", err)
-	assert.Equal(t, "CloudChamber: user \"admin\" is protected and cannot be deleted\n", string(body))
-	assert.Equalf(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
+	assert.Equal("CloudChamber: user \"admin\" is protected and cannot be deleted\n", string(body))
+	assert.Equalf(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, adminAccountName, response.Cookies())
+	ts.doLogout(ts.adminAccountName(), response.Cookies())
 }
 
 // --- Delete user tests
 
 // +++ SetPassword user tests
 
-func TestUsersSetPassword(t *testing.T) {
+func (ts *UserTestSuite) TestSetPassword() {
+	assert := ts.Assert()
+
+	aliceNewPassword := ts.alicePassword() + "xxx"
+
 	aliceUpd := &pb.UserPassword{
-		OldPassword: alicePassword,
-		NewPassword: alicePassword + "xxx",
+		OldPassword: ts.alicePassword(),
+		NewPassword: aliceNewPassword,
 		Force:       false,
 	}
 
 	aliceRevert := &pb.UserPassword{
-		OldPassword: alicePassword + "xxx",
-		NewPassword: alicePassword,
+		OldPassword: aliceNewPassword,
+		NewPassword: ts.alicePassword(),
 		Force:       true,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-
-	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	response, match := testUserSetPassword(t, "Alice", aliceUpd, rev, cookies)
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	response, match := ts.setPassword("Alice", aliceUpd, rev, cookies)
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -1124,42 +1164,43 @@ func TestUsersSetPassword(t *testing.T) {
 	//
 	// So a "rev + 1" style test is not appropriate.
 	//
-	assert.Less(t, rev, match)
+	assert.Less(rev, match)
 
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = doLogin(t, "Alice", alicePassword+"xxx", response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	response = ts.doLogin("Alice", aliceNewPassword, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
-	response, _ = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	response, _ = ts.setPassword("Alice", aliceRevert, match, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "Alice", response.Cookies())
+	ts.doLogout("Alice", response.Cookies())
 }
 
-func TestUsersSetPasswordForce(t *testing.T) {
+func (ts *UserTestSuite) TestSetPasswordForce() {
+	assert := ts.Assert()
+
+	aliceNewPassword := ts.alicePassword() + "xxx"
+
 	aliceUpd := &pb.UserPassword{
 		OldPassword: "bogus",
-		NewPassword: alicePassword + "xxx",
+		NewPassword: aliceNewPassword,
 		Force:       true,
 	}
 
 	aliceRevert := &pb.UserPassword{
-		OldPassword: alicePassword + "xxx",
-		NewPassword: alicePassword,
+		OldPassword: aliceNewPassword,
+		NewPassword: ts.alicePassword(),
 		Force:       true,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-
-	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	response, match := testUserSetPassword(t, "Alice", aliceUpd, rev, cookies)
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	response, match := ts.setPassword("Alice", aliceUpd, rev, cookies)
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -1169,93 +1210,99 @@ func TestUsersSetPasswordForce(t *testing.T) {
 	//
 	// So a "rev + 1" style test is not appropriate.
 	//
-	assert.Less(t, rev, match)
+	assert.Less(rev, match)
 
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = doLogin(t, "Alice", alicePassword+"xxx", response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	response = ts.doLogin("Alice", aliceNewPassword, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
-	response, _ = testUserSetPassword(t, "Alice", aliceRevert, match, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	response, _ = ts.setPassword("Alice", aliceRevert, match, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "Alice", response.Cookies())
+	ts.doLogout("Alice", response.Cookies())
 }
 
-func TestUsersSetPasswordBadPassword(t *testing.T) {
+func (ts *UserTestSuite) TestSetPasswordBadPassword() {
+	assert := ts.Assert()
+
+	aliceNewPassword := ts.alicePassword() + "xxx"
+
 	aliceUpd := &pb.UserPassword{
 		OldPassword: "bogus",
-		NewPassword: alicePassword + "xxx",
+		NewPassword: aliceNewPassword,
 		Force:       false,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
 
-	rev, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
+	r, err := ts.toJSONReader(aliceUpd)
+	assert.NoError(err, "Failed to format UserPassword, err = %v", err)
 
-	r, err := toJSONReader(aliceUpd)
-	assert.Nilf(t, err, "Failed to format UserPassword, err = %v", err)
-
-	path := baseURI + alice + "?password"
+	path := ts.alice() + "?password"
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
 
-	response = doHTTP(request, cookies)
+	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	response = doLogout(t, randomCase(adminAccountName), response.Cookies())
+	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	// Now verify that the password was not changed, by trying to log in again
-	response = doLogin(t, "Alice", alicePassword, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "Alice", response.Cookies())
+	ts.doLogout("Alice", response.Cookies())
 }
 
-func TestUsersSetPasswordNoPriv(t *testing.T) {
+func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
+	assert := ts.Assert()
+
+	adminNewPassword := ts.adminPassword() + "xxx"
+
 	adminUpd := &pb.UserPassword{
-		OldPassword: adminPassword,
-		NewPassword: adminPassword + "xxx",
+		OldPassword: ts.adminPassword(),
+		NewPassword: adminNewPassword,
 		Force:       false,
 	}
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	response = ts.doLogout("Admin", cookies)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
-	_, cookies := ensureAccount(t, "Alice", aliceDef, response.Cookies())
-	response = doLogout(t, "Admin", cookies)
+	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
 
-	response = doLogin(t, "Alice", alicePassword, response.Cookies())
+	r, err := ts.toJSONReader(adminUpd)
+	assert.NoError(err, "Failed to format UserPassword, err = %v", err)
 
-	r, err := toJSONReader(adminUpd)
-	assert.Nilf(t, err, "Failed to format UserPassword, err = %v", err)
-
-	path := baseURI + admin + "?password"
+	path := ts.admin() + "?password"
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", fmt.Sprintf("%v", -1))
 
-	response = doHTTP(request, response.Cookies())
+	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	response = doLogout(t, "Alice", response.Cookies())
+	response = ts.doLogout("Alice", response.Cookies())
 
 	// Now verify that the password was not changed, by trying to log in again
-	response = doLogin(t, "Admin", adminPassword, response.Cookies())
-	assert.Equal(t, http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	response = ts.doLogin("Admin", ts.adminPassword(), response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	doLogout(t, "Admin", response.Cookies())
+	ts.doLogout("Admin", response.Cookies())
 }
 
 // --- SetPassword user tests
+
+func TestUserTestSuite(t *testing.T) {
+	suite.Run(t, new(UserTestSuite))
+}

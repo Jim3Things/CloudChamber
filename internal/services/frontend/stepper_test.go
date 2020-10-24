@@ -8,380 +8,382 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
-	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	common2 "github.com/Jim3Things/CloudChamber/internal/common"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	tsc "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/internal/common"
+	pbc "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
-const (
-	stepperURI = "/api/stepper"
-)
-
-func testStepperPath() string { return baseURI + stepperURI }
-
-func testStepperReset(t *testing.T) {
-	err := ts.Reset(context.Background())
-	assert.Nilf(t, err, "Unexpected error when resetting the stepper service)")
+type StepperTestSuite struct {
+	testSuiteCore
 }
 
-func testStepperSetManual(t *testing.T, match int64, cookies []*http.Cookie) []*http.Cookie {
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?mode=manual"), nil)
+func (ts *StepperTestSuite) stepperPath() string { return ts.baseURI + "/api/stepper" }
+
+func (ts *StepperTestSuite) reset() {
+	assert := ts.Assert()
+
+	err := tsc.Reset(context.Background())
+	assert.NoError(err, "Unexpected error when resetting the stepper service)")
+}
+
+func (ts *StepperTestSuite) setManual(match int64, cookies []*http.Cookie) []*http.Cookie {
+	assert := ts.Assert()
+
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=manual"), nil)
 	request.Header.Set("If-Match", fmt.Sprintf("%v", match))
 
-	response := doHTTP(request, cookies)
+	response := ts.doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
-	assert.Equal(t, fmt.Sprintf("%v", match+1), response.Header.Get("ETag"))
+	assert.Equal(http.StatusOK, response.StatusCode)
+	assert.Equal(fmt.Sprintf("%v", match+1), response.Header.Get("ETag"))
 
 	return response.Cookies()
 }
 
-func testStepperGetNow(t *testing.T, cookies []*http.Cookie) (*common.Timestamp, []*http.Cookie) {
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", testStepperPath(), "/now"), nil)
-	response := doHTTP(request, cookies)
+func (ts *StepperTestSuite) getNow(cookies []*http.Cookie) (*pbc.Timestamp, []*http.Cookie) {
+	assert := ts.Assert()
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.stepperPath(), "/now"), nil)
+	response := ts.doHTTP(request, cookies)
 
-	res := &common.Timestamp{}
-	err := getJSONBody(response, res)
+	assert.Equal(http.StatusOK, response.StatusCode)
 
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
+	res := &pbc.Timestamp{}
+	err := ts.getJSONBody(response, res)
+
+	assert.NoError(err, "Unexpected error, err: %v", err)
 
 	return res, response.Cookies()
 }
 
-func testStepperGetStatus(t *testing.T, cookies []*http.Cookie) (*pb.StatusResponse, []*http.Cookie) {
-	request := httptest.NewRequest("GET", testStepperPath(), nil)
-	response := doHTTP(request, cookies)
+func (ts *StepperTestSuite) getStatus(cookies []*http.Cookie) (*pb.StatusResponse, []*http.Cookie) {
+	assert := ts.Assert()
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+	request := httptest.NewRequest("GET", ts.stepperPath(), nil)
+	response := ts.doHTTP(request, cookies)
+
+	assert.Equal(http.StatusOK, response.StatusCode)
 
 	res := &pb.StatusResponse{}
-	err := getJSONBody(response, res)
+	err := ts.getJSONBody(response, res)
 
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
-
-	return res, response.Cookies()
-}
-
-func testStepperAdvance(t *testing.T, cookies []*http.Cookie) (*common.Timestamp, []*http.Cookie) {
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?advance"), nil)
-	response := doHTTP(request, cookies)
-	assert.Equal(t, http.StatusOK, response.StatusCode)
-
-	res := &common.Timestamp{}
-	err := getJSONBody(response, res)
-
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
+	assert.NoError(err, "Unexpected error, err: %v", err)
 
 	return res, response.Cookies()
 }
 
-func testStepperAfter(t *testing.T, after int64, cookies []*http.Cookie) (*common.Timestamp, []*http.Cookie) {
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=%d", testStepperPath(), after), nil)
-	response := doHTTP(request, cookies)
+func (ts *StepperTestSuite) advance(cookies []*http.Cookie) (*pbc.Timestamp, []*http.Cookie) {
+	assert := ts.Assert()
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance"), nil)
+	response := ts.doHTTP(request, cookies)
+	assert.Equal(http.StatusOK, response.StatusCode)
 
-	res := &common.Timestamp{}
-	err := getJSONBody(response, res)
+	res := &pbc.Timestamp{}
+	err := ts.getJSONBody(response, res)
 
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
+	assert.NoError(err, "Unexpected error, err: %v", err)
 
 	return res, response.Cookies()
 }
 
-func TestStepperGetStatus(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) after(after int64, cookies []*http.Cookie) (*pbc.Timestamp, []*http.Cookie) {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=%d", ts.stepperPath(), after), nil)
+	response := ts.doHTTP(request, cookies)
 
-	res, cookies := testStepperGetStatus(t, response.Cookies())
-	t.Log(res)
+	assert.Equal(http.StatusOK, response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), cookies)
+	res := &pbc.Timestamp{}
+	err := ts.getJSONBody(response, res)
+
+	assert.NoError(err, "Unexpected error, err: %v", err)
+
+	return res, response.Cookies()
 }
 
-func TestStepperSetManual(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestGetStatus() {
+	log := ts.T().Log
 
-	testStepperReset(t)
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
+	res, cookies := ts.getStatus(response.Cookies())
+	log(res)
 
-	res, cookies := testStepperGetStatus(t, cookies)
-	assert.Equal(t, pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
-	assert.Equal(t, int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
-	assert.Equal(t, int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
-	assert.Equal(t, int64(0), res.Now.Ticks, "Unexpected current time")
-	assert.Equal(t, int64(0), res.WaiterCount, "Unexpected active waiter count")
-	assert.Equal(t, stat.Epoch+1, res.Epoch, "Unexpected epoch value")
-
-	doLogout(t, randomCase(adminAccountName), cookies)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
 
-func TestStepperSetModeInvalid(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestSetManual() {
+	assert := ts.Assert()
 
-	testStepperReset(t)
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	ts.reset()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	res, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, res.Epoch, cookies)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?mode=badChoice"), nil)
+	res, cookies := ts.getStatus(cookies)
+	assert.Equal(pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
+	assert.Equal(int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
+	assert.Equal(int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
+	assert.Equal(int64(0), res.Now.Ticks, "Unexpected current time")
+	assert.Equal(int64(0), res.WaiterCount, "Unexpected active waiter count")
+	assert.Equal(stat.Epoch+1, res.Epoch, "Unexpected epoch value")
+
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
+}
+
+func (ts *StepperTestSuite) TestSetModeInvalid() {
+	assert := ts.Assert()
+
+	ts.reset()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+
+	res, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(res.Epoch, cookies)
+
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=badChoice"), nil)
 	request.Header.Set("If-Match", "-1")
 
-	response = doHTTP(request, cookies)
+	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	body, err := getBody(response)
-	assert.Nil(t, err)
+	body, err := ts.getBody(response)
+	assert.NoError(err)
 	assert.Equal(
-		t,
 		"CloudChamber: mode \"badChoice\" is invalid.  Supported modes are 'manual' and 'automatic'\n",
 		string(body))
 
-	res, cookies = testStepperGetStatus(t, response.Cookies())
-	assert.Equal(t, pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
-	assert.Equal(t, int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
-	assert.Equal(t, int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
-	assert.Equal(t, int64(0), res.Now.Ticks, "Unexpected current time")
-	assert.Equal(t, int64(0), res.WaiterCount, "Unexpected active waiter count")
+	res, cookies = ts.getStatus(response.Cookies())
+	assert.Equal(pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
+	assert.Equal(int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
+	assert.Equal(int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
+	assert.Equal(int64(0), res.Now.Ticks, "Unexpected current time")
+	assert.Equal(int64(0), res.WaiterCount, "Unexpected active waiter count")
 
-	doLogout(t, randomCase(adminAccountName), cookies)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
 
-func TestStepperSetModeBadEpoch(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestSetModeBadEpoch() {
+	assert := ts.Assert()
 
-	testStepperReset(t)
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	ts.reset()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?mode=manual"), nil)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=manual"), nil)
 	request.Header.Set("If-Match", fmt.Sprintf("%v", stat.Epoch))
 
-	response = doHTTP(request, cookies)
+	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	body, err := getBody(response)
-	assert.Nil(t, err)
-	assert.Equal(t, "CloudChamber: Set simulated time policy operation failed\n", string(body))
+	body, err := ts.getBody(response)
+	assert.NoError(err)
+	assert.Equal("CloudChamber: Set simulated time policy operation failed\n", string(body))
 
-	res, cookies := testStepperGetStatus(t, response.Cookies())
-	assert.Equal(t, pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
-	assert.Equal(t, int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
-	assert.Equal(t, int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
-	assert.Equal(t, int64(0), res.Now.Ticks, "Unexpected current time")
-	assert.Equal(t, int64(0), res.WaiterCount, "Unexpected active waiter count")
-	assert.Equal(t, stat.Epoch+1, res.Epoch, "Unexpected epoch")
+	res, cookies := ts.getStatus(response.Cookies())
+	assert.Equal(pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
+	assert.Equal(int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
+	assert.Equal(int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
+	assert.Equal(int64(0), res.Now.Ticks, "Unexpected current time")
+	assert.Equal(int64(0), res.WaiterCount, "Unexpected active waiter count")
+	assert.Equal(stat.Epoch+1, res.Epoch, "Unexpected epoch")
 
-	doLogout(t, randomCase(adminAccountName), cookies)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
 
-func TestStepperAdvanceOne(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestAdvanceOne() {
+	assert := ts.Assert()
 
-	testStepperReset(t)
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	ts.reset()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	res, cookies := testStepperGetNow(t, cookies)
-	assert.Equal(t, int64(0), res.Ticks, "Time expected to be reset, was %d", res.Ticks)
+	res, cookies := ts.getNow(cookies)
+	assert.Equal(int64(0), res.Ticks, "Time expected to be reset, was %d", res.Ticks)
 
-	res2, cookies := testStepperAdvance(t, cookies)
+	res2, cookies := ts.advance(cookies)
 
 	assert.Equal(
-		t,
 		int64(1), res2.Ticks-res.Ticks,
 		"time expected to advance by 1, old: %d, new: %d",
 		res.Ticks, res2.Ticks)
 
-	doLogout(t, randomCase(adminAccountName), cookies)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
 
-func TestStepperAdvanceTwo(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestAdvanceTwo() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	status, cookies := testStepperGetStatus(t, response.Cookies())
+	status, cookies := ts.getStatus(response.Cookies())
 
-	cookies = testStepperSetManual(t, status.Epoch, cookies)
-	res, cookies := testStepperGetNow(t, cookies)
+	cookies = ts.setManual(status.Epoch, cookies)
+	res, cookies := ts.getNow(cookies)
 
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?advance=2"), nil)
-	response = doHTTP(request, cookies)
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance=2"), nil)
+	response = ts.doHTTP(request, cookies)
+	assert.Equal(http.StatusOK, response.StatusCode)
 
-	res2 := &common.Timestamp{}
-	err := getJSONBody(response, res2)
+	res2 := &pbc.Timestamp{}
+	err := ts.getJSONBody(response, res2)
 
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
+	assert.NoError(err, "Unexpected error, err: %v", err)
 
 	assert.Equal(
-		t,
 		int64(2), res2.Ticks-res.Ticks,
 		"time expected to advance by 2, old: %d, new: %d",
 		res.Ticks, res2.Ticks)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestStepperAdvanceNotANumber(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestAdvanceNotANumber() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?advance=two"), nil)
-	response = doHTTP(request, cookies)
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance=two"), nil)
+	response = ts.doHTTP(request, cookies)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	body, err := getBody(response)
+	body, err := ts.getBody(response)
 
-	assert.Nil(t, err)
+	assert.NoError(err)
 	assert.Equal(
-		t,
 		"CloudChamber: requested rate \"two\" could not be parsed as a positive decimal number\n",
 		string(body))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestStepperAdvanceMinusOne(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestAdvanceMinusOne() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?advance=-1"), nil)
-	response = doHTTP(request, cookies)
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance=-1"), nil)
+	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	body, err := getBody(response)
+	body, err := ts.getBody(response)
 
-	assert.Nil(t, err)
-	assert.Equal(t, "CloudChamber: requested rate \"-1\" could not be parsed as a positive decimal number\n", string(body))
+	assert.NoError(err)
+	assert.Equal(
+		"CloudChamber: requested rate \"-1\" could not be parsed as a positive decimal number\n",
+		string(body))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestStepperSetManualBadRate(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestSetManualBadRate() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", testStepperPath(), "?mode=manual=10"), nil)
-	response = doHTTP(request, response.Cookies())
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=manual=10"), nil)
+	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestStepperAfter(t *testing.T) {
+func (ts *StepperTestSuite) TestAfter() {
+	assert := ts.Assert()
+
 	var cookies2 []*http.Cookie
 
-	_ = utf.Open(t)
-	defer utf.Close()
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
-
-	res, cookies := testStepperGetNow(t, cookies)
+	res, cookies := ts.getNow(cookies)
 
 	ch := make(chan bool)
 
 	go func(ch chan<- bool, after int64, cookies []*http.Cookie) {
-		res, cookies2 = testStepperAfter(t, after, cookies)
+		res, cookies2 = ts.after(after, cookies)
 
-		assert.Less(t, after, res.Ticks)
+		assert.Less(after, res.Ticks)
 		ch <- true
 	}(ch, res.Ticks, cookies)
 
-	_, _ = testStepperAdvance(t, cookies)
+	_, _ = ts.advance(cookies)
 
-	assert.True(t, common2.CompleteWithin(ch, time.Duration(2)*time.Second))
+	assert.True(common.CompleteWithin(ch, time.Duration(2)*time.Second))
 
-	doLogout(t, randomCase(adminAccountName), cookies2)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies2)
 }
 
-func TestStepperAfterBadPastTick(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestAfterBadPastTick() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	res, cookies := testStepperGetNow(t, cookies)
-	_, cookies = testStepperAdvance(t, cookies)
+	res, cookies := ts.getNow(cookies)
+	_, cookies = ts.advance(cookies)
 
-	res2, cookies := testStepperAfter(t, res.Ticks, cookies)
-	assert.Less(t, res.Ticks, res2.Ticks)
+	res2, cookies := ts.after(res.Ticks, cookies)
+	assert.Less(res.Ticks, res2.Ticks)
 
-	doLogout(t, randomCase(adminAccountName), cookies)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
 
-func TestStepperAfterBadTick(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestAfterBadTick() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	stat, cookies := testStepperGetStatus(t, response.Cookies())
-	cookies = testStepperSetManual(t, stat.Epoch, cookies)
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=-1", testStepperPath()), nil)
-	response = doHTTP(request, cookies)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=-1", ts.stepperPath()), nil)
+	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestStepperGetNow(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestGetNow() {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	res, cookies := testStepperGetNow(t, response.Cookies())
-	t.Log(res.Ticks)
+	res, cookies := ts.getNow(response.Cookies())
+	log(res.Ticks)
 
-	res2, cookies := testStepperGetNow(t, cookies)
+	res2, cookies := ts.getNow(cookies)
 
-	assert.Equal(t, res.Ticks, res2.Ticks, "times with no advance do not match, %v != %v", res.Ticks, res2.Ticks)
+	assert.Equal(res.Ticks, res2.Ticks, "times with no advance do not match, %v != %v", res.Ticks, res2.Ticks)
 
-	doLogout(t, randomCase(adminAccountName), cookies)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
+}
+
+func TestStepperTestSuite(t *testing.T) {
+	suite.Run(t, new(StepperTestSuite))
 }

@@ -6,54 +6,56 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 )
 
-const (
-	pingURI = "/api/ping"
-)
+type PingTestSuite struct {
+	testSuiteCore
+}
 
-func testPingPath() string { return baseURI + pingURI }
+func (ts *PingTestSuite) pingPath() string { return ts.baseURI + "/api/ping" }
 
-func TestPing(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *PingTestSuite) TestSimple() {
+	assert := ts.Assert()
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	startTime := time.Now()
 	time.Sleep(time.Duration(1) * time.Second)
 
-	request := httptest.NewRequest("GET", testPingPath(), nil)
-	response = doHTTP(request, response.Cookies())
+	request := httptest.NewRequest("GET", ts.pingPath(), nil)
+	response = ts.doHTTP(request, response.Cookies())
 
 	expiry := response.Header.Get("Expires")
 	expTime, err := time.Parse(time.RFC3339, expiry)
-	assert.Nil(t, err)
+	assert.NoError(err)
 
-	assert.True(t, startTime.Before(expTime))
+	assert.True(startTime.Before(expTime))
 
 	startTime = expTime
 	time.Sleep(time.Duration(1) * time.Second)
 
-	request = httptest.NewRequest("GET", testPingPath()+"/", nil)
-	response = doHTTP(request, response.Cookies())
+	request = httptest.NewRequest("GET", ts.pingPath()+"/", nil)
+	response = ts.doHTTP(request, response.Cookies())
 
 	expiry = response.Header.Get("Expires")
 	expTime, err = time.Parse(time.RFC3339, expiry)
-	assert.Nil(t, err)
+	assert.NoError(err)
 
-	assert.True(t, startTime.Before(expTime))
+	assert.True(startTime.Before(expTime))
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestPingNoSession(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *PingTestSuite) TestNoSession() {
+	assert := ts.Assert()
 
-	request := httptest.NewRequest("GET", testPingPath(), nil)
-	response := doHTTP(request, nil)
+	request := httptest.NewRequest("GET", ts.pingPath(), nil)
+	response := ts.doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode)
+	assert.Equal(http.StatusForbidden, response.StatusCode)
+}
+
+func TestPingTestSuite(t *testing.T) {
+	suite.Run(t, new(PingTestSuite))
 }
