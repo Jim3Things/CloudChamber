@@ -6,6 +6,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
@@ -158,6 +159,8 @@ func (s *pduWorking) changePower(
 			// turn off the PDU (as this state means that the PDU is on).  And
 			// turning off the PDU means turning off all the cables.
 			if !power.Power {
+				tracing.UpdateSpanName(ctx, "Powering off %s", target.Describe())
+
 				for i := range p.cables {
 
 					changed, err := p.cables[i].force(false, after.Ticks, occursAt)
@@ -191,6 +194,13 @@ func (s *pduWorking) changePower(
 
 		if _, ok := p.cables[id]; ok {
 			if changed, err := p.cables[id].set(power.Power, after.Ticks, occursAt); err == nil {
+				powerLabel := "off"
+				if power.Power {
+					powerLabel = "on"
+				}
+
+				tracing.UpdateSpanName(ctx, "Powering %s %s", powerLabel, target.Describe())
+
 				// The state machine holds that machine.Guard is always greater than
 				// or equal to any cable.at value.  But not all cable.at values
 				// are the same.  So even though we're moving this cable.at
