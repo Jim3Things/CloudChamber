@@ -6,6 +6,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
@@ -132,6 +133,12 @@ func (s *torWorking) changeConnection(
 
 		if _, ok := t.cables[id]; ok {
 			if changed, err := t.cables[id].set(connect.Connect, after.Ticks, occursAt); err == nil {
+				tracing.UpdateSpanName(
+					ctx,
+					"%s the network connection for %s",
+					aOrB(connect.Connect, "Enabling", "Disabling"),
+					target.Describe())
+
 				machine.AdvanceGuard(occursAt)
 
 				if changed {

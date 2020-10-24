@@ -155,12 +155,16 @@ func (s *pduWorking) changePower(
 	// Change the power on/off state for the full PDU
 	case *services.InventoryAddress_Pdu:
 		if machine.Pass(after.Ticks, occursAt) {
+			tracing.UpdateSpanName(
+				ctx,
+				"Powering %s %s",
+				aOrB(power.Power, "on", "off"),
+				target.Describe())
+
 			// Change power at the PDU.  This only matters if the command is to
 			// turn off the PDU (as this state means that the PDU is on).  And
 			// turning off the PDU means turning off all the cables.
 			if !power.Power {
-				tracing.UpdateSpanName(ctx, "Powering off %s", target.Describe())
-
 				for i := range p.cables {
 
 					changed, err := p.cables[i].force(false, after.Ticks, occursAt)
@@ -194,12 +198,11 @@ func (s *pduWorking) changePower(
 
 		if _, ok := p.cables[id]; ok {
 			if changed, err := p.cables[id].set(power.Power, after.Ticks, occursAt); err == nil {
-				powerLabel := "off"
-				if power.Power {
-					powerLabel = "on"
-				}
-
-				tracing.UpdateSpanName(ctx, "Powering %s %s", powerLabel, target.Describe())
+				tracing.UpdateSpanName(
+					ctx,
+					"Powering %s %s",
+					aOrB(power.Power, "on", "off"),
+					target.Describe())
 
 				// The state machine holds that machine.Guard is always greater than
 				// or equal to any cable.at value.  But not all cable.at values
