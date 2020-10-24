@@ -230,14 +230,14 @@ install_clean:
 .PHONY : run_tests
 
 run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
-	go test $(PROJECT)/internal/clients/store
-	go test $(PROJECT)/internal/clients/timestamp
-	go test $(PROJECT)/internal/services/frontend
-	go test $(PROJECT)/internal/services/inventory
-	go test $(PROJECT)/internal/services/stepper_actor
-	go test $(PROJECT)/internal/services/tracing_sink
-	go test $(PROJECT)/internal/tracing/exporters
-	go test $(PROJECT)/internal/config
+	go test -count=1 $(PROJECT)/internal/clients/store
+	go test -count=1 $(PROJECT)/internal/clients/timestamp
+	go test -count=1 $(PROJECT)/internal/services/frontend
+	go test -count=1 $(PROJECT)/internal/services/inventory
+	go test -count=1 $(PROJECT)/internal/services/stepper_actor
+	go test -count=1 $(PROJECT)/internal/services/tracing_sink
+	go test -count=1 $(PROJECT)/internal/tracing/exporters
+	go test -count=1 $(PROJECT)/internal/config
 
 
 .PHONY : clean

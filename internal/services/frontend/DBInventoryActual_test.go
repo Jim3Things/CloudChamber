@@ -10,12 +10,9 @@ type InventoryActualTestSuite struct {
 	testSuiteCore
 }
 
-func (ts *InventoryActualTestSuite) TestInit() {
+func (ts *InventoryActualTestSuite) TestInitActual() {
 	require := ts.Require()
 	assert := ts.Assert()
-
-	err := InitDBInventoryActual(dbInventory)
-	require.NoError(err)
 
 	assert.Equal(len(dbInventory.Zone.Racks), len(dbInventoryActual.Zone.Racks))
 
