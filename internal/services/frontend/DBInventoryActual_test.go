@@ -3,35 +3,41 @@ package frontend
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestInitDBInventoryActual(t *testing.T){
-	
-	_ = utf.Open(t)
-	defer utf.Close()
+type InventoryActualTestSuite struct {
+	testSuiteCore
+}
 
- 	err := InitDBInventoryActual(dbInventory)
-	require.Nil(t, err)
+func (ts *InventoryActualTestSuite) TestInit() {
+	require := ts.Require()
+	assert := ts.Assert()
 
-	assert.Equal(t, len(dbInventory.Zone.Racks), len(dbInventoryActual.Zone.Racks))
+	err := InitDBInventoryActual(dbInventory)
+	require.NoError(err)
 
-	for name, rack := range dbInventory.Zone.Racks{
+	assert.Equal(len(dbInventory.Zone.Racks), len(dbInventoryActual.Zone.Racks))
+
+	for name, rack := range dbInventory.Zone.Racks {
 		r, ok := dbInventoryActual.Zone.Racks[name]
-		require.True(t, ok)
-		
-		assert.Equal(t, len(rack.Blades), len(r.Blades))
-		
-		for bladeID := range rack.Blades{
-			b, ok := r.Blades[bladeID]
-			require.True(t, ok)
+		require.True(ok)
 
-			assert.Equal(t, bladeWorking, b.State)
+		assert.Equal(len(rack.Blades), len(r.Blades))
+
+		for bladeID := range rack.Blades {
+			b, ok := r.Blades[bladeID]
+			require.True(ok)
+
+			assert.Equal(bladeWorking, b.State)
 		}
-		
-		assert.Equal(t, rackWorking, r.State)
-		assert.Equal(t, torWorking, r.Tor.State)
-		assert.Equal(t, pduWorking, r.Pdu.State)
+
+		assert.Equal(rackWorking, r.State)
+		assert.Equal(torWorking, r.Tor.State)
+		assert.Equal(pduWorking, r.Pdu.State)
 	}
+}
+
+func TestInitDBInventoryActual(t *testing.T) {
+	suite.Run(t, new(InventoryActualTestSuite))
 }

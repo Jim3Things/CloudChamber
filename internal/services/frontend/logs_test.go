@@ -8,8 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/common"
@@ -17,131 +16,134 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
-const (
-	logsURI = "/api/logs"
-)
+type LogTestSuite struct {
+	testSuiteCore
+}
 
-func testLogsPath() string { return baseURI + logsURI }
+func (ts *LogTestSuite) logsPath() string { return ts.baseURI + "/api/logs" }
 
-func testLogsGetPolicy(t *testing.T, cookies []*http.Cookie) (*pb.GetPolicyResponse, []*http.Cookie) {
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", testLogsPath(), "/policy"), nil)
-	response := doHTTP(request, cookies)
+func (ts *LogTestSuite) getPolicy(cookies []*http.Cookie) (*pb.GetPolicyResponse, []*http.Cookie) {
+	assert := ts.Assert()
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.logsPath(), "/policy"), nil)
+	response := ts.doHTTP(request, cookies)
+
+	assert.Equal(http.StatusOK, response.StatusCode)
 
 	res := &pb.GetPolicyResponse{}
-	err := getJSONBody(response, res)
+	err := ts.getJSONBody(response, res)
 
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
+	assert.NoError(err, "Unexpected error, err: %v", err)
 
 	return res, response.Cookies()
 }
 
-func testLogsGetAfter(
-	t *testing.T,
+func (ts *LogTestSuite) getAfter(
 	start int64,
 	maxCount int64,
 	cookies []*http.Cookie) (*pb.GetAfterResponse, []*http.Cookie) {
-	path := fmt.Sprintf("%s?from=%d&for=%d", testLogsPath(), start, maxCount)
-	request := httptest.NewRequest("GET", path, nil)
-	response := doHTTP(request, cookies)
+	assert := ts.Assert()
 
-	assert.Equal(t, http.StatusOK, response.StatusCode)
+	path := fmt.Sprintf("%s?from=%d&for=%d", ts.logsPath(), start, maxCount)
+	request := httptest.NewRequest("GET", path, nil)
+	response := ts.doHTTP(request, cookies)
+
+	assert.Equal(http.StatusOK, response.StatusCode)
 
 	res := &pb.GetAfterResponse{}
-	err := getJSONBody(response, res)
+	err := ts.getJSONBody(response, res)
 
-	assert.Nilf(t, err, "Unexpected error, err: %v", err)
+	assert.NoError(err, "Unexpected error, err: %v", err)
 
 	return res, response.Cookies()
 }
 
-func TestLogsGetPolicy(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *LogTestSuite) TestGetPolicy() {
+	require := ts.Require()
+	assert := ts.Assert()
 
 	err := tsc.Reset(context.Background())
-	require.Nil(t, err)
+	require.NoError(err)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	res, cookies := testLogsGetPolicy(t, response.Cookies())
-	assert.Equal(t, int64(200), res.MaxEntriesHeld)
-	assert.Equal(t, int64(-1), res.FirstId)
+	res, cookies := ts.getPolicy(response.Cookies())
+	assert.Equal(int64(200), res.MaxEntriesHeld)
+	assert.Equal(int64(-1), res.FirstId)
 
-	doLogout(t, randomCase(adminAccountName), cookies)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
 
-func TestLogsGetPolicyNoSession(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *LogTestSuite) TestGetPolicyNoSession() {
+	require := ts.Require()
+	assert := ts.Assert()
 
 	err := tsc.Reset(context.Background())
-	require.Nil(t, err)
+	require.NoError(err)
 
-	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", testLogsPath(), "/policy"), nil)
-	response := doHTTP(request, nil)
+	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.logsPath(), "/policy"), nil)
+	response := ts.doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode)
-	assert.Nil(t, err)
+	assert.Equal(http.StatusForbidden, response.StatusCode)
+	assert.NoError(err)
 }
 
-func TestLogsGetAfterNoSession(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *LogTestSuite) TestGetAfterNoSession() {
+	require := ts.Require()
+	assert := ts.Assert()
 
 	err := tsc.Reset(context.Background())
-	require.Nil(t, err)
+	require.NoError(err)
 
-	path := fmt.Sprintf("%s?from=0&for=100", testLogsPath())
+	path := fmt.Sprintf("%s?from=0&for=100", ts.logsPath())
 	request := httptest.NewRequest("GET", path, nil)
-	response := doHTTP(request, nil)
+	response := ts.doHTTP(request, nil)
 
-	assert.Equal(t, http.StatusForbidden, response.StatusCode)
-	assert.Nil(t, err)
+	assert.Equal(http.StatusForbidden, response.StatusCode)
+	assert.NoError(err)
 }
 
-func TestLogsGetAfterBadStart(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *LogTestSuite) TestGetAfterBadStart() {
+	require := ts.Require()
+	assert := ts.Assert()
 
 	err := tsc.Reset(context.Background())
-	require.Nil(t, err)
+	require.NoError(err)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	path := fmt.Sprintf("%s?from=%s&for=%d", testLogsPath(), "bogus", 100)
+	path := fmt.Sprintf("%s?from=%s&for=%d", ts.logsPath(), "bogus", 100)
 	request := httptest.NewRequest("GET", path, nil)
-	response = doHTTP(request, response.Cookies())
+	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestLogsGetAfterBadCount(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *LogTestSuite) TestGetAfterBadCount() {
+	require := ts.Require()
+	assert := ts.Assert()
 
 	err := tsc.Reset(context.Background())
-	require.Nil(t, err)
+	require.NoError(err)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	path := fmt.Sprintf("%s?from=%d&for=%s", testLogsPath(), -1, "bogus")
+	path := fmt.Sprintf("%s?from=%d&for=%s", ts.logsPath(), -1, "bogus")
 	request := httptest.NewRequest("GET", path, nil)
-	response = doHTTP(request, response.Cookies())
+	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(t, http.StatusBadRequest, response.StatusCode)
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
-	doLogout(t, randomCase(adminAccountName), response.Cookies())
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
-func TestLogsGetAfter(t *testing.T) {
+func (ts *LogTestSuite) TestGetAfter() {
+	require := ts.Require()
+	assert := ts.Assert()
+
 	var cookies2 []*http.Cookie
-
-	_ = utf.Open(t)
-	defer utf.Close()
 
 	entry := &log.Entry{
 		Name:       "test",
@@ -165,52 +167,56 @@ func TestLogsGetAfter(t *testing.T) {
 	}
 
 	err := tsc.Reset(context.Background())
-	require.Nil(t, err)
+	require.NoError(err)
 
-	response := doLogin(t, randomCase(adminAccountName), adminPassword, nil)
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	ch := make(chan bool)
 
 	go func(ch chan<- bool, cookies []*http.Cookie) {
 		var res *pb.GetAfterResponse
 
-		res, cookies2 = testLogsGetAfter(t, -1, 10, response.Cookies())
+		res, cookies2 = ts.getAfter(-1, 10, response.Cookies())
 
-		require.Equal(t, 1, len(res.Entries))
+		require.Equal(1, len(res.Entries))
 
-		assert.Equal(t, int64(0), res.Entries[0].Id)
+		assert.Equal(int64(0), res.Entries[0].Id)
 
 		resEntry := res.Entries[0].Entry
-		assert.Equal(t, entry.Name, resEntry.Name)
-		assert.Equal(t, entry.SpanID, resEntry.SpanID)
-		assert.Equal(t, entry.ParentID, resEntry.ParentID)
-		assert.Equal(t, entry.TraceID, resEntry.TraceID)
-		assert.Equal(t, entry.Infrastructure, resEntry.Infrastructure)
-		assert.Equal(t, entry.Status, resEntry.Status)
-		assert.Equal(t, entry.StackTrace, resEntry.StackTrace)
-		assert.Equal(t, entry.Reason, resEntry.Reason)
+		assert.Equal(entry.Name, resEntry.Name)
+		assert.Equal(entry.SpanID, resEntry.SpanID)
+		assert.Equal(entry.ParentID, resEntry.ParentID)
+		assert.Equal(entry.TraceID, resEntry.TraceID)
+		assert.Equal(entry.Infrastructure, resEntry.Infrastructure)
+		assert.Equal(entry.Status, resEntry.Status)
+		assert.Equal(entry.StackTrace, resEntry.StackTrace)
+		assert.Equal(entry.Reason, resEntry.Reason)
 
-		require.Equal(t, len(entry.Event), len(resEntry.Event))
+		require.Equal(len(entry.Event), len(resEntry.Event))
 
 		resEvent := resEntry.Event[0]
 		event := entry.Event[0]
 
-		assert.Equal(t, event.Name, resEvent.Name)
-		assert.Equal(t, event.StackTrace, resEvent.StackTrace)
-		assert.Equal(t, event.Impacted, resEvent.Impacted)
-		assert.Equal(t, event.Text, resEvent.Text)
-		assert.Equal(t, event.Tick, resEvent.Tick)
-		assert.Equal(t, event.Severity, resEvent.Severity)
+		assert.Equal(event.Name, resEvent.Name)
+		assert.Equal(event.StackTrace, resEvent.StackTrace)
+		assert.Equal(event.Impacted, resEvent.Impacted)
+		assert.Equal(event.Text, resEvent.Text)
+		assert.Equal(event.Tick, resEvent.Tick)
+		assert.Equal(event.Severity, resEvent.Severity)
 
 		ch <- true
 	}(ch, response.Cookies())
 
-	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
+	assert.True(common.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
 
 	err = tsc.Append(context.Background(), entry)
-	require.Nil(t, err)
+	require.NoError(err)
 
-	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
 
-	doLogout(t, randomCase(adminAccountName), cookies2)
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies2)
+}
+
+func TestLogTestSuite(t *testing.T) {
+	suite.Run(t, new(LogTestSuite))
 }

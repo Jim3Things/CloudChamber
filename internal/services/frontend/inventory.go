@@ -38,7 +38,9 @@ func inventoryAddRoutes(routeBase *mux.Router) {
 	//
 	// routeRacks.HandleFunc("/racks/{rackID}", handlerRacksCreate).Methods("POST", "GET") // May be only GET
 	routeRacks.HandleFunc("/{rackID}", handlerRackRead).Methods("GET")
+	routeRacks.HandleFunc("/{rackID}/", handlerRackRead).Methods("GET")
 	routeRacks.HandleFunc("/{rackID}/blades", handlerBladesList).Methods("GET")
+	routeRacks.HandleFunc("/{rackID}/blades/", handlerBladesList).Methods("GET")
 	routeRacks.HandleFunc("/{rackID}/blades/{bladeID}", handlerBladeRead).Methods("GET")
 	// routeRacks.HandleFunc("/racks/{rackID}", handlerRacksDelete).Methods("DELETE", "GET")
 }
@@ -80,7 +82,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	b := common.URLPrefix(r)
 
 	err = dbInventory.Scan(func(name string) error {
-		target := fmt.Sprintf("%s%s", b, name)
+		target := fmt.Sprintf("%s%s/", b, name)
 
 		res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
 
