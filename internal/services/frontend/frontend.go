@@ -184,6 +184,10 @@ func initService(cfg *config.GlobalConfig) error {
 		return err
 	}
 
+	if err := InitDBInventoryActual(dbInventory); err != nil {
+		return err
+	}
+
 	// Initialize the underlying store
 	//
 	store.Initialize(cfg)
