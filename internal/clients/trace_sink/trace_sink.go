@@ -24,7 +24,7 @@ type TraceData struct {
 func InitSinkClient(name string, opts ...grpc.DialOption) {
 	dialName = name
 
-	dialOpts = append(dialOpts, opts...)
+	dialOpts = append([]grpc.DialOption{}, opts...)
 }
 
 // Reset forcibly resets the trace sink to its initial state.  This is intended

@@ -133,6 +133,22 @@ func initHandlers() error {
 	return nil
 }
 
+// initClients sets up the internal service clients used by the frontend
+// handlers themselves.
+func initClients(cfg *config.GlobalConfig) error {
+	ts.InitTimestamp(
+		cfg.SimSupport.EP.String(),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(ct.Interceptor))
+
+	tsc.InitSinkClient(
+		cfg.SimSupport.EP.String(),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(ct.Interceptor))
+
+	return nil
+}
+
 func initService(cfg *config.GlobalConfig) error {
 
 	// A failure to generate a random key is most likely a result of a failure of the
@@ -165,17 +181,6 @@ func initService(cfg *config.GlobalConfig) error {
 	server.cookieStore.Options.Secure = false
 	server.cookieStore.Options.HttpOnly = false
 
-	// Initialize the service clients
-	ts.InitTimestamp(
-		cfg.SimSupport.EP.String(),
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
-
-	tsc.InitSinkClient(
-		cfg.SimSupport.EP.String(),
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
-
 	if err := initHandlers(); err != nil {
 		return err
 	}
@@ -198,6 +203,9 @@ func initService(cfg *config.GlobalConfig) error {
 
 // StartService is the primary entry point to start the front-end web service.
 func StartService(cfg *config.GlobalConfig) error {
+	if err := initClients(cfg); err != nil {
+		log.Fatalf("Error initializing local clients: %v", err)
+	}
 
 	if err := initService(cfg); err != nil {
 		log.Fatalf("Error initializing service: %v", err)

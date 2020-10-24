@@ -53,15 +53,12 @@ type testSuiteCore struct {
 	baseURI     string
 	initialized bool
 
-	lis *bufconn.Listener
 	utf *exporters.Exporter
 
 	ep       string
 	dialOpts []grpc.DialOption
 
 	cfg *config.GlobalConfig
-
-	s *grpc.Server
 }
 
 func (ts *testSuiteCore) adminAccountName() string { return "Admin" }
@@ -93,7 +90,7 @@ func (ts *testSuiteCore) TearDownTest() {
 }
 
 func (ts *testSuiteCore) bufDialer(_ context.Context, _ string) (net.Conn, error) {
-	return ts.lis.Dial()
+	return lis.Dial()
 }
 
 // Convert a proto message into a reader with json-formatted contents
@@ -201,6 +198,8 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 // initialized once.  This includes flag parsing and support service startup.
 func (ts *testSuiteCore) ensureServicesStarted() {
 	if s == nil {
+		require := ts.Require()
+
 		ts.ep = "bufnet"
 		ts.dialOpts = []grpc.DialOption{
 			grpc.WithContextDialer(ts.bufDialer),
@@ -218,10 +217,8 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 
 		ts.cfg = cfg
 
-		// Start the test web service, which all tests will use
-		if err = initService(cfg); err != nil {
-			log.Fatalf("Error initializing service: %v", err)
-		}
+		timestamp.InitTimestamp(ts.ep, ts.dialOpts...)
+		trace_sink.InitSinkClient(ts.ep, ts.dialOpts...)
 
 		lis = bufconn.Listen(bufSize)
 		s = grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
@@ -235,16 +232,23 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 			log.Fatalf("Failed to register tracing sink: %v", err)
 		}
 
-		timestamp.InitTimestamp(ts.ep, ts.dialOpts...)
-		trace_sink.InitSinkClient(ts.ep, ts.dialOpts...)
-
 		go func() {
 			if err = s.Serve(lis); err != nil {
 				log.Fatalf("Server exited with error: %v", err)
 			}
 		}()
-	}
 
-	ts.lis = lis
-	ts.s = s
+		// Force the initial state to manual so that the setup tracing works
+		// correctly (and does not produce spurious trace errors)
+		require.NoError(
+			timestamp.SetPolicy(
+				context.Background(),
+				pb.StepperPolicy_Manual,
+				&duration.Duration{Seconds: 0}, -1))
+
+		// Start the test web service, which all tests will use
+		if err = initService(cfg); err != nil {
+			log.Fatalf("Error initializing service: %v", err)
+		}
+	}
 }
