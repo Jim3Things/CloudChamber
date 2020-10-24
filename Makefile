@@ -154,7 +154,7 @@ VERSION_MARKER = \
 ARTIFACTS = \
     deployments/readme.md \
     deployments/cloudchamber.yaml \
-	deployments/inventory.yaml \
+    deployments/inventory.yaml \
     deployments/Deploy.cmd \
     deployments/StartAll.cmd \
     deployments/StartCloudChamber.cmd \

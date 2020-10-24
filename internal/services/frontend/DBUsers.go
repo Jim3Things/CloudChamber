@@ -28,6 +28,7 @@ import (
 //
 type DBUsers struct {
 	Store *store.Store
+	val1 int64
 }
 
 var dbUsers *DBUsers
