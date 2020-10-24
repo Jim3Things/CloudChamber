@@ -72,21 +72,11 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
 
-	ts.ep = "bufnet"
-	ts.dialOpts = []grpc.DialOption{
-		grpc.WithContextDialer(ts.bufDialer),
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ctrc.Interceptor),
-	}
-
 	ts.ensureServicesStarted()
 }
 
 func (ts *testSuiteCore) SetupTest() {
 	_ = ts.utf.Open(ts.T())
-
-	timestamp.InitTimestamp(ts.ep, ts.dialOpts...)
-	trace_sink.InitSinkClient(ts.ep, ts.dialOpts...)
 
 	ts.baseURI = fmt.Sprintf("http://localhost:%d", server.port)
 
@@ -211,6 +201,13 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 // initialized once.  This includes flag parsing and support service startup.
 func (ts *testSuiteCore) ensureServicesStarted() {
 	if s == nil {
+		ts.ep = "bufnet"
+		ts.dialOpts = []grpc.DialOption{
+			grpc.WithContextDialer(ts.bufDialer),
+			grpc.WithInsecure(),
+			grpc.WithUnaryInterceptor(ctrc.Interceptor),
+		}
+
 		configPath := flag.String("config", "./testdata", "path to the configuration file")
 		flag.Parse()
 
@@ -237,6 +234,9 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 		if _, err = tracing_sink.Register(s, cfg.SimSupport.TraceRetentionLimit); err != nil {
 			log.Fatalf("Failed to register tracing sink: %v", err)
 		}
+
+		timestamp.InitTimestamp(ts.ep, ts.dialOpts...)
+		trace_sink.InitSinkClient(ts.ep, ts.dialOpts...)
 
 		go func() {
 			if err = s.Serve(lis); err != nil {
