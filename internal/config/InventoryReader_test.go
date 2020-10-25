@@ -2,6 +2,8 @@
 package config
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"testing"
 
@@ -11,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 var (
@@ -39,7 +42,7 @@ func TestReadInventoryDefinition(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
-	response, err := ReadInventoryDefinition("./testdata")
+	response, err := ReadInventoryDefinition(context.Background(), "./testdata")
 	require.Nil(t, err)
 
 	require.Equal(t, 2, len(response.Racks))
@@ -73,7 +76,7 @@ func TestReadInventoryBogusPath(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	response, err := ReadInventoryDefinition("./missing/path")
+	response, err := ReadInventoryDefinition(context.Background(), "./missing/path")
 	require.NotNil(t, err)
 	assert.NotEqual(t, "%v", response)
 }
@@ -85,7 +88,7 @@ func TestInventoryUniqueRack(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	_, err := ReadInventoryDefinition("./testdata/BadYaml")
+	_, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYaml")
 	require.NotNil(t, err)
 	assert.Equal(t, "Duplicate rack \"rack1\" detected", err.Error())
 }
@@ -96,7 +99,7 @@ func TestInventoryUniqueBlade(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	_, err := ReadInventoryDefinition("./testdata/BadYamlBlade")
+	_, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlBlade")
 	require.NotNil(t, err)
 	assert.Equal(t, "Duplicate Blade 1 in Rack \"rack1\" detected", err.Error())
 }
@@ -107,8 +110,123 @@ func TestInventoryValidateBlade(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	_, err := ReadInventoryDefinition("./testdata/BadYamlValidate")
+	_, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlValidate")
 	require.NotNil(t, err)
+	assert.Equal(t,
+		"In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid",
+		err.Error())
+}
+
+
+
+
+func TestReadInventoryDefinitionFromFile(t *testing.T) {
+
+	_ = utf.Open(t)
+	defer utf.Close()
+
+	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata")
+	require.NoError(t, err)
+
+	// There should only be a single zone.
+	//
+	require.Equal(t, 1, len(*zonemap))
+
+	zone, ok := (*zonemap)["zone1"]
+	require.True(t, ok)
+
+	assert.True(t, zone.Enabled)
+	assert.Equal(t, inventory.Definition_operational, zone.Condition)
+	assert.Equal(t, "DC-PNW-0", zone.Location)
+	assert.Equal(t, "Base zone", zone.Notes)
+
+	require.Equal(t, 2, len(zone.Racks))
+
+	for i := 1; i <= 2; i++ {
+
+		name := fmt.Sprintf("rack%d", i)
+		
+		r, ok := zone.Racks[name]
+		require.True(t, ok)
+
+		assert.True(t, r.Enabled)
+		assert.Equal(t, inventory.Definition_operational, r.Condition)
+		assert.Equal(t, "DC-PNW-0-" + name, r.Location)
+		assert.Equal(t, "RackName: " + name, r.Notes)
+
+		assert.Equal(t, 1, len(r.Pdus))
+		assert.Equal(t, 1, len(r.Tors))
+		assert.Equal(t, 2, len(r.Blades))
+
+
+		b1, ok := r.Blades[1]
+		require.True(t, ok)
+
+		assert.True(t, b1.Enabled)
+		assert.Equal(t, inventory.Definition_operational, b1.Condition)
+
+		assert.Equal(t, int64(16),    b1.Capacity.Cores)
+		assert.Equal(t, int64(16834), b1.Capacity.MemoryInMb)
+		assert.Equal(t, int64(240),   b1.Capacity.DiskInGb)
+		assert.Equal(t, int64(2048),  b1.Capacity.NetworkBandwidthInMbps)
+		assert.Equal(t, "X64",        b1.Capacity.Arch)
+
+		b2, ok := r.Blades[2]
+		require.True(t, ok)
+
+		assert.True(t, b2.Enabled)
+		assert.Equal(t, inventory.Definition_operational, b2.Condition)
+
+		assert.Equal(t, int64(8),     b2.Capacity.Cores)
+		assert.Equal(t, int64(16834), b2.Capacity.MemoryInMb)
+		assert.Equal(t, int64(120),   b2.Capacity.DiskInGb)
+		assert.Equal(t, int64(2048),  b2.Capacity.NetworkBandwidthInMbps)
+		assert.Equal(t, "X64",        b2.Capacity.Arch)
+	}
+}
+
+func TestReadInventoryDefinitionFromFileBogusPath(t *testing.T) {
+	_ = utf.Open(t)
+	defer utf.Close()
+	viper.Reset()
+
+	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./missing/path")
+	require.Error(t, err)
+	assert.NotEqual(t, "%v", response)
+}
+
+// TestInventoryUniqueRack test to check that zone always contain unique rack numbers
+//
+func TestIReadInventoryDefinitionFromFileUniqueRack(t *testing.T) {
+
+	_ = utf.Open(t)
+	defer utf.Close()
+	viper.Reset()
+
+	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYaml")
+	require.Error(t, err)
+	assert.Equal(t, "Duplicate rack \"rack1\" detected", err.Error())
+}
+
+func TestReadInventoryDefinitionFromFileUniqueBlade(t *testing.T) {
+
+	_ = utf.Open(t)
+	defer utf.Close()
+	viper.Reset()
+
+	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlBlade")
+	require.Error(t, err)
+	assert.Equal(t, "Duplicate Blade 1 in Rack \"rack1\" detected", err.Error())
+}
+
+func TestReadInventoryDefinitionFromFileValidateBlade(t *testing.T) {
+
+	_ = utf.Open(t)
+	defer utf.Close()
+	viper.Reset()
+
+	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlValidate")
+	require.Error(t, err)
 	assert.Equal(t,
 		"In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid",
 		err.Error())

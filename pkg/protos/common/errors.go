@@ -7,6 +7,22 @@ import (
 	"fmt"
 )
 
+// ErrMustBeEQ signals that the specified field must be equal to a
+// designated value.
+type ErrMustBeEQ struct {
+	Field    string
+	Actual   int64
+	Required int64
+}
+
+func (e ErrMustBeEQ) Error() string {
+	return fmt.Sprintf(
+		"the field %q must be equal to %d.  It is %d, which is invalid",
+		e.Field,
+		e.Required,
+		e.Actual)
+}
+
 // ErrMustBeGTE signals that the specified field must be greater than or equal
 // to a designated value.
 type ErrMustBeGTE struct {

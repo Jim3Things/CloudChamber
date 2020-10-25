@@ -78,7 +78,7 @@ type DBInventory struct {
 	MaxCapacity   *ct.BladeCapacity
 	Store *store.Store
 
-	zones map[string]*pb.DefinitionZone
+	Zones map[string]*pb.DefinitionZone
 }
 
 var dbInventory *DBInventory
@@ -98,6 +98,7 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			MaxBladeCount: 0,
 			MaxCapacity:   &ct.BladeCapacity{},
 			Store: store.NewStore(),
+			Zones: make(map[string]*pb.DefinitionZone),
 		}
 
 		if err = db.Initialize(ctx, cfg); err != nil {
@@ -121,7 +122,7 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 //
 func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Initialize Inventory DB Connection"),
+		tracing.WithName("Initialize Inventory DB state"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
@@ -131,7 +132,7 @@ func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) 
 	}
 
 	if err = m.LoadFromStore(ctx); err != nil {
-		return err
+	 	return err
 	}
 
 	if err = m.UpdateFromFile(ctx, cfg); err != nil {
@@ -148,6 +149,11 @@ func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) 
 // notifications for arrival and/or departures of various items in the inventory.
 //
 func (m *DBInventory) LoadFromStore(ctx context.Context) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Load inventory definition from store"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
 
 	return nil
 }
@@ -159,23 +165,22 @@ func (m *DBInventory) LoadFromStore(ctx context.Context) error {
 //
 func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConfig) error {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Initialize User DB Connection"),
+		tracing.WithName("Update inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-
 
 	// We have the basic initialization done. Now go read the current inventory
 	// from the file indicated by the configuration. Once we have that, load it
 	// into the store looking to see if there are any material changes between
 	// what is already in the store and what is now found in the file.
 	//
-	zone, err := config.ReadInventoryDefinition(cfg.Inventory.InventoryDefinition) 
+	zonemap, err := config.ReadInventoryDefinitionFromFile(ctx, cfg.Inventory.InventoryDefinition) 
 	if err != nil {
 			return err 
 	}
 
-	if err = m.reconcileNewInventory(ctx, zone); err != nil {
+	if err = m.reconcileNewInventory(ctx, zonemap); err != nil {
 		return err
 	}
 
@@ -189,7 +194,7 @@ func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConf
 // which any currently running services have previously established and deliver
 // a set of arrival and/or departure notifications as appropriate.
 //
-func (m *DBInventory) reconcileNewInventory(ctx context.Context, zone *pb.ExternalZone) error {
+func (m *DBInventory) reconcileNewInventory(ctx context.Context, zonemap *map[string]*pb.DefinitionZone) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Reconcile current inventory with update"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -199,9 +204,9 @@ func (m *DBInventory) reconcileNewInventory(ctx context.Context, zone *pb.Extern
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	m.Zone = zone
+	m.Zones = *zonemap
 
-	m.buildSummary(ctx)
+	m.buildSummaryForZones(ctx)
 
 	return nil
 }
@@ -304,6 +309,38 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 		}
 
 		maxBladeCount = common.MaxInt64(maxBladeCount,	int64(len(rack.Blades)))
+	}
+
+	m.MaxBladeCount = maxBladeCount
+	m.MaxCapacity   = memo
+
+	tracing.Info(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", m.MaxBladeCount, m.MaxCapacity)
+}
+
+
+// buildSummary constructs the memo-ed summary data for the zone.  This should
+// be called whenever the configured inventory changes.
+//
+// Assumptions: dbInventory (write)lock is already held.
+//
+func (m *DBInventory) buildSummaryForZones(ctx context.Context) {
+
+	maxBladeCount := int64(0)
+	memo := &ct.BladeCapacity{}
+
+	for _, zone := range m.Zones {
+		for _, rack := range zone.Racks {
+			for _, blade := range rack.Blades {
+				memo.Cores = common.MaxInt64(memo.Cores, blade.Capacity.Cores)
+				memo.DiskInGb = common.MaxInt64(memo.DiskInGb, blade.Capacity.DiskInGb)
+				memo.MemoryInMb = common.MaxInt64(memo.MemoryInMb, blade.Capacity.MemoryInMb)
+				memo.NetworkBandwidthInMbps = common.MaxInt64(
+					memo.NetworkBandwidthInMbps,
+					blade.Capacity.NetworkBandwidthInMbps)
+			}
+
+			maxBladeCount = common.MaxInt64(maxBladeCount,	int64(len(rack.Blades)))
+		}
 	}
 
 	m.MaxBladeCount = maxBladeCount
