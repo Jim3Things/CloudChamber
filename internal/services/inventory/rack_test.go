@@ -8,26 +8,10 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 )
 
 type RackTestSuite struct {
-	suite.Suite
-
-	utf *exporters.Exporter
-}
-
-func (ts *RackTestSuite) SetupSuite() {
-	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.ConnectToProvider(ts.utf)
-}
-
-func (ts *RackTestSuite) SetupTest() {
-	_ = ts.utf.Open(ts.T())
-}
-
-func (ts *RackTestSuite) TearDownTest() {
-	ts.utf.Close()
+	testSuiteCore
 }
 
 func (ts *RackTestSuite) TestCreateRack() {
@@ -36,9 +20,9 @@ func (ts *RackTestSuite) TestCreateRack() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 	ctx, span := tracing.StartSpan(ctx, tracing.WithName("test rack creation"))
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	span.End()
 
 	require.NotNil(r)
@@ -51,13 +35,13 @@ func (ts *RackTestSuite) TestStartStopRack() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
 	ctx, span := tracing.StartSpan(
 		ctx,
 		tracing.WithName("test rack start and stop"))
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)

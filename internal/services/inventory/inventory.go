@@ -58,7 +58,7 @@ func (s *server) initializeRacks(path string) error {
 	for name, r := range zone.Racks {
 		// For each rack, create a rack item, supplying the tor, pdu, and blade
 		tracing.Info(ctx, "Adding rack %q", name)
-		s.racks[name] = newRack(ctx, r)
+		s.racks[name] = newRack(ctx, name, r)
 
 		// Start each rack (this gives us a channel and a goroutine)
 		if err = s.racks[name].start(ctx); err != nil {

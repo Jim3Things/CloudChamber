@@ -108,7 +108,7 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 	stack := doIndent(entry.GetStackTrace(), tab)
 
 	return doIndent(fmt.Sprintf(
-		"[%s:%s]%s%s%s %s %s(%s):\n%s\n",
+		"[%s:%s]%s%s%s %s %s (%s):\n%s\n",
 		entry.GetSpanID(),
 		entry.GetParentID(),
 		formatLink(entry.GetStartingLink(), entry.GetLinkSpanID(), entry.GetLinkTraceID()),

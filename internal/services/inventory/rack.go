@@ -16,12 +16,14 @@ import (
 // governed by a mesh of state machines rooted in the one for the rack as a
 // whole.
 type rack struct {
+	name string
+
 	// ch is the channel to send requests along to the rack's goroutine, which
 	// is where the state machine runs.
 	ch chan *sm.Envelope
 
-	tor *tor
-	pdu *pdu
+	tor    *tor
+	pdu    *pdu
 	blades map[int64]*blade
 
 	sm *sm.SimpleSM
@@ -37,16 +39,16 @@ const (
 	rackQueueDepth = 100
 )
 
-type startSim struct {}
+type startSim struct{}
 
-type stopSim struct {}
+type stopSim struct{}
 
 // newRack creates a new simulated rack using the supplied inventory definition
 // entries to determine its structure.  The resulting rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
 // programmed.
-func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
-	return newRackInternal(ctx, def, newPdu, newTor)
+func newRack(ctx context.Context, name string, def *pb.ExternalRack) *rack {
+	return newRackInternal(ctx, name, def, newPdu, newTor)
 }
 
 // newRackInternal is the implementation behind newRack.  It supports
@@ -54,10 +56,12 @@ func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
 // machine logic.
 func newRackInternal(
 	ctx context.Context,
+	name string,
 	def *pb.ExternalRack,
 	pduFunc func(*pb.ExternalPdu, *rack) *pdu,
 	torFunc func(*pb.ExternalTor, *rack) *tor) *rack {
 	r := &rack{
+		name:   name,
 		ch:     make(chan *sm.Envelope, rackQueueDepth),
 		tor:    nil,
 		pdu:    nil,
@@ -97,7 +101,7 @@ func (r *rack) start(ctx context.Context) error {
 
 	r.ch <- sm.NewEnvelope(ctx, &startSim{}, repl)
 
-	res := <- repl
+	res := <-repl
 
 	if res != nil {
 		return res.Err
@@ -152,23 +156,29 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 
 	switch body := msg.Msg.(type) {
 	case *startSim:
-		tracing.Info(ctx, "Starting the rack simulation")
+		tracing.UpdateSpanName(
+			ctx,
+			"Starting the simulation of rack %q",
+			r.name)
 
 		err := r.sm.Start(ctx)
 		if err == nil {
 			err = machine.ChangeState(ctx, rackWorkingState)
 		}
 
-		msg.Ch <- &sm.Response {
+		msg.Ch <- &sm.Response{
 			Err: err,
-			At: at,
+			At:  at,
 			Msg: nil,
 		}
 
 	case *stopSim:
-		tracing.Info(ctx, "Stopping the rack simulation")
+		tracing.UpdateSpanName(
+			ctx,
+			"Stopping the simulation of rack %q",
+			r.name)
 
-		msg.Ch <- &sm.Response {
+		msg.Ch <- &sm.Response{
 			Err: machine.ChangeState(ctx, rackTerminalState),
 			At:  at,
 			Msg: nil,

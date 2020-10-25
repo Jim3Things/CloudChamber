@@ -10,76 +10,21 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 type PduTestSuite struct {
-	suite.Suite
-
-	utf *exporters.Exporter
-}
-
-func (ts *PduTestSuite) SetupSuite() {
-	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.ConnectToProvider(ts.utf)
-}
-
-func (ts *PduTestSuite) SetupTest() {
-	_ = ts.utf.Open(ts.T())
-}
-
-func (ts *PduTestSuite) TearDownTest() {
-	ts.utf.Close()
-}
-
-func createDummyRack(bladeCount int) *pb.ExternalRack {
-	rackDef := &pb.ExternalRack{
-		Pdu:    &pb.ExternalPdu{},
-		Tor:    &pb.ExternalTor{},
-		Blades: make(map[int64]*ct.BladeCapacity),
-	}
-
-	for i := 0; i < bladeCount; i++ {
-		rackDef.Blades[int64(i)] = &ct.BladeCapacity{}
-	}
-
-	return rackDef
-}
-
-func (ts *PduTestSuite) completeWithin(ch <-chan *sm.Response, delay time.Duration) *sm.Response {
-	select {
-	case res := <-ch:
-		return res
-	case <-time.After(delay):
-		return nil
-	}
-}
-
-func execute(ctx context.Context, msg *sm.Envelope, action func(ctx2 context.Context, envelope *sm.Envelope)) {
-	go func(tick int64, msg *sm.Envelope) {
-		c2, s := tracing.StartSpan(context.Background(),
-			tracing.WithName("Executing simulated inventory operation"),
-			tracing.WithNewRoot(),
-			tracing.WithLink(msg.Span, msg.Link))
-
-		c2 = common.ContextWithTick(c2, tick)
-
-		action(c2, msg)
-
-		s.End()
-	}(common.TickFromContext(ctx), msg)
+	testSuiteCore
 }
 
 func (ts *PduTestSuite) TestCreatePdu() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(context.Background(), rackDef)
+	r := newRack(context.Background(), ts.rackName(), rackDef)
 	require.NotNil(r)
 	assert.Equal("AwaitingStart", r.sm.Current.Name())
 
@@ -102,9 +47,9 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
 	ctx, span := tracing.StartSpan(
@@ -120,10 +65,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	badMsg := sm.NewEnvelope(
 		ctx,
 		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Tor{},
-			},
+			Target: ts.torTarget(),
 			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
 			Action: &services.InventoryRepairMsg_Power{
 				Power: false,
@@ -133,7 +75,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 
 	span.End()
 
-	execute(ctx, badMsg, r.pdu.Receive)
+	ts.execute(ctx, badMsg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -156,9 +98,9 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
 	ctx, span := tracing.StartSpan(
@@ -170,10 +112,7 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 	msg := sm.NewEnvelope(
 		ctx,
 		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Pdu{},
-			},
+			Target: ts.pduTarget(),
 			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
 			Action: &services.InventoryRepairMsg_Power{
 				Power: false,
@@ -183,7 +122,7 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 
 	span.End()
 
-	execute(ctx, msg, r.pdu.Receive)
+	ts.execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -205,9 +144,9 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
 	ctx, span := tracing.StartSpan(
@@ -219,10 +158,7 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 	msg := sm.NewEnvelope(
 		ctx,
 		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Pdu{},
-			},
+			Target: ts.pduTarget(),
 			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
 			Action: &services.InventoryRepairMsg_Power{
 				Power: true,
@@ -232,7 +168,7 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 
 	span.End()
 
-	execute(ctx, msg, r.pdu.Receive)
+	ts.execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -254,9 +190,9 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
 	ctx, span := tracing.StartSpan(
@@ -268,12 +204,7 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	msg := sm.NewEnvelope(
 		ctx,
 		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
+			Target: ts.bladeTarget(0),
 			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
 			Action: &services.InventoryRepairMsg_Power{
 				Power: true,
@@ -283,7 +214,7 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	span.End()
 
-	execute(ctx, msg, r.pdu.Receive)
+	ts.execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -305,9 +236,9 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	startTime := int64(1)
 	ctx := common.ContextWithTick(context.Background(), startTime)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
 	ctx, span := tracing.StartSpan(
@@ -319,12 +250,7 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	msg := sm.NewEnvelope(
 		ctx,
 		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
+			Target: ts.bladeTarget(0),
 			After: &ct.Timestamp{Ticks: startTime - 1},
 			Action: &services.InventoryRepairMsg_Power{
 				Power: true,
@@ -334,7 +260,7 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 
 	span.End()
 
-	execute(ctx, msg, r.pdu.Receive)
+	ts.execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -356,9 +282,9 @@ func (ts *PduTestSuite) TestStuckCable() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 
 	startTime := common.TickFromContext(ctx)
 	require.Nil(r.pdu.cables[0].fault(false, startTime, startTime))
@@ -373,12 +299,7 @@ func (ts *PduTestSuite) TestStuckCable() {
 	msg := sm.NewEnvelope(
 		ctx,
 		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
+			Target: ts.bladeTarget(0),
 			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
 			Action: &services.InventoryRepairMsg_Power{
 				Power: true,
@@ -388,7 +309,7 @@ func (ts *PduTestSuite) TestStuckCable() {
 
 	span.End()
 
-	execute(ctx, msg, r.pdu.Receive)
+	ts.execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -411,8 +332,8 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
-	r := newRack(ctx, rackDef)
+	rackDef := ts.createDummyRack(2)
+	r := newRack(ctx, ts.rackName(), rackDef)
 
 	startTime := common.TickFromContext(ctx)
 	require.Nil(r.pdu.cables[0].fault(true, startTime, startTime))
@@ -427,10 +348,7 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 	msg := sm.NewEnvelope(
 		ctx,
 		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Pdu{},
-			},
+			Target: ts.pduTarget(),
 			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
 			Action: &services.InventoryRepairMsg_Power{
 				Power: false,
@@ -440,7 +358,7 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 
 	span.End()
 
-	execute(ctx, msg, r.pdu.Receive)
+	ts.execute(ctx, msg, r.pdu.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)

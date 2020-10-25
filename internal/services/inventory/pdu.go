@@ -154,13 +154,13 @@ func (s *pduWorking) changePower(
 
 	// Change the power on/off state for the full PDU
 	case *services.InventoryAddress_Pdu:
-		if machine.Pass(after.Ticks, occursAt) {
-			tracing.UpdateSpanName(
-				ctx,
-				"Powering %s %s",
-				aOrB(power.Power, "on", "off"),
-				target.Describe())
+		tracing.UpdateSpanName(
+			ctx,
+			"Powering %s %s",
+			aOrB(power.Power, "on", "off"),
+			target.Describe())
 
+		if machine.Pass(after.Ticks, occursAt) {
 			// Change power at the PDU.  This only matters if the command is to
 			// turn off the PDU (as this state means that the PDU is on).  And
 			// turning off the PDU means turning off all the cables.
@@ -188,22 +188,24 @@ func (s *pduWorking) changePower(
 
 				_ = machine.ChangeState(ctx, pduOffState)
 			}
+		} else {
+			tracing.Info(ctx, "Request ignored as it has arrived too late")
 		}
 
 		ch <- droppedResponse(occursAt)
 
 	// Change the power on/off state for an individual blade
 	case *services.InventoryAddress_BladeId:
+		tracing.UpdateSpanName(
+			ctx,
+			"Powering %s %s",
+			aOrB(power.Power, "on", "off"),
+			target.Describe())
+
 		id := elem.BladeId
 
 		if _, ok := p.cables[id]; ok {
 			if changed, err := p.cables[id].set(power.Power, after.Ticks, occursAt); err == nil {
-				tracing.UpdateSpanName(
-					ctx,
-					"Powering %s %s",
-					aOrB(power.Power, "on", "off"),
-					target.Describe())
-
 				// The state machine holds that machine.Guard is always greater than
 				// or equal to any cable.at value.  But not all cable.at values
 				// are the same.  So even though we're moving this cable.at
@@ -221,18 +223,49 @@ func (s *pduWorking) changePower(
 						},
 						ch)
 
+					tracing.Info(
+						ctx,
+						"Power connection to blade %d has changed.  It is now powered %s.",
+						id,
+						aOrB(power.Power, "on", "off"))
+
 					p.holder.forwardToBlade(ctx, id, fwd)
 				}
 
 				ch <- successResponse(occursAt)
 			} else if err == ErrCableStuck {
+				tracing.Warn(
+					ctx,
+					"Power connection to blade %d is stuck.  Unsure if it has been powered %s.",
+					id,
+					aOrB(power.Power, "on", "off"))
+
 				ch <- failedResponse(occursAt, err)
+			} else if err == ErrTooLate {
+				tracing.Info(
+					ctx,
+					"The power connection to blade %d has not changed, as this request arrived "+
+						"after other changed occurred.  The blade's power state remains unchanged.",
+					id)
+
+				ch <- droppedResponse(occursAt)
 			} else {
+				tracing.Info(
+					ctx,
+					"Power connection to blade %d has not changed.  It is currently powered %s.",
+					id,
+					aOrB(power.Power, "on", "off"))
+
 				ch <- droppedResponse(occursAt)
 			}
 
 			return
 		}
+
+		tracing.Warn(
+			ctx,
+			"No power connection for blade %d was found.",
+			id)
 
 		ch <- droppedResponse(occursAt)
 
