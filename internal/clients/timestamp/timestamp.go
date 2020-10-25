@@ -5,6 +5,7 @@ package timestamp
 
 import (
 	"context"
+	"errors"
 
 	"github.com/golang/protobuf/ptypes/duration"
 
@@ -16,9 +17,19 @@ import (
 )
 
 var (
-	dialName string
-	dialOpts []grpc.DialOption
+	errNotReady = errors.New("client is not ready")
+
+	tsc timeClient = &notReady{}
 )
+
+type timeClient interface {
+	setPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error
+	advance(ctx context.Context) error
+	now(ctx context.Context) (*ct.Timestamp, error)
+	after(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData
+	status(ctx context.Context) (*pb.StatusResponse, error)
+	reset(ctx context.Context) error
+}
 
 // TimeData defines the value returned from a delay wait.  This is more than
 // the simple timestamp inasmuch as the delay call can fail asynchronously.
@@ -27,17 +38,60 @@ type TimeData struct {
 	Err  error
 }
 
-// InitTimestamp stores the information needed to be able to GrpcConnect to the
-// Stepper service.
-func InitTimestamp(name string, opts ...grpc.DialOption) {
-	dialName = name
-
-	dialOpts = append(dialOpts, opts...)
-}
+// notReady is the uninitialized timestamp client, which only returns an error
+type notReady struct {}
 
 // SetPolicy sets the stepper policy
-func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
-	conn, err := grpc.Dial(dialName, dialOpts...)
+func (n *notReady) setPolicy(_ context.Context, _ pb.StepperPolicy, _ *duration.Duration, _ int64) error {
+	return errNotReady
+}
+
+func (n *notReady) advance(_ context.Context) error {
+	return errNotReady
+}
+
+func (n *notReady) now(_ context.Context) (*ct.Timestamp, error) {
+	return nil, errNotReady
+}
+
+func (n *notReady) after(_ context.Context, _ *ct.Timestamp) <-chan TimeData {
+	ch := make(chan TimeData)
+	ch <- TimeData{
+		Time: nil,
+		Err:  errNotReady,
+	}
+
+	return ch
+}
+
+func (n *notReady) status(_ context.Context) (*pb.StatusResponse, error) {
+	return nil, errNotReady
+}
+
+func (n *notReady) reset(_ context.Context) error {
+	return errNotReady
+}
+
+// activeClient is the timestamp client that has been configured to connect to
+// the stepper service.
+type activeClient struct {
+	dialName string
+	dialOpts []grpc.DialOption
+}
+
+func newTimeClient(dialName string, opts ...grpc.DialOption) timeClient {
+	return &activeClient{
+		dialName: dialName,
+		dialOpts: append([]grpc.DialOption{}, opts...),
+	}
+}
+
+func (t activeClient) setPolicy(
+	ctx context.Context,
+	policy pb.StepperPolicy,
+	delay *duration.Duration,
+	match int64) error {
+	conn, err := t.dial()
 	if err != nil {
 		return err
 	}
@@ -57,9 +111,8 @@ func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Dur
 	return err
 }
 
-// Advance the simulated time, assuming that the policy mode is manual
-func Advance(ctx context.Context) error {
-	conn, err := grpc.Dial(dialName, dialOpts...)
+func (t activeClient) advance(ctx context.Context) error {
+	conn, err := t.dial()
 	if err != nil {
 		return err
 	}
@@ -73,9 +126,8 @@ func Advance(ctx context.Context) error {
 	return err
 }
 
-// Now gets the current simulated time.
-func Now(ctx context.Context) (*ct.Timestamp, error) {
-	conn, err := grpc.Dial(dialName, dialOpts...)
+func (t activeClient) now(ctx context.Context) (*ct.Timestamp, error) {
+	conn, err := t.dial()
 	if err != nil {
 		return nil, err
 	}
@@ -87,14 +139,11 @@ func Now(ctx context.Context) (*ct.Timestamp, error) {
 	return client.Now(ctx, &pb.NowRequest{})
 }
 
-// After delays execution until the simulated time meets or exceeds the
-// specified deadline.  Completion is asynchronous, even if no delay is
-// required.
-func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
+func (t activeClient) after(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 
 	go func(ctx context.Context, res chan<- TimeData) {
-		conn, err := grpc.Dial(dialName, dialOpts...)
+		conn, err := t.dial()
 		if err != nil {
 			res <- TimeData{
 				Time: nil,
@@ -119,9 +168,8 @@ func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	return ch
 }
 
-// Status retrieves the status of the Stepper service
-func Status(ctx context.Context) (*pb.StatusResponse, error) {
-	conn, err := grpc.Dial(dialName, dialOpts...)
+func (t activeClient) status(ctx context.Context) (*pb.StatusResponse, error) {
+	conn, err := t.dial()
 	if err != nil {
 		return nil, err
 	}
@@ -133,11 +181,8 @@ func Status(ctx context.Context) (*pb.StatusResponse, error) {
 	return client.GetStatus(ctx, &pb.GetStatusRequest{})
 }
 
-// Reset the simulated time back to its starting state, including reverting all
-// policies back to their default.  This is used by unit tests to ensure a well
-// known starting state for a test.
-func Reset(ctx context.Context) error {
-	conn, err := grpc.Dial(dialName, dialOpts...)
+func (t activeClient) reset(ctx context.Context) error {
+	conn, err := t.dial()
 	if err != nil {
 		return err
 	}
@@ -150,10 +195,55 @@ func Reset(ctx context.Context) error {
 	return err
 }
 
+func (t activeClient) dial() (*grpc.ClientConn, error) {
+	return grpc.Dial(t.dialName, t.dialOpts...)
+}
+
+
+// InitTimestamp stores the information needed to be able to connect to the
+// Stepper service.
+func InitTimestamp(name string, opts ...grpc.DialOption) {
+	tsc = newTimeClient(name, opts...)
+}
+
+// SetPolicy sets the stepper policy
+func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
+	return tsc.setPolicy(ctx, policy, delay, match)
+}
+
+// Advance the simulated time, assuming that the policy mode is manual
+func Advance(ctx context.Context) error {
+	return tsc.advance(ctx)
+}
+
+// Now gets the current simulated time.
+func Now(ctx context.Context) (*ct.Timestamp, error) {
+	return tsc.now(ctx)
+}
+
+// After delays execution until the simulated time meets or exceeds the
+// specified deadline.  Completion is asynchronous, even if no delay is
+// required.
+func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
+	return tsc.after(ctx, deadline)
+}
+
+// Status retrieves the status of the Stepper service
+func Status(ctx context.Context) (*pb.StatusResponse, error) {
+	return tsc.status(ctx)
+}
+
+// Reset the simulated time back to its starting state, including reverting all
+// policies back to their default.  This is used by unit tests to ensure a well
+// known starting state for a test.
+func Reset(ctx context.Context) error {
+	return tsc.reset(ctx)
+}
+
 // Tick provides the current simulated time Tick, or '-1' if the simulated time
 // cannot be retrieved (e.g. during startup)
 func Tick(ctx context.Context) int64 {
-	now, err := Now(ctx)
+	now, err := tsc.now(ctx)
 	if err != nil {
 		return -1
 	}
