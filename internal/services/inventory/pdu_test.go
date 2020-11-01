@@ -10,8 +10,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 type PduTestSuite struct {
@@ -62,16 +60,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := sm.NewEnvelope(
-		ctx,
-		&services.InventoryRepairMsg{
-			Target: ts.torTarget(),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: false,
-			},
-		},
-		rsp)
+	badMsg := newSetPower(ctx, newTargetTor(ts.rackName()), common.TickFromContext(ctx), false, rsp)
 
 	span.End()
 
@@ -109,16 +98,7 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
-		ctx,
-		&services.InventoryRepairMsg{
-			Target: ts.pduTarget(),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: false,
-			},
-		},
-		rsp)
+	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), false, rsp)
 
 	span.End()
 
@@ -138,6 +118,49 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 	assert.Equal("off", r.pdu.sm.Current.Name())
 }
 
+func (ts *PduTestSuite) TestPowerOffPduTooLate() {
+	require := ts.Require()
+	assert := ts.Assert()
+	startTime := int64(1)
+
+	ctx := common.ContextWithTick(context.Background(), startTime)
+
+	rackDef := ts.createDummyRack(2)
+
+	r := newRack(ctx, ts.rackName(), rackDef)
+	for i := range r.pdu.cables {
+		r.pdu.cables[i].on = true
+	}
+
+	ctx = common.ContextWithTick(ctx, 2)
+
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering off a PDU"))
+
+	rsp := make(chan *sm.Response)
+
+	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), startTime - 1, false, rsp)
+
+	span.End()
+
+	ts.execute(ctx, msg, r.pdu.Receive)
+
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	require.Error(res.Err)
+	assert.Equal(ErrRepairMessageDropped, res.Err)
+
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
+
+	for _, c := range r.pdu.cables {
+		assert.True(c.on)
+	}
+
+	assert.Equal("working", r.pdu.sm.Current.Name())
+}
+
 func (ts *PduTestSuite) TestPowerOnPdu() {
 	require := ts.Require()
 	assert := ts.Assert()
@@ -155,16 +178,7 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
-		ctx,
-		&services.InventoryRepairMsg{
-			Target: ts.pduTarget(),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
-		rsp)
+	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), true, rsp)
 
 	span.End()
 
@@ -201,15 +215,11 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := newSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: ts.bladeTarget(0),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
+		newTargetBlade(ts.rackName(),0),
+		common.TickFromContext(ctx),
+		true,
 		rsp)
 
 	span.End()
@@ -223,6 +233,91 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
 	assert.Equal(common.TickFromContext(ctx), r.pdu.cables[0].Guard)
+	assert.True(r.pdu.cables[0].on)
+	assert.False(r.pdu.cables[0].faulted)
+
+	assert.Equal("working", r.pdu.sm.Current.Name())
+}
+
+func (ts *PduTestSuite) TestPowerOnBladeBadID() {
+	require := ts.Require()
+	assert := ts.Assert()
+	startTime := int64(1)
+
+	ctx := common.ContextWithTick(context.Background(), startTime)
+
+	rackDef := ts.createDummyRack(2)
+
+	r := newRack(ctx, ts.rackName(), rackDef)
+	ctx = common.ContextWithTick(ctx, startTime + 1)
+
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering on a blade"))
+
+	rsp := make(chan *sm.Response)
+
+	msg := newSetPower(
+		ctx,
+		newTargetBlade(ts.rackName(),9),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
+
+	span.End()
+
+	ts.execute(ctx, msg, r.pdu.Receive)
+
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	assert.Error(res.Err)
+	assert.Equal(ErrInvalidTarget, res.Err)
+
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Equal(startTime, r.pdu.sm.Guard)
+
+	assert.Equal("working", r.pdu.sm.Current.Name())
+}
+
+func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx := common.ContextWithTick(context.Background(), 1)
+
+	rackDef := ts.createDummyRack(2)
+
+	r := newRack(ctx, ts.rackName(), rackDef)
+	r.pdu.cables[0].on = true
+	ctx = common.ContextWithTick(ctx, 2)
+
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering on a blade"))
+
+	rsp := make(chan *sm.Response)
+
+	msg := newSetPower(
+		ctx,
+		newTargetBlade(ts.rackName(),0),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
+
+	span.End()
+
+	ts.execute(ctx, msg, r.pdu.Receive)
+
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+
+	require.NotNil(res)
+	require.Error(res.Err)
+	assert.Equal(ErrRepairMessageDropped, res.Err)
+
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
+	assert.Equal(common.TickFromContext(ctx), r.pdu.cables[0].Guard)
+
 	assert.True(r.pdu.cables[0].on)
 	assert.False(r.pdu.cables[0].faulted)
 
@@ -247,15 +342,11 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := newSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: ts.bladeTarget(0),
-			After: &ct.Timestamp{Ticks: startTime - 1},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
+		newTargetBlade(ts.rackName(),0),
+		startTime - 1,
+		true,
 		rsp)
 
 	span.End()
@@ -296,15 +387,11 @@ func (ts *PduTestSuite) TestStuckCable() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := newSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: ts.bladeTarget(0),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
+		newTargetBlade(ts.rackName(),0),
+		common.TickFromContext(ctx),
+		true,
 		rsp)
 
 	span.End()
@@ -345,16 +432,7 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
-		ctx,
-		&services.InventoryRepairMsg{
-			Target: ts.pduTarget(),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: false,
-			},
-		},
-		rsp)
+	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), false, rsp)
 
 	span.End()
 

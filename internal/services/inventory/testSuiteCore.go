@@ -12,7 +12,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 type testSuiteCore struct {
@@ -22,27 +21,6 @@ type testSuiteCore struct {
 }
 
 func (ts *testSuiteCore) rackName() string { return "rack1" }
-
-func (ts *testSuiteCore) pduTarget() *services.InventoryAddress {
-	return &services.InventoryAddress{
-		Rack: ts.rackName(),
-		Element: &services.InventoryAddress_Pdu{},
-	}
-}
-
-func (ts *testSuiteCore) torTarget() *services.InventoryAddress {
-	return &services.InventoryAddress{
-		Rack: ts.rackName(),
-		Element: &services.InventoryAddress_Tor{},
-	}
-}
-
-func (ts *testSuiteCore) bladeTarget(id int64) *services.InventoryAddress {
-	return &services.InventoryAddress{
-		Rack: ts.rackName(),
-		Element: &services.InventoryAddress_BladeId { BladeId: id },
-	}
-}
 
 func (ts *testSuiteCore) SetupSuite() {
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
@@ -82,13 +60,13 @@ func (ts *testSuiteCore) completeWithin(ch <-chan *sm.Response, delay time.Durat
 
 func (ts *testSuiteCore) execute(
 	ctx context.Context,
-	msg *sm.Envelope,
-	action func(ctx2 context.Context, envelope *sm.Envelope)) {
-	go func(tick int64, msg *sm.Envelope) {
+	msg sm.Envelope,
+	action func(ctx2 context.Context, envelope sm.Envelope)) {
+	go func(tick int64, msg sm.Envelope) {
 		c2, s := tracing.StartSpan(context.Background(),
 			tracing.WithName("Executing simulated inventory operation"),
 			tracing.WithNewRoot(),
-			tracing.WithLink(msg.Span, msg.Link))
+			tracing.WithLink(msg.GetSpanContext(), msg.GetLinkID()))
 
 		c2 = common.ContextWithTick(c2, tick)
 

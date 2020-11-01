@@ -7,7 +7,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -25,7 +24,7 @@ type tor struct {
 	// rack holds the pointer to the rack that contains this TOR.
 	holder *rack
 
-	// sm is the state machine fro this TOR's simulation
+	// sm is the state machine for this TOR's simulation
 	sm *sm.SimpleSM
 }
 
@@ -68,132 +67,157 @@ func (t *tor) fixConnection(ctx context.Context, id int64) {
 }
 
 // Receive handles incoming messages for the TOR.
-func (t *tor) Receive(ctx context.Context, msg *sm.Envelope) {
+func (t *tor) Receive(ctx context.Context, msg sm.Envelope) {
 	t.sm.Receive(ctx, msg)
 }
 
 // newStatusReport is a helper function to construct a status response for this
 // TOR.
 func (t *tor) newStatusReport(
-	ctx context.Context,
-	target *services.InventoryAddress) *sm.Response {
+	_ context.Context,
+	_ *services.InventoryAddress) *sm.Response {
 	return &sm.Response{
 		Err: errors.New("not yet implemented"),
 		Msg: nil,
 	}
 }
 
+// sendConnectionToBlade constructs a setConnection message that targets the
+// specified blade, and forwards it along.
+func (t *tor) sendConnectionToBlade(ctx context.Context, msg *setConnection, i int64) {
+	fwd := newSetConnection(
+		ctx,
+		newTargetBlade(msg.target.rack, i),
+		msg.guard,
+		msg.enabled,
+		nil)
+
+	t.holder.forwardToBlade(ctx, i, fwd)
+
+	tracing.Info(
+		ctx,
+		"Network connection to %s has changed.  It is now powered %s.",
+		fwd.target.describe(),
+		aOrB(fwd.enabled, "enabled", "disabled"))
+}
+
+
+// +++ TOR state machine states
+
 // torWorking is the state a TOR is in when it is functioning correctly.
 type torWorking struct {
-	sm.NullState
+	nullRepairAction
 }
 
 // Receive processes incoming requests for this state.
-func (s *torWorking) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envelope) {
-	t := sm.Parent.(*tor)
+func (s *torWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
+	switch body := msg.(type) {
+	case repairMessage:
+		body.Do(ctx, machine, s)
 
-	switch body := msg.Msg.(type) {
-	case *services.InventoryRepairMsg:
-		if connect, ok := body.GetAction().(*services.InventoryRepairMsg_Connect); ok {
-			s.changeConnection(ctx, sm, body.Target, body.After, connect, msg.Ch)
-			return
-		}
-
-		// Any other type of repair command, the tor ignores.
-		msg.Ch <- droppedResponse(common.TickFromContext(ctx))
-
-	case *services.InventoryStatusMsg:
-		msg.Ch <- t.newStatusReport(ctx, body.Target)
+	case statusMessage:
+		body.GetStatus(ctx, machine, s)
 
 	default:
-		// Invalid message.
-		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+	}
+}
+
+// connect processes a setConnection request, updating the network connection
+// state as required.
+func (s *torWorking) connect(ctx context.Context, machine *sm.SimpleSM, msg *setConnection) {
+	t := machine.Parent.(*tor)
+
+	occursAt := common.TickFromContext(ctx)
+
+	if id, isBladeTarget := msg.target.bladeID(); isBladeTarget {
+		if c, ok := t.cables[id]; ok {
+			if changed, err := t.cables[id].set(msg.enabled, msg.guard, occursAt); err == nil {
+				tracing.UpdateSpanName(
+					ctx,
+					"%s the network connection for %s",
+					aOrB(msg.enabled, "Enabling", "Disabling"),
+					msg.target.describe())
+
+				machine.AdvanceGuard(occursAt)
+
+				if changed {
+					t.sendConnectionToBlade(ctx, msg, id)
+
+					msg.GetCh() <- successResponse(occursAt)
+				}else {
+					tracing.Info(
+						ctx,
+						"Network connection for %s has not changed.  It is currently %s.",
+						msg.target.describe(),
+						aOrB(c.on, "enabled", "disabled"))
+
+					msg.GetCh() <- droppedResponse(occursAt)
+				}
+			} else if err == ErrCableStuck {
+				tracing.Warn(
+					ctx,
+					"Network connection for %s is stuck.  Unsure if it has been %s.",
+					msg.target.describe(),
+					aOrB(c.on, "enabled", "disabled"))
+
+				msg.GetCh() <- failedResponse(occursAt, err)
+			} else if err == ErrTooLate {
+				tracing.Info(
+					ctx,
+					"Network connection for %s has not changed, as this request arrived "+
+						"after other changed occurred.  The blade's network connection " +
+						"state remains unchanged.",
+					msg.target.describe())
+
+				msg.GetCh() <- droppedResponse(occursAt)
+			} else {
+				tracing.Warn(ctx, "Unexpected error code: %v", err)
+
+				msg.GetCh() <- failedResponse(occursAt, err)
+			}
+
+			return
+		}
+	} else {
+		tracing.Warn(
+			ctx,
+			"No network connection for %s was found.",
+			msg.target.describe())
+
+		msg.GetCh() <- failedResponse(occursAt, ErrInvalidTarget)
 	}
 }
 
 // Name returns the friendly name for this state.
 func (s *torWorking) Name() string { return "working" }
 
-// changeConnection implements the repair operation to program or deprogram a
-// network cable in the TOR.
-func (s *torWorking) changeConnection(
-	ctx context.Context,
-	machine *sm.SimpleSM,
-	target *services.InventoryAddress,
-	after *ct.Timestamp,
-	connect *services.InventoryRepairMsg_Connect,
-	ch chan *sm.Response) {
-	t := machine.Parent.(*tor)
-
-	occursAt := common.TickFromContext(ctx)
-
-	switch elem := target.Element.(type) {
-	case *services.InventoryAddress_BladeId:
-		id := elem.BladeId
-
-		if _, ok := t.cables[id]; ok {
-			if changed, err := t.cables[id].set(connect.Connect, after.Ticks, occursAt); err == nil {
-				tracing.UpdateSpanName(
-					ctx,
-					"%s the network connection for %s",
-					aOrB(connect.Connect, "Enabling", "Disabling"),
-					target.Describe())
-
-				machine.AdvanceGuard(occursAt)
-
-				if changed {
-					fwd := sm.NewEnvelope(
-						ctx,
-						&services.InventoryRepairMsg{
-							Target: target,
-							After:  after,
-							Action: connect,
-						},
-						ch)
-
-					t.holder.forwardToBlade(ctx, id, fwd)
-				}
-
-				ch <- successResponse(occursAt)
-			} else if err == ErrCableStuck {
-				ch <- failedResponse(occursAt, err)
-			} else {
-				ch <- droppedResponse(occursAt)
-			}
-
-			return
-		}
-
-	default:
-		ch <- failedResponse(occursAt, ErrInvalidTarget)
-	}
-}
-
 // torStuck is the state a TOR is in when it is unresponsive to commands, but
 // is still powered on.  By implication, the connection state for each cable is
 // also stuck.
 type torStuck struct {
-	sm.NullState
+	repairActionState
 }
 
 // Receive processes incoming requests for this state.
-func (s *torStuck) Receive(ctx context.Context, sm *sm.SimpleSM, msg *sm.Envelope) {
-	t := sm.Parent.(*tor)
+func (s *torStuck) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
+	switch body := msg.(type) {
+	case repairMessage:
+		body.Do(ctx, machine, s)
 
-	switch body := msg.Msg.(type) {
-	case *services.InventoryRepairMsg:
-		// the TOR is not responding to commands, so no repairs can be
-		// processed.
-		msg.Ch <- droppedResponse(common.TickFromContext(ctx))
-
-	case *services.InventoryStatusMsg:
-		msg.Ch <- t.newStatusReport(ctx, body.Target)
+	case statusMessage:
+		body.GetStatus(ctx, machine, s)
 
 	default:
-		// Invalid message.
-		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 
 // Name returns the friendly name for this state.
 func (s *torStuck) Name() string { return "stuck" }
+
+func (s *torStuck) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
+	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
+}
+
+// --- TOR state machine states

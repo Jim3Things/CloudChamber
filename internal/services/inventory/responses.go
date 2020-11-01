@@ -4,18 +4,9 @@ package inventory
 // messages to repair operations.
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/internal/sm"
-)
-
-var (
-	ErrCableStuck = errors.New("cable is faulted")
-	ErrTooLate    = errors.New("inventory element modified after the requested time")
-
-	ErrRepairMessageDropped = errors.New("repair message dropped")
-	ErrInvalidTarget        = errors.New("invalid target specified, request ignored")
 )
 
 // droppedResponse constructs a dropped response message with the correct time

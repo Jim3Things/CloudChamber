@@ -6,12 +6,9 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 type TorTestSuite struct {
@@ -60,17 +57,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg: &services.InventoryRepairMsg{
-			Target: ts.torTarget(),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Connect{
-				Connect: false,
-			},
-		},
-	}
+	badMsg := newSetConnection(ctx, newTargetTor(ts.rackName()), common.TickFromContext(ctx), false, rsp)
 
 	ts.execute(ctx, badMsg, r.tor.Receive)
 
@@ -104,17 +91,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg: &services.InventoryRepairMsg{
-			Target: ts.bladeTarget(0),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Connect{
-				Connect: true,
-			},
-		},
-	}
+	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
 
 	ts.execute(ctx, msg, r.tor.Receive)
 
@@ -149,17 +126,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg: &services.InventoryRepairMsg{
-			Target: ts.bladeTarget(0),
-			After: &ct.Timestamp{Ticks: startTime - 1},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
-	}
+	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), startTime - 1, true, rsp)
 
 	ts.execute(ctx, msg, r.tor.Receive)
 
@@ -196,17 +163,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
-			Target: ts.bladeTarget(0),
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Connect{
-				Connect: true,
-			},
-		},
-	}
+	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
 
 	ts.execute(ctx, msg, r.tor.Receive)
 
