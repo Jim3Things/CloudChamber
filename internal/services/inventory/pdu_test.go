@@ -140,7 +140,7 @@ func (ts *PduTestSuite) TestPowerOffPduTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), startTime - 1, false, rsp)
+	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), startTime-1, false, rsp)
 
 	span.End()
 
@@ -217,7 +217,7 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	msg := newSetPower(
 		ctx,
-		newTargetBlade(ts.rackName(),0),
+		newTargetBlade(ts.rackName(), 0),
 		common.TickFromContext(ctx),
 		true,
 		rsp)
@@ -249,7 +249,7 @@ func (ts *PduTestSuite) TestPowerOnBladeBadID() {
 	rackDef := ts.createDummyRack(2)
 
 	r := newRack(ctx, ts.rackName(), rackDef)
-	ctx = common.ContextWithTick(ctx, startTime + 1)
+	ctx = common.ContextWithTick(ctx, startTime+1)
 
 	ctx, span := tracing.StartSpan(
 		ctx,
@@ -259,7 +259,7 @@ func (ts *PduTestSuite) TestPowerOnBladeBadID() {
 
 	msg := newSetPower(
 		ctx,
-		newTargetBlade(ts.rackName(),9),
+		newTargetBlade(ts.rackName(), 9),
 		common.TickFromContext(ctx),
 		true,
 		rsp)
@@ -299,7 +299,7 @@ func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
 
 	msg := newSetPower(
 		ctx,
-		newTargetBlade(ts.rackName(),0),
+		newTargetBlade(ts.rackName(), 0),
 		common.TickFromContext(ctx),
 		true,
 		rsp)
@@ -312,7 +312,7 @@ func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
 
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(ErrNoOperation, res.Err)
 
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
@@ -344,8 +344,8 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 
 	msg := newSetPower(
 		ctx,
-		newTargetBlade(ts.rackName(),0),
-		startTime - 1,
+		newTargetBlade(ts.rackName(), 0),
+		startTime-1,
 		true,
 		rsp)
 
@@ -389,7 +389,7 @@ func (ts *PduTestSuite) TestStuckCable() {
 
 	msg := newSetPower(
 		ctx,
-		newTargetBlade(ts.rackName(),0),
+		newTargetBlade(ts.rackName(), 0),
 		common.TickFromContext(ctx),
 		true,
 		rsp)

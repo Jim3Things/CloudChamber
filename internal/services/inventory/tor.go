@@ -42,10 +42,10 @@ const (
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
 func newTor(_ *pb.ExternalTor, r *rack) *tor {
-	t := &tor {
+	t := &tor{
 		cables: make(map[int64]*cable),
 		holder: r,
-		sm: nil,
+		sm:     nil,
 	}
 
 	t.sm = sm.NewSimpleSM(t,
@@ -101,7 +101,6 @@ func (t *tor) sendConnectionToBlade(ctx context.Context, msg *setConnection, i i
 		aOrB(fwd.enabled, "enabled", "disabled"))
 }
 
-
 // +++ TOR state machine states
 
 // torWorking is the state a TOR is in when it is functioning correctly.
@@ -145,14 +144,14 @@ func (s *torWorking) connect(ctx context.Context, machine *sm.SimpleSM, msg *set
 					t.sendConnectionToBlade(ctx, msg, id)
 
 					msg.GetCh() <- successResponse(occursAt)
-				}else {
+				} else {
 					tracing.Info(
 						ctx,
 						"Network connection for %s has not changed.  It is currently %s.",
 						msg.target.describe(),
 						aOrB(c.on, "enabled", "disabled"))
 
-					msg.GetCh() <- droppedResponse(occursAt)
+					msg.GetCh() <- failedResponse(occursAt, ErrNoOperation)
 				}
 			} else if err == ErrCableStuck {
 				tracing.Warn(
@@ -166,7 +165,7 @@ func (s *torWorking) connect(ctx context.Context, machine *sm.SimpleSM, msg *set
 				tracing.Info(
 					ctx,
 					"Network connection for %s has not changed, as this request arrived "+
-						"after other changed occurred.  The blade's network connection " +
+						"after other changed occurred.  The blade's network connection "+
 						"state remains unchanged.",
 					msg.target.describe())
 

@@ -197,7 +197,7 @@ func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPo
 						msg.target.describe(),
 						aOrB(c.on, "on", "off"))
 
-					msg.GetCh() <- droppedResponse(occursAt)
+					msg.GetCh() <- failedResponse(occursAt, ErrNoOperation)
 				}
 			} else if err == ErrCableStuck {
 				tracing.Warn(

@@ -41,7 +41,6 @@ type statusMessage interface {
 
 // --- Base message and interfaces
 
-
 type timerExpiry struct {
 	messageBase
 
@@ -62,7 +61,7 @@ func (t timerExpiry) Do(ctx context.Context, sm *sm.SimpleSM, s repairActionStat
 type setPower struct {
 	messageBase
 
-	// on designates whether the simulated power is on or off.
+	// on designates whether the simulated power is to be on or off.
 	on bool
 }
 
@@ -104,6 +103,8 @@ func (m *setPower) String() string {
 type setConnection struct {
 	messageBase
 
+	// enabled designates whether the simulated network connection is to be
+	// enabled or disabled.
 	enabled bool
 }
 
