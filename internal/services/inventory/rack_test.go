@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	tsc "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -20,11 +21,16 @@ func (ts *RackTestSuite) TestCreateRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	require.NoError(tsc.Advance(context.Background()))
 
 	rackDef := ts.createDummyRack(2)
-	ctx, span := tracing.StartSpan(ctx, tracing.WithName("test rack creation"))
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithName("test rack creation"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
+
 	r := newRack(ctx, ts.rackName(), rackDef)
+
 	span.End()
 
 	require.NotNil(r)
@@ -35,13 +41,14 @@ func (ts *RackTestSuite) TestStartStopRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	require.NoError(tsc.Advance(context.Background()))
 
 	rackDef := ts.createDummyRack(2)
 
 	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test rack start and stop"))
+		context.Background(),
+		tracing.WithName("test rack start and stop"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
 
 	r := newRack(ctx, ts.rackName(), rackDef)
 	require.NotNil(r)
@@ -63,13 +70,14 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	require.NoError(tsc.Advance(context.Background()))
 
 	rackDef := ts.createDummyRack(2)
 
 	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test rack start and stop"))
+		context.Background(),
+		tracing.WithName("test rack start, start, and stop"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
 
 	r := newRack(ctx, ts.rackName(), rackDef)
 	require.NotNil(r)
@@ -97,13 +105,14 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	require.NoError(tsc.Advance(context.Background()))
 
 	rackDef := ts.createDummyRack(2)
 
 	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test rack start and stop"))
+		context.Background(),
+		tracing.WithName("test rack start, stop, and stop"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
 
 	r := newRack(ctx, ts.rackName(), rackDef)
 	require.NotNil(r)
@@ -128,13 +137,14 @@ func (ts *RackTestSuite) TestStopNoStartRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	require.NoError(tsc.Advance(context.Background()))
 
 	rackDef := ts.createDummyRack(2)
 
 	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test rack start and stop"))
+		context.Background(),
+		tracing.WithName("test rack stop without a start"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
 
 	r := newRack(ctx, ts.rackName(), rackDef)
 	require.NotNil(r)
@@ -151,13 +161,14 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	require.NoError(tsc.Advance(context.Background()))
 
 	rackDef := ts.createDummyRack(2)
 
 	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test powering on PDU from rack"))
+		context.Background(),
+		tracing.WithName("test powering on PDU from rack"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
 
 	r := newRack(ctx, ts.rackName(), rackDef)
 	require.NotNil(r)
@@ -169,12 +180,12 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 
-	ctx = common.ContextWithTick(ctx, 2)
+	require.NoError(tsc.Advance(ctx))
+	ctx = common.ContextWithTick(ctx, tsc.Tick(ctx))
 
 	rsp := make(chan *sm.Response)
 
 	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), true, rsp)
-
 
 	r.Receive(ctx, msg, rsp)
 	span.End()
@@ -185,7 +196,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	assert.Equal(ErrRepairMessageDropped, res.Err)
 
 	// Since the stepper service is not set up, we should expect a false time here.
-	assert.Equal(int64(-1), res.At)
+	assert.Equal(tsc.Tick(ctx), res.At)
 	assert.Nil(res.Msg)
 
 	for _, c := range r.pdu.cables {

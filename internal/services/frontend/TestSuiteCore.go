@@ -27,9 +27,9 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	stepper "github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
 	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
-	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
+	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
@@ -129,7 +129,7 @@ func (ts *testSuiteCore) getBody(resp *http.Response) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-// Get the body of a response, unmarshaled into the supplied message structure
+// Get the body of a response, unmarshalled into the supplied message structure
 func (ts *testSuiteCore) getJSONBody(resp *http.Response, v proto.Message) error {
 	defer func() { _ = resp.Body.Close() }()
 	return jsonpb.Unmarshal(resp.Body, v)
@@ -204,7 +204,7 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 		ts.dialOpts = []grpc.DialOption{
 			grpc.WithContextDialer(ts.bufDialer),
 			grpc.WithInsecure(),
-			grpc.WithUnaryInterceptor(ctrc.Interceptor),
+			grpc.WithUnaryInterceptor(ct.Interceptor),
 		}
 
 		configPath := flag.String("config", "./testdata", "path to the configuration file")
@@ -221,7 +221,7 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 		trace_sink.InitSinkClient(ts.ep, ts.dialOpts...)
 
 		lis = bufconn.Listen(bufSize)
-		s = grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
+		s = grpc.NewServer(grpc.UnaryInterceptor(st.Interceptor))
 
 		if err = stepper.Register(s, pb.StepperPolicy_Invalid); err != nil {
 			log.Fatalf("Failed to register stepper actor: %v", err)
