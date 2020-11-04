@@ -2,13 +2,13 @@ package inventory
 
 import (
 	"context"
+	"sync"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // rack holds a simulated rack, consisting of a TOR (top of rack switch), a
@@ -16,15 +16,21 @@ import (
 // governed by a mesh of state machines rooted in the one for the rack as a
 // whole.
 type rack struct {
+	name string
+
 	// ch is the channel to send requests along to the rack's goroutine, which
 	// is where the state machine runs.
-	ch chan *sm.Envelope
+	ch chan sm.Envelope
 
-	tor *tor
-	pdu *pdu
+	tor    *tor
+	pdu    *pdu
 	blades map[int64]*blade
 
 	sm *sm.SimpleSM
+
+	// startLock controls access to start and stop operations, and therefore to
+	// the setup and tear down of the lister goroutine.
+	startLock sync.Mutex
 }
 
 const (
@@ -37,16 +43,20 @@ const (
 	rackQueueDepth = 100
 )
 
-type startSim struct {}
+type startSim struct {
+	envelopeState
+}
 
-type stopSim struct {}
+type stopSim struct {
+	envelopeState
+}
 
 // newRack creates a new simulated rack using the supplied inventory definition
 // entries to determine its structure.  The resulting rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
 // programmed.
-func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
-	return newRackInternal(ctx, def, newPdu, newTor)
+func newRack(ctx context.Context, name string, def *pb.ExternalRack) *rack {
+	return newRackInternal(ctx, name, def, newPdu, newTor)
 }
 
 // newRackInternal is the implementation behind newRack.  It supports
@@ -54,15 +64,18 @@ func newRack(ctx context.Context, def *pb.ExternalRack) *rack {
 // machine logic.
 func newRackInternal(
 	ctx context.Context,
+	name string,
 	def *pb.ExternalRack,
 	pduFunc func(*pb.ExternalPdu, *rack) *pdu,
 	torFunc func(*pb.ExternalTor, *rack) *tor) *rack {
 	r := &rack{
-		ch:     make(chan *sm.Envelope, rackQueueDepth),
-		tor:    nil,
-		pdu:    nil,
-		blades: make(map[int64]*blade),
-		sm:     nil,
+		name:      name,
+		ch:        make(chan sm.Envelope, rackQueueDepth),
+		tor:       nil,
+		pdu:       nil,
+		blades:    make(map[int64]*blade),
+		sm:        nil,
+		startLock: sync.Mutex{},
 	}
 
 	r.sm = sm.NewSimpleSM(r,
@@ -75,7 +88,7 @@ func newRackInternal(
 	r.tor = torFunc(def.Tor, r)
 
 	for i, item := range def.Blades {
-		r.blades[i] = newBlade(item)
+		r.blades[i] = newBlade(item, r)
 
 		// These two calls are temporary fix-ups until the inventory definition
 		// includes the tor and pdu connectors
@@ -86,21 +99,56 @@ func newRackInternal(
 	return r
 }
 
+func (r *rack) viaTor(ctx context.Context, msg sm.Envelope) error {
+	tracing.Info(ctx, "Forwarding %v to TOR in rack %q", msg, r.name)
+
+	r.tor.Receive(ctx, msg)
+
+	return nil
+}
+
+func (r *rack) viaPDU(ctx context.Context, msg sm.Envelope) error {
+	tracing.Info(ctx, "Forwarding '%v' to PDU in rack %q", msg, r.name)
+	r.pdu.Receive(ctx, msg)
+
+	return nil
+}
+
+// forwardToBlade is a helper function that forwards a message to the target
+// blade in this rack.  It returns true if the message was forwarded, false if
+// no target blade could be found.
+func (r *rack) forwardToBlade(ctx context.Context, id int64, msg sm.Envelope) bool {
+	if b, ok := r.blades[id]; ok {
+		b.Receive(ctx, msg)
+		return true
+	}
+
+	return false
+}
+
 // start initializes the simulated rack state machine handler, and its state
 // machine context.
 func (r *rack) start(ctx context.Context) error {
-	// TODO: Need a guard to detect and handle multiple start calls.
+	r.startLock.Lock()
+	defer r.startLock.Unlock()
 
-	go r.simulate()
+	// Only start the rack state machine once.  If it has already been started
+	// then ignore this call.
+	if r.sm.CurrentIndex == rackAwaitingStartState {
+		go r.simulate()
 
-	repl := make(chan *sm.Response)
+		repl := make(chan *sm.Response)
 
-	r.ch <- sm.NewEnvelope(ctx, &startSim{}, repl)
+		msg := &startSim{}
+		msg.Initialize(ctx, repl)
 
-	res := <- repl
+		r.ch <- msg
 
-	if res != nil {
-		return res.Err
+		res := <-repl
+
+		if res != nil {
+			return res.Err
+		}
 	}
 
 	return ErrRepairMessageDropped
@@ -108,28 +156,44 @@ func (r *rack) start(ctx context.Context) error {
 
 // stop terminates the simulated rack state machine, and its handler.
 func (r *rack) stop(ctx context.Context) {
-	repl := make(chan *sm.Response)
+	r.startLock.Lock()
+	defer r.startLock.Unlock()
 
-	r.ch <- sm.NewEnvelope(ctx, &stopSim{}, repl)
+	// Issue a stop to terminate the goroutine iff the state
+	// machine is still active.
+	if r.sm.CurrentIndex != rackAwaitingStartState {
+		if !r.sm.Terminated {
+			repl := make(chan *sm.Response)
 
-	<-repl
+			msg := &stopSim{}
+			msg.Initialize(ctx, repl)
+
+			r.ch <- msg
+
+			<-repl
+		}
+	} else {
+		_ = r.sm.ChangeState(ctx, rackTerminalState)
+	}
 }
 
 // Receive handles incoming requests from outside, forwarding to the rack's
 // state machine handler.
-func (r *rack) Receive(ctx context.Context, msg interface{}, ch chan *sm.Response) {
-	r.ch <- sm.NewEnvelope(ctx, msg, ch)
+func (r *rack) Receive(ctx context.Context, msg sm.Envelope, ch chan *sm.Response) {
+	msg.Initialize(ctx, ch)
+
+	r.ch <- msg
 }
 
 // simulate is the main function for the rack simulation.
 func (r *rack) simulate() {
-	for {
+	for !r.sm.Terminated {
 		msg := <-r.ch
 
 		ctx, span := tracing.StartSpan(context.Background(),
 			tracing.WithName("Executing simulated inventory operation"),
 			tracing.WithNewRoot(),
-			tracing.WithLink(msg.Span, msg.Link),
+			tracing.WithLink(msg.GetSpanContext(), msg.GetLinkID()),
 			tracing.WithContextValue(timestamp.EnsureTickInContext))
 
 		r.sm.Current.Receive(ctx, r.sm, msg)
@@ -141,35 +205,31 @@ func (r *rack) simulate() {
 // +++ rack state machine states
 
 // rackAwaitingStart is the initial state for a rack.  It only expects to be
-// started or stopped.  All other operations are considered errors.
+// started.  All other operations are considered errors.  (Stopping prior to
+// starting is handled before it gets to the state machine)
 type rackAwaitingStart struct {
 	sm.NullState
 }
 
-func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, msg *sm.Envelope) {
+// Receive handles incoming messages for the rack.
+func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
 	r := machine.Parent.(*rack)
 	at := common.TickFromContext(ctx)
 
-	switch body := msg.Msg.(type) {
+	switch body := msg.(type) {
 	case *startSim:
-		tracing.Info(ctx, "Starting the rack simulation")
+		tracing.UpdateSpanName(
+			ctx,
+			"Starting the simulation of rack %q",
+			r.name)
 
 		err := r.sm.Start(ctx)
 		if err == nil {
 			err = machine.ChangeState(ctx, rackWorkingState)
 		}
 
-		msg.Ch <- &sm.Response {
+		msg.GetCh() <- &sm.Response{
 			Err: err,
-			At: at,
-			Msg: nil,
-		}
-
-	case *stopSim:
-		tracing.Info(ctx, "Stopping the rack simulation")
-
-		msg.Ch <- &sm.Response {
-			Err: machine.ChangeState(ctx, rackTerminalState),
 			At:  at,
 			Msg: nil,
 		}
@@ -177,10 +237,11 @@ func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, m
 	default:
 		_ = tracing.Error(ctx, "Encountered an unexpected message: %v", body)
 
-		msg.Ch <- unexpectedMessageResponse(s, at, body)
+		msg.GetCh() <- unexpectedMessageResponse(s, at, body)
 	}
 }
 
+// Name returns the friendly name for this state.
 func (s *rackAwaitingStart) Name() string { return "AwaitingStart" }
 
 // rackWorking is the state where the simulated rack is functional and able to
@@ -189,53 +250,36 @@ type rackWorking struct {
 	sm.NullState
 }
 
-func (s *rackWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg *sm.Envelope) {
+// Receive handles incoming messages for the rack.
+func (s *rackWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
 	r := machine.Parent.(*rack)
 
-	switch body := msg.Msg.(type) {
-	case *services.InventoryStatusMsg:
-		// Get the status a simulated element.  Note that the rack itself
-		// currently has no status, so this request is always forwarded
-		// to one or more contained elements.
-		addr := body.Target
-
-		switch addr.Element.(type) {
-		case *services.InventoryAddress_Pdu:
-			// The PDU is the one component that we can access without
-			// using the TOR as a network hop.  This reflects an
-			// intentional simplification in the simulation: that the
-			// TOR cannot disconnect the PDU, and the PDU cannot stop
-			// the TOR.  In real life, these are probably possible, but
-			// for now we simplify our world by avoiding that.
-			r.pdu.Receive(ctx, msg)
-
-		default:
-			// By default, all messages are routed through the TOR
-			r.tor.Receive(ctx, msg)
-		}
-
-	case *services.InventoryRepairMsg:
-		// Repair an element in the rack.
-		switch body.GetAction().(type) {
-		case *services.InventoryRepairMsg_Power:
-			// All power operations are routed through the PDU
-			r.pdu.Receive(ctx, msg)
-
-		default:
-			// By default, all messages are routed through the TOR
-			r.tor.Receive(ctx, msg)
-		}
+	switch body := msg.(type) {
+	case *timerExpiry:
+		panic("implement me")
 
 	case *stopSim:
 		// Stop the rack simulation.
-		msg.Ch <- &sm.Response{
+		msg.GetCh() <- &sm.Response{
 			Err: machine.ChangeState(ctx, rackTerminalState),
 			At:  common.TickFromContext(ctx),
 			Msg: nil,
 		}
 
+	case repairMessage:
+		if err := body.SendVia(ctx, r); err != nil {
+			msg.GetCh() <- failedResponse(common.TickFromContext(ctx), err)
+		}
+
+	case statusMessage:
+		if err := body.SendVia(ctx, r); err != nil {
+			msg.GetCh() <- failedResponse(common.TickFromContext(ctx), err)
+		}
+
 	default:
-		msg.Ch <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+		_ = tracing.Error(ctx, "Encountered an unexpected message: %v", body)
+
+		msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
 	}
 }
 
@@ -243,11 +287,3 @@ func (s *rackWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg *sm
 func (s *rackWorking) Name() string { return "working" }
 
 // --- rack state machine states
-
-// forwardToBlade is a helper function that forwards a message to the target
-// blade in this rack.
-func (r *rack) forwardToBlade(ctx context.Context, id int64, msg *sm.Envelope) {
-	if b, ok := r.blades[id]; ok {
-		b.Receive(ctx, msg)
-	}
-}

@@ -6,50 +6,22 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/suite"
-	"go.opentelemetry.io/otel/api/trace"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 type TorTestSuite struct {
-	suite.Suite
-
-	utf *exporters.Exporter
-}
-
-func (ts *TorTestSuite) SetupSuite() {
-	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.ConnectToProvider(ts.utf)
-}
-
-func (ts *TorTestSuite) SetupTest() {
-	_ = ts.utf.Open(ts.T())
-}
-
-func (ts *TorTestSuite) TearDownTest() {
-	ts.utf.Close()
-}
-
-func (ts *TorTestSuite) completeWithin(ch <-chan *sm.Response, delay time.Duration) *sm.Response {
-	select {
-	case res := <-ch:
-		return res
-	case <-time.After(delay):
-		return nil
-	}
+	testSuiteCore
 }
 
 func (ts *TorTestSuite) TestCreateTor() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(context.Background(), rackDef)
+	r := newRack(context.Background(), ts.rackName(), rackDef)
 	require.NotNil(r)
 
 	t := r.tor
@@ -71,9 +43,9 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	ctx = common.ContextWithTick(ctx, 2)
 
 	t := r.tor
@@ -85,24 +57,9 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg: &services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Tor{},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Connect{
-				Connect: false,
-			},
-		},
-	}
+	badMsg := newSetConnection(ctx, newTargetTor(ts.rackName()), common.TickFromContext(ctx), false, rsp)
 
-	go func() {
-		t.Receive(ctx, badMsg)
-	}()
+	ts.execute(ctx, badMsg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -124,9 +81,9 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	require.NotNil(r)
 	t := r.tor
 
@@ -134,30 +91,15 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg: &services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Connect{
-				Connect: true,
-			},
-		},
-	}
+	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
 
-	go func() {
-		t.Receive(ctx, msg)
-	}()
+	ts.execute(ctx, msg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
+
 	assert.NoError(res.Err)
+
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -176,39 +118,24 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	startTime := int64(1)
 	ctx := common.ContextWithTick(context.Background(), startTime)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	t := r.tor
 	ctx = common.ContextWithTick(ctx, 2)
 
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg: &services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
-			After: &ct.Timestamp{Ticks: startTime - 1},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
-	}
+	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), startTime - 1, true, rsp)
 
-	go func() {
-		t.Receive(ctx, msg)
-	}()
+	ts.execute(ctx, msg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
+
 	require.Error(res.Err)
 	assert.Equal(ErrRepairMessageDropped, res.Err)
+
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -225,9 +152,9 @@ func (ts *TorTestSuite) TestStuckCable() {
 
 	ctx := common.ContextWithTick(context.Background(), 1)
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(ctx, rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef)
 	t := r.tor
 
 	startTime := common.TickFromContext(ctx)
@@ -236,31 +163,16 @@ func (ts *TorTestSuite) TestStuckCable() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := &sm.Envelope{
-		Ch:   rsp,
-		Span: trace.SpanContext{},
-		Msg:  &services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Connect{
-				Connect: true,
-			},
-		},
-	}
+	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
 
-	go func() {
-		t.Receive(ctx, msg)
-	}()
+	ts.execute(ctx, msg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
+
 	assert.Error(res.Err)
 	assert.Equal(ErrCableStuck, res.Err)
+
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 

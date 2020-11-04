@@ -73,3 +73,37 @@ func (e ErrInvalidID) Error() string {
 		e.Type,
 		e.ID)
 }
+
+// ErrIDMustBeEmpty signals that the specified ID contains a value when it must
+// not (due to consistency rules involving other fields).
+type ErrIDMustBeEmpty struct {
+	Field string
+	Actual string
+}
+
+func (e ErrIDMustBeEmpty) Error() string {
+	return fmt.Sprintf("the field %q must be emtpy.  It contains %q, which is invalid",
+		e.Field,
+		e.Actual)
+}
+
+
+type ErrMinLenString struct {
+	Field    string
+	Actual   int64
+	Required int64
+}
+
+func (e ErrMinLenString) Error() string {
+	suffix := "s"
+	if e.Required == 1 {
+		suffix = ""
+	}
+
+	return fmt.Sprintf(
+		"the field %q must contain at least %d character%s.  It contains %d, which is invalid",
+		e.Field,
+		e.Required,
+		suffix,
+		e.Actual)
+}

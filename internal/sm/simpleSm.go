@@ -10,39 +10,12 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
-// Envelope holds an incoming request to the state machine, along with context
-// needed to process and respond to it.
-type Envelope struct {
-	// Ch is the channel that the completion response is to be sent over.
-	Ch chan *Response
+type Envelope interface {
+	Initialize(ctx context.Context, ch chan *Response)
+	GetCh() chan *Response
 
-	// Span is the tracing span context that is logically associated with this
-	// request.
-	Span trace.SpanContext
-
-	// Link is the link tag to associate the caller's span with the execution
-	// span.
-	Link string
-
-	// Msg is the incoming request itself.
-	Msg interface{}
-}
-
-// NewEnvelope creates a new Envelope instance with the span linkage, body, and
-// reply channels correctly established.
-func NewEnvelope(ctx context.Context, msg interface{}, ch chan *Response) *Envelope {
-	span := trace.SpanFromContext(ctx)
-	tag, ok := tracing.GetAndMarkLink(span)
-	if ok {
-		tracing.AddLink(ctx, tag)
-	}
-
-	return &Envelope {
-		Ch:   ch,
-		Span: span.SpanContext(),
-		Link: tag,
-		Msg:  msg,
-	}
+	GetSpanContext() trace.SpanContext
+	GetLinkID() string
 }
 
 // Response holds the completion response for a processed request, whether it
@@ -80,7 +53,7 @@ type SimpleSMState interface {
 
 	// Receive is called on the active start implementation when a new
 	// incoming message arrives
-	Receive(ctx context.Context, sm *SimpleSM, msg *Envelope)
+	Receive(ctx context.Context, machine *SimpleSM, msg Envelope)
 
 	// Leave is called when a state transition moves away from this state
 	Leave(ctx context.Context, sm *SimpleSM)
@@ -96,11 +69,11 @@ type NullState struct{}
 func (*NullState) Enter(context.Context, *SimpleSM) error { return nil }
 
 // Receive is the default (no-action) implementation.
-func (*NullState) Receive(ctx context.Context, sm *SimpleSM, msg *Envelope) {
-	msg.Ch <- &Response{
+func (*NullState) Receive(ctx context.Context, machine *SimpleSM, msg Envelope) {
+	msg.GetCh() <- &Response{
 		Err: &UnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", msg),
-			State: sm.Current.Name(),
+			State: machine.Current.Name(),
 		},
 		At:  common.TickFromContext(ctx),
 		Msg: nil,
@@ -222,7 +195,7 @@ func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
 
 // Receive processes an incoming message by routing it to the active state
 // handler.
-func (sm *SimpleSM) Receive(ctx context.Context, msg *Envelope) {
+func (sm *SimpleSM) Receive(ctx context.Context, msg Envelope) {
 	sm.Current.Receive(ctx, sm, msg)
 }
 
