@@ -56,6 +56,7 @@ func (s *nullRepairAction) handleMsg(
 		msg.GetCh() <- unexpectedMessageResponse(state, common.TickFromContext(ctx), body)
 	}
 }
+<<<<<<< HEAD
 
 // dropRepairAction provides the default implementations for the functions
 // that handle the different repair and status messages, as well as the
@@ -74,3 +75,5 @@ func (s *dropRepairAction) power(ctx context.Context, _ *sm.SimpleSM, msg *setPo
 func (s *dropRepairAction) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
 	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
 }
+=======
+>>>>>>> master
