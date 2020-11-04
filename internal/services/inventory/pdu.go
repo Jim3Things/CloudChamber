@@ -3,7 +3,9 @@ package inventory
 import (
 	"context"
 	"errors"
+	"fmt"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -69,6 +71,12 @@ func (p *pdu) fixConnection(ctx context.Context, id int64) {
 
 // Receive handles incoming messages for the PDU.
 func (p *pdu) Receive(ctx context.Context, msg sm.Envelope) {
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName(fmt.Sprintf("Processing message %q on PDU", msg)),
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
+	defer span.End()
+
 	p.sm.Receive(ctx, msg)
 }
 
@@ -85,13 +93,13 @@ func (p *pdu) newStatusReport(
 
 // sendPowerToBlade constructs a setPower message that targets the specified
 // blade, and forwards it along.
-func (p *pdu) sendPowerToBlade(ctx context.Context, msg *setPower, i int64) {
+func (p *pdu) sendPowerToBlade(ctx context.Context, msg *setPower, i int64, rsp chan *sm.Response) {
 	fwd := newSetPower(
 		ctx,
 		newTargetBlade(msg.target.rack, i),
 		msg.guard,
 		msg.on,
-		nil)
+		rsp)
 
 	p.holder.forwardToBlade(ctx, i, fwd)
 
@@ -158,7 +166,7 @@ func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPo
 					changed, err := p.cables[i].force(false, msg.guard, occursAt)
 
 					if changed && err == nil {
-						p.sendPowerToBlade(ctx, msg, i)
+						p.sendPowerToBlade(ctx, msg, i, nil)
 					}
 				}
 
@@ -187,9 +195,7 @@ func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPo
 				machine.AdvanceGuard(occursAt)
 
 				if changed {
-					p.sendPowerToBlade(ctx, msg, id)
-
-					msg.GetCh() <- successResponse(occursAt)
+					p.sendPowerToBlade(ctx, msg, id, msg.GetCh())
 				} else {
 					tracing.Info(
 						ctx,

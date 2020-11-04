@@ -4,13 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,17 +17,12 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	"github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	stepper "github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
-	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
-	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	st "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -38,20 +30,14 @@ import (
 // be put into the test file where they are needed.  Also, no specific test
 // file should redefine the values set here.
 
-const (
-	bufSize = 1024 * 1024
-)
-
 var (
-	s   *grpc.Server = nil
-	lis *bufconn.Listener
+	initServiceDone = false
 )
 
 type testSuiteCore struct {
 	suite.Suite
 
 	baseURI     string
-	initialized bool
 
 	utf *exporters.Exporter
 
@@ -66,8 +52,14 @@ func (ts *testSuiteCore) adminPassword() string    { return "AdminPassword" }
 func (ts *testSuiteCore) userPath() string         { return ts.baseURI + "/api/users/" }
 
 func (ts *testSuiteCore) SetupSuite() {
+	require := ts.Require()
+
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
+
+	c, err := utilities.StartSimSupportServices()
+	require.NoError(err)
+	ts.cfg = c
 
 	ts.ensureServicesStarted()
 }
@@ -87,10 +79,6 @@ func (ts *testSuiteCore) SetupTest() {
 
 func (ts *testSuiteCore) TearDownTest() {
 	ts.utf.Close()
-}
-
-func (ts *testSuiteCore) bufDialer(_ context.Context, _ string) (net.Conn, error) {
-	return lis.Dial()
 }
 
 // Convert a proto message into a reader with json-formatted contents
@@ -195,60 +183,13 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 }
 
 // ensureServicesStarted handles the various components that can only be set or
-// initialized once.  This includes flag parsing and support service startup.
+// initialized once.
 func (ts *testSuiteCore) ensureServicesStarted() {
-	if s == nil {
+	if !initServiceDone {
 		require := ts.Require()
 
-		ts.ep = "bufnet"
-		ts.dialOpts = []grpc.DialOption{
-			grpc.WithContextDialer(ts.bufDialer),
-			grpc.WithInsecure(),
-			grpc.WithUnaryInterceptor(ct.Interceptor),
-		}
-
-		configPath := flag.String("config", "./testdata", "path to the configuration file")
-		flag.Parse()
-
-		cfg, err := config.ReadGlobalConfig(*configPath)
-		if err != nil {
-			log.Fatalf("failed to process the global configuration: %v", err)
-		}
-
-		ts.cfg = cfg
-
-		timestamp.InitTimestamp(ts.ep, ts.dialOpts...)
-		trace_sink.InitSinkClient(ts.ep, ts.dialOpts...)
-
-		lis = bufconn.Listen(bufSize)
-		s = grpc.NewServer(grpc.UnaryInterceptor(st.Interceptor))
-
-		if err = stepper.Register(s, pb.StepperPolicy_Invalid); err != nil {
-			log.Fatalf("Failed to register stepper actor: %v", err)
-			return
-		}
-
-		if _, err = tracing_sink.Register(s, cfg.SimSupport.TraceRetentionLimit); err != nil {
-			log.Fatalf("Failed to register tracing sink: %v", err)
-		}
-
-		go func() {
-			if err = s.Serve(lis); err != nil {
-				log.Fatalf("Server exited with error: %v", err)
-			}
-		}()
-
-		// Force the initial state to manual so that the setup tracing works
-		// correctly (and does not produce spurious trace errors)
-		require.NoError(
-			timestamp.SetPolicy(
-				context.Background(),
-				pb.StepperPolicy_Manual,
-				&duration.Duration{Seconds: 0}, -1))
-
 		// Start the test web service, which all tests will use
-		if err = initService(cfg); err != nil {
-			log.Fatalf("Error initializing service: %v", err)
-		}
+		require.NoError(initService(ts.cfg))
+		initServiceDone = true
 	}
 }

@@ -44,6 +44,8 @@ type statusMessage interface {
 type timerExpiry struct {
 	messageBase
 
+	id int64
+
 	// timer expiration context - what the state machine needs to work on the expiration
 	body *messageBase
 }

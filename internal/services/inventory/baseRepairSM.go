@@ -56,3 +56,21 @@ func (s *nullRepairAction) handleMsg(
 		msg.GetCh() <- unexpectedMessageResponse(state, common.TickFromContext(ctx), body)
 	}
 }
+
+// dropRepairAction provides the default implementations for the functions
+// that handle the different repair and status messages, as well as the
+// common routing logic used whenever a new message is received and the
+// element is in a state that prevents any processing.
+type dropRepairAction struct {
+	nullRepairAction
+}
+
+// power returns a dropped message
+func (s *dropRepairAction) power(ctx context.Context, _ *sm.SimpleSM, msg *setPower) {
+	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
+}
+
+// connect returns a dropped message
+func (s *dropRepairAction) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
+	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
+}

@@ -179,9 +179,7 @@ func (r *rack) stop(ctx context.Context) {
 
 // Receive handles incoming requests from outside, forwarding to the rack's
 // state machine handler.
-func (r *rack) Receive(ctx context.Context, msg sm.Envelope, ch chan *sm.Response) {
-	msg.Initialize(ctx, ch)
-
+func (r *rack) Receive(msg sm.Envelope) {
 	r.ch <- msg
 }
 

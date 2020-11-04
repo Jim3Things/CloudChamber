@@ -21,7 +21,7 @@ func (ts *RackTestSuite) TestCreateRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	require.NoError(tsc.Advance(context.Background()))
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 	ctx, span := tracing.StartSpan(
@@ -41,7 +41,7 @@ func (ts *RackTestSuite) TestStartStopRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	require.NoError(tsc.Advance(context.Background()))
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 
@@ -70,7 +70,7 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	require.NoError(tsc.Advance(context.Background()))
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 
@@ -105,7 +105,7 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	require.NoError(tsc.Advance(context.Background()))
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 
@@ -137,7 +137,7 @@ func (ts *RackTestSuite) TestStopNoStartRack() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	require.NoError(tsc.Advance(context.Background()))
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 
@@ -161,7 +161,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	require.NoError(tsc.Advance(context.Background()))
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 
@@ -180,14 +180,13 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 
-	require.NoError(tsc.Advance(ctx))
-	ctx = common.ContextWithTick(ctx, tsc.Tick(ctx))
+	ctx = ts.advance(ctx)
 
 	rsp := make(chan *sm.Response)
 
 	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), true, rsp)
 
-	r.Receive(ctx, msg, rsp)
+	r.Receive(msg)
 	span.End()
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)

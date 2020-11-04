@@ -41,12 +41,12 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 
 	r := newRack(ctx, ts.rackName(), rackDef)
-	ctx = common.ContextWithTick(ctx, 2)
+	ctx = ts.advance(ctx)
 
 	t := r.tor
 	require.NotNil(t)
@@ -59,7 +59,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 
 	badMsg := newSetConnection(ctx, newTargetTor(ts.rackName()), common.TickFromContext(ctx), false, rsp)
 
-	ts.execute(ctx, badMsg, r.tor.Receive)
+	ts.execute(badMsg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -79,7 +79,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	ctx := ts.advance(context.Background())
 
 	rackDef := ts.createDummyRack(2)
 
@@ -87,13 +87,17 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	require.NotNil(r)
 	t := r.tor
 
-	ctx = common.ContextWithTick(ctx, 2)
+	ctx = ts.advance(ctx)
+
+	ts.powerOnBlade(ctx, r, 0)
+
+	ctx = ts.advance(ctx)
 
 	rsp := make(chan *sm.Response)
 
 	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
 
-	ts.execute(ctx, msg, r.tor.Receive)
+	ts.execute(msg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -115,20 +119,20 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	startTime := int64(1)
-	ctx := common.ContextWithTick(context.Background(), startTime)
+	ctx := ts.advance(context.Background())
+	startTime := common.TickFromContext(ctx)
 
 	rackDef := ts.createDummyRack(2)
 
 	r := newRack(ctx, ts.rackName(), rackDef)
 	t := r.tor
-	ctx = common.ContextWithTick(ctx, 2)
+	ctx = ts.advance(ctx)
 
 	rsp := make(chan *sm.Response)
 
 	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), startTime - 1, true, rsp)
 
-	ts.execute(ctx, msg, r.tor.Receive)
+	ts.execute(msg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
@@ -150,22 +154,22 @@ func (ts *TorTestSuite) TestStuckCable() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	ctx := ts.advance(context.Background())
+	startTime := common.TickFromContext(ctx)
 
 	rackDef := ts.createDummyRack(2)
 
 	r := newRack(ctx, ts.rackName(), rackDef)
 	t := r.tor
 
-	startTime := common.TickFromContext(ctx)
 	require.Nil(t.cables[0].fault(false, startTime, startTime))
-	ctx = common.ContextWithTick(ctx, 2)
+	ctx = ts.advance(ctx)
 
 	rsp := make(chan *sm.Response)
 
 	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
 
-	ts.execute(ctx, msg, r.tor.Receive)
+	ts.execute(msg, r.tor.Receive)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
