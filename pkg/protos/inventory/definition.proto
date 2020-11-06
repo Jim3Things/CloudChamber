@@ -149,21 +149,6 @@ message definition {
         // purposes only.
         //
         string notes = 5;
-
-        // Specify the pdus in the rack.  Each pdu is defined by an integer index within
-        // that rack, which is used here as the key.
-        //
-        map<int64, pdu> pdus = 10;
-
-        // specify the tors in the rack.  Each tor is defined by an integer index within
-        // that rack, which is used here as the key.
-        //
-        map<int64, tor> tors = 11;
-
-        // specify the blades in the rack.  Each blade is defined by an integer index within
-        // that rack, which is used here as the key.
-        //
-        map<int64, blade> blades = 12;
     }
 
     // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a
@@ -193,11 +178,42 @@ message definition {
         // purposes only.
         //
         string notes = 4;
+    }
+
+    // A complete description of a rack internal "in-memory" usage as oppoesed to reading
+    // and/or writing individual rack records from the store, i.e. a "container" structure.
+    //
+    message rack_internal {
+
+        rack details = 1;
+
+        // Specify the pdus in the rack.  Each pdu is defined by an integer index within
+        // that rack, which is used here as the key.
+        //
+        map<int64, pdu> pdus = 10;
+
+        // specify the tors in the rack.  Each tor is defined by an integer index within
+        // that rack, which is used here as the key.
+        //
+        map<int64, tor> tors = 11;
+
+        // specify the blades in the rack.  Each blade is defined by an integer index within
+        // that rack, which is used here as the key.
+        //
+        map<int64, blade> blades = 12;
+    }
+
+    // A complete description of a zone internal "in-memory" usage as oppoesed to reading
+    // and/or writing individual zone records from the store, i.e. a "container" structure.
+    //
+    message zone_internal {
+
+        zone details = 1;
 
         // The set of racks forming an individual zone. All racks in the zone are affected
         // by the properties of the zone or any conditions affecting the zone. Each rack is
         // defined by a string name within the zone, and that name is used here as a key.
         //
-        map<string, rack> racks = 10;
+        map<string, rack_internal> racks = 10;
     }
 }

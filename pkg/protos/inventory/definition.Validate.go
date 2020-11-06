@@ -45,7 +45,7 @@ func(x *DefinitionTor) Validate(prefix string, ports int64) error {
 // Validate is a method that verifies that the associated DefinitionRack instance
 // is structurally legal
 //
-func (x *DefinitionRack) Validate(prefix string) error {
+func (x *DefinitionRackInternal) Validate(prefix string) error {
 	// Verify that rack has at least one Pdu
 	//
 	// NOTE: at present we expect there to be exactly one Pdu per-rack
@@ -108,13 +108,14 @@ func (x *DefinitionRack) Validate(prefix string) error {
 	}
 
 	// All correct
+	//
 	return nil
 }
 
 // Validate is a method that verifies that the associated DefinitionZone instance
 // is structurally legal
 //
-func (x *DefinitionZone) Validate() error {
+func (x *DefinitionZoneInternal) Validate() error {
 	// Verify that zone has at least one rack
 	//
 	actual := int64(len(x.Racks))
@@ -127,6 +128,7 @@ func (x *DefinitionZone) Validate() error {
 	}
 
 	// .. And then validate that each rack is valid
+	//
 	for k, v := range x.Racks {
 		if err := v.Validate(fmt.Sprintf("Rack[%s].", k)); err != nil {
 			return err
@@ -135,5 +137,6 @@ func (x *DefinitionZone) Validate() error {
 
 
 	// All correct
+	//
 	return nil
 }

@@ -135,10 +135,10 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 	zone, ok := (*zonemap)["zone1"]
 	require.True(t, ok)
 
-	assert.True(t, zone.Enabled)
-	assert.Equal(t, inventory.Definition_operational, zone.Condition)
-	assert.Equal(t, "DC-PNW-0", zone.Location)
-	assert.Equal(t, "Base zone", zone.Notes)
+	assert.True(t, zone.Details.Enabled)
+	assert.Equal(t, inventory.Definition_operational, zone.Details.Condition)
+	assert.Equal(t, "DC-PNW-0", zone.Details.Location)
+	assert.Equal(t, "Base zone", zone.Details.Notes)
 
 	require.Equal(t, 2, len(zone.Racks))
 
@@ -149,10 +149,10 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		r, ok := zone.Racks[name]
 		require.True(t, ok)
 
-		assert.True(t, r.Enabled)
-		assert.Equal(t, inventory.Definition_operational, r.Condition)
-		assert.Equal(t, "DC-PNW-0-" + name, r.Location)
-		assert.Equal(t, "RackName: " + name, r.Notes)
+		assert.True(t, r.Details.Enabled)
+		assert.Equal(t, inventory.Definition_operational, r.Details.Condition)
+		assert.Equal(t, "DC-PNW-0-" + name, r.Details.Location)
+		assert.Equal(t, "RackName: " + name, r.Details.Notes)
 
 		assert.Equal(t, 1, len(r.Pdus))
 		assert.Equal(t, 1, len(r.Tors))

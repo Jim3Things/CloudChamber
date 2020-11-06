@@ -78,7 +78,7 @@ type DBInventory struct {
 	MaxCapacity   *ct.BladeCapacity
 	Store *store.Store
 
-	Zones map[string]*pb.DefinitionZone
+	Zones map[string]*pb.DefinitionZoneInternal
 }
 
 var dbInventory *DBInventory
@@ -98,7 +98,7 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			MaxBladeCount: 0,
 			MaxCapacity:   &ct.BladeCapacity{},
 			Store: store.NewStore(),
-			Zones: make(map[string]*pb.DefinitionZone),
+			Zones: make(map[string]*pb.DefinitionZoneInternal),
 		}
 
 		if err = db.Initialize(ctx, cfg); err != nil {
@@ -108,6 +108,21 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 		if dbInventory == nil {
 			dbInventory = db
 		}
+
+
+		// For temporary backwards compatibilities sake, need to have the older
+		// version here to allow all the current tests to run before we have a
+		// complete cut-over to the store based inventory definition.
+		//
+		zone, err := config.ReadInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition)
+
+		if err != nil {
+			return err
+		}
+
+		dbInventory.Zone = zone
+
+		dbInventory.buildSummary(ctx)
 	}
 
 	return nil
@@ -194,7 +209,7 @@ func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConf
 // which any currently running services have previously established and deliver
 // a set of arrival and/or departure notifications as appropriate.
 //
-func (m *DBInventory) reconcileNewInventory(ctx context.Context, zonemap *map[string]*pb.DefinitionZone) error {
+func (m *DBInventory) reconcileNewInventory(ctx context.Context, zonemap *map[string]*pb.DefinitionZoneInternal) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Reconcile current inventory with update"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -206,7 +221,7 @@ func (m *DBInventory) reconcileNewInventory(ctx context.Context, zonemap *map[st
 
 	m.Zones = *zonemap
 
-	m.buildSummaryForZones(ctx)
+	m.updateSummaryForZones(ctx)
 
 	return nil
 }
@@ -323,7 +338,7 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 //
 // Assumptions: dbInventory (write)lock is already held.
 //
-func (m *DBInventory) buildSummaryForZones(ctx context.Context) {
+func (m *DBInventory) updateSummaryForZones(ctx context.Context) {
 
 	maxBladeCount := int64(0)
 	memo := &ct.BladeCapacity{}
@@ -630,6 +645,7 @@ func (m *DBInventory) CreatePdu(ctx context.Context, zone string, rack string, i
 		Enabled: pdu.Enabled,
 		Powered: pdu.Powered,
 		Condition: pdu.Condition,
+		Ports: make(map[int64]*pb.DefinitionPowerPort),
 	}
 
 	for i, p := range pdu.Ports {
@@ -664,6 +680,7 @@ func (m *DBInventory) CreateTor(ctx context.Context, zone string, rack string, i
 		Enabled: tor.Enabled,
 		Powered: tor.Powered,
 		Condition: tor.Condition,
+		Ports: make(map[int64]*pb.DefinitionNetworkPort),
 	}
 
 	for i, p := range tor.Ports {
@@ -772,9 +789,9 @@ func (m *DBInventory) ReadRack(ctx context.Context, zone string, name string, op
 	return r, rev, err
 }
 
-// ReadPdus returns
+// ReadPdu returns
 //
-func (m *DBInventory) ReadPdus(ctx context.Context, zone string, rack string, index int64, options ...InventoryOption) (*pb.DefinitionPdu, int64, error) {
+func (m *DBInventory) ReadPdu(ctx context.Context, zone string, rack string, index int64, options ...InventoryOption) (*pb.DefinitionPdu, int64, error) {
 
 	k := getKeyForPdu(zone, rack, index)
 

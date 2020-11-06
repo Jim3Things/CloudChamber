@@ -178,7 +178,7 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 // an external YAML file and transforms it into the
 // internal Cloud chamber binary format.
 //
-func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*map[string]*pb.DefinitionZone, error) {
+func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*map[string]*pb.DefinitionZoneInternal, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -212,7 +212,7 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*map[str
 	}
 
 	// Now convert it into its final form
-	zonemap, err := toDefinitionZone(xfr)
+	zonemap, err := toDefinitionZoneInternal(xfr)
 	if err != nil {
 		span.AddEvent(ctx, err.Error())
 		return nil, err
@@ -223,24 +223,26 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*map[str
 	return zonemap, nil
 }
 
-// toDefinitionZone converts intermediate values to the final format
+// toDefinitionZoneInternal converts intermediate values to the final format
 // One important differnce is that the intermediate is array based.
 // The final format is map based using specific fields in array
 // enteries as the map keys
 //
-func toDefinitionZone(xfr *zone) (*map[string]*pb.DefinitionZone, error) {
+func toDefinitionZoneInternal(xfr *zone) (*map[string]*pb.DefinitionZoneInternal, error) {
 
-	zonemap := make(map[string]*pb.DefinitionZone)
+	zonemap := make(map[string]*pb.DefinitionZoneInternal)
 
 	// Since we only have a single zone at present, there is no loop
 	// here. But there will be eventually.
 	//
-	zone := &pb.DefinitionZone{
-		Enabled: true,
-		Condition: pb.Definition_operational,
-		Location: "DC-PNW-0",
-		Notes: "Base zone",
-		Racks: make(map[string]*pb.DefinitionRack),
+	zone := &pb.DefinitionZoneInternal{
+		Details: &pb.DefinitionZone{
+			Enabled:   true,
+			Condition: pb.Definition_operational,
+			Location:  "DC-PNW-0",
+			Notes:     "Base zone",
+		},
+		Racks: make(map[string]*pb.DefinitionRackInternal),
 	}
 
 	for _, r := range xfr.Racks {
@@ -248,11 +250,13 @@ func toDefinitionZone(xfr *zone) (*map[string]*pb.DefinitionZone, error) {
 			return nil, ErrDuplicateRack(r.Name)
 		}
 
-		zone.Racks[r.Name] = &pb.DefinitionRack{
-			Enabled:   true,
-			Condition: pb.Definition_operational,
-			Location:  "DC-PNW-0-" + r.Name,
-			Notes:     "RackName: " + r.Name,
+		zone.Racks[r.Name] = &pb.DefinitionRackInternal{
+			Details: &pb.DefinitionRack{
+				Enabled:   true,
+				Condition: pb.Definition_operational,
+				Location:  "DC-PNW-0-" + r.Name,
+				Notes:     "RackName: " + r.Name,
+				},
 			Pdus:      make(map[int64]*pb.DefinitionPdu),
 			Tors:      make(map[int64]*pb.DefinitionTor),
 			Blades:    make(map[int64]*pb.DefinitionBlade),
