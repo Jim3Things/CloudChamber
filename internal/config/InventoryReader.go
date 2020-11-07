@@ -178,7 +178,7 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 // an external YAML file and transforms it into the
 // internal Cloud chamber binary format.
 //
-func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*map[string]*pb.DefinitionZoneInternal, error) {
+func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Zonemap, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -219,7 +219,7 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*map[str
 	}
 
 	span.AddEvent(ctx,
-		fmt.Sprintf("Inventory definition Read: \n%v", *zonemap))
+		fmt.Sprintf("Inventory definition Read: \n%v", zonemap))
 	return zonemap, nil
 }
 
@@ -228,9 +228,9 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*map[str
 // The final format is map based using specific fields in array
 // enteries as the map keys
 //
-func toDefinitionZoneInternal(xfr *zone) (*map[string]*pb.DefinitionZoneInternal, error) {
+func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 
-	zonemap := make(map[string]*pb.DefinitionZoneInternal)
+	zonemap := &pb.Zonemap{Zones: make(map[string]*pb.DefinitionZoneInternal)}
 
 	// Since we only have a single zone at present, there is no loop
 	// here. But there will be eventually.
@@ -245,6 +245,10 @@ func toDefinitionZoneInternal(xfr *zone) (*map[string]*pb.DefinitionZoneInternal
 		Racks: make(map[string]*pb.DefinitionRackInternal),
 	}
 
+	// For each rack in the supplied configuration, create rack in the
+	// zone. Each rack has some details, a set of Pdus, a set of Tors, 
+	//and a set of blades.
+	//
 	for _, r := range xfr.Racks {
 		if _, ok := zone.Racks[r.Name]; ok {
 			return nil, ErrDuplicateRack(r.Name)
@@ -282,7 +286,17 @@ func toDefinitionZoneInternal(xfr *zone) (*map[string]*pb.DefinitionZoneInternal
 			Ports:     make(map[int64]*pb.DefinitionNetworkPort),
 		}
 
+		// We do suuport more than a single blade for each rack
+		// so iterate over each of the blades in the supplied
+		// configuration.
+		//
 		for _, b := range r.Blades {
+
+			// If we already have a blade definition at the index
+			// for the blade, it MUST be a duplicate, which we do
+			// not allow, so fail describing where we found the
+			// issue.
+			//
 			if _, ok := zone.Racks[r.Name].Blades[b.Index]; ok {
 				return nil, ErrDuplicateBlade{
 					blade: b.Index,
@@ -290,6 +304,11 @@ func toDefinitionZoneInternal(xfr *zone) (*map[string]*pb.DefinitionZoneInternal
 				}
 			}
 
+			// Add a blade definition based upon the supplied
+			// configuration.and add in the fields which do not
+			// (currently) have an existence in the configuration
+			// file.
+			//
 			zone.Racks[r.Name].Blades[b.Index] = &pb.DefinitionBlade{
 				Enabled: true,
 				Condition: pb.Definition_operational,
@@ -302,11 +321,19 @@ func toDefinitionZoneInternal(xfr *zone) (*map[string]*pb.DefinitionZoneInternal
 				},
 			}
 
+			// For the given blade index, add a matching connection
+			// in the PDU to allow power for the blade to be
+			// connected and controlled.
+			//
 			zone.Racks[r.Name].Pdus[0].Ports[b.Index] = &pb.DefinitionPowerPort{
 				Connected: true,
 				Powered:   true,
 			}
 
+			// For the given blade index, add a matching connection
+			// in the TOR to allow a network for the blade to be
+			// connected and controlled.
+			//
 			zone.Racks[r.Name].Tors[0].Ports[b.Index] = &pb.DefinitionNetworkPort{
 				Connected: true,
 				Enabled:   true,
@@ -321,7 +348,7 @@ func toDefinitionZoneInternal(xfr *zone) (*map[string]*pb.DefinitionZoneInternal
 		}
 	}
 
-	zonemap["zone1"] = zone
+	zonemap.Zones["zone1"] = zone
 
-	return &zonemap, nil
+	return zonemap, nil
 }

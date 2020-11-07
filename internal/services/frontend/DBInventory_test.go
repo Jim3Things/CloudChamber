@@ -409,79 +409,80 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	assert.Equal(blade.Capacity.Accelerators,           b.Capacity.Accelerators)
 }
 
-func (ts *DBInventoryTestSuite) TestLoadFromStore() {
-	assert := ts.Assert()
-	require := ts.Require()
 
-	ctx := context.Background()
+// func (ts *DBInventoryTestSuite) TestLoadFromStore() {
+// 	assert := ts.Assert()
+// 	require := ts.Require()
 
-	db :=  &DBInventory{
-		mutex: sync.RWMutex{},
-		Zone: nil,
-		MaxBladeCount: 0,
-		MaxCapacity:   &ct.BladeCapacity{},
-		Store: store.NewStore(),
-	}
+// 	ctx := context.Background()
 
-	err := db.Store.Connect()
-	require.NoError(err)
+// 	db :=  &DBInventory{
+// 		mutex: sync.RWMutex{},
+// 		Zone: nil,
+// 		MaxBladeCount: 0,
+// 		MaxCapacity:   &ct.BladeCapacity{},
+// 		Store: store.NewStore(),
+// 	}
 
-	err = db.LoadFromStore(ctx)
-	require.NoError(err)
-	require.Equal(1, len(db.Zones))
+// 	err := db.Store.Connect()
+// 	require.NoError(err)
 
-	for _, z := range db.Zones {
+// 	err = db.LoadFromStore(ctx)
+// 	require.NoError(err)
+// 	require.Equal(1, len(db.Zones))
 
-		assert.True(z.Details.Enabled)
-		assert.Equal(pb.Definition_operational, z.Details.Condition)
-		assert.Equal(0,  len(z.Details.Location))
-		assert.Equal(0,  len(z.Details.Notes))
+// 	for _, z := range db.Zones {
+
+// 		assert.True(z.Details.Enabled)
+// 		assert.Equal(pb.Definition_operational, z.Details.Condition)
+// 		assert.Equal(0,  len(z.Details.Location))
+// 		assert.Equal(0,  len(z.Details.Notes))
 		
-		assert.Equal(8, len(z.Racks))
+// 		assert.Equal(8, len(z.Racks))
 
-		for _, r := range z.Racks {
-			assert.True(r.Details.Enabled)
-			assert.Equal(pb.Definition_operational, r.Details.Condition)
-			assert.Equal(0,  len(r.Details.Location))
-			assert.Equal(0,  len(r.Details.Notes))
+// 		for _, r := range z.Racks {
+// 			assert.True(r.Details.Enabled)
+// 			assert.Equal(pb.Definition_operational, r.Details.Condition)
+// 			assert.Equal(0,  len(r.Details.Location))
+// 			assert.Equal(0,  len(r.Details.Notes))
 			
-			assert.Equal(1, len(r.Pdus))
+// 			assert.Equal(1, len(r.Pdus))
 
-			for _, p := range r.Pdus {
-				assert.True(p.Enabled)
-				assert.True(p.Powered)
+// 			for _, p := range r.Pdus {
+// 				assert.True(p.Enabled)
+// 				assert.True(p.Powered)
 
-				assert.Equal(pb.Definition_operational, p.Condition)
+// 				assert.Equal(pb.Definition_operational, p.Condition)
 
-				assert.Equal(9, len(p.Ports))
-			}
+// 				assert.Equal(9, len(p.Ports))
+// 			}
 
-			assert.Equal(1, len(r.Tors))
+// 			assert.Equal(1, len(r.Tors))
 
-			for _, tor := range r.Tors {
-				assert.True(tor.Enabled)
-				assert.True(tor.Powered)
+// 			for _, tor := range r.Tors {
+// 				assert.True(tor.Enabled)
+// 				assert.True(tor.Powered)
 
-				assert.Equal(pb.Definition_operational, tor.Condition)
+// 				assert.Equal(pb.Definition_operational, tor.Condition)
 
-				assert.Equal(8, len(tor.Ports))
-			}
+// 				assert.Equal(8, len(tor.Ports))
+// 			}
 
-			assert.Equal(8, len(z.Racks))
+// 			assert.Equal(8, len(z.Racks))
 
-			for _, b := range r.Blades {
-				assert.True(b.Enabled)
-				assert.Equal(pb.Definition_operational, b.Condition)
+// 			for _, b := range r.Blades {
+// 				assert.True(b.Enabled)
+// 				assert.Equal(pb.Definition_operational, b.Condition)
 
-				assert.Equal(8,     b.Capacity.Cores)
-				assert.Equal(16834, b.Capacity.MemoryInMb)
-				assert.Equal(120,   b.Capacity.DiskInGb)
-				assert.Equal(2048,  b.Capacity.NetworkBandwidthInMbps)
-				assert.Equal("X64", b.Capacity.Arch)
-			}
-		}
-	}
-}
+// 				assert.Equal(8,     b.Capacity.Cores)
+// 				assert.Equal(16834, b.Capacity.MemoryInMb)
+// 				assert.Equal(120,   b.Capacity.DiskInGb)
+// 				assert.Equal(2048,  b.Capacity.NetworkBandwidthInMbps)
+// 				assert.Equal("X64", b.Capacity.Arch)
+// 			}
+// 		}
+// 	}
+// }
 
 // func (ts *DBInventoryTestSuite) TestUpdateFromFile() {
 // 	assert := ts.Assert()

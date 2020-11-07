@@ -217,3 +217,8 @@ message definition {
         map<string, rack_internal> racks = 10;
     }
 }
+
+message zonemap {
+    map<string, definition.zone_internal> zones = 10;
+}
+

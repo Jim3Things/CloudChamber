@@ -124,15 +124,16 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 
 	_ = utf.Open(t)
 	defer utf.Close()
+	viper.Reset()
 
 	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata")
 	require.NoError(t, err)
 
 	// There should only be a single zone.
 	//
-	require.Equal(t, 1, len(*zonemap))
+	require.Equal(t, 1, len(zonemap.Zones))
 
-	zone, ok := (*zonemap)["zone1"]
+	zone, ok := zonemap.Zones["zone1"]
 	require.True(t, ok)
 
 	assert.True(t, zone.Details.Enabled)

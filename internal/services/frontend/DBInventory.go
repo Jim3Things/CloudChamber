@@ -74,11 +74,12 @@ type DBInventory struct {
 
 	Zone *pb.ExternalZone
 
+	ZoneCount int
 	MaxBladeCount int64
 	MaxCapacity   *ct.BladeCapacity
 	Store *store.Store
 
-	Zones map[string]*pb.DefinitionZoneInternal
+	Zonemap *pb.Zonemap
 }
 
 var dbInventory *DBInventory
@@ -97,8 +98,8 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			Zone: nil,
 			MaxBladeCount: 0,
 			MaxCapacity:   &ct.BladeCapacity{},
-			Store: store.NewStore(),
-			Zones: make(map[string]*pb.DefinitionZoneInternal),
+			Store:         store.NewStore(),
+			Zonemap:       &pb.Zonemap{},
 		}
 
 		if err = db.Initialize(ctx, cfg); err != nil {
@@ -150,11 +151,21 @@ func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) 
 	 	return err
 	}
 
-	if err = m.UpdateFromFile(ctx, cfg); err != nil {
+	if err = m.UpdateInventoryDefinition(ctx, cfg); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (m *DBInventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.Zonemap, error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Read inventory definition from store"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	return nil, nil
 }
 
 // LoadFromStore is a method to load the currently known inventory from the store and in
@@ -173,12 +184,15 @@ func (m *DBInventory) LoadFromStore(ctx context.Context) error {
 	return nil
 }
 
-// UpdateFromFile is a method to load a new inventory definition from the configured
-// file. Once read, the store will be updated with the differences which will in
-// turn trigger a set of previously established watch routines to issue a number or
-// arrival and/or departure notifications.
+// UpdateInventoryDefinition is a method to load a new inventory definition from
+// the configured file. Once read, the store will be updated with the differences
+// which will in turn trigger a set of previously established watch routines to
+// issue a number of arrival and/or departure notifications.
 //
-func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConfig) error {
+func (m *DBInventory) UpdateInventoryDefinition(
+	ctx context.Context,
+	cfg *config.GlobalConfig,
+	) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Update inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -190,18 +204,23 @@ func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConf
 	// into the store looking to see if there are any material changes between
 	// what is already in the store and what is now found in the file.
 	//
-	zonemap, err := config.ReadInventoryDefinitionFromFile(ctx, cfg.Inventory.InventoryDefinition) 
+	zmFile, err := config.ReadInventoryDefinitionFromFile(ctx, cfg.Inventory.InventoryDefinition) 
 	if err != nil {
 			return err 
 	}
 
-	if err = m.reconcileNewInventory(ctx, zonemap); err != nil {
+	zmStore, err := m.readInventoryDefinitionFromStore(ctx)
+
+	if err != nil {
+		return err 
+	}
+
+	if err = m.reconcileNewInventory(ctx, zmFile, zmStore); err != nil {
 		return err
 	}
 
 	return nil
 }
-
 
 // reconcileNewInventory compares the newly loaded inventory definition,
 // presumably from a configuration file, with the currently loaded inventory
@@ -209,7 +228,7 @@ func (m *DBInventory) UpdateFromFile(ctx context.Context, cfg *config.GlobalConf
 // which any currently running services have previously established and deliver
 // a set of arrival and/or departure notifications as appropriate.
 //
-func (m *DBInventory) reconcileNewInventory(ctx context.Context, zonemap *map[string]*pb.DefinitionZoneInternal) error {
+func (m *DBInventory) reconcileNewInventory(ctx context.Context, zmFile *pb.Zonemap, zmStore *pb.Zonemap) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Reconcile current inventory with update"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -219,9 +238,9 @@ func (m *DBInventory) reconcileNewInventory(ctx context.Context, zonemap *map[st
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	m.Zones = *zonemap
+	m.Zonemap = zmFile
 
-	m.updateSummaryForZones(ctx)
+	m.ZoneCount, m.MaxBladeCount, m.MaxCapacity = m.buildSummaryForZonemap(ctx, zmFile)
 
 	return nil
 }
@@ -334,23 +353,26 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 
 
 // buildSummary constructs the memo-ed summary data for the zone.  This should
-// be called whenever the configured inventory changes.
+// be called whenever the configured inventory changes. This includes
 //
-// Assumptions: dbInventory (write)lock is already held.
+// - the zone count
+// - the maximum number of blades in a rack
+// - the memo data itself
 //
-func (m *DBInventory) updateSummaryForZones(ctx context.Context) {
+func (m *DBInventory) buildSummaryForZonemap(ctx context.Context, zm *pb.Zonemap) (int, int64, *ct.BladeCapacity) {
 
 	maxBladeCount := int64(0)
-	memo := &ct.BladeCapacity{}
+	maxCapacity := &ct.BladeCapacity{}
 
-	for _, zone := range m.Zones {
+	for _, zone := range zm.Zones {
 		for _, rack := range zone.Racks {
 			for _, blade := range rack.Blades {
-				memo.Cores = common.MaxInt64(memo.Cores, blade.Capacity.Cores)
-				memo.DiskInGb = common.MaxInt64(memo.DiskInGb, blade.Capacity.DiskInGb)
-				memo.MemoryInMb = common.MaxInt64(memo.MemoryInMb, blade.Capacity.MemoryInMb)
-				memo.NetworkBandwidthInMbps = common.MaxInt64(
-					memo.NetworkBandwidthInMbps,
+				maxCapacity.Cores      = common.MaxInt64(maxCapacity.Cores,      blade.Capacity.Cores)
+				maxCapacity.DiskInGb   = common.MaxInt64(maxCapacity.DiskInGb,   blade.Capacity.DiskInGb)
+				maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, blade.Capacity.MemoryInMb)
+
+				maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
+					maxCapacity.NetworkBandwidthInMbps,
 					blade.Capacity.NetworkBandwidthInMbps)
 			}
 
@@ -358,10 +380,9 @@ func (m *DBInventory) updateSummaryForZones(ctx context.Context) {
 		}
 	}
 
-	m.MaxBladeCount = maxBladeCount
-	m.MaxCapacity   = memo
+	tracing.Info(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", maxBladeCount, maxCapacity)
 
-	tracing.Info(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", m.MaxBladeCount, m.MaxCapacity)
+	return len(zm.Zones), maxBladeCount, maxCapacity
 }
 
 
