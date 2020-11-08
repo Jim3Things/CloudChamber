@@ -53,7 +53,7 @@ type startSpanConfig struct {
 	decorations []decorator
 	reason      string
 	link        trace.SpanContext
-	linkTag		string
+	linkTag     string
 	newRoot     bool
 }
 
@@ -115,7 +115,7 @@ func mayLinkTo(sc trace.SpanContext) trace.StartOption {
 	return nullOption()
 }
 
-// mayLinkTag is a parallel helper function that supplied teh unique add-link
+// mayLinkTag is a parallel helper function that supplied the unique add-link
 // value to allow for this span to be correctly placed relative to the caller's
 // sequence of actions.  If no such tag is present, this adds nothing to the
 // start span operation.
@@ -166,7 +166,6 @@ func StartSpan(
 		link:        trace.SpanContext{},
 		linkTag:     "",
 		newRoot:     false,
-
 	}
 
 	for _, opt := range options {
@@ -189,7 +188,7 @@ func StartSpan(
 		trace.WithAttributes(kv.String(ReasonKey, cfg.reason)),
 		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
 
-	if parent.SpanContext().HasSpanID() {
+	if !cfg.newRoot && parent.SpanContext().HasSpanID() {
 		parent.AddEvent(
 			ctxChild,
 			cfg.name,
@@ -201,8 +200,8 @@ func StartSpan(
 	}
 
 	ccSpan := SpanEx{
-		Span:        span,
-		isInternal:  cfg.kind == trace.SpanKindInternal,
+		Span:       span,
+		isInternal: cfg.kind == trace.SpanKindInternal,
 	}
 
 	for _, action := range cfg.decorations {
@@ -351,7 +350,7 @@ func logError(ctx context.Context, err error) error {
 // formatIf determines if this is a simple string, or something to format
 // before returning.
 func formatIf(a ...interface{}) string {
-	if  a == nil || len(a) == 0 {
+	if a == nil || len(a) == 0 {
 		return ""
 	}
 

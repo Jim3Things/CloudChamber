@@ -15,8 +15,11 @@ type repairActionState interface {
 	// power is the function that responds to a setPower message.
 	power(ctx context.Context, sm *sm.SimpleSM, msg *setPower)
 
-	// connect is the function that responds to a setConnection message
+	// connect is the function that responds to a setConnection message.
 	connect(ctx context.Context, sm *sm.SimpleSM, msg *setConnection)
+
+	// timeout is the function that processes a timer expiration message.
+	timeout(ctx context.Context, sm *sm.SimpleSM, msg *timerExpiry)
 }
 
 // nullRepairAction provides the default implementations for the functions
@@ -35,6 +38,10 @@ func (s *nullRepairAction) power(ctx context.Context, _ *sm.SimpleSM, msg *setPo
 func (s *nullRepairAction) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
 	msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), msg)
 }
+
+// timeout ignores any timer expiration notification, as there must not be any
+// outstanding timers for it to get to this implementation.
+func (s *nullRepairAction) timeout(_ context.Context, _ *sm.SimpleSM, _ *timerExpiry) {}
 
 // handleMsg performs the common routing for all incoming messages.  They are
 // routed to the known handler functions for messages that are known, and any
@@ -56,7 +63,6 @@ func (s *nullRepairAction) handleMsg(
 		msg.GetCh() <- unexpectedMessageResponse(state, common.TickFromContext(ctx), body)
 	}
 }
-<<<<<<< HEAD
 
 // dropRepairAction provides the default implementations for the functions
 // that handle the different repair and status messages, as well as the
@@ -75,5 +81,3 @@ func (s *dropRepairAction) power(ctx context.Context, _ *sm.SimpleSM, msg *setPo
 func (s *dropRepairAction) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
 	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
 }
-=======
->>>>>>> master

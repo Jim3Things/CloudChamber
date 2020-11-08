@@ -3,9 +3,7 @@ package inventory
 import (
 	"context"
 	"errors"
-	"fmt"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -71,11 +69,7 @@ func (p *pdu) fixConnection(ctx context.Context, id int64) {
 
 // Receive handles incoming messages for the PDU.
 func (p *pdu) Receive(ctx context.Context, msg sm.Envelope) {
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName(fmt.Sprintf("Processing message %q on PDU", msg)),
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	defer span.End()
+	tracing.Info(ctx, "Processing message %q on PDU", msg)
 
 	p.sm.Receive(ctx, msg)
 }
@@ -83,8 +77,8 @@ func (p *pdu) Receive(ctx context.Context, msg sm.Envelope) {
 // newStatusReport is a helper function to construct a status response for this
 // PDU.
 func (p *pdu) newStatusReport(
-	ctx context.Context,
-	target *services.InventoryAddress) *sm.Response {
+	_ context.Context,
+	_ *services.InventoryAddress) *sm.Response {
 	return &sm.Response{
 		Err: errors.New("not yet implemented"),
 		Msg: nil,
@@ -247,7 +241,7 @@ func (s *pduWorking) Name() string { return "working" }
 
 // pduOff is the state a PDU is in when it is fully powered off.
 type pduOff struct {
-	nullRepairAction
+	dropRepairAction
 }
 
 // Receive processes incoming requests for this state.
@@ -258,16 +252,11 @@ func (s *pduOff) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envel
 // Name returns the friendly name for this state.
 func (s *pduOff) Name() string { return "off" }
 
-// power ignores the request, as the PDU is off
-func (s *pduOff) power(ctx context.Context, _ *sm.SimpleSM, msg *setPower) {
-	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
-}
-
 // pduStuck is the state a PDU is in when it is unresponsive to commands, but
 // is still powered on.  By implication, the powered state for each cable is
 // also stuck.
 type pduStuck struct {
-	nullRepairAction
+	dropRepairAction
 }
 
 // Receive processes incoming requests for this state.
@@ -277,7 +266,3 @@ func (s *pduStuck) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Env
 
 // Name returns the friendly name for this state.
 func (s *pduStuck) Name() string { return "stuck" }
-
-func (s *pduStuck) power(ctx context.Context, _ *sm.SimpleSM, msg *setPower) {
-	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
-}

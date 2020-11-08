@@ -2,9 +2,8 @@ package inventory
 
 import (
 	"context"
-	"fmt"
+	"math/rand"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -26,6 +25,11 @@ const (
 	// acceleratorPrefix is put in front of any accelerator name to ensure that
 	// there is no collision with the core capacity categories listed above.
 	acceleratorPrefix = "a_"
+)
+
+const (
+	bladeBootDelayMin = int64(3)
+	bladeBootDelayMax = int64(5)
 )
 
 // capacity defines the consumable and capability portions of a blade or
@@ -53,6 +57,9 @@ type blade struct {
 	// rack holds the pointer to the rack that contains this blade.
 	holder *rack
 
+	// id is the index used to identify this blade within the rack.
+	id int64
+
 	// sm is the state machine for this blade's simulation.
 	sm *sm.SimpleSM
 
@@ -77,7 +84,7 @@ type blade struct {
 
 	// matchTimerExpiry is the blade supplied ID embedded in the timer expired
 	// message.
-	matchTimerExpiry int64
+	matchTimerExpiry int
 }
 
 const (
@@ -112,9 +119,10 @@ const (
 	bladeFaultedState
 )
 
-func newBlade(def *pbc.BladeCapacity, r *rack) *blade {
+func newBlade(def *pbc.BladeCapacity, r *rack, id int64) *blade {
 	b := &blade{
 		holder:           r,
+		id:               id,
 		sm:               nil,
 		capacity:         newCapacity(),
 		architecture:     def.Arch,
@@ -148,14 +156,19 @@ func newBlade(def *pbc.BladeCapacity, r *rack) *blade {
 }
 
 func (b *blade) Receive(ctx context.Context, msg sm.Envelope) {
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName(fmt.Sprintf("Processing message %q on blade", msg)),
-		tracing.WithNewRoot(),
-		tracing.WithLink(msg.GetSpanContext(), msg.GetLinkID()),
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	defer span.End()
-
 	b.sm.Receive(ctx, msg)
+}
+
+func (b *blade) me() *messageTarget {
+	return newTargetBlade(b.holder.name, b.id)
+}
+
+func (b *blade) powerOnState() int {
+	if b.bootOnPower {
+		return bladeBootingState
+	}
+
+	return bladePoweredState
 }
 
 // +++ blade state machine states
@@ -186,20 +199,7 @@ func (s *bladeOff) power(ctx context.Context, machine *sm.SimpleSM, msg *setPowe
 	machine.AdvanceGuard(occursAt)
 
 	if msg.on {
-		targetState := bladePoweredState
-		if b.bootOnPower {
-			targetState = bladeBootingState
-		}
-
-		if err := machine.ChangeState(ctx, targetState); err != nil {
-
-			// ChangeState failed, which shouldn't happen.
-			// Issue the failure and fault the blade.
-			respondIf(msg.GetCh(), failedResponse(occursAt, err))
-			_ = machine.ChangeState(ctx, bladeFaultedState)
-		} else {
-			respondIf(msg.GetCh(), successResponse(occursAt))
-		}
+		faultingChange(ctx, machine, b.powerOnState(), msg)
 	}
 
 	// if it is power off, ignore
@@ -229,15 +229,7 @@ func (s *bladePowered) power(ctx context.Context, machine *sm.SimpleSM, msg *set
 	machine.AdvanceGuard(occursAt)
 
 	if !msg.on {
-		if err := machine.ChangeState(ctx, bladeOffState); err != nil {
-
-			// ChangeState failed, which shouldn't happen.
-			// Issue the failure and fault the blade.
-			respondIf(msg.GetCh(), failedResponse(occursAt, err))
-			_ = machine.ChangeState(ctx, bladeFaultedState)
-		} else {
-			respondIf(msg.GetCh(), successResponse(occursAt))
-		}
+		faultingChange(ctx, machine, bladeOffState, msg)
 	}
 
 	// if it is power on, ignore
@@ -251,17 +243,38 @@ type bladeBooting struct {
 	dropRepairAction
 }
 
-func (s *bladeBooting) Enter(ctx context.Context, sm *sm.SimpleSM) error {
-	if err := s.dropRepairAction.Enter(ctx, sm); err != nil {
+func (s *bladeBooting) Enter(ctx context.Context, machine *sm.SimpleSM) error {
+	if err := s.dropRepairAction.Enter(ctx, machine); err != nil {
 		return err
 	}
 
+	b := machine.Parent.(*blade)
+	r := b.holder
+
+	occursAt := common.TickFromContext(ctx)
+	b.activeTimerID++
+
 	// set the boot timer
+	expiryMsg := newTimerExpiry(
+		ctx,
+		b.me(),
+		occursAt,
+		b.activeTimerID,
+		nil,
+		nil)
+
+	timerId, err := r.setTimer(ctx, bootDelay(), expiryMsg)
+	if err != nil {
+		return err
+	}
+
+	b.hasActiveTimer = true
+	b.matchTimerExpiry = timerId
 	return nil
 }
 
 func (s *bladeBooting) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-
+	s.handleMsg(ctx, machine, s, msg)
 }
 
 func (s *bladeBooting) Name() string { return "booting" }
@@ -278,22 +291,37 @@ func (s *bladeBooting) power(ctx context.Context, machine *sm.SimpleSM, msg *set
 	machine.AdvanceGuard(occursAt)
 
 	if !msg.on {
+		b := machine.Parent.(*blade)
+		r := b.holder
 
-		if err := machine.ChangeState(ctx, bladeOffState); err != nil {
-
-			// ChangeState failed, which shouldn't happen.
-			// Issue the failure and fault the blade.
-			respondIf(msg.GetCh(), failedResponse(occursAt, err))
-			_ = machine.ChangeState(ctx, bladeFaultedState)
-		} else {
-			respondIf(msg.GetCh(), successResponse(occursAt))
+		if err := r.cancelTimer(b.matchTimerExpiry); err != nil {
+			tracing.Info(
+				ctx,
+				"failed to cancel boot operation (%v), ignoring remaining activity",
+				err)
 		}
+
+		b.hasActiveTimer = false
+		faultingChange(ctx, machine, bladeOffState, msg)
 	}
 
 	// if it is power on, ignore
+}
 
-	// TODO : power off cancels the timer and moves to blade off.
-	// TODO : create timer set in the rack (or zone-wide?), and use it for all timer operations
+func (s *bladeBooting) timeout(ctx context.Context, machine *sm.SimpleSM, msg *timerExpiry) {
+	b := machine.Parent.(*blade)
+
+	if b.hasActiveTimer && b.activeTimerID == msg.id {
+		tracing.UpdateSpanName(
+			ctx,
+			"Boot completed for %s",
+			msg.target.describe())
+
+		b.hasActiveTimer = false
+
+		machine.AdvanceGuard(common.TickFromContext(ctx))
+		faultingChange(ctx, machine, bladeWorkingState, msg)
+	}
 }
 
 // bladeWorking is the stable operational state.  This state expects workload
@@ -381,4 +409,19 @@ func respondIf(ch chan *sm.Response, msg *sm.Response) {
 	if ch != nil {
 		ch <- msg
 	}
+}
+
+func faultingChange(ctx context.Context, machine *sm.SimpleSM, stateIndex int, msg sm.Envelope) {
+	occursAt := common.TickFromContext(ctx)
+
+	if err := machine.ChangeState(ctx, stateIndex); err != nil {
+		respondIf(msg.GetCh(), failedResponse(occursAt, err))
+		_ = machine.ChangeState(ctx, bladeFaultedState)
+	} else {
+		respondIf(msg.GetCh(), successResponse(occursAt))
+	}
+}
+
+func bootDelay() int64 {
+	return bladeBootDelayMin + rand.Int63n(bladeBootDelayMax-bladeBootDelayMin)
 }

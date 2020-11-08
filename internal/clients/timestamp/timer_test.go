@@ -40,7 +40,9 @@ func (ts *timerTestSuite) TestStartCancel() {
 
 	timers := NewTimers(ts.ep, ts.dialOpts...)
 
-	id, err := timers.Timer(ctx, 1, ch, doneMsg{done: true})
+	id, err := timers.Timer(ctx, 1, doneMsg{done: true}, func(msg interface{}) {
+		ch <- msg
+	})
 	require.Nil(err)
 	require.Less(0, id)
 
@@ -63,13 +65,17 @@ func (ts *timerTestSuite) TestStartStartCancel() {
 
 	timers := NewTimers(ts.ep, ts.dialOpts...)
 
-	id, err := timers.Timer(ctx, 1, ch, doneMsg{done: true})
+	id, err := timers.Timer(ctx, 1, doneMsg{done: true}, func(msg interface{}) {
+		ch <- msg
+	})
 	require.Nil(err)
 	require.Less(0, id)
 
 	ts.validateTimerState(timers, 1, 1, 2, true, 1)
 
-	id2, err := timers.Timer(ctx, 1, ch, doneMsg{done: true})
+	id2, err := timers.Timer(ctx, 1, doneMsg{done: true}, func(msg interface{}) {
+		ch <- msg
+	})
 	require.Nil(err)
 	require.Less(0, id2)
 	require.NotEqual(id, id2)
@@ -97,7 +103,9 @@ func (ts *timerTestSuite) TestStartExpire() {
 
 	timers := NewTimers(ts.ep, ts.dialOpts...)
 
-	id, err := timers.Timer(ctx, 1, ch, doneMsg{done: true})
+	id, err := timers.Timer(ctx, 1, doneMsg{done: true}, func(msg interface{}) {
+		ch <- msg
+	})
 	require.Nil(err)
 
 	assert.Nil(common.DoNotCompleteWithinInterface(ch, time.Duration(2)*time.Second))
@@ -123,7 +131,9 @@ func (ts *timerTestSuite) TestStartExpireTwice() {
 
 	timers := NewTimers(ts.ep, ts.dialOpts...)
 
-	id, err := timers.Timer(ctx, 1, ch, doneMsg{done: true})
+	id, err := timers.Timer(ctx, 1, doneMsg{done: true}, func(msg interface{}) {
+		ch <- msg
+	})
 	require.Nil(err)
 
 	assert.Nil(common.DoNotCompleteWithinInterface(ch, time.Duration(2)*time.Second))
@@ -139,7 +149,9 @@ func (ts *timerTestSuite) TestStartExpireTwice() {
 
 	ch = make(chan interface{}, 10)
 
-	id, err = timers.Timer(ctx, 1, ch, doneMsg{done: true})
+	id, err = timers.Timer(ctx, 1, doneMsg{done: true}, func(msg interface{}) {
+		ch <- msg
+	})
 	require.Nil(err)
 
 	assert.Nil(common.DoNotCompleteWithinInterface(ch, time.Duration(2)*time.Second))

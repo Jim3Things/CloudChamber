@@ -26,9 +26,11 @@ const (
 )
 
 var (
-	s   *grpc.Server = nil
+	s *grpc.Server = nil
+
 	lis *bufconn.Listener
-	ep string
+
+	ep       string
 	dialOpts []grpc.DialOption
 
 	cfg *config.GlobalConfig
@@ -85,8 +87,8 @@ func StartSimSupportServices() (*config.GlobalConfig, error) {
 		// correctly (and does not produce spurious trace errors)
 		if err = timestamp.SetPolicy(
 			context.Background(),
-				services.StepperPolicy_Manual,
-				&duration.Duration{Seconds: 0}, -1); err != nil {
+			services.StepperPolicy_Manual,
+			&duration.Duration{Seconds: 0}, -1); err != nil {
 			return nil, err
 		}
 	}
@@ -94,3 +96,12 @@ func StartSimSupportServices() (*config.GlobalConfig, error) {
 	return cfg, nil
 }
 
+// InitTimers creates a new Timers instance with the same connection parameters
+// that were used to instantiate the test stepper instance.
+func InitTimers() *timestamp.Timers {
+	if s != nil {
+		return timestamp.NewTimers(ep, dialOpts...)
+	}
+
+	return nil
+}

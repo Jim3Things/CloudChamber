@@ -29,7 +29,7 @@ func (ts *RackTestSuite) TestCreateRack() {
 		tracing.WithName("test rack creation"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 
 	span.End()
 
@@ -50,7 +50,7 @@ func (ts *RackTestSuite) TestStartStopRack() {
 		tracing.WithName("test rack start and stop"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
@@ -79,7 +79,7 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 		tracing.WithName("test rack start, start, and stop"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
@@ -114,7 +114,7 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 		tracing.WithName("test rack start, stop, and stop"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
@@ -146,7 +146,7 @@ func (ts *RackTestSuite) TestStopNoStartRack() {
 		tracing.WithName("test rack stop without a start"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
@@ -170,7 +170,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 		tracing.WithName("test powering on PDU from rack"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef)
+	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
@@ -209,6 +209,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 
 	span.End()
 }
+
 func TestRackTestSuite(t *testing.T) {
 	suite.Run(t, new(RackTestSuite))
 }

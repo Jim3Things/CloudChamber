@@ -41,24 +41,63 @@ type statusMessage interface {
 
 // --- Base message and interfaces
 
+// timerExpiry is the message used to notify a simulated inventory element that
+// a specific timer, designated by the id field, has expired.
 type timerExpiry struct {
 	messageBase
 
-<<<<<<< HEAD
+	// id is the value used to identify which outstanding timer has expired.
 	id int64
 
-=======
->>>>>>> master
-	// timer expiration context - what the state machine needs to work on the expiration
+	// timer expiration context - what the state machine needs, if anything, to
+	// work on the expiration notice.
 	body *messageBase
 }
 
-func (t timerExpiry) SendVia(ctx context.Context, r *rack) error {
-	panic("implement me")
+func newTimerExpiry(
+	ctx context.Context,
+	target *messageTarget,
+	guard int64,
+	id int64,
+	body *messageBase,
+	ch chan *sm.Response) *timerExpiry {
+	msg := &timerExpiry{}
+
+	msg.Initialize(ctx, ch)
+	msg.target = target
+	msg.guard = guard
+	msg.id = id
+	msg.body = body
+
+	return msg
 }
 
-func (t timerExpiry) Do(ctx context.Context, sm *sm.SimpleSM, s repairActionState) {
-	panic("implement me")
+// SendVia forwards the timer expiration directly to the target element.
+func (m *timerExpiry) SendVia(ctx context.Context, r *rack) error {
+	if m.target.isPdu() {
+		return r.viaPDU(ctx, m)
+	}
+
+	if m.target.isTor() {
+		return r.viaTor(ctx, m)
+	}
+
+	id, ok := m.target.bladeID()
+	if !ok {
+		return ErrInvalidTarget
+	}
+
+	return r.viaBlade(ctx, id, m)
+}
+
+// Do executes the action to handle the timer expired notification.
+func (m *timerExpiry) Do(ctx context.Context, sm *sm.SimpleSM, s repairActionState) {
+	s.timeout(ctx, sm, m)
+}
+
+// String provides a formatted description of the message.
+func (m *timerExpiry) String() string {
+	return fmt.Sprintf("Expiration notice of timer id %d for %q", m.id, m.target.describe())
 }
 
 // setPower is the repair message that directs a change in the simulated power

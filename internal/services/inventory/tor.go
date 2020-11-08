@@ -3,9 +3,7 @@ package inventory
 import (
 	"context"
 	"errors"
-	"fmt"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -70,11 +68,7 @@ func (t *tor) fixConnection(ctx context.Context, id int64) {
 
 // Receive handles incoming messages for the TOR.
 func (t *tor) Receive(ctx context.Context, msg sm.Envelope) {
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName(fmt.Sprintf("Processing message %q on TOR", msg)),
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	defer span.End()
+	tracing.Info(ctx, "Processing message %q on TOR", msg)
 
 	t.sm.Receive(ctx, msg)
 }
@@ -118,16 +112,7 @@ type torWorking struct {
 
 // Receive processes incoming requests for this state.
 func (s *torWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	switch body := msg.(type) {
-	case repairMessage:
-		body.Do(ctx, machine, s)
-
-	case statusMessage:
-		body.GetStatus(ctx, machine, s)
-
-	default:
-		msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
-	}
+	s.handleMsg(ctx, machine, s, msg)
 }
 
 // connect processes a setConnection request, updating the network connection
@@ -203,28 +188,15 @@ func (s *torWorking) Name() string { return "working" }
 // is still powered on.  By implication, the connection state for each cable is
 // also stuck.
 type torStuck struct {
-	repairActionState
+	dropRepairAction
 }
 
 // Receive processes incoming requests for this state.
 func (s *torStuck) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	switch body := msg.(type) {
-	case repairMessage:
-		body.Do(ctx, machine, s)
-
-	case statusMessage:
-		body.GetStatus(ctx, machine, s)
-
-	default:
-		msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), body)
-	}
+	s.handleMsg(ctx, machine, s, msg)
 }
 
 // Name returns the friendly name for this state.
 func (s *torStuck) Name() string { return "stuck" }
-
-func (s *torStuck) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
-	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
-}
 
 // --- TOR state machine states
