@@ -88,7 +88,7 @@ type blade struct {
 }
 
 const (
-	// bladedOffState is current when the blade has no simulated power.
+	// bladeOffState is current when the blade has no simulated power.
 	bladeOffState int = iota
 
 	// bladePoweredSState is current when the blade has power, but auto boot
