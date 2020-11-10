@@ -265,6 +265,103 @@ func GetAndMarkLink(parent trace.Span) (string, bool) {
 	return "", false
 }
 
+// TraceDetail holds the attribute data that is passed to the underlying
+// AddTrace call.  These attributes are assumed to be key value pairs that have
+// arrays of strings for their values.
+type TraceDetail struct {
+	details map[string][]string
+}
+
+// newTraceDetail creates a new empty TraceDetail instance.
+func newTraceDetail() *TraceDetail {
+	return &TraceDetail{
+		details: make(map[string][]string),
+	}
+}
+
+// addEntry adds a key-value pair.  If the key already exists, the new value
+// is appended into the value array.  This is in support of assembling the
+// results from multiple TraceAnnotation calls, such as multiple WithImpactXxx
+// calls.
+func (td *TraceDetail) addEntry(key string, value string) {
+	item, ok := td.details[key]
+	if !ok {
+		item = []string{}
+	}
+
+	item = append(item, value)
+	td.details[key] = item
+}
+
+// toKvPairs converts the returns of the TraceDetail instance as one or more
+// KeyValue instances.
+func (td *TraceDetail) toKvPairs() []kv.KeyValue {
+	var res []kv.KeyValue
+
+	for key, val := range td.details {
+		res = append(res, kv.Array(key, val))
+	}
+
+	return res
+}
+
+type TraceAnnotation func(cfg *TraceDetail)
+
+// WithImpactCreate states that the activity covered in the calling trace event
+// created the specified element.
+func WithImpactCreate(element string) TraceAnnotation {
+	return func(cfg *TraceDetail) {
+		cfg.addEntry(ImpactKey, ImpactCreate+":"+element)
+	}
+}
+
+// WithImpactRead states that the activity covered in the calling trace event
+// read the specified element's state.
+func WithImpactRead(element string) TraceAnnotation {
+	return func(cfg *TraceDetail) {
+		cfg.addEntry(ImpactKey, ImpactRead+":"+element)
+	}
+}
+
+// WithImpactModify states that the activity covered in the calling trace event
+// modified the specified element.
+func WithImpactModify(element string) TraceAnnotation {
+	return func(cfg *TraceDetail) {
+		cfg.addEntry(ImpactKey, ImpactModify+":"+element)
+	}
+}
+
+// WithImpactDelete states that the activity covered in the calling trace event
+// deleted the specified element.
+func WithImpactDelete(element string) TraceAnnotation {
+	return func(cfg *TraceDetail) {
+		cfg.addEntry(ImpactKey, ImpactDelete+":"+element)
+	}
+}
+
+// WithImpactUse states that the activity covered in the calling trace event
+// used the specified element as part of its processing.
+func WithImpactUse(element string) TraceAnnotation {
+	return func(cfg *TraceDetail) {
+		cfg.addEntry(ImpactKey, ImpactUse+":"+element)
+	}
+}
+
+// addAnnotations processes all recognized TraceAnnotation functions in the
+// supplied slice, stopping at the first non-TraceAnnotation entry.  The index
+// to that first non-Traceannotation entry is then returned.
+func addAnnotations(cfg *TraceDetail, a []interface{}) int {
+	i := 0
+	for _, item := range a {
+		if annotation, ok := item.(TraceAnnotation); ok {
+			annotation(cfg)
+			i++
+		}
+	}
+
+	return i
+}
+
 // There should be an Xxx method for every severity level, plus some specific
 // scenario functions (such as OnEnter to log an information entry about
 // arrival at a specific method).
@@ -274,55 +371,104 @@ func GetAndMarkLink(parent trace.Span) (string, bool) {
 
 // Info posts an informational trace event
 func Info(ctx context.Context, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		MethodName(2),
+	cfg := newTraceDetail()
+	start := addAnnotations(cfg, a)
+
+	res := append(
+		cfg.toKvPairs(),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a...)))
+		kv.String(MessageTextKey, formatIf(a[start:]...)))
+
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		res...)
 }
 
 // OnEnter posts an informational trace event describing the entry into a
 // function
-func OnEnter(ctx context.Context, msg string) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		fmt.Sprintf("On %q entry", MethodName(2)),
+func OnEnter(ctx context.Context, a ...interface{}) {
+	cfg := newTraceDetail()
+	start := addAnnotations(cfg, a)
+
+	res := append(
+		cfg.toKvPairs(),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, msg))
+		kv.String(MessageTextKey, formatIf(a[start:]...)))
+
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		fmt.Sprintf("On %q entry", MethodName(2)),
+		res...)
 }
 
 // Warn posts a warning trace event
 func Warn(ctx context.Context, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		MethodName(2),
+	cfg := newTraceDetail()
+	start := addAnnotations(cfg, a)
+
+	res := append(
+		cfg.toKvPairs(),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a...)))
+		kv.String(MessageTextKey, formatIf(a[start:]...)))
+
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		res...)
 }
 
 // Error posts an error trace event
 func Error(ctx context.Context, a ...interface{}) error {
-	if a == nil || len(a) == 0 {
-		return logError(ctx, errors.New("missing error details"))
+	cfg := newTraceDetail()
+	start := addAnnotations(cfg, a)
+
+	res := append(
+		cfg.toKvPairs(),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
+		kv.String(StackTraceKey, StackTrace()))
+
+	var err error
+
+	if a == nil {
+		err = errors.New("missing error details")
+	} else {
+		switch len(a) {
+		case start:
+			err = errors.New("missing error details")
+
+		case start + 1:
+			switch e := a[start].(type) {
+			case error:
+				err = e
+
+			case string:
+				err = errors.New(e)
+
+			default:
+				err = fmt.Errorf("unexpected values: %v", e)
+			}
+
+		default:
+			err = fmt.Errorf(a[start].(string), a[start+1:]...)
+		}
 	}
 
-	if len(a) == 1 {
-		if msg, ok := a[0].(string); ok {
-			return logError(ctx, errors.New(msg))
-		}
+	res = append(res, kv.String(MessageTextKey, err.Error()))
 
-		if err, ok := a[0].(error); ok {
-			return logError(ctx, err)
-		}
-	}
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		fmt.Sprintf("Error from %q", MethodName(3)),
+		res...)
 
-	return logError(ctx, fmt.Errorf(a[0].(string), a[1:]...))
+	return err
 }
 
 // Fatal traces the error, and then terminates the process.
@@ -333,19 +479,6 @@ func Fatal(ctx context.Context, a ...interface{}) {
 // --- Exported trace invocation methods
 
 // +++ Helper functions
-
-// logError writes a specific error trace event
-func logError(ctx context.Context, err error) error {
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		fmt.Sprintf("Error from %q", MethodName(3)),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Error)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, err.Error()))
-
-	return err
-}
 
 // formatIf determines if this is a simple string, or something to format
 // before returning.
