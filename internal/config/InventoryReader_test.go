@@ -137,7 +137,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 	require.True(t, ok)
 
 	assert.True(t, zone.Details.Enabled)
-	assert.Equal(t, inventory.Definition_operational, zone.Details.Condition)
+	assert.Equal(t, inventory.DefinitionZone_operational, zone.Details.Condition)
 	assert.Equal(t, "DC-PNW-0", zone.Details.Location)
 	assert.Equal(t, "Base zone", zone.Details.Notes)
 

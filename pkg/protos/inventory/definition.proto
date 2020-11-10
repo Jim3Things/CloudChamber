@@ -18,32 +18,71 @@ message definition {
     // for an item to be usable, it must also be enabled.
     //
     enum condition {
-        notinservice = 0;
+        notInService = 0;
         operational = 1;
-        suspect = 2;
-        outforrepair = 3;
+        burnIn = 2;
+        outForRepair = 3;
         retiring = 4;
         retired = 5;
     }
 
-    message power_port {
-        // Defined whether or not the port is actually connected to the associated blade.
+    // Defines the type of hardware that can be wired up to a Pdu power port or a Tor network port.
+    //
+    enum itemtype {
+        // The type of hardware is not yet known
         //
-        bool connected = 1;
+        item_unknown = 0;
 
-        // Defines whethor or not power is applied to the port, and hence the associated blade.
+        // This item is a PDU (Power Distribution Unit).
         //
-        bool powered = 2;
+        item_pdu = 1;
+
+        // Equipment is a TOR (Top of Rack network switch)
+        //
+        item_tor = 2;
+
+        // Equipment is a blade computer
+        //
+        item_blade = 3;
+    }
+
+    // Describes potential targets for wiring connections between a Pdu or Tor port and a specific
+    // item of equipment.
+    //
+    message item {
+        // The type or item or piece of equipment
+        //
+        itemtype type = 1;
+    
+        // Defines an instance of the piece of equipment. For example there are likely to be multiple
+        // blades and the id is used to dissinguish amongst them.
+        //
+        int64 id = 2;
+
+        // If the item has multiple connectors, the port field can be used to indicate which connector
+        // is used for this port.
+        //
+        int64 port = 3;
+    }
+
+    message power_port {
+        // Defines whether or not the port is actually connected to the associated item of equipment.
+        //
+        bool wired = 1;
+
+        // Defines what the port is wired up to.
+        //
+        item item = 2;
     }
 
     message network_port {
-        // Defined whether or not the port is actually connected to the associated blade.
+        // Defines whether or not the port is actually connected to the associated item of equipment.
         //
-        bool connected = 1;
+        bool wired = 1;
 
-        // Defines whether or not the port is enabled for passing network traffic.
+        // Defines what the port is wired up to.
         //
-        bool enabled = 2;
+        item item = 2;
     }
     
     // The two types here are common overhead items in a rack.  All are pure skeletons at this point.
@@ -51,6 +90,7 @@ message definition {
     // but used in the other models.
 
     // Power distribution unit.  Network accessible power controller
+    //
     message pdu {
         // Note that full internal name for a pdu is <rackname>-pdu-0
 
@@ -60,15 +100,11 @@ message definition {
         //
         bool enabled = 1;
 
-        // Defines whethor or not power is applied to the pdu itself, and hence the associated ports.
-        //
-        bool powered = 2;
-
         // Defines the overall condition of the pdu. This is orthoganal to the enabling of
         // the pdu. For resources within the pdu to be schedulable, the pdu must be both
         // enabled and the condition must be operational.
         //
-        condition condition = 3;
+        condition condition = 2;
 
         // Defines a power "socket" which is used to provide power to a blade. There is
         // a 1 to 1 mapping of a power port to a blade within a single rack and it is an
@@ -78,6 +114,7 @@ message definition {
     }
 
     // Rack-level network switch.
+    //
     message tor {
         // Note that full internal name for a tor is <rackname>-tor-0
 
@@ -87,16 +124,11 @@ message definition {
         //
         bool enabled = 1;
 
-        // Defines whethor or not power is applied to the tor, and hence determines if the
-        // associated ports are potentially operable.
-        //
-        bool powered = 2;
-
         // Defines the overall condition of the tor. This is orthoganal to the enabling of
         // the tor. For resources within the tor to be schedulable, the tor must be both
         // enabled and the condition must be operational.
         //
-        condition condition = 3;
+        condition condition = 2;
 
         // Defines a network "port" which is used to provide a network connection to a
         // blade. There is a 1 to 1 mapping of a network port to a blade within a single
@@ -105,7 +137,20 @@ message definition {
         map<int64, network_port> ports = 10;
     }
 
+    message bootmethod {
+        enum method {
+            local = 0;
+            network = 1;
+        }
+
+        method source = 1;
+        string image = 2;
+        string version = 3;
+        string parameters = 4;
+    }
+
     // Individual blade within the rack
+    //
     message blade {
         // Whether or not the blade is enabled. This is orthoganal to the condition of the
         // blade. For resources within the blade to be schedulable, the blade must be both
@@ -120,6 +165,15 @@ message definition {
         condition condition = 2;
 
         common.blade_capacity capacity = 3;
+
+        // Defines whether or not the blade automatically begins a boot sequence when power is
+        // appplied to the blade.
+        //
+        bool bootOnPowerOn = 4;
+
+        // Describes the default boot mechanism
+        //
+        bootmethod image = 5;
     }
 
     message rack {
@@ -155,6 +209,14 @@ message definition {
     // key in the map below.
     //
     message zone {
+        enum state {
+            notInService = 0;
+            operational = 1;
+            commissioning = 2;
+            retiring = 4;
+            retired = 5;
+        }
+    
         // Whether or not the zone as a whole is enabled. This is orthoganal to the condition
         // of the zone. For resources within the zone to be schedulable, the zone must be both
         // enabled and the condition must be operational.
@@ -165,7 +227,7 @@ message definition {
         // the zone. For resources within the zone to be schedulable, the zone must be both
         // enabled and the condition must be operational.
         //
-        condition condition = 2;
+        state condition = 2;
 
         // Arbitrary string used to allow the physical location of the zone to be recorded in
         // a user defined format. Has no effect on the operation of the zone, for display
@@ -219,6 +281,7 @@ message definition {
 }
 
 message zonemap {
+    string region = 1;
     map<string, definition.zone_internal> zones = 10;
 }
 

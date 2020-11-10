@@ -238,7 +238,7 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 	zone := &pb.DefinitionZoneInternal{
 		Details: &pb.DefinitionZone{
 			Enabled:   true,
-			Condition: pb.Definition_operational,
+			Condition: pb.DefinitionZone_operational,
 			Location:  "DC-PNW-0",
 			Notes:     "Base zone",
 		},
@@ -274,14 +274,12 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 		//
 		zone.Racks[r.Name].Pdus[0] = &pb.DefinitionPdu{
 			Enabled:   true,
-			Powered:   true,
 			Condition: pb.Definition_operational,
 			Ports:     make(map[int64]*pb.DefinitionPowerPort),
 		}
 
 		zone.Racks[r.Name].Tors[0] = &pb.DefinitionTor{
 			Enabled:   true,
-			Powered:   true,
 			Condition: pb.Definition_operational,
 			Ports:     make(map[int64]*pb.DefinitionNetworkPort),
 		}
@@ -326,8 +324,12 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 			// connected and controlled.
 			//
 			zone.Racks[r.Name].Pdus[0].Ports[b.Index] = &pb.DefinitionPowerPort{
-				Connected: true,
-				Powered:   true,
+				Wired: true,
+				Item:  &pb.DefinitionItem{
+					Type: pb.Definition_item_pdu,
+					Id: 0,
+					Port: 0,
+					},
 			}
 
 			// For the given blade index, add a matching connection
@@ -335,8 +337,12 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 			// connected and controlled.
 			//
 			zone.Racks[r.Name].Tors[0].Ports[b.Index] = &pb.DefinitionNetworkPort{
-				Connected: true,
-				Enabled:   true,
+				Wired: true,
+				Item:  &pb.DefinitionItem{
+					Type: pb.Definition_item_tor,
+					Id: 0,
+					Port: 0,
+					},
 			}
 		}
 

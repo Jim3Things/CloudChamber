@@ -224,7 +224,7 @@ func (m *DBInventory) UpdateInventoryDefinition(
 
 // reconcileNewInventory compares the newly loaded inventory definition,
 // presumably from a configuration file, with the currently loaded inventory
-// and updates the store accordinly. This will trigger the various watches
+// and updates the store accordingly. This will trigger the various watches
 // which any currently running services have previously established and deliver
 // a set of arrival and/or departure notifications as appropriate.
 //
@@ -662,17 +662,25 @@ func (m *DBInventory) CreateRack(ctx context.Context, zone string, name string, 
 //
 func (m *DBInventory) CreatePdu(ctx context.Context, zone string, rack string, index int64, pdu *pb.DefinitionPdu, options ...InventoryOption) (int64, error) {
 
+	if err := pdu.Verify(); err != nil {
+		return InvalidRev, err
+	}
+
 	r := &pb.DefinitionPdu{
 		Enabled: pdu.Enabled,
-		Powered: pdu.Powered,
 		Condition: pdu.Condition,
-		Ports: make(map[int64]*pb.DefinitionPowerPort),
+		Ports: make(map[int64]*pb.DefinitionPowerPort, len(pdu.Ports)),
 	}
 
 	for i, p := range pdu.Ports {
-		r.Ports[i] = &pb.DefinitionPowerPort{
-			Connected: p.Connected,
-			Powered: p.Powered,
+		r.Ports[i] = &pb.DefinitionPowerPort{Wired: p.Wired}
+
+		if p.Item != nil {
+			r.Ports[i].Item = &pb.DefinitionItem{
+				Type: p.Item.Type,
+				Id: p.Item.Id,
+				Port: p.Item.Port,
+			}
 		}
 	}
 
@@ -697,17 +705,25 @@ func (m *DBInventory) CreatePdu(ctx context.Context, zone string, rack string, i
 //
 func (m *DBInventory) CreateTor(ctx context.Context, zone string, rack string, index int64, tor *pb.DefinitionTor, options ...InventoryOption) (int64, error) {
 
+	if err := tor.Verify(); err != nil {
+		return InvalidRev, err
+	}
+
 	r := &pb.DefinitionTor{
 		Enabled: tor.Enabled,
-		Powered: tor.Powered,
 		Condition: tor.Condition,
-		Ports: make(map[int64]*pb.DefinitionNetworkPort),
+		Ports: make(map[int64]*pb.DefinitionNetworkPort, len(tor.Ports)),
 	}
 
 	for i, p := range tor.Ports {
-		r.Ports[i] = &pb.DefinitionNetworkPort{
-			Connected: p.Connected,
-			Enabled: p.Enabled,
+		r.Ports[i] = &pb.DefinitionNetworkPort{Wired: p.Wired}
+
+		if p.Item != nil {
+			r.Ports[i].Item = &pb.DefinitionItem{
+				Type: p.Item.Type,
+				Id: p.Item.Id,
+				Port: p.Item.Port,
+			}
 		}
 	}
 
@@ -936,14 +952,17 @@ func (m *DBInventory) UpdatePdu(ctx context.Context, zone string, rack string, i
 
 	r := &pb.DefinitionPdu{
 		Enabled: pdu.Enabled,
-		Powered: pdu.Powered,
 		Condition: pdu.Condition,
 	}
 
 	for i, p := range pdu.Ports {
 		r.Ports[i] = &pb.DefinitionPowerPort{
-			Connected: p.Connected,
-			Powered: p.Powered,
+			Wired: p.Wired,
+			Item: &pb.DefinitionItem{
+				Type: p.Item.Type,
+				Id: p.Item.Id,
+				Port: p.Item.Port,
+			},
 		}
 	}
 
@@ -970,14 +989,17 @@ func (m *DBInventory) UpdateTor(ctx context.Context, zone string, rack string, i
 
 	r := &pb.DefinitionTor{
 		Enabled: tor.Enabled,
-		Powered: tor.Powered,
 		Condition: tor.Condition,
 	}
 
 	for i, p := range tor.Ports {
 		r.Ports[i] = &pb.DefinitionNetworkPort{
-			Connected: p.Connected,
-			Enabled: p.Enabled,
+			Wired: p.Wired,
+			Item: &pb.DefinitionItem{
+				Type: p.Item.Type,
+				Id: p.Item.Id,
+				Port: p.Item.Port,
+			},
 		}
 	}
 

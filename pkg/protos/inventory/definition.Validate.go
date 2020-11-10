@@ -8,6 +8,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
+const maxPorts = int64(1000)
+
 // Validate is a method that verifies that the associated DefinitionPdu instance
 // is structurally legal
 //
@@ -25,6 +27,76 @@ func(x *DefinitionPdu) Validate(prefix string, ports int64) error {
 	return nil
 }
 
+// Verify is a method that verifies that the associated DefinitionPdu instance
+// is semantically legal
+//
+// For exameple, check for errors such as the pdu being wired to itself, the
+// port being wired but without an associated item etc.
+//
+func(x *DefinitionPdu) Verify() error {
+
+	portCount := int64(len(x.Ports))
+
+	if portCount < 0 {
+		return common.ErrMinLenMap{
+			Field: "Ports",
+			Actual: portCount,
+			Required: 0,
+		}
+	}
+
+	if portCount > maxPorts {
+		return common.ErrMaxLenMap{
+			Field: "Ports",
+			Actual: portCount,
+			Limit: maxPorts,
+		}
+	}
+
+	for i, p := range x.Ports {
+		if !p.Wired {
+			if p.Item != nil {
+				// port not wired but has an (unexpected) associated item 
+				//
+				return common.ErrItemMustBeEmpty{
+					Field: "Item",
+					Item: "PDU",
+					Port: i,
+					Actual: p.Item.String(),
+				}
+			}
+		} else {
+			// port is wired
+			//
+			if p.Item == nil {
+				// port is wired but is missing an (expected) associated item
+				//
+				return common.ErrItemMissingValue{
+					Field: "Item",
+					Item: "PDU",
+					Port: i,
+				}
+			}
+
+			// Port is wired and we have a description. To keep things
+			// simple, a Pdu is not allowed to be wired to another Pdu.
+			// While this prevents a potentially legal case of chained
+			// Pdus, it also prevents wiring a Pdu to itself.
+			//
+			if p.Item.Type == Definition_item_pdu {
+				return common.ErrInvalidItemSelf{
+					Field:  "Item",
+					Item: "PDU",
+					Port:   i,
+					Actual: "PDU",
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // Validate is a method that verifies that the associated DefinitionTor instance
 // is structurally legal
 //
@@ -36,6 +108,76 @@ func(x *DefinitionTor) Validate(prefix string, ports int64) error {
 			Field:    fmt.Sprintf("%sPorts", prefix),
 			Actual:   actual,
 			Required: 1,
+		}
+	}
+
+	return nil
+}
+
+// Verify is a method that verifies that the associated DefinitionTor instance
+// is semantically legal
+//
+// For exameple, check for errors such as the tor being wired to itself, the
+// port being wired but without an associated item etc.
+//
+func(x *DefinitionTor) Verify() error {
+
+	portCount := int64(len(x.Ports))
+
+	if portCount < 0 {
+		return common.ErrMinLenMap{
+			Field: "Ports",
+			Actual: portCount,
+			Required: 0,
+		}
+	}
+
+	if portCount > maxPorts {
+		return common.ErrMaxLenMap{
+			Field: "Ports",
+			Actual: portCount,
+			Limit: maxPorts,
+		}
+	}
+
+	for i, p := range x.Ports {
+		if !p.Wired {
+			if p.Item != nil {
+				// port not wired but has an (unexpected) associated item 
+				//
+				return common.ErrItemMustBeEmpty{
+					Field: "Item",
+					Item: "TOR",
+					Port: i,
+					Actual: p.Item.String(),
+				}
+			}
+		} else {
+			// port is wired
+			//
+			if p.Item == nil {
+				// port is wired but is missing an (expected) associated item
+				//
+				return common.ErrItemMissingValue{
+					Field: "Item",
+					Item: "TOR",
+					Port: i,
+				}
+			}
+
+			// Port is wired and we have a description. To keep things
+			// simple, a Pdu is not allowed to be wired to another Pdu.
+			// While this prevents a potentially legal case of chained
+			// Pdus, it also prevents wiring a Pdu to itself.
+			//
+			if p.Item.Type == Definition_item_tor {
+				return common.ErrInvalidItemSelf{
+					Field:  "Item",
+					Item: "TOR",
+					Port:   i,
+					Actual: "TOR",
+				}
+			}
 		}
 	}
 

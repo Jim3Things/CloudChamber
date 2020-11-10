@@ -103,7 +103,7 @@ func (ts *DBInventoryTestSuite) ensureBasicZone() {
 		ts.zoneName,
 		&pb.DefinitionZone{
 			Enabled:   true,
-			Condition: pb.Definition_operational,
+			Condition: pb.DefinitionZone_operational,
 			Location:  "Pacific NW",
 			Notes:     "Basic Zone for test",
 		},
@@ -127,14 +127,12 @@ func (ts *DBInventoryTestSuite) ensureBasicZone() {
 
 	pdu := pb.DefinitionPdu{
 		Enabled: true,
-		Powered: true,
 		Condition: pb.Definition_operational,
 		Ports: make(map[int64]*pb.DefinitionPowerPort),
 	}
 
 	tor := pb.DefinitionTor{
 		Enabled: true,
-		Powered: true,
 		Condition: pb.Definition_operational,
 		Ports: make(map[int64]*pb.DefinitionNetworkPort),
 	}
@@ -206,7 +204,7 @@ func (ts *DBInventoryTestSuite) TestCreateZone() {
 
 	zone := &pb.DefinitionZone{
 		Enabled: true,
-		Condition: pb.Definition_operational,
+		Condition: pb.DefinitionZone_operational,
 		Location: "Nowhere in particular",
 		Notes: "empty notes",
 	}
@@ -265,29 +263,73 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 
 	pdu := &pb.DefinitionPdu{
 		Enabled:   true,
-		Powered:   true,
 		Condition: pb.Definition_operational,
 		Ports: make(map[int64]*pb.DefinitionPowerPort),
-		}
+	}
 
 	pdu.Ports[0] = &pb.DefinitionPowerPort{
-		Connected: true,
-		Powered: true,
+		Wired: false,
 	}
 
 	pdu.Ports[1] = &pb.DefinitionPowerPort{
-		Connected: false,
-		Powered: false,
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_unknown,
+		},
 	}
 
 	pdu.Ports[2] = &pb.DefinitionPowerPort{
-		Connected: false,
-		Powered: true,
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_tor,
+			Id: 0,
+			Port: 0,
+		},
 	}
 
 	pdu.Ports[3] = &pb.DefinitionPowerPort{
-		Connected: true,
-		Powered: false,
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_tor,
+			Id: 1,
+			Port: 0,
+		},
+	}
+
+	pdu.Ports[4] = &pb.DefinitionPowerPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 0,
+			Port: 0,
+		},
+	}
+
+	pdu.Ports[5] = &pb.DefinitionPowerPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 0,
+			Port: 1,
+		},
+	}
+
+	pdu.Ports[6] = &pb.DefinitionPowerPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 1,
+			Port: 0,
+		},
+	}
+
+	pdu.Ports[7] = &pb.DefinitionPowerPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 1,
+			Port: 1,
+		},
 	}
 
 
@@ -300,15 +342,23 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	require.NotNil(t)
 
 	assert.Equal(pdu.Enabled,   t.Enabled)
-	assert.Equal(pdu.Powered,   t.Powered)
 	assert.Equal(pdu.Condition, t.Condition)
 	assert.Equal(len(pdu.Ports), len(t.Ports))
 
 	for i, p := range pdu.Ports {
 		tp, ok := t.Ports[i]
 		assert.True(ok)
-		assert.Equal(p.Connected, tp.Connected)
-		assert.Equal(p.Powered, tp.Powered)
+		assert.Equal(p.Wired, tp.Wired)
+
+		if p.Item == nil {
+			assert.Nil(tp.Item)
+		} else {
+			require.NotNil(tp.Item)
+
+			assert.Equal(p.Item.Type, tp.Item.Type)
+			assert.Equal(p.Item.Id,   tp.Item.Id)
+			assert.Equal(p.Item.Port, tp.Item.Port)
+		}
 	}
 }
 
@@ -322,31 +372,74 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 
 	tor := &pb.DefinitionTor{
 		Enabled:   true,
-		Powered:   true,
 		Condition: pb.Definition_operational,
 		Ports: make(map[int64]*pb.DefinitionNetworkPort),
 		}
 
 	tor.Ports[0] = &pb.DefinitionNetworkPort{
-		Connected: true,
-		Enabled: true,
+		Wired: false,
 	}
 
 	tor.Ports[1] = &pb.DefinitionNetworkPort{
-		Connected: false,
-		Enabled: false,
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_unknown,			
+		},
 	}
 
 	tor.Ports[2] = &pb.DefinitionNetworkPort{
-		Connected: false,
-		Enabled: true,
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_pdu,
+			Id: 0,
+			Port: 0,
+		},
 	}
 
 	tor.Ports[3] = &pb.DefinitionNetworkPort{
-		Connected: true,
-		Enabled: false,
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_pdu,
+			Id: 1,
+			Port: 0,
+		},
 	}
 
+	tor.Ports[4] = &pb.DefinitionNetworkPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 0,
+			Port: 0,
+		},
+	}
+
+	tor.Ports[5] = &pb.DefinitionNetworkPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 0,
+			Port: 1,
+		},
+	}
+
+	tor.Ports[6] = &pb.DefinitionNetworkPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 1,
+			Port: 0,
+		},
+	}
+
+	tor.Ports[7] = &pb.DefinitionNetworkPort{
+		Wired: true,
+		Item:  &pb.DefinitionItem{
+			Type: pb.Definition_item_blade,
+			Id: 1,
+			Port: 1,
+		},
+	}
 
 	revCreate, err := ts.db.CreateTor(ctx, ts.zoneName, ts.rackName, torID, tor)
 	require.NoError(err)
@@ -357,15 +450,23 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	require.NotNil(t)
 
 	assert.Equal(tor.Enabled,   t.Enabled)
-	assert.Equal(tor.Powered,   t.Powered)
 	assert.Equal(tor.Condition, t.Condition)
 	assert.Equal(len(tor.Ports), len(t.Ports))
 
 	for i, p := range tor.Ports {
 		tp, ok := t.Ports[i]
 		assert.True(ok)
-		assert.Equal(p.Enabled, tp.Enabled)
-		assert.Equal(p.Connected, tp.Connected)
+		assert.Equal(p.Wired, tp.Wired)
+
+		if p.Item == nil {
+			assert.Nil(tp.Item)
+		} else {
+			require.NotNil(tp.Item)
+
+			assert.Equal(p.Item.Type, tp.Item.Type)
+			assert.Equal(p.Item.Id,   tp.Item.Id)
+			assert.Equal(p.Item.Port, tp.Item.Port)
+		}
 	}
 }
 
