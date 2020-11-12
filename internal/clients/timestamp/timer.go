@@ -26,7 +26,7 @@ type timerEntry struct {
 	dueTime int64
 
 	// ch is the channel that is to receive the expiration message
-	ch chan interface{}
+	callback func(msg interface{})
 
 	// msg is the expiration message specified for this timer
 	msg interface{}
@@ -80,7 +80,7 @@ func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
 // that point, the supplied msg is sent on the completion channel specified by
 // the parameter ch.  This function returns an id that can be used to cancel
 // the timer, and an error to indicate if the timer was successfully set.
-func (t *Timers) Timer(ctx context.Context, delay int64, ch chan interface{}, msg interface{}) (int, error) {
+func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callback func(msg interface{})) (int, error) {
 	t.m.Lock()
 	defer t.m.Unlock()
 
@@ -88,7 +88,7 @@ func (t *Timers) Timer(ctx context.Context, delay int64, ch chan interface{}, ms
 	entry := &timerEntry{
 		id:      t.nextID,
 		dueTime: delay + now,
-		ch:      ch,
+		callback: callback,
 		msg:     msg,
 	}
 
@@ -184,7 +184,7 @@ func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) i
 
 			if toSignal, stop = t.getExpiredWaiters(now, epoch); toSignal != nil {
 				for _, entry := range toSignal {
-					entry.ch <- entry.msg
+					entry.callback(entry.msg)
 				}
 			}
 		}

@@ -115,7 +115,7 @@ func mayLinkTo(sc trace.SpanContext) trace.StartOption {
 	return nullOption()
 }
 
-// mayLinkTag is a parallel helper function that supplied teh unique add-link
+// mayLinkTag is a parallel helper function that supplied the unique add-link
 // value to allow for this span to be correctly placed relative to the caller's
 // sequence of actions.  If no such tag is present, this adds nothing to the
 // start span operation.
@@ -188,7 +188,7 @@ func StartSpan(
 		trace.WithAttributes(kv.String(ReasonKey, cfg.reason)),
 		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
 
-	if parent.SpanContext().HasSpanID() {
+	if !cfg.newRoot && parent.SpanContext().HasSpanID() {
 		parent.AddEvent(
 			ctxChild,
 			cfg.name,

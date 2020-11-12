@@ -44,9 +44,8 @@ func (e *envelopeState) Initialize(ctx context.Context, ch chan *sm.Response) {
 		tracing.AddLink(ctx, tag)
 	}
 
-	e.Ch = ch
 	e.Span = span.SpanContext()
 	e.Link = tag
+
+	e.Ch = ch
 }
-
-

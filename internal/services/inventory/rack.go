@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
@@ -27,6 +28,8 @@ type rack struct {
 	blades map[int64]*blade
 
 	sm *sm.SimpleSM
+
+	timers *timestamp.Timers
 
 	// startLock controls access to start and stop operations, and therefore to
 	// the setup and tear down of the lister goroutine.
@@ -55,8 +58,8 @@ type stopSim struct {
 // entries to determine its structure.  The resulting rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
 // programmed.
-func newRack(ctx context.Context, name string, def *pb.ExternalRack) *rack {
-	return newRackInternal(ctx, name, def, newPdu, newTor)
+func newRack(ctx context.Context, name string, def *pb.ExternalRack, timers *timestamp.Timers) *rack {
+	return newRackInternal(ctx, name, def, timers, newPdu, newTor)
 }
 
 // newRackInternal is the implementation behind newRack.  It supports
@@ -66,6 +69,7 @@ func newRackInternal(
 	ctx context.Context,
 	name string,
 	def *pb.ExternalRack,
+	timers *timestamp.Timers,
 	pduFunc func(*pb.ExternalPdu, *rack) *pdu,
 	torFunc func(*pb.ExternalTor, *rack) *tor) *rack {
 	r := &rack{
@@ -75,6 +79,7 @@ func newRackInternal(
 		pdu:       nil,
 		blades:    make(map[int64]*blade),
 		sm:        nil,
+		timers:    timers,
 		startLock: sync.Mutex{},
 	}
 
@@ -88,7 +93,7 @@ func newRackInternal(
 	r.tor = torFunc(def.Tor, r)
 
 	for i, item := range def.Blades {
-		r.blades[i] = newBlade(item, r)
+		r.blades[i] = newBlade(item, r, i)
 
 		// These two calls are temporary fix-ups until the inventory definition
 		// includes the tor and pdu connectors
@@ -99,6 +104,9 @@ func newRackInternal(
 	return r
 }
 
+// viaTor forwards the supplied message to the rack's simulated TOR for
+// processing.  This will likely not be the final destination, but requires
+// operation by the TOR in order to reach its final destination.
 func (r *rack) viaTor(ctx context.Context, msg sm.Envelope) error {
 	tracing.Info(ctx, "Forwarding %v to TOR in rack %q", msg, r.name)
 
@@ -107,6 +115,9 @@ func (r *rack) viaTor(ctx context.Context, msg sm.Envelope) error {
 	return nil
 }
 
+// viaPDU forwards the supplied message to the rack's simulated PDU for
+// processing.  This may or may not impact the full PDU and the all blades,
+// or only one blade's power state.
 func (r *rack) viaPDU(ctx context.Context, msg sm.Envelope) error {
 	tracing.Info(ctx, "Forwarding '%v' to PDU in rack %q", msg, r.name)
 	r.pdu.Receive(ctx, msg)
@@ -114,16 +125,52 @@ func (r *rack) viaPDU(ctx context.Context, msg sm.Envelope) error {
 	return nil
 }
 
+// viaBlade forwards the supplied message directly to the target blade, without
+// any intermediate hops.  This should only be used by events that do not need
+// to simulate a working network connection for reachability, or a working power
+// cable for execution.
+func (r *rack) viaBlade(ctx context.Context, id int64, msg sm.Envelope) error {
+	tracing.Info(ctx, "Forwarding '%v' to blade %d in rack %q", msg, id, r.name)
+	if b, ok := r.blades[id]; ok {
+		b.Receive(ctx, msg)
+		return nil
+	}
+
+	return ErrInvalidTarget
+}
+
 // forwardToBlade is a helper function that forwards a message to the target
 // blade in this rack.  It returns true if the message was forwarded, false if
 // no target blade could be found.
-func (r *rack) forwardToBlade(ctx context.Context, id int64, msg sm.Envelope) bool {
+func (r *rack) forwardToBlade(ctxIn context.Context, id int64, msg sm.Envelope) bool {
 	if b, ok := r.blades[id]; ok {
+		ctx, span := tracing.StartSpan(
+			ctxIn,
+			tracing.WithName(fmt.Sprintf("Processing message %q on blade", msg)),
+			tracing.WithNewRoot(),
+			tracing.WithLink(msg.GetSpanContext(), msg.GetLinkID()),
+			tracing.WithContextValue(timestamp.EnsureTickInContext))
+		defer span.End()
+
 		b.Receive(ctx, msg)
 		return true
 	}
 
 	return false
+}
+
+// setTimer registers for a notification at a future point in simulated time.
+// When it expires, the supplied message is delivered for processing.
+func (r *rack) setTimer(ctx context.Context, delay int64, msg sm.Envelope) (int, error) {
+	return r.timers.Timer(ctx, delay, msg, func(msg interface{}) {
+		m := msg.(sm.Envelope)
+		r.Receive(m)
+	})
+}
+
+// cancelTimer attempts to cancel a previously registered timer.
+func (r *rack) cancelTimer(id int) error {
+	return r.timers.Cancel(id)
 }
 
 // start initializes the simulated rack state machine handler, and its state
@@ -179,9 +226,7 @@ func (r *rack) stop(ctx context.Context) {
 
 // Receive handles incoming requests from outside, forwarding to the rack's
 // state machine handler.
-func (r *rack) Receive(ctx context.Context, msg sm.Envelope, ch chan *sm.Response) {
-	msg.Initialize(ctx, ch)
-
+func (r *rack) Receive(msg sm.Envelope) {
 	r.ch <- msg
 }
 
@@ -190,7 +235,8 @@ func (r *rack) simulate() {
 	for !r.sm.Terminated {
 		msg := <-r.ch
 
-		ctx, span := tracing.StartSpan(context.Background(),
+		ctx, span := tracing.StartSpan(
+			context.Background(),
 			tracing.WithName("Executing simulated inventory operation"),
 			tracing.WithNewRoot(),
 			tracing.WithLink(msg.GetSpanContext(), msg.GetLinkID()),
@@ -255,9 +301,6 @@ func (s *rackWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.
 	r := machine.Parent.(*rack)
 
 	switch body := msg.(type) {
-	case *timerExpiry:
-		panic("implement me")
-
 	case *stopSim:
 		// Stop the rack simulation.
 		msg.GetCh() <- &sm.Response{

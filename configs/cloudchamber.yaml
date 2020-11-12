@@ -39,7 +39,7 @@ simSupport:
   StepperPolicy: manual
 
   # Number of trace spans to retain before aging them out.
-  TraceRetentionLimit: 100
+  TraceRetentionLimit: 1000
 
 # store interactions and etcd instance connection parameters
 store:

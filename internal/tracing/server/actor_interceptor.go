@@ -24,6 +24,7 @@ func ReceiveLogger(next actor.ReceiverFunc) actor.ReceiverFunc {
 		ctx, span := tracing.StartSpan(
 			annotatedContext(context.Background(), envelope),
 			tracing.WithName(fmt.Sprintf("Actor %q/Receive", c.Self())),
+			tracing.WithNewRoot(),
 			tracing.WithLink(spanContextFromEnvelope(envelope), tagFromEnvelope(envelope)),
 			tracing.WithNewRoot())
 
