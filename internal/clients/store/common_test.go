@@ -22,7 +22,7 @@ import (
 // Limited by etcd configuration option --max-txn-ops which (currently)
 // defaults to 128
 //
-const keySetSize = 100
+const keySetSize = 10
 
 var (
 	initialized bool
