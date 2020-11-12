@@ -83,7 +83,7 @@ func(x *DefinitionPdu) Verify() error {
 			// While this prevents a potentially legal case of chained
 			// Pdus, it also prevents wiring a Pdu to itself.
 			//
-			if p.Item.Type == Definition_item_pdu {
+			if p.Item.Type == DefinitionItem_pdu {
 				return common.ErrInvalidItemSelf{
 					Field:  "Item",
 					Item: "PDU",
@@ -170,7 +170,7 @@ func(x *DefinitionTor) Verify() error {
 			// While this prevents a potentially legal case of chained
 			// Pdus, it also prevents wiring a Pdu to itself.
 			//
-			if p.Item.Type == Definition_item_tor {
+			if p.Item.Type == DefinitionItem_tor {
 				return common.ErrInvalidItemSelf{
 					Field:  "Item",
 					Item: "TOR",

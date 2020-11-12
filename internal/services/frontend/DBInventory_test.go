@@ -75,13 +75,6 @@ func (ts *DBInventoryTestSuite) ensureInventoryLoaded() {
 	// ctx := context.Background()
 
 	// if ts.db == nil {
-	// 	db :=  &DBInventory{
-	// 		mutex: sync.RWMutex{},
-	// 		Zone: nil,
-	// 		MaxBladeCount: 0,
-	// 		MaxCapacity:   &ct.BladeCapacity{},
-	// 		Store: store.NewStore(),
-	// 	}
 
 		// err := db.Initialize(ctx, ts.cfg)
 		// require.NoError(err)
@@ -157,14 +150,6 @@ func (ts *DBInventoryTestSuite) ensureBasicZone() {
 	require.NoError(err)
 }
 
-
-// func (ts *DBInventoryTestSuite) ensureBasicRack() {
-// 	require := ts.Require()
-
-// 	ta.ensureBasicZone()
-// }
-
-
 func (ts *DBInventoryTestSuite) TestInitializeInventory() {
 	assert := ts.Assert()
 
@@ -177,6 +162,7 @@ func (ts *DBInventoryTestSuite) TestInitializeInventory() {
 	}
 
 	assert.NotNil(db.Store)
+
 	// err := db.Initialize(context.Background(), ts.cfg)
 	// assert.NoError(err)
 	// assert.NotNil(dbInventory)
@@ -187,18 +173,6 @@ func (ts *DBInventoryTestSuite) TestCreateZone() {
 	require := ts.Require()
 
 	ctx := context.Background()
-
-	// db :=  &DBInventory{
-	// 	mutex: sync.RWMutex{},
-	// 	Zone: nil,
-	// 	MaxBladeCount: 0,
-	// 	MaxCapacity:   &ct.BladeCapacity{},
-	// 	Store: store.NewStore(),
-	// }
-
-	// err := db.Store.Connect()
-
-	// require.NoError(err)
 
 	zoneName := "zone1"
 
@@ -274,14 +248,14 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	pdu.Ports[1] = &pb.DefinitionPowerPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_unknown,
+			Type: pb.DefinitionItem_unknown,
 		},
 	}
 
 	pdu.Ports[2] = &pb.DefinitionPowerPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_tor,
+			Type: pb.DefinitionItem_tor,
 			Id: 0,
 			Port: 0,
 		},
@@ -290,7 +264,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	pdu.Ports[3] = &pb.DefinitionPowerPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_tor,
+			Type: pb.DefinitionItem_tor,
 			Id: 1,
 			Port: 0,
 		},
@@ -299,7 +273,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	pdu.Ports[4] = &pb.DefinitionPowerPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 0,
 			Port: 0,
 		},
@@ -308,7 +282,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	pdu.Ports[5] = &pb.DefinitionPowerPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 0,
 			Port: 1,
 		},
@@ -317,7 +291,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	pdu.Ports[6] = &pb.DefinitionPowerPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 1,
 			Port: 0,
 		},
@@ -326,7 +300,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	pdu.Ports[7] = &pb.DefinitionPowerPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 1,
 			Port: 1,
 		},
@@ -383,14 +357,14 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	tor.Ports[1] = &pb.DefinitionNetworkPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_unknown,			
+			Type: pb.DefinitionItem_unknown,			
 		},
 	}
 
 	tor.Ports[2] = &pb.DefinitionNetworkPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_pdu,
+			Type: pb.DefinitionItem_pdu,
 			Id: 0,
 			Port: 0,
 		},
@@ -399,7 +373,7 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	tor.Ports[3] = &pb.DefinitionNetworkPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_pdu,
+			Type: pb.DefinitionItem_pdu,
 			Id: 1,
 			Port: 0,
 		},
@@ -408,7 +382,7 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	tor.Ports[4] = &pb.DefinitionNetworkPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 0,
 			Port: 0,
 		},
@@ -417,7 +391,7 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	tor.Ports[5] = &pb.DefinitionNetworkPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 0,
 			Port: 1,
 		},
@@ -426,7 +400,7 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	tor.Ports[6] = &pb.DefinitionNetworkPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 1,
 			Port: 0,
 		},
@@ -435,7 +409,7 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	tor.Ports[7] = &pb.DefinitionNetworkPort{
 		Wired: true,
 		Item:  &pb.DefinitionItem{
-			Type: pb.Definition_item_blade,
+			Type: pb.DefinitionItem_blade,
 			Id: 1,
 			Port: 1,
 		},
@@ -517,17 +491,6 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 
 // 	ctx := context.Background()
 
-// 	db :=  &DBInventory{
-// 		mutex: sync.RWMutex{},
-// 		Zone: nil,
-// 		MaxBladeCount: 0,
-// 		MaxCapacity:   &ct.BladeCapacity{},
-// 		Store: store.NewStore(),
-// 	}
-
-// 	err := db.Store.Connect()
-// 	require.NoError(err)
-
 // 	err = db.LoadFromStore(ctx)
 // 	require.NoError(err)
 // 	require.Equal(1, len(db.Zones))
@@ -590,18 +553,6 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 // 	require := ts.Require()
 
 // 	ctx := context.Background()
-
-// 	db :=  &DBInventory{
-// 		mutex: sync.RWMutex{},
-// 		Zone: nil,
-// 		MaxBladeCount: 0,
-// 		MaxCapacity:   &ct.BladeCapacity{},
-// 		Store: store.NewStore(),
-// 	}
-
-// 	err := db.Store.Connect()
-
-// 	require.NoError(err)
 
 // 	err = db.LoadFromStore(ctx)
 

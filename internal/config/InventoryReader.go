@@ -326,7 +326,7 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 			zone.Racks[r.Name].Pdus[0].Ports[b.Index] = &pb.DefinitionPowerPort{
 				Wired: true,
 				Item:  &pb.DefinitionItem{
-					Type: pb.Definition_item_pdu,
+					Type: pb.DefinitionItem_pdu,
 					Id: 0,
 					Port: 0,
 					},
@@ -339,7 +339,7 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 			zone.Racks[r.Name].Tors[0].Ports[b.Index] = &pb.DefinitionNetworkPort{
 				Wired: true,
 				Item:  &pb.DefinitionItem{
-					Type: pb.Definition_item_tor,
+					Type: pb.DefinitionItem_tor,
 					Id: 0,
 					Port: 0,
 					},

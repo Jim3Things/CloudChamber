@@ -18,42 +18,43 @@ message definition {
     // for an item to be usable, it must also be enabled.
     //
     enum condition {
-        notInService = 0;
+        not_in_service = 0;
         operational = 1;
         burnIn = 2;
-        outForRepair = 3;
+        out_for_repair = 3;
         retiring = 4;
         retired = 5;
-    }
-
-    // Defines the type of hardware that can be wired up to a Pdu power port or a Tor network port.
-    //
-    enum itemtype {
-        // The type of hardware is not yet known
-        //
-        item_unknown = 0;
-
-        // This item is a PDU (Power Distribution Unit).
-        //
-        item_pdu = 1;
-
-        // Equipment is a TOR (Top of Rack network switch)
-        //
-        item_tor = 2;
-
-        // Equipment is a blade computer
-        //
-        item_blade = 3;
     }
 
     // Describes potential targets for wiring connections between a Pdu or Tor port and a specific
     // item of equipment.
     //
     message item {
+
+        // Defines the type of hardware that can be wired up to a Pdu power port or a Tor network port.
+        //
+        enum item_type {
+            // The type of hardware is not yet known
+            //
+            unknown = 0;
+
+            // This item is a PDU (Power Distribution Unit).
+            //
+            pdu = 1;
+
+            // Equipment is a TOR (Top of Rack network switch)
+            //
+            tor = 2;
+
+            // Equipment is a blade computer
+            //
+            blade = 3;
+        }
+
         // The type or item or piece of equipment
         //
-        itemtype type = 1;
-    
+        item_type type = 1;
+
         // Defines an instance of the piece of equipment. For example there are likely to be multiple
         // blades and the id is used to dissinguish amongst them.
         //
@@ -137,7 +138,7 @@ message definition {
         map<int64, network_port> ports = 10;
     }
 
-    message bootmethod {
+    message boot_method {
         enum method {
             local = 0;
             network = 1;
@@ -169,11 +170,11 @@ message definition {
         // Defines whether or not the blade automatically begins a boot sequence when power is
         // appplied to the blade.
         //
-        bool bootOnPowerOn = 4;
+        bool boot_on_power_on = 4;
 
         // Describes the default boot mechanism
         //
-        bootmethod image = 5;
+        boot_method image = 5;
     }
 
     message rack {
@@ -210,9 +211,10 @@ message definition {
     //
     message zone {
         enum state {
-            notInService = 0;
+            not_in_service = 0;
             operational = 1;
             commissioning = 2;
+            assumed_failed = 3;
             retiring = 4;
             retired = 5;
         }
