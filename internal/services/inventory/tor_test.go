@@ -9,6 +9,7 @@ import (
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
@@ -55,12 +56,17 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	rsp := make(chan *sm.Response)
 
 	r.Receive(
-		newSetConnection(ctx, newTargetTor(ts.rackName()), common.TickFromContext(ctx), false, rsp))
+		messages.NewSetConnection(
+			ctx,
+			messages.NewTargetTor(ts.rackName()),
+			common.TickFromContext(ctx),
+			false,
+			rsp))
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(ErrInvalidTarget, res.Err)
+	assert.Equal(messages.ErrInvalidTarget, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -84,7 +90,12 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), commandTime, true, rsp)
+	msg := messages.NewSetConnection(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
+		rsp)
 
 	r.Receive(msg)
 
@@ -92,7 +103,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	require.NotNil(res)
 
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
@@ -123,7 +134,12 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	rsp := make(chan *sm.Response)
 
 	r.Receive(
-		newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp))
+		messages.NewSetConnection(
+			ctx,
+			messages.NewTargetBlade(ts.rackName(), 0),
+			common.TickFromContext(ctx),
+			true,
+			rsp))
 
 	span.End()
 
@@ -155,7 +171,12 @@ func (ts *TorTestSuite) TestStuckCable() {
 	rsp := make(chan *sm.Response)
 
 	commandTime := common.TickFromContext(ctx)
-	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), commandTime, true, rsp)
+	msg := messages.NewSetConnection(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
+		rsp)
 
 	r.Receive(msg)
 

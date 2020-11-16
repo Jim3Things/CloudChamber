@@ -1,4 +1,4 @@
-package inventory
+package messages
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
-// envelopeState holds the outer context wrapper state for an incoming request to
+// EnvelopeState holds the outer context wrapper state for an incoming request to
 // the state machine.  It should be embedded in a message that the state
 // machine will actually process.
-type envelopeState struct {
+type EnvelopeState struct {
 	// Ch is the channel that the completion response is to be sent over.
 	Ch chan *sm.Response
 
@@ -25,19 +25,19 @@ type envelopeState struct {
 	Link string
 }
 
-func (e *envelopeState) GetCh() chan *sm.Response {
+func (e *EnvelopeState) GetCh() chan *sm.Response {
 	return e.Ch
 }
 
-func (e *envelopeState) GetSpanContext() trace.SpanContext {
+func (e *EnvelopeState) GetSpanContext() trace.SpanContext {
 	return e.Span
 }
 
-func (e *envelopeState) GetLinkID() string {
+func (e *EnvelopeState) GetLinkID() string {
 	return e.Link
 }
 
-func (e *envelopeState) Initialize(ctx context.Context, ch chan *sm.Response) {
+func (e *EnvelopeState) Initialize(ctx context.Context, ch chan *sm.Response) {
 	span := trace.SpanFromContext(ctx)
 	tag, ok := tracing.GetAndMarkLink(span)
 	if ok {
@@ -47,5 +47,11 @@ func (e *envelopeState) Initialize(ctx context.Context, ch chan *sm.Response) {
 	e.Span = span.SpanContext()
 	e.Link = tag
 
+	e.Ch = ch
+}
+
+func (e *EnvelopeState) InitializeNoLink(ch chan *sm.Response) {
+	e.Span = trace.SpanContext{}
+	e.Link = ""
 	e.Ch = ch
 }

@@ -4,23 +4,10 @@ import (
 	"context"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 )
 
-// repairActionState is the abstract definition that all inventory state
-// machines must implement.
-type repairActionState interface {
-	sm.SimpleSMState
-
-	// power is the function that responds to a setPower message.
-	power(ctx context.Context, sm *sm.SimpleSM, msg *setPower)
-
-	// connect is the function that responds to a setConnection message.
-	connect(ctx context.Context, sm *sm.SimpleSM, msg *setConnection)
-
-	// timeout is the function that processes a timer expiration message.
-	timeout(ctx context.Context, sm *sm.SimpleSM, msg *timerExpiry)
-}
 
 // nullRepairAction provides the default implementations for the functions
 // that handle the different repair and status messages, as well as the
@@ -29,19 +16,19 @@ type nullRepairAction struct {
 	sm.NullState
 }
 
-// power returns an unexpected message to a setPower message.
-func (s *nullRepairAction) power(ctx context.Context, _ *sm.SimpleSM, msg *setPower) {
-	msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), msg)
+// Power returns an unexpected message to a setPower message.
+func (s *nullRepairAction) Power(ctx context.Context, _ *sm.SimpleSM, msg *messages.SetPower) {
+	msg.GetCh() <- messages.UnexpectedMessageResponse(s, common.TickFromContext(ctx), msg)
 }
 
-// connect returns an unexpected message to a setConnection message.
-func (s *nullRepairAction) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
-	msg.GetCh() <- unexpectedMessageResponse(s, common.TickFromContext(ctx), msg)
+// Connect returns an unexpected message to a setConnection message.
+func (s *nullRepairAction) Connect(ctx context.Context, _ *sm.SimpleSM, msg *messages.SetConnection) {
+	msg.GetCh() <- messages.UnexpectedMessageResponse(s, common.TickFromContext(ctx), msg)
 }
 
-// timeout ignores any timer expiration notification, as there must not be any
+// Timeout ignores any timer expiration notification, as there must not be any
 // outstanding timers for it to get to this implementation.
-func (s *nullRepairAction) timeout(_ context.Context, _ *sm.SimpleSM, _ *timerExpiry) {}
+func (s *nullRepairAction) Timeout(_ context.Context, _ *sm.SimpleSM, _ *messages.TimerExpiry) {}
 
 // handleMsg performs the common routing for all incoming messages.  They are
 // routed to the known handler functions for messages that are known, and any
@@ -49,18 +36,18 @@ func (s *nullRepairAction) timeout(_ context.Context, _ *sm.SimpleSM, _ *timerEx
 func (s *nullRepairAction) handleMsg(
 	ctx context.Context,
 	machine *sm.SimpleSM,
-	state repairActionState,
+	state messages.RepairActionState,
 	msg sm.Envelope) {
 
 	switch body := msg.(type) {
-	case repairMessage:
+	case messages.RepairMessage:
 		body.Do(ctx, machine, state)
 
-	case statusMessage:
+	case messages.StatusMessage:
 		body.GetStatus(ctx, machine, state)
 
 	default:
-		msg.GetCh() <- unexpectedMessageResponse(state, common.TickFromContext(ctx), body)
+		msg.GetCh() <- messages.UnexpectedMessageResponse(state, common.TickFromContext(ctx), body)
 	}
 }
 
@@ -73,11 +60,11 @@ type dropRepairAction struct {
 }
 
 // power returns a dropped message
-func (s *dropRepairAction) power(ctx context.Context, _ *sm.SimpleSM, msg *setPower) {
-	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
+func (s *dropRepairAction) power(ctx context.Context, _ *sm.SimpleSM, msg *messages.SetPower) {
+	msg.GetCh() <- messages.DroppedResponse(common.TickFromContext(ctx))
 }
 
 // connect returns a dropped message
-func (s *dropRepairAction) connect(ctx context.Context, _ *sm.SimpleSM, msg *setConnection) {
-	msg.GetCh() <- droppedResponse(common.TickFromContext(ctx))
+func (s *dropRepairAction) connect(ctx context.Context, _ *sm.SimpleSM, msg *messages.SetConnection) {
+	msg.GetCh() <- messages.DroppedResponse(common.TickFromContext(ctx))
 }

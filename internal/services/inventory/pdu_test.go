@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 )
 
@@ -46,7 +47,12 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := newSetPower(ctx, newTargetTor(ts.rackName()), common.TickFromContext(ctx), false, rsp)
+	badMsg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetTor(ts.rackName()),
+		common.TickFromContext(ctx),
+		false,
+		rsp)
 
 	r.Receive(badMsg)
 
@@ -54,7 +60,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	require.NotNil(res)
 
 	assert.Error(res.Err)
-	assert.Equal(ErrInvalidTarget, res.Err)
+	assert.Equal(messages.ErrInvalidTarget, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -73,14 +79,19 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), false, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		false,
+		rsp)
 
 	r.Receive(msg)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -100,14 +111,19 @@ func (ts *PduTestSuite) TestPowerOffPduTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), startTime-1, false, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		startTime-1,
+		false,
+		rsp)
 
 	r.Receive(msg)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
@@ -127,14 +143,19 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), true, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
 
 	r.Receive(msg)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -153,7 +174,12 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
 
 	r.Receive(msg)
 
@@ -178,17 +204,22 @@ func (ts *PduTestSuite) TestPowerOnBladeBadID() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetBlade(ts.rackName(), 9), common.TickFromContext(ctx), true, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 9),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
 
 	r.Receive(msg)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(ErrInvalidTarget, res.Err)
+	assert.Equal(messages.ErrInvalidTarget, res.Err)
 
 	assert.Equal(common.TickFromContext(ctx), res.At)
-	assert.Less(r.pdu.sm.Guard, msg.guard)
+	assert.Less(r.pdu.sm.Guard, msg.Guard)
 
 	assert.Equal("working", r.pdu.sm.Current.Name())
 }
@@ -201,7 +232,12 @@ func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
 
 	r.Receive(msg)
 
@@ -232,14 +268,19 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetBlade(ts.rackName(), 0), commandTime, true, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
+		rsp)
 
 	r.Receive(msg)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
@@ -260,7 +301,12 @@ func (ts *PduTestSuite) TestStuckCable() {
 	rsp := make(chan *sm.Response)
 
 	commandTime := common.TickFromContext(ctx)
-	msg := newSetPower(ctx, newTargetBlade(ts.rackName(), 0), commandTime, true, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
+		rsp)
 
 	r.Receive(msg)
 
@@ -287,14 +333,19 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), false, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		false,
+		rsp)
 
 	r.Receive(msg)
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 

@@ -5,20 +5,21 @@ import (
 	"errors"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
-// pdu defines the state required to simulate a PDU in a rack.
+// pdu defines the state required to simulate a PDU in a Rack.
 type pdu struct {
 	// cables holds the simulated power cables.  The key is the blade id the
 	// cable is attached to.
 	cables map[int64]*cable
 
-	// rack holds the pointer to the rack that contains this PDU.
-	holder *rack
+	// Rack holds the pointer to the Rack that contains this PDU.
+	holder *Rack
 
 	// sm is the state machine for this PDU simulation.
 	sm *sm.SimpleSM
@@ -38,10 +39,10 @@ const (
 )
 
 // newPdu creates a new pdu instance from the definition structure and the
-// containing rack.  Note that it currently does not fill in the cable
+// containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
-func newPdu(_ *pb.ExternalPdu, r *rack) *pdu {
+func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 	p := &pdu{
 		cables: make(map[int64]*cable),
 		holder: r,
@@ -57,7 +58,7 @@ func newPdu(_ *pb.ExternalPdu, r *rack) *pdu {
 }
 
 // fixConnection updates the PDU with presumed cable definitions to match up
-// with the blades defined for the rack.  This is a temporary workaround until
+// with the blades defined for the Rack.  This is a temporary workaround until
 // the inventory definition structures include the cable definitions.
 func (p *pdu) fixConnection(ctx context.Context, id int64) {
 	at := common.TickFromContext(ctx)
@@ -87,12 +88,12 @@ func (p *pdu) newStatusReport(
 
 // sendPowerToBlade constructs a setPower message that targets the specified
 // blade, and forwards it along.
-func (p *pdu) sendPowerToBlade(ctx context.Context, msg *setPower, i int64, rsp chan *sm.Response) {
-	fwd := newSetPower(
+func (p *pdu) sendPowerToBlade(ctx context.Context, msg *messages.SetPower, i int64, rsp chan *sm.Response) {
+	fwd := messages.NewSetPower(
 		ctx,
-		newTargetBlade(msg.target.rack, i),
-		msg.guard,
-		msg.on,
+		messages.NewTargetBlade(msg.Target.Rack, i),
+		msg.Guard,
+		msg.On,
 		rsp)
 
 	p.holder.forwardToBlade(ctx, i, fwd)
@@ -100,8 +101,8 @@ func (p *pdu) sendPowerToBlade(ctx context.Context, msg *setPower, i int64, rsp 
 	tracing.Info(
 		ctx,
 		"Power connection to %s has changed.  It is now powered %s.",
-		fwd.target.describe(),
-		aOrB(fwd.on, "on", "off"))
+		fwd.Target.Describe(),
+		common.AOrB(fwd.On, "on", "off"))
 }
 
 // pduWorking is the state a PDU is in when it is turned on and functional.
@@ -114,7 +115,7 @@ func (s *pduWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.E
 	s.handleMsg(ctx, machine, s, msg)
 }
 
-func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPower) {
+func (s *pduWorking) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
 	tracing.UpdateSpanName(ctx, msg.String())
 
 	p := machine.Parent.(*pdu)
@@ -143,21 +144,21 @@ func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPo
 
 	// Process the power command - change state if power command is for
 	// the pdu, otherwise, forward along.
-	if msg.target.isPdu() {
+	if msg.Target.IsPdu() {
 		// Change the power on/off state for the full PDU
 		tracing.UpdateSpanName(
 			ctx,
 			"Powering %s %s",
-			aOrB(msg.on, "on", "off"),
-			msg.target.describe())
+			common.AOrB(msg.On, "on", "off"),
+			msg.Target.Describe())
 
-		if machine.Pass(msg.guard, occursAt) {
+		if machine.Pass(msg.Guard, occursAt) {
 			// Change power at the PDU.  This only matters if the command is to
 			// turn off the PDU (as this state means that the PDU is on).  And
 			// turning off the PDU means turning off all the cables.
-			if !msg.on {
+			if !msg.On {
 				for i := range p.cables {
-					changed, err := p.cables[i].force(false, msg.guard, occursAt)
+					changed, err := p.cables[i].force(false, msg.Guard, occursAt)
 
 					if changed && err == nil {
 						p.sendPowerToBlade(ctx, msg, i, nil)
@@ -170,17 +171,17 @@ func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPo
 			tracing.Info(ctx, "Request ignored as it has arrived too late")
 		}
 
-		msg.GetCh() <- droppedResponse(occursAt)
-	} else if id, isBladeTarget := msg.target.bladeID(); isBladeTarget {
+		msg.GetCh() <- messages.DroppedResponse(occursAt)
+	} else if id, isBladeTarget := msg.Target.BladeID(); isBladeTarget {
 		// Change the power on/off state for an individual blade
 		tracing.UpdateSpanName(
 			ctx,
 			"Powering %s %s",
-			aOrB(msg.on, "on", "off"),
-			msg.target.describe())
+			common.AOrB(msg.On, "on", "off"),
+			msg.Target.Describe())
 
 		if c, ok := p.cables[id]; ok {
-			if changed, err := p.cables[id].set(msg.on, msg.guard, occursAt); err == nil {
+			if changed, err := p.cables[id].set(msg.On, msg.Guard, occursAt); err == nil {
 				// The state machine holds that machine.Guard is always greater than
 				// or equal to any cable.at value.  But not all cable.at values
 				// are the same.  So even though we're moving this cable.at
@@ -194,31 +195,31 @@ func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPo
 					tracing.Info(
 						ctx,
 						"Power connection to %s has not changed.  It is currently powered %s.",
-						msg.target.describe(),
-						aOrB(c.on, "on", "off"))
+						msg.Target.Describe(),
+						common.AOrB(c.on, "on", "off"))
 
-					msg.GetCh() <- failedResponse(occursAt, ErrNoOperation)
+					msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
 				}
 			} else if err == ErrCableStuck {
 				tracing.Warn(
 					ctx,
 					"Power connection to %s is stuck.  Unsure if it has been powered %s.",
-					msg.target.describe(),
-					aOrB(msg.on, "on", "off"))
+					msg.Target.Describe(),
+					common.AOrB(msg.On, "on", "off"))
 
-				msg.GetCh() <- failedResponse(occursAt, err)
+				msg.GetCh() <- messages.FailedResponse(occursAt, err)
 			} else if err == ErrTooLate {
 				tracing.Info(
 					ctx,
 					"Power connection to %s has not changed, as this request arrived "+
 						"after other changed occurred.  The blade's power state remains unchanged.",
-					msg.target.describe())
+					msg.Target.Describe())
 
-				msg.GetCh() <- droppedResponse(occursAt)
+				msg.GetCh() <- messages.DroppedResponse(occursAt)
 			} else {
 				tracing.Warn(ctx, "Unexpected error code: %v", err)
 
-				msg.GetCh() <- failedResponse(occursAt, err)
+				msg.GetCh() <- messages.FailedResponse(occursAt, err)
 			}
 
 			return
@@ -229,10 +230,10 @@ func (s *pduWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPo
 			"No power connection for blade %d was found.",
 			id)
 
-		msg.GetCh() <- failedResponse(occursAt, ErrInvalidTarget)
+		msg.GetCh() <- messages.FailedResponse(occursAt, messages.ErrInvalidTarget)
 
 	} else {
-		msg.GetCh() <- failedResponse(occursAt, ErrInvalidTarget)
+		msg.GetCh() <- messages.FailedResponse(occursAt, messages.ErrInvalidTarget)
 	}
 }
 

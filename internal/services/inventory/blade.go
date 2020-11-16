@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pbc "github.com/Jim3Things/CloudChamber/pkg/protos/common"
@@ -54,10 +55,10 @@ func newCapacity() *capacity {
 }
 
 type blade struct {
-	// rack holds the pointer to the rack that contains this blade.
-	holder *rack
+	// Rack holds the pointer to the Rack that contains this blade.
+	holder *Rack
 
-	// id is the index used to identify this blade within the rack.
+	// id is the index used to identify this blade within the Rack.
 	id int64
 
 	// sm is the state machine for this blade's simulation.
@@ -119,7 +120,7 @@ const (
 	bladeFaultedState
 )
 
-func newBlade(def *pbc.BladeCapacity, r *rack, id int64) *blade {
+func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 	b := &blade{
 		holder:           r,
 		id:               id,
@@ -159,8 +160,8 @@ func (b *blade) Receive(ctx context.Context, msg sm.Envelope) {
 	b.sm.Receive(ctx, msg)
 }
 
-func (b *blade) me() *messageTarget {
-	return newTargetBlade(b.holder.name, b.id)
+func (b *blade) me() *messages.MessageTarget {
+	return messages.NewTargetBlade(b.holder.name, b.id)
 }
 
 func (b *blade) powerOnState() int {
@@ -185,12 +186,12 @@ func (s *bladeOff) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Env
 
 func (s *bladeOff) Name() string { return "off" }
 
-func (s *bladeOff) power(ctx context.Context, machine *sm.SimpleSM, msg *setPower) {
+func (s *bladeOff) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
 	tracing.UpdateSpanName(
 		ctx,
 		"Processing power %s command at %s",
-		aOrB(msg.on, "on", "off"),
-		msg.target.describe())
+		common.AOrB(msg.On, "on", "off"),
+		msg.Target.Describe())
 
 	b := machine.Parent.(*blade)
 
@@ -198,7 +199,7 @@ func (s *bladeOff) power(ctx context.Context, machine *sm.SimpleSM, msg *setPowe
 
 	machine.AdvanceGuard(occursAt)
 
-	if msg.on {
+	if msg.On {
 		faultingChange(ctx, machine, b.powerOnState(), msg)
 	}
 
@@ -217,18 +218,18 @@ func (s *bladePowered) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm
 
 func (s *bladePowered) Name() string { return "powered" }
 
-func (s *bladePowered) power(ctx context.Context, machine *sm.SimpleSM, msg *setPower) {
+func (s *bladePowered) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
 	tracing.UpdateSpanName(
 		ctx,
 		"Processing power %s command at %s",
-		aOrB(msg.on, "on", "off"),
-		msg.target.describe())
+		common.AOrB(msg.On, "on", "off"),
+		msg.Target.Describe())
 
 	occursAt := common.TickFromContext(ctx)
 
 	machine.AdvanceGuard(occursAt)
 
-	if !msg.on {
+	if !msg.On {
 		faultingChange(ctx, machine, bladeOffState, msg)
 	}
 
@@ -255,7 +256,7 @@ func (s *bladeBooting) Enter(ctx context.Context, machine *sm.SimpleSM) error {
 	b.activeTimerID++
 
 	// set the boot timer
-	expiryMsg := newTimerExpiry(
+	expiryMsg := messages.NewTimerExpiry(
 		ctx,
 		b.me(),
 		occursAt,
@@ -279,18 +280,18 @@ func (s *bladeBooting) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm
 
 func (s *bladeBooting) Name() string { return "booting" }
 
-func (s *bladeBooting) power(ctx context.Context, machine *sm.SimpleSM, msg *setPower) {
+func (s *bladeBooting) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
 	tracing.UpdateSpanName(
 		ctx,
 		"Processing power %s command at %s",
-		aOrB(msg.on, "on", "off"),
-		msg.target.describe())
+		common.AOrB(msg.On, "on", "off"),
+		msg.Target.Describe())
 
 	occursAt := common.TickFromContext(ctx)
 
 	machine.AdvanceGuard(occursAt)
 
-	if !msg.on {
+	if !msg.On {
 		b := machine.Parent.(*blade)
 		r := b.holder
 
@@ -308,14 +309,14 @@ func (s *bladeBooting) power(ctx context.Context, machine *sm.SimpleSM, msg *set
 	// if it is power on, ignore
 }
 
-func (s *bladeBooting) timeout(ctx context.Context, machine *sm.SimpleSM, msg *timerExpiry) {
+func (s *bladeBooting) Timeout(ctx context.Context, machine *sm.SimpleSM, msg *messages.TimerExpiry) {
 	b := machine.Parent.(*blade)
 
-	if b.hasActiveTimer && b.activeTimerID == msg.id {
+	if b.hasActiveTimer && b.activeTimerID == msg.Id {
 		tracing.UpdateSpanName(
 			ctx,
 			"Boot completed for %s",
-			msg.target.describe())
+			msg.Target.Describe())
 
 		b.hasActiveTimer = false
 
@@ -336,7 +337,7 @@ func (s *bladeWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm
 
 func (s *bladeWorking) Name() string { return "working" }
 
-func (s *bladeWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *setPower) {
+func (s *bladeWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
 	// power has been gated at the pdu, so I think we can ignore gating just here.
 	// -- probably need to advance the guard, so that workload operations cannot cross
 	// power on is ignored, as it is already working.
@@ -415,10 +416,10 @@ func faultingChange(ctx context.Context, machine *sm.SimpleSM, stateIndex int, m
 	occursAt := common.TickFromContext(ctx)
 
 	if err := machine.ChangeState(ctx, stateIndex); err != nil {
-		respondIf(msg.GetCh(), failedResponse(occursAt, err))
+		respondIf(msg.GetCh(), messages.FailedResponse(occursAt, err))
 		_ = machine.ChangeState(ctx, bladeFaultedState)
 	} else {
-		respondIf(msg.GetCh(), successResponse(occursAt))
+		respondIf(msg.GetCh(), messages.SuccessResponse(occursAt))
 	}
 }
 

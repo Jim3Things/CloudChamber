@@ -1,17 +1,20 @@
-package inventory
+package messages
 
 // This file contains helper functions that simplify the creation of response
 // messages to repair operations.
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 )
 
-// droppedResponse constructs a dropped response message with the correct time
+var ErrRepairMessageDropped = errors.New("repair message dropped")
+
+// DroppedResponse constructs a dropped response message with the correct time
 // and target.
-func droppedResponse(occursAt int64) *sm.Response {
+func DroppedResponse(occursAt int64) *sm.Response {
 	return &sm.Response{
 		Err: ErrRepairMessageDropped,
 		At:  occursAt,
@@ -19,9 +22,9 @@ func droppedResponse(occursAt int64) *sm.Response {
 	}
 }
 
-// failedResponse constructs a failure response message with the correct time,
+// FailedResponse constructs a failure response message with the correct time,
 // target, and reason.
-func failedResponse(occursAt int64, err error) *sm.Response {
+func FailedResponse(occursAt int64, err error) *sm.Response {
 	return &sm.Response{
 		Err: err,
 		At:  occursAt,
@@ -29,9 +32,9 @@ func failedResponse(occursAt int64, err error) *sm.Response {
 	}
 }
 
-// successResponse constructs a success response message with the correct time
+// SuccessResponse constructs a success response message with the correct time
 // and target.
-func successResponse(occursAt int64) *sm.Response {
+func SuccessResponse(occursAt int64) *sm.Response {
 	return &sm.Response{
 		Err: nil,
 		At:  occursAt,
@@ -39,9 +42,9 @@ func successResponse(occursAt int64) *sm.Response {
 	}
 }
 
-// unexpectedMessageResponse constructs a failure response for the case where
+// UnexpectedMessageResponse constructs a failure response for the case where
 // the incoming request arrives when it is unexpected by the state machine.
-func unexpectedMessageResponse(s sm.SimpleSMState, occursAt int64, body interface{}) *sm.Response {
+func UnexpectedMessageResponse(s sm.SimpleSMState, occursAt int64, body interface{}) *sm.Response {
 	return &sm.Response{
 		Err: &sm.UnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", body),

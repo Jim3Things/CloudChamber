@@ -9,6 +9,7 @@ import (
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
@@ -91,7 +92,7 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 
 	err = r.start(ctx)
 	assert.Error(err)
-	assert.Equal(ErrRepairMessageDropped, err)
+	assert.Equal(messages.ErrRepairMessageDropped, err)
 
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 
@@ -184,7 +185,12 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetPdu(ts.rackName()), common.TickFromContext(ctx), true, rsp)
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
 
 	r.Receive(msg)
 	span.End()
@@ -192,7 +198,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 
 	// Since the stepper service is not set up, we should expect a false time here.
 	assert.Equal(tsc.Tick(ctx), res.At)
