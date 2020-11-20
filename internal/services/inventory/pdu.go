@@ -50,9 +50,32 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 	}
 
 	p.sm = sm.NewSimpleSM(p,
-		sm.WithFirstState(pduWorkingState, &pduWorking{}),
-		sm.WithState(pduOffState, &pduOff{}),
-		sm.WithState(pduStuckState, &pduStuck{}))
+		sm.WithFirstState(
+			pduWorkingState,
+			"working",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetPower, workingSetPower, sm.Stay, pduOffState},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			pduOffState,
+			"off",
+			sm.NullEnter,
+			[]sm.ActionEntry{},
+			DropMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			pduStuckState,
+			"stuck",
+			sm.NullEnter,
+			[]sm.ActionEntry{},
+			DropMessage,
+			sm.NullLeave),
+	)
 
 	return p
 }
@@ -86,15 +109,15 @@ func (p *pdu) newStatusReport(
 	}
 }
 
-// sendPowerToBlade constructs a setPower message that targets the specified
-// blade, and forwards it along.
-func (p *pdu) sendPowerToBlade(ctx context.Context, msg *messages.SetPower, i int64, rsp chan *sm.Response) {
+// notifyBladeOfPowerChange constructs a setPower message that notifies the specified
+// blade of the change in power, and sends it along.
+func (p *pdu) notifyBladeOfPowerChange(ctx context.Context, msg *messages.SetPower, i int64) {
 	fwd := messages.NewSetPower(
 		ctx,
 		messages.NewTargetBlade(msg.Target.Rack, i),
 		msg.Guard,
 		msg.On,
-		rsp)
+		nil)
 
 	p.holder.forwardToBlade(ctx, i, fwd)
 
@@ -105,20 +128,10 @@ func (p *pdu) sendPowerToBlade(ctx context.Context, msg *messages.SetPower, i in
 		common.AOrB(fwd.On, "on", "off"))
 }
 
-// pduWorking is the state a PDU is in when it is turned on and functional.
-type pduWorking struct {
-	nullRepairAction
-}
+func workingSetPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+	msg := m.(*messages.SetPower)
 
-// Receive processes incoming requests for this state.
-func (s *pduWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
-}
-
-func (s *pduWorking) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
 	tracing.UpdateSpanName(ctx, msg.String())
-
-	p := machine.Parent.(*pdu)
 
 	// There are four values that are relevant to how order and time
 	// are managed here:
@@ -152,27 +165,10 @@ func (s *pduWorking) Power(ctx context.Context, machine *sm.SimpleSM, msg *messa
 			common.AOrB(msg.On, "on", "off"),
 			msg.Target.Describe())
 
-		if machine.Pass(msg.Guard, occursAt) {
-			// Change power at the PDU.  This only matters if the command is to
-			// turn off the PDU (as this state means that the PDU is on).  And
-			// turning off the PDU means turning off all the cables.
-			if !msg.On {
-				for i := range p.cables {
-					changed, err := p.cables[i].force(false, msg.Guard, occursAt)
+		return setPowerForPdu(ctx, machine, msg, occursAt)
+	}
 
-					if changed && err == nil {
-						p.sendPowerToBlade(ctx, msg, i, nil)
-					}
-				}
-
-				_ = machine.ChangeState(ctx, pduOffState)
-			}
-		} else {
-			tracing.Info(ctx, "Request ignored as it has arrived too late")
-		}
-
-		msg.GetCh() <- messages.DroppedResponse(occursAt)
-	} else if id, isBladeTarget := msg.Target.BladeID(); isBladeTarget {
+	if id, isBladeTarget := msg.Target.BladeID(); isBladeTarget {
 		// Change the power on/off state for an individual blade
 		tracing.UpdateSpanName(
 			ctx,
@@ -180,90 +176,106 @@ func (s *pduWorking) Power(ctx context.Context, machine *sm.SimpleSM, msg *messa
 			common.AOrB(msg.On, "on", "off"),
 			msg.Target.Describe())
 
-		if c, ok := p.cables[id]; ok {
-			if changed, err := p.cables[id].set(msg.On, msg.Guard, occursAt); err == nil {
-				// The state machine holds that machine.Guard is always greater than
-				// or equal to any cable.at value.  But not all cable.at values
-				// are the same.  So even though we're moving this cable.at
-				// time forward, it still might be less than some other
-				// cable.at time.
-				machine.AdvanceGuard(occursAt)
+		setPowerForBlade(ctx, machine, msg, id, occursAt)
+	} else {
+		msg.GetCh() <- messages.InvalidTargetResponse(occursAt)
+	}
 
-				if changed {
-					p.sendPowerToBlade(ctx, msg, id, msg.GetCh())
-				} else {
-					tracing.Info(
-						ctx,
-						"Power connection to %s has not changed.  It is currently powered %s.",
-						msg.Target.Describe(),
-						common.AOrB(c.on, "on", "off"))
+	return true
+}
 
-					msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
+func setPowerForPdu(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower, occursAt int64) bool {
+	p := machine.Parent.(*pdu)
+
+	if machine.Pass(msg.Guard, occursAt) {
+		// Change power at the PDU.  This only matters if the command is to
+		// turn off the PDU (as this state means that the PDU is on).  And
+		// turning off the PDU means turning off all the cables.
+		if !msg.On {
+			for i := range p.cables {
+				changed, err := p.cables[i].force(false, msg.Guard, occursAt)
+
+				if changed && err == nil {
+					p.notifyBladeOfPowerChange(ctx, msg, i)
 				}
-			} else if err == ErrCableStuck {
-				tracing.Warn(
-					ctx,
-					"Power connection to %s is stuck.  Unsure if it has been powered %s.",
-					msg.Target.Describe(),
-					common.AOrB(msg.On, "on", "off"))
-
-				msg.GetCh() <- messages.FailedResponse(occursAt, err)
-			} else if err == ErrTooLate {
-				tracing.Info(
-					ctx,
-					"Power connection to %s has not changed, as this request arrived "+
-						"after other changed occurred.  The blade's power state remains unchanged.",
-					msg.Target.Describe())
-
-				msg.GetCh() <- messages.DroppedResponse(occursAt)
-			} else {
-				tracing.Warn(ctx, "Unexpected error code: %v", err)
-
-				msg.GetCh() <- messages.FailedResponse(occursAt, err)
 			}
 
-			return
+			msg.GetCh() <- messages.DroppedResponse(occursAt)
+			return false
 		}
+	} else {
+		tracing.Info(ctx, "Request ignored as it has arrived too late")
+	}
 
+	msg.GetCh() <- messages.DroppedResponse(occursAt)
+	return true
+}
+
+func setPowerForBlade(
+	ctx context.Context,
+	machine *sm.SimpleSM,
+	msg *messages.SetPower,
+	id int64,
+	occursAt int64) {
+	p := machine.Parent.(*pdu)
+
+	c, ok := p.cables[id]
+
+	if !ok {
+		tracing.Warn(ctx,"No power connection for blade %d was found.", id)
+
+		msg.GetCh() <- messages.InvalidTargetResponse(occursAt)
+		return
+	}
+
+	changed, err := p.cables[id].set(msg.On, msg.Guard, occursAt)
+
+	switch err {
+	case nil:
+		// The state machine holds that machine.Guard is always greater than
+		// or equal to any cable.at value.  But not all cable.at values
+		// are the same.  So even though we're moving this cable.at
+		// time forward, it still might be less than some other
+		// cable.at time.
+		machine.AdvanceGuard(occursAt)
+
+		if changed {
+			p.notifyBladeOfPowerChange(ctx, msg, id)
+			msg.GetCh() <- messages.SuccessResponse(occursAt)
+		} else {
+			tracing.Info(
+				ctx,
+				"Power connection to %s has not changed.  It is currently powered %s.",
+				msg.Target.Describe(),
+				common.AOrB(c.on, "on", "off"))
+
+			msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
+		}
+		break
+
+	case ErrCableStuck:
 		tracing.Warn(
 			ctx,
-			"No power connection for blade %d was found.",
-			id)
+			"Power connection to %s is stuck.  Unsure if it has been powered %s.",
+			msg.Target.Describe(),
+			common.AOrB(msg.On, "on", "off"))
 
-		msg.GetCh() <- messages.FailedResponse(occursAt, messages.ErrInvalidTarget)
+		msg.GetCh() <- messages.FailedResponse(occursAt, err)
+		break
 
-	} else {
-		msg.GetCh() <- messages.FailedResponse(occursAt, messages.ErrInvalidTarget)
+	case ErrTooLate:
+		tracing.Info(
+			ctx,
+			"Power connection to %s has not changed, as this request arrived "+
+				"after other changed occurred.  The blade's power state remains unchanged.",
+			msg.Target.Describe())
+
+		msg.GetCh() <- messages.DroppedResponse(occursAt)
+		break
+
+	default:
+		tracing.Warn(ctx, "Unexpected error code: %v", err)
+
+		msg.GetCh() <- messages.FailedResponse(occursAt, err)
 	}
 }
-
-// Name returns the friendly name for this state.
-func (s *pduWorking) Name() string { return "working" }
-
-// pduOff is the state a PDU is in when it is fully powered off.
-type pduOff struct {
-	dropRepairAction
-}
-
-// Receive processes incoming requests for this state.
-func (s *pduOff) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
-}
-
-// Name returns the friendly name for this state.
-func (s *pduOff) Name() string { return "off" }
-
-// pduStuck is the state a PDU is in when it is unresponsive to commands, but
-// is still powered on.  By implication, the powered state for each cable is
-// also stuck.
-type pduStuck struct {
-	dropRepairAction
-}
-
-// Receive processes incoming requests for this state.
-func (s *pduStuck) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
-}
-
-// Name returns the friendly name for this state.
-func (s *pduStuck) Name() string { return "stuck" }

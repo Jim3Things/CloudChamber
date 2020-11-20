@@ -113,21 +113,32 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 
 	rsp := make(chan *sm.Response)
 
-	msg := messages.NewSetPower(
+	r.Receive(messages.NewSetPower(
 		ctx,
 		messages.NewTargetBlade(r.name, id),
 		common.TickFromContext(ctx),
 		true,
-		rsp)
-
-	r.Receive(msg)
+		rsp))
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.NoError(res.Err)
 
+	rsp = make(chan *sm.Response)
+
+	r.Receive(messages.NewSetConnection(
+		ctx,
+		messages.NewTargetBlade(r.name, id),
+		common.TickFromContext(ctx),
+		true,
+		rsp))
+
+	res = ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	require.NoError(res.Err)
+
 	ctx, ok := ts.advanceToStateChange(ctx, 10, func() bool {
-		return bladeWorkingState == r.blades[id].sm.CurrentIndex
+		return bladeWorking == r.blades[id].sm.CurrentIndex
 	})
 
 	require.True(ok)

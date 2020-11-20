@@ -47,14 +47,6 @@ const (
 	rackQueueDepth = 100
 )
 
-type startSim struct {
-	messages.EnvelopeState
-}
-
-type stopSim struct {
-	messages.EnvelopeState
-}
-
 // newRack creates a new simulated Rack using the supplied inventory definition
 // entries to determine its structure.  The resulting Rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
@@ -85,9 +77,36 @@ func newRackInternal(
 	}
 
 	r.sm = sm.NewSimpleSM(r,
-		sm.WithFirstState(rackAwaitingStartState, &rackAwaitingStart{}),
-		sm.WithState(rackWorkingState, &rackWorking{}),
-		sm.WithState(rackTerminalState, &sm.TerminalState{}),
+		sm.WithFirstState(
+			rackAwaitingStartState,
+			"awaiting-start",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagStartSim, startSim, rackWorkingState, rackTerminalState},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			rackWorkingState,
+			"working",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, process, sm.Stay, sm.Stay},
+				{messages.TagSetPower, process, sm.Stay, sm.Stay},
+				{messages.TagTimerExpiry, process, sm.Stay, sm.Stay},
+				{messages.TagStopSim, stopSim, rackTerminalState, sm.Stay},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			rackTerminalState,
+			"terminated",
+			sm.TerminalEnter,
+			[]sm.ActionEntry{},
+			DropMessage,
+			sm.NullLeave),
 	)
 
 	r.pdu = pduFunc(def.Pdu, r)
@@ -187,8 +206,7 @@ func (r *Rack) start(ctx context.Context) error {
 
 		repl := make(chan *sm.Response)
 
-		msg := &startSim{}
-		msg.Initialize(ctx, repl)
+		msg := messages.NewStartSim(ctx, repl)
 
 		r.ch <- msg
 
@@ -213,8 +231,7 @@ func (r *Rack) stop(ctx context.Context) {
 		if !r.sm.Terminated {
 			repl := make(chan *sm.Response)
 
-			msg := &stopSim{}
-			msg.Initialize(ctx, repl)
+			msg := messages.NewStopSim(ctx, repl)
 
 			r.ch <- msg
 
@@ -251,83 +268,51 @@ func (r *Rack) simulate() {
 
 // +++ rack state machine states
 
-// rackAwaitingStart is the initial state for a Rack.  It only expects to be
-// started.  All other operations are considered errors.  (Stopping prior to
-// starting is handled before it gets to the state machine)
-type rackAwaitingStart struct {
-	sm.NullState
-}
-
-// Receive handles incoming messages for the rack.
-func (s *rackAwaitingStart) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
+func startSim(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 	r := machine.Parent.(*Rack)
 	at := common.TickFromContext(ctx)
 
-	switch body := msg.(type) {
-	case *startSim:
-		tracing.UpdateSpanName(
-			ctx,
-			"Starting the simulation of rack %q",
-			r.name)
+	msg := m.(*messages.StartSim)
 
-		err := r.sm.Start(ctx)
-		if err == nil {
-			err = machine.ChangeState(ctx, rackWorkingState)
-		}
+	tracing.UpdateSpanName(
+		ctx,
+		"Starting the simulation of rack %q",
+		r.name)
 
-		msg.GetCh() <- &sm.Response{
-			Err: err,
-			At:  at,
-			Msg: nil,
-		}
-
-	default:
-		_ = tracing.Error(ctx, "Encountered an unexpected message: %v", body)
-
-		msg.GetCh() <- messages.UnexpectedMessageResponse(s, at, body)
+	err := r.sm.Start(ctx)
+	if err == nil {
+		err = machine.ChangeState(ctx, rackWorkingState)
 	}
+
+	msg.GetCh() <- &sm.Response{
+		Err: err,
+		At:  at,
+		Msg: nil,
+	}
+
+	return err == nil
 }
 
-// Name returns the friendly name for this state.
-func (s *rackAwaitingStart) Name() string { return "AwaitingStart" }
-
-// rackWorking is the state where the simulated Rack is functional and able to
-// take incoming requests.
-type rackWorking struct {
-	sm.NullState
-}
-
-// Receive handles incoming messages for the rack.
-func (s *rackWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
+func process(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
+	body := msg.(messages.RepairMessage)
 	r := machine.Parent.(*Rack)
 
-	switch body := msg.(type) {
-	case *stopSim:
-		// Stop the rack simulation.
-		msg.GetCh() <- &sm.Response{
-			Err: machine.ChangeState(ctx, rackTerminalState),
-			At:  common.TickFromContext(ctx),
-			Msg: nil,
-		}
-
-	case messages.RepairMessage:
-		if err := body.SendVia(ctx, r); err != nil {
-			msg.GetCh() <- messages.FailedResponse(common.TickFromContext(ctx), err)
-		}
-
-	case messages.StatusMessage:
-		if err := body.SendVia(ctx, r); err != nil {
-			msg.GetCh() <- messages.FailedResponse(common.TickFromContext(ctx), err)
-		}
-
-	default:
-		_ = tracing.Error(ctx, "Encountered an unexpected message: %v", body)
-
-		msg.GetCh() <- messages.UnexpectedMessageResponse(s, common.TickFromContext(ctx), body)
+	if err := body.SendVia(ctx, r); err != nil {
+		msg.GetCh() <- messages.FailedResponse(common.TickFromContext(ctx), err)
 	}
+
+	return true
 }
 
-// Name returns the friendly name for this state.
-func (s *rackWorking) Name() string { return "working" }
+func stopSim(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
+	// Stop the rack simulation.
+	msg.GetCh() <- &sm.Response{
+		Err: machine.ChangeState(ctx, rackTerminalState),
+		At:  common.TickFromContext(ctx),
+		Msg: nil,
+	}
+
+	return true
+}
 
 // --- rack state machine states

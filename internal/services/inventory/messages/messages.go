@@ -9,6 +9,16 @@ import (
 
 var ErrInvalidTarget = errors.New("invalid target specified, request ignored")
 
+const (
+	TagInvalid int = iota
+	TagGetStatus
+	TagSetConnection
+	TagSetPower
+	TagStartSim
+	TagStopSim
+	TagTimerExpiry
+)
+
 // +++ Base message and interfaces
 
 type messageBase struct {

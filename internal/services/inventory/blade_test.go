@@ -54,7 +54,7 @@ func (ts *BladeTestSuite) TestPowerOn() {
 	assert.Nil(res.Msg)
 
 	ts.advanceToStateChange(ctx, 5, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeWorkingState
+		return r.blades[0].sm.CurrentIndex == bladeWorking
 	})
 }
 
@@ -92,7 +92,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	assert.Nil(res.Msg)
 
 	ts.advanceToStateChange(ctx, 2, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeBootingState
+		return r.blades[0].sm.CurrentIndex == bladeBooting
 	})
 
 	span.End()
@@ -123,7 +123,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	span.End()
 
 	ts.waitForStateChange(func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeOffState
+		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 }
 

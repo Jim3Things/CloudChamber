@@ -42,13 +42,17 @@ func SuccessResponse(occursAt int64) *sm.Response {
 	}
 }
 
+func InvalidTargetResponse(occursAt int64) *sm.Response {
+	return FailedResponse(occursAt, ErrInvalidTarget)
+}
+
 // UnexpectedMessageResponse constructs a failure response for the case where
 // the incoming request arrives when it is unexpected by the state machine.
-func UnexpectedMessageResponse(s sm.SimpleSMState, occursAt int64, body interface{}) *sm.Response {
+func UnexpectedMessageResponse(machine *sm.SimpleSM, occursAt int64, body interface{}) *sm.Response {
 	return &sm.Response{
 		Err: &sm.UnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", body),
-			State: s.Name(),
+			State: machine.GetCurrentStateName(),
 		},
 		At:  occursAt,
 		Msg: nil,

@@ -89,35 +89,54 @@ type blade struct {
 }
 
 const (
-	// bladeOffState is current when the blade has no simulated power.
-	bladeOffState int = iota
+	// bladeStart is the state where initialization of the state machine
+	// begins.
+	bladeStart int = iota
 
-	// bladePoweredSState is current when the blade has power, but auto boot
-	// has not been enabled.
-	bladePoweredState
+	// bladeOffDiscon is current when the blade has neither simulated
+	// power or simulated network connectivity.
+	bladeOffDiscon
 
-	// bladeBootingState is current when the blade is waiting for the simulated
+	// bladeOffConn is current when the blade has no simulated power,
+	// but does have simulated network connectivity.
+	bladeOffConn
+
+	// bladePoweredDiscon is current when the blade has simulated power,
+	// but no simulated network connectivity.
+	bladePoweredDiscon
+
+	// bladePoweredConn is current when the blade has power and simulated
+	// network connectivity.  If auto-boot is enabled, this state will
+	// automatically transition to the following booting state.
+	bladePoweredConn
+
+	// bladeBooting is current when the blade is waiting for the simulated
 	// boot delay to complete.
-	bladeBootingState
+	bladeBooting
 
-	// bladeWorkingState is current when the blade is powered on, booted, and
+	// bladeWorking is current when the blade is powered on, booted, and
 	// able to handle workload requests.
-	bladeWorkingState
+	bladeWorking
 
-	// bladeWorkloadStoppingState is current when the blade has been told to
-	// shut down and it is waiting either for all active workloads to stop, or
-	// for the bounding shutdown timer to expire.
-	bladeWorkloadStoppingState
+	// bladeIsolated is current when the blade is powered on and booted,
+	// but has not simulated network connectivity.  Existing workloads are
+	// informed the connectivity has been lost, but are otherwise undisturbed.
+	bladeIsolated
 
-	// bladeStoppingState is a transitional state to clean up when the blade is
+	// bladeStopping is a transitional state to clean up when the blade is
 	// finally shutting down.  This may involve notifying any active workloads
 	// that they have been forcibly stopped.
-	bladeStoppingState
+	bladeStopping
 
-	// bladeFaultedState is current when the blade has either had a processing
+	// bladeStoppingIsolated is a transitional state parallel to the
+	// bladeStopping, but where simulated network connectivity has been
+	// lost.
+	bladeStoppingIsolated
+
+	// bladeFaulted is current when the blade has either had a processing
 	// fault, such as a timer failure, or an injected fault that leaves it in
 	// a position that requires an external reset/fix.
-	bladeFaultedState
+	bladeFaulted
 )
 
 func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
@@ -145,13 +164,127 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 	}
 
 	b.sm = sm.NewSimpleSM(b,
-		sm.WithFirstState(bladeOffState, &bladeOff{}),
-		sm.WithState(bladePoweredState, &bladePowered{}),
-		sm.WithState(bladeBootingState, &bladeBooting{}),
-		sm.WithState(bladeWorkingState, &bladeWorking{}),
-		sm.WithState(bladeWorkloadStoppingState, &bladeWorkloadStopping{}),
-		sm.WithState(bladeStoppingState, &bladeStopping{}),
-		sm.WithState(bladeFaultedState, &bladeFaulted{}))
+		sm.WithFirstState(
+			bladeStart,
+			"start",
+			startedOnEnter,
+			[]sm.ActionEntry{},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladeOffDiscon,
+			"off-disconnected",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, bladeOffConn, sm.Stay},
+				{messages.TagSetPower, setPower, bladePoweredDiscon, sm.Stay},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladeOffConn,
+			"off-connected",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, sm.Stay, bladeOffDiscon},
+				{messages.TagSetPower, setPower, bladePoweredConn, sm.Stay},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladePoweredDiscon,
+			"powered-disconnected",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, bladePoweredConn, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, bladePoweredDiscon},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladePoweredConn,
+			"powered-connected",
+			poweredConnOnEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
+				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladeBooting,
+			"booting",
+			bootingOnEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
+				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+				{messages.TagTimerExpiry, bootingTimerExpiry, bladeWorking, sm.Stay},
+			},
+			UnexpectedMessage,
+			bootingOnLeave),
+
+		sm.WithState(
+			bladeWorking,
+			"working",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, sm.Stay, bladeIsolated},
+				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladeIsolated,
+			"isolated",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, bladeWorking, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladeStopping,
+			"stopping",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, sm.Stay, bladeStoppingIsolated},
+				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, bladeOffConn, sm.Stay},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladeStoppingIsolated,
+			"stopping-isolated",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, setConnection, bladeStopping, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, bladeOffDiscon},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, bladeOffDiscon, sm.Stay},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			bladeFaulted,
+			"faulted",
+			faultedEnter,
+			[]sm.ActionEntry{},
+			DropMessage,
+			sm.NullLeave),
+	)
+
+	// TEMP TEMP TEMP
+	b.sm.Start(context.Background())
 
 	return b
 }
@@ -164,136 +297,42 @@ func (b *blade) me() *messages.MessageTarget {
 	return messages.NewTargetBlade(b.holder.name, b.id)
 }
 
-func (b *blade) powerOnState() int {
-	if b.bootOnPower {
-		return bladeBootingState
-	}
-
-	return bladePoweredState
-}
-
 // +++ blade state machine states
 
-// bladeOff is the state when the blade is fully powered off.  It can be
-// powered on, but all other operations fail.
-type bladeOff struct {
-	dropRepairAction
+func startedOnEnter(ctx context.Context, machine *sm.SimpleSM) error {
+	return machine.ChangeState(ctx, bladeOffDiscon)
 }
 
-func (s *bladeOff) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
-}
+// +++ On & Connected
 
-func (s *bladeOff) Name() string { return "off" }
-
-func (s *bladeOff) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
-	tracing.UpdateSpanName(
-		ctx,
-		"Processing power %s command at %s",
-		common.AOrB(msg.On, "on", "off"),
-		msg.Target.Describe())
-
+func poweredConnOnEnter(ctx context.Context, machine *sm.SimpleSM) error {
 	b := machine.Parent.(*blade)
 
-	occursAt := common.TickFromContext(ctx)
-
-	machine.AdvanceGuard(occursAt)
-
-	if msg.On {
-		faultingChange(ctx, machine, b.powerOnState(), msg)
+	if b.bootOnPower {
+		return machine.ChangeState(ctx, bladeBooting)
 	}
 
-	// if it is power off, ignore
-}
-
-// bladePowered is the state where the blade has had power applied, and is
-// waiting for a boot command.
-type bladePowered struct {
-	dropRepairAction
-}
-
-func (s *bladePowered) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
-}
-
-func (s *bladePowered) Name() string { return "powered" }
-
-func (s *bladePowered) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
-	tracing.UpdateSpanName(
-		ctx,
-		"Processing power %s command at %s",
-		common.AOrB(msg.On, "on", "off"),
-		msg.Target.Describe())
-
-	occursAt := common.TickFromContext(ctx)
-
-	machine.AdvanceGuard(occursAt)
-
-	if !msg.On {
-		faultingChange(ctx, machine, bladeOffState, msg)
-	}
-
-	// if it is power on, ignore
-}
-
-// bladeBooting is the state when the blade is powering on, and the blade is
-// waiting for the operation to complete.  It expects either a timeout that
-// designates the boot has completed, or a power off command which cancels the
-// timer and moves the blade to off.
-type bladeBooting struct {
-	dropRepairAction
-}
-
-func (s *bladeBooting) Enter(ctx context.Context, machine *sm.SimpleSM) error {
-	if err := s.dropRepairAction.Enter(ctx, machine); err != nil {
-		return err
-	}
-
-	b := machine.Parent.(*blade)
-	r := b.holder
-
-	occursAt := common.TickFromContext(ctx)
-	b.activeTimerID++
-
-	// set the boot timer
-	expiryMsg := messages.NewTimerExpiry(
-		ctx,
-		b.me(),
-		occursAt,
-		b.activeTimerID,
-		nil,
-		nil)
-
-	timerId, err := r.setTimer(ctx, bootDelay(), expiryMsg)
-	if err != nil {
-		return err
-	}
-
-	b.hasActiveTimer = true
-	b.matchTimerExpiry = timerId
 	return nil
 }
 
-func (s *bladeBooting) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
+// --- On & Connected
+
+// +++ Booting
+
+func bootingOnEnter(ctx context.Context, machine *sm.SimpleSM) error {
+	return commonSetTimer(ctx, machine)
 }
 
-func (s *bladeBooting) Name() string { return "booting" }
+func bootingTimerExpiry(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+	return commonTimeExpiryHandling(ctx, machine, m, "Boot")
+}
 
-func (s *bladeBooting) Power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
-	tracing.UpdateSpanName(
-		ctx,
-		"Processing power %s command at %s",
-		common.AOrB(msg.On, "on", "off"),
-		msg.Target.Describe())
+func bootingOnLeave(ctx context.Context, machine *sm.SimpleSM) {
+	b := machine.Parent.(*blade)
+	r := b.holder
 
-	occursAt := common.TickFromContext(ctx)
-
-	machine.AdvanceGuard(occursAt)
-
-	if !msg.On {
-		b := machine.Parent.(*blade)
-		r := b.holder
+	if b.hasActiveTimer {
+		tracing.Info(ctx, "Canceling boot timer")
 
 		if err := r.cancelTimer(b.matchTimerExpiry); err != nil {
 			tracing.Info(
@@ -303,124 +342,122 @@ func (s *bladeBooting) Power(ctx context.Context, machine *sm.SimpleSM, msg *mes
 		}
 
 		b.hasActiveTimer = false
-		faultingChange(ctx, machine, bladeOffState, msg)
 	}
-
-	// if it is power on, ignore
 }
 
-func (s *bladeBooting) Timeout(ctx context.Context, machine *sm.SimpleSM, msg *messages.TimerExpiry) {
+// --- Booting
+
+// +++ Stopping (on, connected, booted, stop order received)
+
+func stoppingTimerExpiry(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+	return commonTimeExpiryHandling(ctx, machine, m, "Shutdown")
+}
+
+// --- Stopping
+
+func faultedEnter(ctx context.Context, machine *sm.SimpleSM) error {
+	b := machine.Parent.(*blade)
+	r := b.holder
+
+	if b.hasActiveTimer {
+		tracing.Info(ctx, "Canceling outstanding timer")
+
+		if err := r.cancelTimer(b.matchTimerExpiry); err != nil {
+			tracing.Info(
+				ctx,
+				"failed to cancel the outstanding timer (%v), ignoring any notification",
+				err)
+		}
+
+		b.hasActiveTimer = false
+	}
+
+	return nil
+}
+
+// --- blade state machine states
+
+func setConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+	msg := m.(*messages.SetConnection)
+
+	tracing.UpdateSpanName(
+		ctx,
+		"Processing network connection %s notification at %s",
+		common.AOrB(msg.Enabled, "enabled", "disabled"),
+		msg.Target.Describe())
+
+	machine.AdvanceGuard(common.TickFromContext(ctx))
+
+	return msg.Enabled
+}
+
+func setPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+	msg := m.(*messages.SetPower)
+
+	tracing.UpdateSpanName(
+		ctx,
+		"Processing power %s command at %s",
+		common.AOrB(msg.On, "on", "off"),
+		msg.Target.Describe())
+
+	machine.AdvanceGuard(common.TickFromContext(ctx))
+
+	return msg.On
+}
+
+func commonSetTimer(ctx context.Context, machine *sm.SimpleSM) error {
+	b := machine.Parent.(*blade)
+
+	if !b.hasActiveTimer {
+		r := b.holder
+
+		occursAt := common.TickFromContext(ctx)
+		b.activeTimerID++
+
+		// set the new timer
+		expiryMsg := messages.NewTimerExpiry(
+			ctx,
+			b.me(),
+			occursAt,
+			b.activeTimerID,
+			nil,
+			nil)
+
+		timerId, err := r.setTimer(ctx, bootDelay(), expiryMsg)
+		if err != nil {
+			return err
+		}
+
+		b.hasActiveTimer = true
+		b.matchTimerExpiry = timerId
+	}
+
+	return nil
+}
+
+func commonTimeExpiryHandling(
+	ctx context.Context,
+	machine *sm.SimpleSM,
+	m sm.Envelope,
+	opCompleted string) bool {
+	msg := m.(*messages.TimerExpiry)
+
 	b := machine.Parent.(*blade)
 
 	if b.hasActiveTimer && b.activeTimerID == msg.Id {
 		tracing.UpdateSpanName(
 			ctx,
-			"Boot completed for %s",
+			"%s completed for %s",
+			opCompleted,
 			msg.Target.Describe())
 
 		b.hasActiveTimer = false
 
 		machine.AdvanceGuard(common.TickFromContext(ctx))
-		faultingChange(ctx, machine, bladeWorkingState, msg)
-	}
-}
-
-// bladeWorking is the stable operational state.  This state expects workload
-// operations, physical power off notifications, and planned shutdown requests.
-type bladeWorking struct {
-	nullRepairAction
-}
-
-func (s *bladeWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-
-}
-
-func (s *bladeWorking) Name() string { return "working" }
-
-func (s *bladeWorking) power(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower) {
-	// power has been gated at the pdu, so I think we can ignore gating just here.
-	// -- probably need to advance the guard, so that workload operations cannot cross
-	// power on is ignored, as it is already working.
-	// power off immediately terminates all workloads, and moves to blade off
-}
-
-// bladeWorkloadStopping is the state when the blade has received a shutdown
-// request, has notified the workloads to shut down, and is now waiting for
-// them to do so, with a maximum time limit.  This state expects workload
-// stopped notifications, delay timeout, or a physical power off notification.
-type bladeWorkloadStopping struct {
-	nullRepairAction
-}
-
-func (s *bladeWorkloadStopping) Enter(ctx context.Context, sm *sm.SimpleSM) error {
-	if err := s.nullRepairAction.Enter(ctx, sm); err != nil {
-		return err
+		return true
 	}
 
-	b := sm.Parent.(*blade)
-
-	if len(b.workloads) == 0 {
-		return sm.ChangeState(ctx, bladeStoppingState)
-	}
-
-	// Start all workload timer notifications
-	for _, w := range b.workloads {
-		// workload shutdown notification goes here
-		tracing.Info(ctx, "Should be starting the shutdown timer for workload %v", w)
-	}
-
-	return nil
-}
-
-func (s *bladeWorkloadStopping) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-
-}
-
-func (s *bladeWorkloadStopping) Name() string { return "workloadStopping" }
-
-// bladeStopping is the state when the blade has no active workloads and is
-// waiting for its simulated OS shutdown to complete.  This state expects a
-// delay timeout or a physical power off notification.
-type bladeStopping struct {
-	nullRepairAction
-}
-
-func (s *bladeStopping) Enter(ctx context.Context, sm *sm.SimpleSM) error {
-	if err := s.nullRepairAction.Enter(ctx, sm); err != nil {
-		return err
-	}
-
-	// set the timer to simulate the delay in a planned stop
-	return nil
-}
-
-func (s *bladeStopping) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-
-}
-
-func (s *bladeStopping) Name() string { return "stopping" }
-
-type bladeFaulted struct {
-	dropRepairAction
-}
-
-// --- blade state machine states
-
-func respondIf(ch chan *sm.Response, msg *sm.Response) {
-	if ch != nil {
-		ch <- msg
-	}
-}
-
-func faultingChange(ctx context.Context, machine *sm.SimpleSM, stateIndex int, msg sm.Envelope) {
-	occursAt := common.TickFromContext(ctx)
-
-	if err := machine.ChangeState(ctx, stateIndex); err != nil {
-		respondIf(msg.GetCh(), messages.FailedResponse(occursAt, err))
-		_ = machine.ChangeState(ctx, bladeFaultedState)
-	} else {
-		respondIf(msg.GetCh(), messages.SuccessResponse(occursAt))
-	}
+	return false
 }
 
 func bootDelay() int64 {

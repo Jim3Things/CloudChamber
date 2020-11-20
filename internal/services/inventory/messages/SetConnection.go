@@ -28,6 +28,7 @@ func NewSetConnection(
 	msg := &SetConnection{}
 
 	msg.Initialize(ctx, ch)
+	msg.Tag = TagSetConnection
 	msg.Target = target
 	msg.Guard = guard
 	msg.Enabled = enabled

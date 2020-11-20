@@ -23,6 +23,8 @@ type EnvelopeState struct {
 	// Link is the link tag to associate the caller's span with the execution
 	// span.
 	Link string
+
+	Tag int
 }
 
 func (e *EnvelopeState) GetCh() chan *sm.Response {
@@ -35,6 +37,10 @@ func (e *EnvelopeState) GetSpanContext() trace.SpanContext {
 
 func (e *EnvelopeState) GetLinkID() string {
 	return e.Link
+}
+
+func (e *EnvelopeState) GetTag() int {
+	return e.Tag
 }
 
 func (e *EnvelopeState) Initialize(ctx context.Context, ch chan *sm.Response) {

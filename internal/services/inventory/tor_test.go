@@ -32,7 +32,7 @@ func (ts *TorTestSuite) TestCreateTor() {
 
 	assert.Equal(2, len(t.cables))
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.GetCurrentStateName())
 
 	for _, c := range t.cables {
 		assert.False(c.on)
@@ -70,7 +70,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.GetCurrentStateName())
 
 	for _, c := range t.cables {
 		assert.True(c.on)
@@ -112,7 +112,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	assert.Less(t.cables[0].Guard, res.At)
 	assert.False(t.cables[0].on)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.GetCurrentStateName())
 }
 
 func (ts *TorTestSuite) TestConnectBlade() {
@@ -121,7 +121,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
 
-	ctx = ts.bootBlade(ctx, r, 0)
+	assert.Equal(bladeOffDiscon, r.blades[0].sm.CurrentIndex)
 
 	t := r.tor
 	require.NotNil(t)
@@ -155,8 +155,58 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.True(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
+	assert.Equal(bladeOffConn, r.blades[0].sm.CurrentIndex)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.GetCurrentStateName())
+}
+
+func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
+
+	ctx = ts.bootBlade(ctx, r, 0)
+
+	t := r.tor
+	require.NotNil(t)
+
+	require.True(t.cables[0].on)
+	require.False(t.cables[0].faulted)
+	require.Equal(bladeWorking, r.blades[0].sm.CurrentIndex)
+
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test connecting up a blade"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
+
+	rsp := make(chan *sm.Response)
+
+	r.Receive(
+		messages.NewSetConnection(
+			ctx,
+			messages.NewTargetBlade(ts.rackName(), 0),
+			common.TickFromContext(ctx),
+			false,
+			rsp))
+
+	span.End()
+
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+
+	assert.NoError(res.Err)
+
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
+
+	assert.Equal(common.TickFromContext(ctx), t.sm.Guard)
+	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
+	assert.False(t.cables[0].on)
+	assert.False(t.cables[0].faulted)
+	assert.Equal(bladeIsolated, r.blades[0].sm.CurrentIndex)
+
+	assert.Equal("working", t.sm.GetCurrentStateName())
 }
 
 func (ts *TorTestSuite) TestStuckCable() {
@@ -194,7 +244,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 	assert.False(t.cables[0].on)
 	assert.Equal(true, t.cables[0].faulted)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.GetCurrentStateName())
 }
 
 func TestTorTestSuite(t *testing.T) {

@@ -27,6 +27,7 @@ func NewSetPower(
 	msg := &SetPower{}
 
 	msg.Initialize(ctx, ch)
+	msg.Tag = TagSetPower
 	msg.Target = target
 	msg.Guard = guard
 	msg.On = on
@@ -49,5 +50,3 @@ func (m *SetPower) Do(ctx context.Context, sm *sm.SimpleSM, s RepairActionState)
 func (m *SetPower) String() string {
 	return fmt.Sprintf("Set the power %s for %s", common.AOrB(m.On, "On", "off"), m.Target.Describe())
 }
-
-

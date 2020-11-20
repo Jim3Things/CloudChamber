@@ -24,14 +24,14 @@ func (ts *PduTestSuite) TestCreatePdu() {
 
 	r := newRack(context.Background(), ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
-	assert.Equal("AwaitingStart", r.sm.Current.Name())
+	assert.Equal("awaiting-start", r.sm.GetCurrentStateName())
 
 	p := r.pdu
 	require.NotNil(p)
 
 	assert.Equal(2, len(p.cables))
 
-	assert.Equal("working", p.sm.Current.Name())
+	assert.Equal("working", p.sm.GetCurrentStateName())
 
 	for _, c := range p.cables {
 		assert.False(c.on)
@@ -64,7 +64,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 
 	for _, c := range r.pdu.cables {
 		assert.True(c.on)
@@ -99,7 +99,7 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 		assert.False(c.on)
 	}
 
-	assert.Equal("off", r.pdu.sm.Current.Name())
+	assert.Equal("off", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestPowerOffPduTooLate() {
@@ -132,7 +132,7 @@ func (ts *PduTestSuite) TestPowerOffPduTooLate() {
 		assert.True(c.on)
 	}
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestPowerOnPdu() {
@@ -163,7 +163,7 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 		assert.False(c.on)
 	}
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestPowerOnBlade() {
@@ -193,7 +193,7 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	assert.True(r.pdu.cables[0].on)
 	assert.False(r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestPowerOnBladeBadID() {
@@ -221,7 +221,7 @@ func (ts *PduTestSuite) TestPowerOnBladeBadID() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Less(r.pdu.sm.Guard, msg.Guard)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
@@ -254,7 +254,7 @@ func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
 	assert.True(r.pdu.cables[0].on)
 	assert.False(r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
@@ -288,7 +288,7 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	assert.Less(commandTime, r.pdu.cables[0].Guard)
 	assert.False(r.pdu.cables[0].on)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestStuckCable() {
@@ -322,7 +322,7 @@ func (ts *PduTestSuite) TestStuckCable() {
 	assert.False(r.pdu.cables[0].on)
 	assert.Equal(true, r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	assert.Equal("working", r.pdu.sm.GetCurrentStateName())
 }
 
 func (ts *PduTestSuite) TestStuckCablePduOff() {
@@ -353,7 +353,7 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 		assert.False(c.on)
 	}
 
-	assert.Equal("off", r.pdu.sm.Current.Name())
+	assert.Equal("off", r.pdu.sm.GetCurrentStateName())
 }
 
 func TestPduTestSuite(t *testing.T) {

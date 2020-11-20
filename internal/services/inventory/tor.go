@@ -50,8 +50,24 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 	}
 
 	t.sm = sm.NewSimpleSM(t,
-		sm.WithFirstState(torWorkingState, &torWorking{}),
-		sm.WithState(torStuckState, &torStuck{}))
+		sm.WithFirstState(
+			torWorkingState,
+			"working",
+			sm.NullEnter,
+			[]sm.ActionEntry{
+				{messages.TagSetConnection, workingSetConnection, sm.Stay, sm.Stay},
+			},
+			UnexpectedMessage,
+			sm.NullLeave),
+
+		sm.WithState(
+			torStuckState,
+			"stuck",
+			sm.NullEnter,
+			[]sm.ActionEntry{},
+			DropMessage,
+			sm.NullLeave),
+)
 
 	return t
 }
@@ -85,9 +101,9 @@ func (t *tor) newStatusReport(
 	}
 }
 
-// sendConnectionToBlade constructs a setConnection message that targets the
+// notifyBladeOfConnectionChange constructs a setConnection message that targets the
 // specified blade, and forwards it along.
-func (t *tor) sendConnectionToBlade(ctx context.Context, msg *messages.SetConnection, i int64) {
+func (t *tor) notifyBladeOfConnectionChange(ctx context.Context, msg *messages.SetConnection, i int64) {
 	fwd := messages.NewSetConnection(
 		ctx,
 		messages.NewTargetBlade(msg.Target.Rack, i),
@@ -104,100 +120,86 @@ func (t *tor) sendConnectionToBlade(ctx context.Context, msg *messages.SetConnec
 		common.AOrB(fwd.Enabled, "enabled", "disabled"))
 }
 
-// +++ TOR state machine states
-
-// torWorking is the state a TOR is in when it is functioning correctly.
-type torWorking struct {
-	nullRepairAction
-}
-
-// Receive processes incoming requests for this state.
-func (s *torWorking) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
-}
-
-// Connect processes a setConnection request, updating the network connection
-// state as required.
-func (s *torWorking) Connect(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetConnection) {
+// workingSetConnection processes a setConnection request, updating the network
+// connection state as required.
+func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+	msg := m.(*messages.SetConnection)
 	t := machine.Parent.(*tor)
 
 	occursAt := common.TickFromContext(ctx)
 
-	if id, isBladeTarget := msg.Target.BladeID(); isBladeTarget {
-		if c, ok := t.cables[id]; ok {
-			if changed, err := t.cables[id].set(msg.Enabled, msg.Guard, occursAt); err == nil {
-				tracing.UpdateSpanName(
-					ctx,
-					"%s the network connection for %s",
-					common.AOrB(msg.Enabled, "Enabling", "Disabling"),
-					msg.Target.Describe())
+	var id int64
+	var c *cable
+	var ok bool
 
-				machine.AdvanceGuard(occursAt)
+	id, ok = msg.Target.BladeID()
+	if ok {
+		c, ok = t.cables[id]
+	}
 
-				if changed {
-					t.sendConnectionToBlade(ctx, msg, id)
-
-					msg.GetCh() <- messages.SuccessResponse(occursAt)
-				} else {
-					tracing.Info(
-						ctx,
-						"Network connection for %s has not changed.  It is currently %s.",
-						msg.Target.Describe(),
-						common.AOrB(c.on, "enabled", "disabled"))
-
-					msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
-				}
-			} else if err == ErrCableStuck {
-				tracing.Warn(
-					ctx,
-					"Network connection for %s is stuck.  Unsure if it has been %s.",
-					msg.Target.Describe(),
-					common.AOrB(c.on, "enabled", "disabled"))
-
-				msg.GetCh() <- messages.FailedResponse(occursAt, err)
-			} else if err == ErrTooLate {
-				tracing.Info(
-					ctx,
-					"Network connection for %s has not changed, as this request arrived "+
-						"after other changed occurred.  The blade's network connection "+
-						"state remains unchanged.",
-					msg.Target.Describe())
-
-				msg.GetCh() <- messages.DroppedResponse(occursAt)
-			} else {
-				tracing.Warn(ctx, "Unexpected error code: %v", err)
-
-				msg.GetCh() <- messages.FailedResponse(occursAt, err)
-			}
-
-			return
-		}
-	} else {
+	if !ok {
 		tracing.Warn(
 			ctx,
 			"No network connection for %s was found.",
 			msg.Target.Describe())
 
-		msg.GetCh() <- messages.FailedResponse(occursAt, messages.ErrInvalidTarget)
+		msg.GetCh() <- messages.InvalidTargetResponse(occursAt)
+		return false
 	}
+
+	changed, err := t.cables[id].set(msg.Enabled, msg.Guard, occursAt)
+	switch err {
+	case nil:
+			tracing.UpdateSpanName(
+				ctx,
+				"%s the network connection for %s",
+				common.AOrB(msg.Enabled, "Enabling", "Disabling"),
+				msg.Target.Describe())
+
+			machine.AdvanceGuard(occursAt)
+
+			if changed {
+			t.notifyBladeOfConnectionChange(ctx, msg, id)
+
+			msg.GetCh() <- messages.SuccessResponse(occursAt)
+		} else {
+			tracing.Info(
+			ctx,
+			"Network connection for %s has not changed.  It is currently %s.",
+			msg.Target.Describe(),
+			common.AOrB(c.on, "enabled", "disabled"))
+
+			msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
+		}
+		break
+	case ErrCableStuck:
+		tracing.Warn(
+			ctx,
+			"Network connection for %s is stuck.  Unsure if it has been %s.",
+			msg.Target.Describe(),
+			common.AOrB(c.on, "enabled", "disabled"))
+
+		msg.GetCh() <- messages.FailedResponse(occursAt, err)
+		break
+
+	case ErrTooLate:
+		tracing.Info(
+			ctx,
+			"Network connection for %s has not changed, as this request arrived "+
+				"after other changed occurred.  The blade's network connection "+
+				"state remains unchanged.",
+			msg.Target.Describe())
+
+		msg.GetCh() <- messages.DroppedResponse(occursAt)
+		break
+
+	default:
+		tracing.Warn(ctx, "Unexpected error code: %v", err)
+
+		msg.GetCh() <- messages.FailedResponse(occursAt, err)
+	}
+
+	return true
 }
-
-// Name returns the friendly name for this state.
-func (s *torWorking) Name() string { return "working" }
-
-// torStuck is the state a TOR is in when it is unresponsive to commands, but
-// is still powered on.  By implication, the connection state for each cable is
-// also stuck.
-type torStuck struct {
-	dropRepairAction
-}
-
-// Receive processes incoming requests for this state.
-func (s *torStuck) Receive(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) {
-	s.handleMsg(ctx, machine, s, msg)
-}
-
-// Name returns the friendly name for this state.
-func (s *torStuck) Name() string { return "stuck" }
 
 // --- TOR state machine states

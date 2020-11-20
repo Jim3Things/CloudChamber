@@ -30,6 +30,7 @@ func NewTimerExpiry(
 	msg := &TimerExpiry{}
 
 	msg.InitializeNoLink(ch)
+	msg.Tag = TagTimerExpiry
 	msg.Target = target
 	msg.Guard = guard
 	msg.Id = id
