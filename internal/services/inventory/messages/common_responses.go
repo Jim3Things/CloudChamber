@@ -4,10 +4,12 @@ package messages
 // messages to repair operations.
 
 import (
+	"context"
 	"errors"
-	"fmt"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 var ErrRepairMessageDropped = errors.New("repair message dropped")
@@ -42,19 +44,25 @@ func SuccessResponse(occursAt int64) *sm.Response {
 	}
 }
 
+// InvalidTargetResponse constructs a failure response message with an invalid
+// target error code.
 func InvalidTargetResponse(occursAt int64) *sm.Response {
 	return FailedResponse(occursAt, ErrInvalidTarget)
 }
 
-// UnexpectedMessageResponse constructs a failure response for the case where
-// the incoming request arrives when it is unexpected by the state machine.
-func UnexpectedMessageResponse(machine *sm.SimpleSM, occursAt int64, body interface{}) *sm.Response {
-	return &sm.Response{
-		Err: &sm.UnexpectedMessage{
-			Msg:   fmt.Sprintf("%v", body),
-			State: machine.GetCurrentStateName(),
-		},
-		At:  occursAt,
-		Msg: nil,
+// DropMessage is an action state processor that issues a response message to
+// indicate that the state machine did not process the request, nor did it
+// logically issues a reply.  This message is used to avoid real time delays
+// in waiting for a response, and instead to move any such delay into simulated
+// time.
+func DropMessage(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
+	_ = tracing.Error(ctx, "Unexpected message %v arrived in state %q", msg, machine.GetCurrentStateName())
+
+	ch := msg.GetCh()
+
+	if ch != nil {
+		ch <- DroppedResponse(common.TickFromContext(ctx))
 	}
+
+	return true
 }

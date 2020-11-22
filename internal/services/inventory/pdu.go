@@ -57,7 +57,7 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 			[]sm.ActionEntry{
 				{messages.TagSetPower, workingSetPower, sm.Stay, pduOffState},
 			},
-			UnexpectedMessage,
+			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
@@ -65,7 +65,7 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 			"off",
 			sm.NullEnter,
 			[]sm.ActionEntry{},
-			DropMessage,
+			messages.DropMessage,
 			sm.NullLeave),
 
 		sm.WithState(
@@ -73,7 +73,7 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 			"stuck",
 			sm.NullEnter,
 			[]sm.ActionEntry{},
-			DropMessage,
+			messages.DropMessage,
 			sm.NullLeave),
 	)
 
@@ -128,6 +128,9 @@ func (p *pdu) notifyBladeOfPowerChange(ctx context.Context, msg *messages.SetPow
 		common.AOrB(fwd.On, "on", "off"))
 }
 
+// workingSetPower processes a set power message for a PDU in the normal
+// operational state.  It handles power change messages for either a blade that
+// the PDU supports, or for the PDU itself.
 func workingSetPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 	msg := m.(*messages.SetPower)
 
@@ -184,7 +187,12 @@ func workingSetPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) b
 	return true
 }
 
-func setPowerForPdu(ctx context.Context, machine *sm.SimpleSM, msg *messages.SetPower, occursAt int64) bool {
+// setPowerForPdu processes a set power message that targets this PDU.
+func setPowerForPdu(
+	ctx context.Context,
+	machine *sm.SimpleSM,
+	msg *messages.SetPower,
+	occursAt int64) bool {
 	p := machine.Parent.(*pdu)
 
 	if machine.Pass(msg.Guard, occursAt) {
@@ -211,6 +219,8 @@ func setPowerForPdu(ctx context.Context, machine *sm.SimpleSM, msg *messages.Set
 	return true
 }
 
+// setPowerForBlade processes a set power message that targets a blade managed
+// by this PDU.
 func setPowerForBlade(
 	ctx context.Context,
 	machine *sm.SimpleSM,
@@ -222,7 +232,7 @@ func setPowerForBlade(
 	c, ok := p.cables[id]
 
 	if !ok {
-		tracing.Warn(ctx,"No power connection for blade %d was found.", id)
+		tracing.Warn(ctx, "No power connection for blade %d was found.", id)
 
 		msg.GetCh() <- messages.InvalidTargetResponse(occursAt)
 		return

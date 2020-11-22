@@ -20,8 +20,8 @@ type TimerExpiry struct {
 	Body *messageBase
 }
 
+// NewTimerExpiry creates a new TimerExpiry message.
 func NewTimerExpiry(
-	_ context.Context,
 	target *MessageTarget,
 	guard int64,
 	id int64,
@@ -55,11 +55,6 @@ func (m *TimerExpiry) SendVia(ctx context.Context, r viaSender) error {
 	}
 
 	return r.ViaBlade(ctx, id, m)
-}
-
-// Do executes the action to handle the timer expired notification.
-func (m *TimerExpiry) Do(ctx context.Context, sm *sm.SimpleSM, s RepairActionState) {
-	s.Timeout(ctx, sm, m)
 }
 
 // String provides a formatted description of the message.

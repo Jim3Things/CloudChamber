@@ -57,7 +57,7 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, workingSetConnection, sm.Stay, sm.Stay},
 			},
-			UnexpectedMessage,
+			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
@@ -65,9 +65,9 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 			"stuck",
 			sm.NullEnter,
 			[]sm.ActionEntry{},
-			DropMessage,
+			messages.DropMessage,
 			sm.NullLeave),
-)
+	)
 
 	return t
 }
@@ -150,28 +150,29 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 	changed, err := t.cables[id].set(msg.Enabled, msg.Guard, occursAt)
 	switch err {
 	case nil:
-			tracing.UpdateSpanName(
-				ctx,
-				"%s the network connection for %s",
-				common.AOrB(msg.Enabled, "Enabling", "Disabling"),
-				msg.Target.Describe())
+		tracing.UpdateSpanName(
+			ctx,
+			"%s the network connection for %s",
+			common.AOrB(msg.Enabled, "Enabling", "Disabling"),
+			msg.Target.Describe())
 
-			machine.AdvanceGuard(occursAt)
+		machine.AdvanceGuard(occursAt)
 
-			if changed {
+		if changed {
 			t.notifyBladeOfConnectionChange(ctx, msg, id)
 
 			msg.GetCh() <- messages.SuccessResponse(occursAt)
 		} else {
 			tracing.Info(
-			ctx,
-			"Network connection for %s has not changed.  It is currently %s.",
-			msg.Target.Describe(),
-			common.AOrB(c.on, "enabled", "disabled"))
+				ctx,
+				"Network connection for %s has not changed.  It is currently %s.",
+				msg.Target.Describe(),
+				common.AOrB(c.on, "enabled", "disabled"))
 
 			msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
 		}
 		break
+
 	case ErrCableStuck:
 		tracing.Warn(
 			ctx,
@@ -201,5 +202,3 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 
 	return true
 }
-
-// --- TOR state machine states

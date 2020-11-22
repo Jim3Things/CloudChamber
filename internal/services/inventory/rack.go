@@ -84,7 +84,7 @@ func newRackInternal(
 			[]sm.ActionEntry{
 				{messages.TagStartSim, startSim, rackWorkingState, rackTerminalState},
 			},
-			UnexpectedMessage,
+			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
@@ -97,7 +97,7 @@ func newRackInternal(
 				{messages.TagTimerExpiry, process, sm.Stay, sm.Stay},
 				{messages.TagStopSim, stopSim, rackTerminalState, sm.Stay},
 			},
-			UnexpectedMessage,
+			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
@@ -105,7 +105,7 @@ func newRackInternal(
 			"terminated",
 			sm.TerminalEnter,
 			[]sm.ActionEntry{},
-			DropMessage,
+			messages.DropMessage,
 			sm.NullLeave),
 	)
 
@@ -266,8 +266,10 @@ func (r *Rack) simulate() {
 	}
 }
 
-// +++ rack state machine states
+// +++ rack state machine actions
 
+// startSim starts the rack simulation state machine, and all those of all the
+// elements contained within the rack.
 func startSim(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 	r := machine.Parent.(*Rack)
 	at := common.TickFromContext(ctx)
@@ -280,8 +282,21 @@ func startSim(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 		r.name)
 
 	err := r.sm.Start(ctx)
+
 	if err == nil {
-		err = machine.ChangeState(ctx, rackWorkingState)
+		err = r.pdu.sm.Start(ctx)
+	}
+
+	if err == nil {
+		err = r.tor.sm.Start(ctx)
+	}
+
+	for _, b := range r.blades {
+		if err != nil {
+			break
+		}
+
+		err = b.sm.Start(ctx)
 	}
 
 	msg.GetCh() <- &sm.Response{
@@ -293,6 +308,7 @@ func startSim(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 	return err == nil
 }
 
+// process an incoming message, forwarding to the relevant managed element.
 func process(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
 	body := msg.(messages.RepairMessage)
 	r := machine.Parent.(*Rack)
@@ -304,6 +320,7 @@ func process(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
 	return true
 }
 
+// stopSim is used to stop the rack simulation, and signal that it is now done.
 func stopSim(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
 	// Stop the rack simulation.
 	msg.GetCh() <- &sm.Response{
@@ -315,4 +332,4 @@ func stopSim(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
 	return true
 }
 
-// --- rack state machine states
+// --- rack state machine actions

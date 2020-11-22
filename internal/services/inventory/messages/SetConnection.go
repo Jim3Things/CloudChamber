@@ -42,11 +42,6 @@ func (m *SetConnection) SendVia(ctx context.Context, r viaSender) error {
 	return r.ViaTor(ctx, m)
 }
 
-// Do executes the action to handle the network connection change request.
-func (m *SetConnection) Do(ctx context.Context, sm *sm.SimpleSM, s RepairActionState) {
-	s.Connect(ctx, sm, m)
-}
-
 // String provides a formatted description of the message.
 func (m *SetConnection) String() string {
 	return fmt.Sprintf(
@@ -54,4 +49,3 @@ func (m *SetConnection) String() string {
 		common.AOrB(m.Enabled, "Enable", "Disable"),
 		m.Target.Describe())
 }
-

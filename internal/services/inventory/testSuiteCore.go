@@ -162,7 +162,10 @@ func (ts *testSuiteCore) advance(ctx context.Context) context.Context {
 	return common.ContextWithTick(ctx, timestamp.Tick(ctx))
 }
 
-func (ts *testSuiteCore) advanceToStateChange(ctx context.Context, num int, compare func() bool) (context.Context, bool) {
+func (ts *testSuiteCore) advanceToStateChange(
+	ctx context.Context,
+	num int,
+	compare func() bool) (context.Context, bool) {
 	for i := 0; i < num; i++ {
 		ctx = ts.advance(ctx)
 		if compare() {
@@ -175,11 +178,11 @@ func (ts *testSuiteCore) advanceToStateChange(ctx context.Context, num int, comp
 
 func (ts *testSuiteCore) waitForStateChange(compare func() bool) bool {
 	for i := 0; i < 10; i++ {
-		time.Sleep(time.Duration(100) * time.Millisecond)
 		if compare() {
 			return true
 		}
+		time.Sleep(time.Duration(100) * time.Millisecond)
 	}
 
-	return false
+	return compare()
 }
