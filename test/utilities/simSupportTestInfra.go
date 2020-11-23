@@ -63,8 +63,8 @@ func StartSimSupportServices() (*config.GlobalConfig, error) {
 
 		cfg = c
 
-		timestamp.InitTimestamp(ep, dialOpts...)
-		trace_sink.InitSinkClient(ep, dialOpts...)
+		_ = timestamp.InitTimestamp(ep, dialOpts...)
+		_ = trace_sink.InitSinkClient(ep, dialOpts...)
 
 		lis = bufconn.Listen(bufSize)
 		s = grpc.NewServer(grpc.UnaryInterceptor(st.Interceptor))

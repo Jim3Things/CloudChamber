@@ -2,6 +2,7 @@ package timestamp
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -9,6 +10,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 type timestampTestSuite struct {
@@ -67,6 +69,40 @@ func (ts *timestampTestSuite) TestTimestamp_After() {
 
 	require.Nil(Advance(ctx))
 	assert.True(common.CompleteWithin(ch, time.Duration(2)*time.Second))
+}
+
+func (ts *timestampTestSuite) TestForcedError() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx := context.Background()
+
+	acl := tsc.(*activeClient)
+	testErr := errors.New("bogus")
+
+	client, err := acl.dial()
+	require.NoError(err)
+	require.NotNil(client)
+
+	// Test serial cleanup & reuse
+	require.Equal(testErr, acl.cleanup(client, testErr))
+
+	now, err := Now(ctx)
+	require.Nil(err)
+	assert.Equal(int64(0), now.Ticks)
+
+	// Test overlapping cleanup and reuse
+	client2, err := acl.dial()
+	require.NoError(err)
+	require.NotNil(client2)
+	require.NotEqual(client, client2)
+
+	require.Equal(testErr, acl.cleanup(client, testErr))
+
+	cts, err := client2.Now(ctx, &pb.NowRequest{})
+	now, err = Now(ctx)
+	require.Nil(err)
+	assert.Equal(int64(0), cts.Ticks)
 }
 
 

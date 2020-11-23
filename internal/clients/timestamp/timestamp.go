@@ -6,6 +6,7 @@ package timestamp
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/golang/protobuf/ptypes/duration"
 
@@ -17,12 +18,14 @@ import (
 )
 
 var (
-	errNotReady = errors.New("client is not ready")
+	errAlreadyInitialized = errors.New("timestamp client has already been initialized")
+	errNotReady           = errors.New("client is not ready")
 
 	tsc timeClient = &notReady{}
 )
 
 type timeClient interface {
+	initialize(name string, opts ...grpc.DialOption) error
 	setPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error
 	advance(ctx context.Context) error
 	now(ctx context.Context) (*ct.Timestamp, error)
@@ -39,7 +42,12 @@ type TimeData struct {
 }
 
 // notReady is the uninitialized timestamp client, which only returns an error
-type notReady struct {}
+type notReady struct{}
+
+func (n notReady) initialize(name string, opts ...grpc.DialOption) error {
+	tsc = newTimeClient(name, opts...)
+	return nil
+}
 
 // SetPolicy sets the stepper policy
 func (n *notReady) setPolicy(_ context.Context, _ pb.StepperPolicy, _ *duration.Duration, _ int64) error {
@@ -77,28 +85,31 @@ func (n *notReady) reset(_ context.Context) error {
 type activeClient struct {
 	dialName string
 	dialOpts []grpc.DialOption
+
+	conn   *grpc.ClientConn
+	client pb.StepperClient
+	m      *sync.Mutex
 }
 
 func newTimeClient(dialName string, opts ...grpc.DialOption) timeClient {
 	return &activeClient{
 		dialName: dialName,
 		dialOpts: append([]grpc.DialOption{}, opts...),
+		conn:     nil,
+		client:   nil,
+		m:        &sync.Mutex{},
 	}
 }
 
-func (t activeClient) setPolicy(
+func (t *activeClient) setPolicy(
 	ctx context.Context,
 	policy pb.StepperPolicy,
 	delay *duration.Duration,
 	match int64) error {
-	conn, err := t.dial()
+	client, err := t.dial()
 	if err != nil {
 		return err
 	}
-
-	defer func() { _ = conn.Close() }()
-
-	client := pb.NewStepperClient(conn)
 
 	_, err = client.SetPolicy(
 		ctx,
@@ -111,39 +122,36 @@ func (t activeClient) setPolicy(
 	return err
 }
 
-func (t activeClient) advance(ctx context.Context) error {
-	conn, err := t.dial()
+func (t *activeClient) initialize(_ string, _ ...grpc.DialOption) error {
+	return errAlreadyInitialized
+}
+
+func (t *activeClient) advance(ctx context.Context) error {
+	client, err := t.dial()
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = conn.Close() }()
-
-	client := pb.NewStepperClient(conn)
-
 	_, err = client.Step(ctx, &pb.StepRequest{})
 
-	return err
+	return t.cleanup(client, err)
 }
 
-func (t activeClient) now(ctx context.Context) (*ct.Timestamp, error) {
-	conn, err := t.dial()
+func (t *activeClient) now(ctx context.Context) (*ct.Timestamp, error) {
+	client, err := t.dial()
 	if err != nil {
 		return nil, err
 	}
 
-	defer func() { _ = conn.Close() }()
-
-	client := pb.NewStepperClient(conn)
-
-	return client.Now(ctx, &pb.NowRequest{})
+	stamp, err := client.Now(ctx, &pb.NowRequest{})
+	return stamp, t.cleanup(client, err)
 }
 
-func (t activeClient) after(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
+func (t *activeClient) after(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 
 	go func(ctx context.Context, res chan<- TimeData) {
-		conn, err := t.dial()
+		client, err := t.dial()
 		if err != nil {
 			res <- TimeData{
 				Time: nil,
@@ -152,14 +160,10 @@ func (t activeClient) after(ctx context.Context, deadline *ct.Timestamp) <-chan 
 			return
 		}
 
-		defer func() { _ = conn.Close() }()
-
-		client := pb.NewStepperClient(conn)
-
 		rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: deadline, Jitter: 0})
 
 		if err != nil {
-			res <- TimeData{Time: nil, Err: err}
+			res <- TimeData{Time: nil, Err: t.cleanup(client, err)}
 			return
 		}
 		res <- TimeData{Time: rsp, Err: nil}
@@ -168,42 +172,68 @@ func (t activeClient) after(ctx context.Context, deadline *ct.Timestamp) <-chan 
 	return ch
 }
 
-func (t activeClient) status(ctx context.Context) (*pb.StatusResponse, error) {
-	conn, err := t.dial()
+func (t *activeClient) status(ctx context.Context) (*pb.StatusResponse, error) {
+	client, err := t.dial()
 	if err != nil {
 		return nil, err
 	}
 
-	defer func() { _ = conn.Close() }()
-
-	client := pb.NewStepperClient(conn)
-
-	return client.GetStatus(ctx, &pb.GetStatusRequest{})
+	rsp, err := client.GetStatus(ctx, &pb.GetStatusRequest{})
+	return rsp, t.cleanup(client, err)
 }
 
-func (t activeClient) reset(ctx context.Context) error {
-	conn, err := t.dial()
+func (t *activeClient) reset(ctx context.Context) error {
+	client, err := t.dial()
 	if err != nil {
 		return err
 	}
 
-	defer func() { _ = conn.Close() }()
-
-	client := pb.NewStepperClient(conn)
-
 	_, err = client.Reset(ctx, &pb.ResetRequest{})
+	return t.cleanup(client, err)
+}
+
+// dial abstracts the connection logic to the trace sink service.  It caches
+// the connection for use in later calls in order to avoid excess transport and
+// grpc connection operations.
+func (t *activeClient) dial() (pb.StepperClient, error) {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	if t.conn == nil {
+		conn, err := grpc.Dial(t.dialName, t.dialOpts...)
+		if err != nil {
+			return nil, err
+		}
+
+		t.conn = conn
+		t.client = pb.NewStepperClient(conn)
+	}
+
+	return t.client, nil
+}
+
+// cleanup ensures that if an error has occurred the cached connection is
+// cleared.
+func (t *activeClient) cleanup(client pb.StepperClient, err error) error {
+	t.m.Lock()
+	defer t.m.Unlock()
+
+	// Clear the connection iff we had an error, the connection has not been
+	// cleaned up already, and we had an error against the current client.
+	if err != nil && t.conn != nil && client == t.client {
+		_ = t.conn.Close()
+
+		t.conn = nil
+		t.client = nil
+	}
+
 	return err
 }
 
-func (t activeClient) dial() (*grpc.ClientConn, error) {
-	return grpc.Dial(t.dialName, t.dialOpts...)
-}
-
-
 // InitTimestamp stores the information needed to be able to connect to the
 // Stepper service.
-func InitTimestamp(name string, opts ...grpc.DialOption) {
-	tsc = newTimeClient(name, opts...)
+func InitTimestamp(name string, opts ...grpc.DialOption) error {
+	return tsc.initialize(name, opts...)
 }
 
 // SetPolicy sets the stepper policy

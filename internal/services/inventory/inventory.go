@@ -25,15 +25,19 @@ type server struct {
 }
 
 func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
-	ts.InitTimestamp(
+	if err := ts.InitTimestamp(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor)); err != nil {
+		return err
+	}
 
-	tsc.InitSinkClient(
+	if err := tsc.InitSinkClient(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor)); err != nil {
+		return err
+	}
 
 	timers := ts.NewTimers(
 		cfg.SimSupport.EP.String(),

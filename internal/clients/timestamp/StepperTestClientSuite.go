@@ -20,7 +20,7 @@ import (
 const bufSize = 1024 * 1024
 
 var (
-	s *grpc.Server = nil
+	s   *grpc.Server = nil
 	lis *bufconn.Listener
 )
 
@@ -30,7 +30,7 @@ type stepperTestClientSuite struct {
 	lis *bufconn.Listener
 	utf *exporters.Exporter
 
-	ep string
+	ep       string
 	dialOpts []grpc.DialOption
 
 	s *grpc.Server
@@ -48,19 +48,19 @@ func (ts *stepperTestClientSuite) SetupSuite() {
 	}
 
 	ts.ensureStepperStarted()
+	_ = InitTimestamp(ts.ep, ts.dialOpts...)
 }
 
 func (ts *stepperTestClientSuite) SetupTest() {
+	require := ts.Require()
+
 	_ = ts.utf.Open(ts.T())
 
-	InitTimestamp(ts.ep, ts.dialOpts...)
-
-	err := Reset(context.Background())
-	ts.Require().Nilf(err, "Reset failed")
+	require.NoError(Reset(context.Background()))
 
 	ctx := context.Background()
 
-	ts.Require().Nil(SetPolicy(ctx, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
+	require.NoError(SetPolicy(ctx, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
 }
 
 func (ts *stepperTestClientSuite) TearDownTest() {
