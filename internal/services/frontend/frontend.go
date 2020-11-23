@@ -136,17 +136,21 @@ func initHandlers() error {
 // initClients sets up the internal service clients used by the frontend
 // handlers themselves.
 func initClients(cfg *config.GlobalConfig) error {
-	ts.InitTimestamp(
+	err := ts.InitTimestamp(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ct.Interceptor))
 
-	tsc.InitSinkClient(
+	if err != nil {
+		return err
+	}
+
+	err = tsc.InitSinkClient(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ct.Interceptor))
 
-	return nil
+	return err
 }
 
 func initService(cfg *config.GlobalConfig) error {
