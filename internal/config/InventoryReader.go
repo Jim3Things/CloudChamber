@@ -102,27 +102,23 @@ func ReadInventoryDefinition(ctx context.Context, path string) (*pb.ExternalZone
 			err = fmt.Errorf("fatal error reading definition file: %s", err)
 		}
 
-		span.AddEvent(ctx, err.Error())
-		return nil, err
+		return nil, tracing.Error(ctx, err)
 	}
 
 	// First we are going to put it into intermediate format
 	xfr := &zone{}
 	if err := viper.UnmarshalExact(xfr); err != nil {
-		err = fmt.Errorf("unable to decode into struct, %v", err)
-		span.AddEvent(ctx, err.Error())
-		return nil, err
+		return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 	}
 
 	// Now convert it into its final form
 	cfg, err := toExternalZone(xfr)
 	if err != nil {
-		span.AddEvent(ctx, err.Error())
-		return nil, err
+		return nil, tracing.Error(ctx, err)
 	}
 
-	span.AddEvent(ctx,
-		fmt.Sprintf("Inventory definition Read: \n%v", cfg))
+	tracing.Info(ctx, "Inventory definition Read: \n%v", cfg)
+
 	return cfg, nil
 }
 
@@ -178,7 +174,7 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 // an external YAML file and transforms it into the
 // internal Cloud chamber binary format.
 //
-func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Zonemap, error) {
+func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Region, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -199,38 +195,34 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Zone
 			err = fmt.Errorf("fatal error reading definition file: %s", err)
 		}
 
-		span.AddEvent(ctx, err.Error())
-		return nil, err
+		return nil, tracing.Error(ctx, err)
 	}
 
 	// First we are going to put it into intermediate format
 	xfr := &zone{}
 	if err := viper.UnmarshalExact(xfr); err != nil {
-		err = fmt.Errorf("unable to decode into struct, %v", err)
-		span.AddEvent(ctx, err.Error())
-		return nil, err
+		return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 	}
 
 	// Now convert it into its final form
-	zonemap, err := toDefinitionZoneInternal(xfr)
+	region, err := toDefinitionRegionInternal(xfr)
 	if err != nil {
-		span.AddEvent(ctx, err.Error())
-		return nil, err
+		return nil, tracing.Error(ctx, err)
 	}
 
-	span.AddEvent(ctx,
-		fmt.Sprintf("Inventory definition Read: \n%v", zonemap))
-	return zonemap, nil
+	tracing.Info(ctx, "Inventory definition Read: \n%v", region)
+
+	return region, nil
 }
 
-// toDefinitionZoneInternal converts intermediate values to the final format
+// toDefinitionRegionInternal converts intermediate values to the final format
 // One important differnce is that the intermediate is array based.
 // The final format is map based using specific fields in array
 // enteries as the map keys
 //
-func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
+func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 
-	zonemap := &pb.Zonemap{Zones: make(map[string]*pb.DefinitionZoneInternal)}
+	region := &pb.Region{Zones: make(map[string]*pb.DefinitionZoneInternal)}
 
 	// Since we only have a single zone at present, there is no loop
 	// here. But there will be eventually.
@@ -247,7 +239,7 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 
 	// For each rack in the supplied configuration, create rack in the
 	// zone. Each rack has some details, a set of Pdus, a set of Tors, 
-	//and a set of blades.
+	// and a set of blades.
 	//
 	for _, r := range xfr.Racks {
 		if _, ok := zone.Racks[r.Name]; ok {
@@ -269,7 +261,7 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 		// Currently only have one each of Pdu and Tor per-rack.
 		//
 		// NOTE: At present, the Pdu and Tor are completely
-		// synthsized and not actually read from the definition
+		// synthesized and not actually read from the definition
 		// file.
 		//
 		zone.Racks[r.Name].Pdus[0] = &pb.DefinitionPdu{
@@ -326,8 +318,8 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 			zone.Racks[r.Name].Pdus[0].Ports[b.Index] = &pb.DefinitionPowerPort{
 				Wired: true,
 				Item:  &pb.DefinitionItem{
-					Type: pb.DefinitionItem_pdu,
-					Id: 0,
+					Type: pb.DefinitionItem_blade,
+					Id: b.Index,
 					Port: 0,
 					},
 			}
@@ -339,8 +331,8 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 			zone.Racks[r.Name].Tors[0].Ports[b.Index] = &pb.DefinitionNetworkPort{
 				Wired: true,
 				Item:  &pb.DefinitionItem{
-					Type: pb.DefinitionItem_tor,
-					Id: 0,
+					Type: pb.DefinitionItem_blade,
+					Id: b.Index,
 					Port: 0,
 					},
 			}
@@ -354,7 +346,7 @@ func toDefinitionZoneInternal(xfr *zone) (*pb.Zonemap, error) {
 		}
 	}
 
-	zonemap.Zones["zone1"] = zone
+	region.Zones["zone1"] = zone
 
-	return zonemap, nil
+	return region, nil
 }

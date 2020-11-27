@@ -179,38 +179,37 @@ type Request struct {
 }
 
 
-/*
-// Operation indicates which operation should be applied to the item in the request.
-//
-type Operation uint
 
-// The set opf permissible operations on each Item within the set of items in a request
-//
-const (
-	OpRead Operation = iota
-	OpUpdate
-	OpDelete
-)
+// // Operation indicates which operation should be applied to the item in the request.
+// //
+// type Operation uint
 
-// Item represents a specific record with 
-//
-type Item struct {
-	Record Record
-	Condition Condition
-	Operation Operation
-	Action Action
-}
+// // The set of permissible operations on each Item within the set of items in a request
+// //
+// const (
+// 	OpRead Operation = iota
+// 	OpUpdate
+// 	OpDelete
+// )
 
+// // Item represents a specific record with 
+// //
+// type Item struct {
+// 	Record Record
+// 	Condition Condition
+// 	Operation Operation
+// 	Action Action
+// }
 
-// Request2 is a struct defining the collection of values needed to make a request
-// of the underlying store. Which values need to be set depend on the request.
-// For example, setting any "value" for a read request is ignored.
-//
-type Request2 struct {
-	Reason     string
-	Items      map[string]Item
-}
- */
+// // Request2 is a struct defining the collection of values needed to make a request
+// // of the underlying store. Which values need to be set depend on the request.
+// // For example, setting any "value" for a read request is ignored.
+// //
+// type Request2 struct {
+// 	Reason     string
+// 	Items      map[string]Item
+// }
+
 
 
 // Response is a struct defining the set of values returned from a request.
@@ -366,19 +365,19 @@ func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 
 	resp, err := store.WriteTxn(ctx, request)
 
-	// Need to strip the namespace prefix and return something described
-	// in terms the caller should recognize
-	//
 	if err != nil {
+		// Need to strip the namespace prefix and return something described
+		// in terms the caller should recognize
+		//
 		for k := range request.Records {
 			if err == ErrStoreAlreadyExists(k) {
 				n := getNameFromKeyRootAndKey(r, k)
 				return RevisionInvalid, ErrStoreAlreadyExists(n)
 			}
 		}
-	}
 
-	if err != nil {
+		// Nothing more appropriate found so just return what we have.
+		//
 		return RevisionInvalid, err
 	}
 
@@ -531,7 +530,7 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 
 // Update is a function to conditionally update a value for a single key
 //
-func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64,	v string) (revision int64, err error) {
+func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64, v string) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()

@@ -79,7 +79,7 @@ type DBInventory struct {
 	MaxCapacity   *ct.BladeCapacity
 	Store *store.Store
 
-	Zonemap *pb.Zonemap
+	Region *pb.Region
 }
 
 var dbInventory *DBInventory
@@ -99,7 +99,7 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			MaxBladeCount: 0,
 			MaxCapacity:   &ct.BladeCapacity{},
 			Store:         store.NewStore(),
-			Zonemap:       &pb.Zonemap{},
+			Region:       &pb.Region{},
 		}
 
 		if err = db.Initialize(ctx, cfg); err != nil {
@@ -158,7 +158,7 @@ func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) 
 	return nil
 }
 
-func (m *DBInventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.Zonemap, error) {
+func (m *DBInventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.Region, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from store"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -228,7 +228,7 @@ func (m *DBInventory) UpdateInventoryDefinition(
 // which any currently running services have previously established and deliver
 // a set of arrival and/or departure notifications as appropriate.
 //
-func (m *DBInventory) reconcileNewInventory(ctx context.Context, zmFile *pb.Zonemap, zmStore *pb.Zonemap) error {
+func (m *DBInventory) reconcileNewInventory(ctx context.Context, regionFile *pb.Region, regionStore *pb.Region) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Reconcile current inventory with update"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -238,9 +238,9 @@ func (m *DBInventory) reconcileNewInventory(ctx context.Context, zmFile *pb.Zone
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	m.Zonemap = zmFile
+	m.Region = regionFile
 
-	m.ZoneCount, m.MaxBladeCount, m.MaxCapacity = m.buildSummaryForZonemap(ctx, zmFile)
+	m.ZoneCount, m.MaxBladeCount, m.MaxCapacity = m.buildSummaryForRegion(ctx, regionFile)
 
 	return nil
 }
@@ -359,7 +359,7 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 // - the maximum number of blades in a rack
 // - the memo data itself
 //
-func (m *DBInventory) buildSummaryForZonemap(ctx context.Context, zm *pb.Zonemap) (int, int64, *ct.BladeCapacity) {
+func (m *DBInventory) buildSummaryForRegion(ctx context.Context, zm *pb.Region) (int, int64, *ct.BladeCapacity) {
 
 	maxBladeCount := int64(0)
 	maxCapacity := &ct.BladeCapacity{}

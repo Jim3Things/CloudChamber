@@ -8,8 +8,6 @@ syntax = "proto3";
 
 import "pkg/protos/common/capacity.proto";
 
-package inventory;
-
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message definition {
@@ -20,7 +18,7 @@ message definition {
     enum condition {
         not_in_service = 0;
         operational = 1;
-        burnIn = 2;
+        burn_in = 2;
         out_for_repair = 3;
         retiring = 4;
         retired = 5;
@@ -282,8 +280,8 @@ message definition {
     }
 }
 
-message zonemap {
-    string region = 1;
+message region {
+    string name = 1;
     map<string, definition.zone_internal> zones = 10;
 }
 

@@ -117,9 +117,6 @@ func TestInventoryValidateBlade(t *testing.T) {
 		err.Error())
 }
 
-
-
-
 func TestReadInventoryDefinitionFromFile(t *testing.T) {
 
 	_ = utf.Open(t)
@@ -159,7 +156,58 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		assert.Equal(t, 1, len(r.Tors))
 		assert.Equal(t, 2, len(r.Blades))
 
+		// There should be a single PDU at index 0
+		//
+		p0, ok := r.Pdus[0]
+		require.True(t, ok)
 
+		// The PDU should have a wired port for each of the two expected blades.
+		//
+		assert.Equal(t, 2, len(p0.Ports))
+
+		p0b1, ok := p0.Ports[1]
+		require.True(t, ok)
+
+		assert.True(t, p0b1.Wired)
+		assert.Equal(t, inventory.DefinitionItem_blade, p0b1.Item.Type)
+		assert.Equal(t, int64(1), p0b1.Item.Id)
+		assert.Equal(t, int64(0), p0b1.Item.Port)
+
+		p0b2, ok := p0.Ports[2]
+		require.True(t, ok)
+
+		assert.True(t, p0b2.Wired)
+		assert.Equal(t, inventory.DefinitionItem_blade, p0b2.Item.Type)
+		assert.Equal(t, int64(2), p0b2.Item.Id)
+		assert.Equal(t, int64(0), p0b2.Item.Port)
+
+		// There should be a single TOR at index 0
+		//
+		t0, ok := r.Tors[0]
+		require.True(t, ok)
+
+		// The TOR should have a wired port for each of the two expected blades.
+		//
+		assert.Equal(t, 2, len(t0.Ports))
+
+		t0b1, ok := t0.Ports[1]
+		require.True(t, ok)
+
+		assert.True(t, t0b1.Wired)
+		assert.Equal(t, inventory.DefinitionItem_blade, t0b1.Item.Type)
+		assert.Equal(t, int64(1), t0b1.Item.Id)
+		assert.Equal(t, int64(0), t0b1.Item.Port)
+
+		t0b2, ok := p0.Ports[2]
+		require.True(t, ok)
+
+		assert.True(t, t0b2.Wired)
+		assert.Equal(t, inventory.DefinitionItem_blade, t0b2.Item.Type)
+		assert.Equal(t, int64(2), t0b2.Item.Id)
+		assert.Equal(t, int64(0), t0b2.Item.Port)
+
+		// There should be exactly two blades at indices 1 and 2.
+		//
 		b1, ok := r.Blades[1]
 		require.True(t, ok)
 

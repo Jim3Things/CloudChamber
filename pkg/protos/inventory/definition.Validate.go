@@ -8,14 +8,16 @@ import (
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 )
 
+const minPorts = int64(0)
 const maxPorts = int64(1000)
 
 // Validate is a method that verifies that the associated DefinitionPdu instance
-// is structurally legal
+// has the expected number of ports and is semantically legal
 //
 func(x *DefinitionPdu) Validate(prefix string, ports int64) error {
 
 	actual := int64(len(x.Ports))
+
 	if actual != ports {
 		return common.ErrMustBeEQ{
 			Field:    fmt.Sprintf("%sPorts", prefix),
@@ -24,32 +26,46 @@ func(x *DefinitionPdu) Validate(prefix string, ports int64) error {
 		}
 	}
 
-	return nil
+	return x.check(prefix)
 }
 
 // Verify is a method that verifies that the associated DefinitionPdu instance
 // is semantically legal
 //
-// For exameple, check for errors such as the pdu being wired to itself, the
+// For example, check for errors such as the pdu being wired to itself, the
 // port being wired but without an associated item etc.
 //
 func(x *DefinitionPdu) Verify() error {
 
+	return x.check("")
+}
+
+// check is a method that verifies that the associated DefinitionPdu instance
+// is semantically legal
+//
+// For example, check for errors such as the pdu being wired to itself, the
+// port being wired but without an associated item etc.
+//
+func(x *DefinitionPdu) check(prefix string) error {
+
+	prefixedPorts := prefix + "Ports"
+	prefixedItem  := prefix + "Item"
+
 	portCount := int64(len(x.Ports))
 
-	if portCount < 0 {
+	if portCount < minPorts {
 		return common.ErrMinLenMap{
-			Field: "Ports",
-			Actual: portCount,
-			Required: 0,
+			Field:    prefixedPorts,
+			Actual:   portCount,
+			Required: minPorts,
 		}
 	}
 
 	if portCount > maxPorts {
 		return common.ErrMaxLenMap{
-			Field: "Ports",
+			Field:  prefixedPorts,
 			Actual: portCount,
-			Limit: maxPorts,
+			Limit:  maxPorts,
 		}
 	}
 
@@ -59,9 +75,9 @@ func(x *DefinitionPdu) Verify() error {
 				// port not wired but has an (unexpected) associated item 
 				//
 				return common.ErrItemMustBeEmpty{
-					Field: "Item",
-					Item: "PDU",
-					Port: i,
+					Field:  prefixedItem,
+					Item:   "PDU",
+					Port:   i,
 					Actual: p.Item.String(),
 				}
 			}
@@ -72,9 +88,9 @@ func(x *DefinitionPdu) Verify() error {
 				// port is wired but is missing an (expected) associated item
 				//
 				return common.ErrItemMissingValue{
-					Field: "Item",
-					Item: "PDU",
-					Port: i,
+					Field: prefixedItem,
+					Item:  "PDU",
+					Port:  i,
 				}
 			}
 
@@ -85,8 +101,8 @@ func(x *DefinitionPdu) Verify() error {
 			//
 			if p.Item.Type == DefinitionItem_pdu {
 				return common.ErrInvalidItemSelf{
-					Field:  "Item",
-					Item: "PDU",
+					Field:  prefixedItem,
+					Item:   "PDU",
 					Port:   i,
 					Actual: "PDU",
 				}
@@ -98,11 +114,12 @@ func(x *DefinitionPdu) Verify() error {
 }
 
 // Validate is a method that verifies that the associated DefinitionTor instance
-// is structurally legal
+// has the expected number of ports and is semantically legal
 //
 func(x *DefinitionTor) Validate(prefix string, ports int64) error {
 
 	actual := int64(len(x.Ports))
+
 	if actual != ports {
 		return common.ErrMustBeEQ{
 			Field:    fmt.Sprintf("%sPorts", prefix),
@@ -111,32 +128,46 @@ func(x *DefinitionTor) Validate(prefix string, ports int64) error {
 		}
 	}
 
-	return nil
+	return x.check(prefix)
 }
 
 // Verify is a method that verifies that the associated DefinitionTor instance
 // is semantically legal
 //
-// For exameple, check for errors such as the tor being wired to itself, the
+// For example, check for errors such as the tor being wired to itself, the
 // port being wired but without an associated item etc.
 //
 func(x *DefinitionTor) Verify() error {
 
+	return x.check("")
+}
+
+// check is a method that verifies that the associated DefinitionTor instance
+// is semantically legal
+//
+// For example, check for errors such as the tor being wired to itself, the
+// port being wired but without an associated item etc.
+//
+func(x *DefinitionTor) check(prefix string) error {
+
+	prefixedPorts := prefix + "Ports"
+	prefixedItem  := prefix + "Item"
+
 	portCount := int64(len(x.Ports))
 
-	if portCount < 0 {
+	if portCount < minPorts {
 		return common.ErrMinLenMap{
-			Field: "Ports",
-			Actual: portCount,
-			Required: 0,
+			Field:    prefixedPorts,
+			Actual:   portCount,
+			Required: minPorts,
 		}
 	}
 
 	if portCount > maxPorts {
 		return common.ErrMaxLenMap{
-			Field: "Ports",
+			Field:  prefixedPorts,
 			Actual: portCount,
-			Limit: maxPorts,
+			Limit:  maxPorts,
 		}
 	}
 
@@ -146,9 +177,9 @@ func(x *DefinitionTor) Verify() error {
 				// port not wired but has an (unexpected) associated item 
 				//
 				return common.ErrItemMustBeEmpty{
-					Field: "Item",
-					Item: "TOR",
-					Port: i,
+					Field:  prefixedItem,
+					Item:   "TOR",
+					Port:   i,
 					Actual: p.Item.String(),
 				}
 			}
@@ -159,9 +190,9 @@ func(x *DefinitionTor) Verify() error {
 				// port is wired but is missing an (expected) associated item
 				//
 				return common.ErrItemMissingValue{
-					Field: "Item",
-					Item: "TOR",
-					Port: i,
+					Field: prefixedItem,
+					Item:  "TOR",
+					Port:  i,
 				}
 			}
 
@@ -172,8 +203,8 @@ func(x *DefinitionTor) Verify() error {
 			//
 			if p.Item.Type == DefinitionItem_tor {
 				return common.ErrInvalidItemSelf{
-					Field:  "Item",
-					Item: "TOR",
+					Field:  prefixedItem,
+					Item:   "TOR",
 					Port:   i,
 					Actual: "TOR",
 				}
