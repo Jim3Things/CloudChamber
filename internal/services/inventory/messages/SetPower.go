@@ -26,8 +26,7 @@ func NewSetPower(
 	ch chan *sm.Response) *SetPower {
 	msg := &SetPower{}
 
-	msg.Initialize(ctx, ch)
-	msg.Tag = TagSetPower
+	msg.Initialize(ctx, TagSetPower, ch)
 	msg.Target = target
 	msg.Guard = guard
 	msg.On = on

@@ -77,7 +77,7 @@ func (ts *BladeTestSuite) TestPowerOn() {
 		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 }
 
 func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
@@ -102,7 +102,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	res = ts.issueSetConnection(ctx, r, 0, true)
 
@@ -115,7 +115,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 		return r.blades[0].sm.CurrentIndex == bladeBooting
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 
@@ -133,7 +133,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }
@@ -158,7 +158,7 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 		return r.blades[0].sm.CurrentIndex == bladeIsolated
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 
@@ -175,7 +175,7 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 		return r.blades[0].sm.CurrentIndex == bladeWorking
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }
@@ -200,7 +200,7 @@ func (ts *BladeTestSuite) TestWorkingToOffConn() {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }
@@ -225,7 +225,7 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	res = ts.issueSetConnection(ctx, r, 0, false)
 	require.NotNil(res)
@@ -235,7 +235,7 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }
@@ -258,7 +258,7 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	res = ts.issueSetConnection(ctx, r, 0, false)
 	require.NotNil(res)
@@ -268,7 +268,7 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
 	})
 
-	require.True(ok, "state is %v", r.blades[0].sm.GetCurrentStateName())
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }

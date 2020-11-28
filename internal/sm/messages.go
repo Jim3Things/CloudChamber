@@ -12,7 +12,7 @@ type Envelope interface {
 
 	// Initialize sets up any linked span information, and the channel to use
 	// for any completion responses.
-	Initialize(ctx context.Context, ch chan *Response)
+	Initialize(ctx context.Context, tag int, ch chan *Response)
 
 	// GetCh returns the response channel.
 	GetCh() chan *Response
@@ -63,7 +63,7 @@ func UnexpectedMessageResponse(machine *SimpleSM, occursAt int64, body interface
 	return &Response{
 		Err: &ErrUnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", body),
-			State: machine.GetCurrentStateName(),
+			State: machine.CurrentIndex,
 		},
 		At:  occursAt,
 		Msg: nil,

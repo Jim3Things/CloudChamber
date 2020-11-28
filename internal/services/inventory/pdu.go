@@ -28,14 +28,14 @@ type pdu struct {
 const (
 	// pduWorkingState is the state ID for the PDU powered on and working
 	// state.
-	pduWorkingState int = iota
+	pduWorkingState = "working"
 
 	// pduOffState is the state ID for the PDU powered off state.
-	pduOffState
+	pduOffState = "off"
 
 	// pduStuckState is the state ID for a PDU faulted state where the PDU is
 	// unresponsive, but some power may still be on.
-	pduStuckState
+	pduStuckState = "stuck"
 )
 
 // newPdu creates a new pdu instance from the definition structure and the
@@ -52,7 +52,6 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 	p.sm = sm.NewSimpleSM(p,
 		sm.WithFirstState(
 			pduWorkingState,
-			"working",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetPower, workingSetPower, sm.Stay, pduOffState},
@@ -62,7 +61,6 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 
 		sm.WithState(
 			pduOffState,
-			"off",
 			sm.NullEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
@@ -70,7 +68,6 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 
 		sm.WithState(
 			pduStuckState,
-			"stuck",
 			sm.NullEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,

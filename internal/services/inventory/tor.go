@@ -31,11 +31,11 @@ type tor struct {
 
 const (
 	// torWorkingState is the ID for when the TOR is fully operational.
-	torWorkingState int = iota
+	torWorkingState = "working"
 
 	// torStuckState is the ID for when the TOR is faulted and unresponsive.
 	// Note that programmed cables may or may not continue to be programmed.
-	torStuckState
+	torStuckState = "stuck"
 )
 
 // newTor creates a new simulated TOR instance from the definition structure
@@ -52,7 +52,6 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 	t.sm = sm.NewSimpleSM(t,
 		sm.WithFirstState(
 			torWorkingState,
-			"working",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, workingSetConnection, sm.Stay, sm.Stay},
@@ -62,7 +61,6 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 
 		sm.WithState(
 			torStuckState,
-			"stuck",
 			sm.NullEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
@@ -137,7 +135,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 		c, ok = t.cables[id]
 	}
 
-	if !ok {
+	if c == nil || !ok {
 		tracing.Warn(
 			ctx,
 			"No network connection for %s was found.",

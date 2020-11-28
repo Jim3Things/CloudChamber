@@ -29,8 +29,7 @@ func NewTimerExpiry(
 	ch chan *sm.Response) *TimerExpiry {
 	msg := &TimerExpiry{}
 
-	msg.InitializeNoLink(ch)
-	msg.Tag = TagTimerExpiry
+	msg.InitializeNoLink(TagTimerExpiry, ch)
 	msg.Target = target
 	msg.Guard = guard
 	msg.Id = id

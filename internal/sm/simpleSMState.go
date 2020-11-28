@@ -17,7 +17,7 @@ type SimpleSMState interface {
 	Receive(ctx context.Context, machine *SimpleSM, msg Envelope)
 
 	// Leave is called when a state transition moves away from this state
-	Leave(ctx context.Context, sm *SimpleSM, nextState int)
+	Leave(ctx context.Context, sm *SimpleSM, nextState string)
 }
 
 // NullState is the default implementation of a simple SM state
@@ -32,7 +32,7 @@ func (*NullState) Receive(ctx context.Context, machine *SimpleSM, msg Envelope) 
 }
 
 // Leave is the default (no-action) implementation.
-func (*NullState) Leave(context.Context, *SimpleSM, int) {}
+func (*NullState) Leave(context.Context, *SimpleSM, string) {}
 
 // TerminalEnter is the standard terminal state Enter handler, which marks the
 // state machine as terminated.

@@ -91,52 +91,52 @@ type blade struct {
 const (
 	// bladeStart is the state where initialization of the state machine
 	// begins.
-	bladeStart int = iota
+	bladeStart = "start"
 
 	// bladeOffDiscon is current when the blade has neither simulated
 	// power or simulated network connectivity.
-	bladeOffDiscon
+	bladeOffDiscon = "off-disconnected"
 
 	// bladeOffConn is current when the blade has no simulated power,
 	// but does have simulated network connectivity.
-	bladeOffConn
+	bladeOffConn = "off-connected"
 
 	// bladePoweredDiscon is current when the blade has simulated power,
 	// but no simulated network connectivity.
-	bladePoweredDiscon
+	bladePoweredDiscon = "powered-disconnected"
 
 	// bladePoweredConn is current when the blade has power and simulated
 	// network connectivity.  If auto-boot is enabled, this state will
 	// automatically transition to the following booting state.
-	bladePoweredConn
+	bladePoweredConn = "powered-connected"
 
 	// bladeBooting is current when the blade is waiting for the simulated
 	// boot delay to complete.
-	bladeBooting
+	bladeBooting = "booting"
 
 	// bladeWorking is current when the blade is powered on, booted, and
 	// able to handle workload requests.
-	bladeWorking
+	bladeWorking = "working"
 
 	// bladeIsolated is current when the blade is powered on and booted,
 	// but has not simulated network connectivity.  Existing workloads are
 	// informed the connectivity has been lost, but are otherwise undisturbed.
-	bladeIsolated
+	bladeIsolated = "isolated"
 
 	// bladeStopping is a transitional state to clean up when the blade is
 	// finally shutting down.  This may involve notifying any active workloads
 	// that they have been forcibly stopped.
-	bladeStopping
+	bladeStopping = "stopping"
 
 	// bladeStoppingIsolated is a transitional state parallel to the
 	// bladeStopping, but where simulated network connectivity has been
 	// lost.
-	bladeStoppingIsolated
+	bladeStoppingIsolated = "stopping-isolated"
 
 	// bladeFaulted is current when the blade has either had a processing
 	// fault, such as a timer failure, or an injected fault that leaves it in
 	// a position that requires an external reset/fix.
-	bladeFaulted
+	bladeFaulted = "faulted"
 )
 
 func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
@@ -166,7 +166,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 	b.sm = sm.NewSimpleSM(b,
 		sm.WithFirstState(
 			bladeStart,
-			"start",
 			startedOnEnter,
 			[]sm.ActionEntry{},
 			sm.UnexpectedMessage,
@@ -174,7 +173,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeOffDiscon,
-			"off-disconnected",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, bladeOffConn, sm.Stay},
@@ -185,7 +183,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeOffConn,
-			"off-connected",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, sm.Stay, bladeOffDiscon},
@@ -196,7 +193,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladePoweredDiscon,
-			"powered-disconnected",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, bladePoweredConn, sm.Stay},
@@ -207,7 +203,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladePoweredConn,
-			"powered-connected",
 			poweredConnOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
@@ -218,7 +213,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeBooting,
-			"booting",
 			bootingOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
@@ -230,7 +224,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeWorking,
-			"working",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, sm.Stay, bladeIsolated},
@@ -241,7 +234,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeIsolated,
-			"isolated",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, bladeWorking, sm.Stay},
@@ -252,7 +244,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeStopping,
-			"stopping",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, sm.Stay, bladeStoppingIsolated},
@@ -264,7 +255,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeStoppingIsolated,
-			"stopping-isolated",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, setConnection, bladeStopping, sm.Stay},
@@ -276,7 +266,6 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 
 		sm.WithState(
 			bladeFaulted,
-			"faulted",
 			faultedEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
@@ -328,7 +317,7 @@ func bootingTimerExpiry(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope
 
 // bootingOnLeave ensures that any active boot delay timer is canceled before
 // proceeding to a non-booting state.
-func bootingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState int) {
+func bootingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState string) {
 	if nextState != bladeBooting {
 		cancelTimer(ctx, machine, "boot")
 	}
@@ -343,7 +332,7 @@ func stoppingTimerExpiry(ctx context.Context, machine *sm.SimpleSM, m sm.Envelop
 
 // stoppingOnLeave ensures that any active time is canceled before proceeding
 // to a non-stopping state.
-func stoppingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState int) {
+func stoppingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState string) {
 	if nextState != bladeStopping && nextState != bladeStoppingIsolated {
 		cancelTimer(ctx, machine, "shutdown")
 	}
@@ -454,7 +443,7 @@ func timerExpiration(
 	return false
 }
 
-// cancelTimer attempts to cancel and outstanding timer, if one exists.  It
+// cancelTimer attempts to cancel an outstanding timer, if one exists.  It
 // clears the internal flag that denotes a timer is expected.  This ensures
 // that the timer is treated as canceled, regardless of whether or not it was
 // successfully canceled.

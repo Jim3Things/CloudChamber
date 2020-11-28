@@ -13,8 +13,7 @@ type StartSim struct {
 
 func NewStartSim(ctx context.Context, ch chan *sm.Response) *StartSim {
 	msg := &StartSim{}
-	msg.Initialize(ctx, ch)
-	msg.Tag = TagStartSim
+	msg.Initialize(ctx, TagStartSim, ch)
 
 	return msg
 }
@@ -27,8 +26,7 @@ type StopSim struct {
 
 func NewStopSim(ctx context.Context, ch chan *sm.Response) *StopSim {
 	msg := &StopSim{}
-	msg.Initialize(ctx, ch)
-	msg.Tag = TagStopSim
+	msg.Initialize(ctx, TagStopSim, ch)
 
 	return msg
 }

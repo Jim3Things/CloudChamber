@@ -7,6 +7,10 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
+const (
+	invalidState = "Invalid"
+)
+
 // SimpleSM defines a simplified state machine structure. It assumes that the
 // issues of concurrency and lifecycle management are handled by some external
 // logic.
@@ -14,19 +18,16 @@ type SimpleSM struct {
 	common.Guarded
 
 	// CurrentIndex holds the index to the current state
-	CurrentIndex int
+	CurrentIndex string
 
 	// Current is a pointer to the current state
 	Current SimpleSMState
 
 	// FirstState is the index to the starting state
-	FirstState int
+	FirstState string
 
 	// States holds the map of known state index values to state implementations
-	States map[int]SimpleSMState
-
-	// Names holds the map of known state index values to descriptive strings
-	Names map[int]string
+	States map[string]SimpleSMState
 
 	// Parent points to the structure that holds this state machine, and likely
 	// holds global context that the state actions need.
@@ -38,50 +39,46 @@ type SimpleSM struct {
 
 // StateDecl defines the type expected for a state declaration decorator when
 // creating a new SimpleSM instance
-type StateDecl func() (int, bool, string, SimpleSMState)
+type StateDecl func() (bool, string, SimpleSMState)
 
 // WithState is a decorator that defines a state in the state machine
 func WithState(
-	id int,
 	name string,
 	onEnter EnterFunc,
 	actions []ActionEntry,
 	other ActionFunc,
 	onLeave LeaveFunc) StateDecl {
-	return func() (int, bool, string, SimpleSMState) {
-		return id, false, name, NewActionState(actions, other, onEnter, onLeave)
+	return func() (bool, string, SimpleSMState) {
+		return false, name, NewActionState(actions, other, onEnter, onLeave)
 	}
 }
 
 // WithFirstState is a decorator that defines the starting state for the state
 // machine
 func WithFirstState(
-	id int,
 	name string,
 	onEnter EnterFunc,
 	actions []ActionEntry,
 	other ActionFunc,
 	onLeave LeaveFunc) StateDecl {
-	return func() (int, bool, string, SimpleSMState) {
-		return id, true, name, NewActionState(actions, other, onEnter, onLeave)
+	return func() (bool, string, SimpleSMState) {
+		return true, name, NewActionState(actions, other, onEnter, onLeave)
 	}
 }
 
 // NewSimpleSM creates a new state machine instance with the associated
 // parent instance reference, as well as the state declarations.
 func NewSimpleSM(parent interface{}, decls ...StateDecl) *SimpleSM {
-	states := make(map[int]SimpleSMState)
-	names := make(map[int]string)
+	states := make(map[string]SimpleSMState)
 
-	firstState := 0
+	firstState := invalidState
 
 	for _, decl := range decls {
-		stateId, first, name, instance := decl()
-		states[stateId] = instance
-		names[stateId] = name
+		first, name, instance := decl()
+		states[name] = instance
 
 		if first {
-			firstState = stateId
+			firstState = name
 		}
 	}
 
@@ -90,7 +87,6 @@ func NewSimpleSM(parent interface{}, decls ...StateDecl) *SimpleSM {
 		Current:      states[firstState],
 		FirstState:   firstState,
 		States:       states,
-		Names:        names,
 		Parent:       parent,
 		Terminated:   false,
 	}
@@ -98,12 +94,12 @@ func NewSimpleSM(parent interface{}, decls ...StateDecl) *SimpleSM {
 
 // ChangeState changes the current state.  Leave the old state, try to
 // enter the new state, and declare that state as current if successful.
-func (sm *SimpleSM) ChangeState(ctx context.Context, newState int) error {
+func (sm *SimpleSM) ChangeState(ctx context.Context, newState string) error {
 	tracing.Info(
 		ctx,
 		"Change state from %q to %q",
-		sm.GetCurrentStateName(),
-		sm.GetStateName(newState))
+		sm.CurrentIndex,
+		newState)
 
 	cur := sm.Current
 	cur.Leave(ctx, sm, newState)
@@ -137,15 +133,4 @@ func (sm *SimpleSM) Start(ctx context.Context) error {
 		return tracing.Error(ctx, err)
 	}
 	return nil
-}
-
-// GetStateName returns the text name of the state identified by the supplied
-// index.
-func (sm *SimpleSM) GetStateName(id int) string {
-	return sm.Names[id]
-}
-
-// GetCurrentStateName gets the descriptive name for the current state.
-func (sm *SimpleSM) GetCurrentStateName() string {
-	return sm.Names[sm.CurrentIndex]
 }

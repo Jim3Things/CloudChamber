@@ -56,7 +56,7 @@ func InvalidTargetResponse(occursAt int64) *sm.Response {
 // in waiting for a response, and instead to move any such delay into simulated
 // time.
 func DropMessage(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
-	_ = tracing.Error(ctx, "Unexpected message %v arrived in state %q", msg, machine.GetCurrentStateName())
+	_ = tracing.Error(ctx, "Unexpected message %v arrived in state %q", msg, machine.CurrentIndex)
 
 	ch := msg.GetCh()
 

@@ -27,8 +27,7 @@ func NewSetConnection(
 	ch chan *sm.Response) *SetConnection {
 	msg := &SetConnection{}
 
-	msg.Initialize(ctx, ch)
-	msg.Tag = TagSetConnection
+	msg.Initialize(ctx, TagSetConnection, ch)
 	msg.Target = target
 	msg.Guard = guard
 	msg.Enabled = enabled

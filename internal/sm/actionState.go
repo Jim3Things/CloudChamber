@@ -10,7 +10,7 @@ import (
 const (
 	// Stay is used in an ActionEntry as shorthand to indicate that there is
 	// no state transition to process.
-	Stay = -1
+	Stay = ""
 )
 
 var (
@@ -47,7 +47,7 @@ type EnterFunc func(ctx context.Context, machine *SimpleSM) error
 // parameter contains the state ID for the state being transitioned to.  This
 // allows for special processing when, for instance, the transition is from
 // the current state back into the current state.
-type LeaveFunc func(ctx context.Context, machine *SimpleSM, nextState int)
+type LeaveFunc func(ctx context.Context, machine *SimpleSM, nextState string)
 
 // ActionFunc is the signature definition for a message processing function
 // listed in an ActionEntry.
@@ -62,10 +62,10 @@ type ActionEntry struct {
 	Action ActionFunc
 
 	// TrueState is the state ID to change to if Action returns true.
-	TrueState int
+	TrueState string
 
 	// FalseState is the state ID to change to if Action returns false.
-	FalseState int
+	FalseState string
 }
 
 // NewActionState creates a new ActionState instance with the supplied match
@@ -97,7 +97,7 @@ func (s *ActionState) Receive(ctx context.Context, machine *SimpleSM, msg Envelo
 	}
 }
 
-func (s *ActionState) Leave(ctx context.Context, sm *SimpleSM, nextState int) {
+func (s *ActionState) Leave(ctx context.Context, sm *SimpleSM, nextState string) {
 	if s.OnLeave != nil {
 		s.OnLeave(ctx, sm, nextState)
 	}
@@ -136,7 +136,7 @@ func (s *ActionState) Process(
 // message was not expected, and its presence suggests a model consistency
 // failure.
 func UnexpectedMessage(ctx context.Context, machine *SimpleSM, msg Envelope) bool {
-	_ = tracing.Error(ctx, "Unexpected message %v arrived in state %q", msg, machine.GetCurrentStateName())
+	_ = tracing.Error(ctx, "Unexpected message %v arrived in state %q", msg, machine.CurrentIndex)
 
 	ch := msg.GetCh()
 

@@ -43,21 +43,26 @@ func (e *EnvelopeState) GetTag() int {
 	return e.Tag
 }
 
-func (e *EnvelopeState) Initialize(ctx context.Context, ch chan *sm.Response) {
+func (e *EnvelopeState) Initialize(ctx context.Context, tag int, ch chan *sm.Response) {
 	span := trace.SpanFromContext(ctx)
-	tag, ok := tracing.GetAndMarkLink(span)
+	linkID, ok := tracing.GetAndMarkLink(span)
 	if ok {
-		tracing.AddLink(ctx, tag)
+		tracing.AddLink(ctx, linkID)
 	}
 
 	e.Span = span.SpanContext()
-	e.Link = tag
+	e.Link = linkID
+
+	e.Tag = tag
 
 	e.Ch = ch
 }
 
-func (e *EnvelopeState) InitializeNoLink(ch chan *sm.Response) {
+func (e *EnvelopeState) InitializeNoLink(tag int, ch chan *sm.Response) {
 	e.Span = trace.SpanContext{}
 	e.Link = ""
+
+	e.Tag = tag
+
 	e.Ch = ch
 }

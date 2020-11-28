@@ -38,9 +38,9 @@ type Rack struct {
 }
 
 const (
-	rackAwaitingStartState int = iota
-	rackWorkingState
-	rackTerminalState
+	rackAwaitingStartState = "awaiting-start"
+	rackWorkingState       = "working"
+	rackTerminalState      = "terminated"
 )
 
 const (
@@ -79,7 +79,6 @@ func newRackInternal(
 	r.sm = sm.NewSimpleSM(r,
 		sm.WithFirstState(
 			rackAwaitingStartState,
-			"awaiting-start",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagStartSim, startSim, rackWorkingState, rackTerminalState},
@@ -89,7 +88,6 @@ func newRackInternal(
 
 		sm.WithState(
 			rackWorkingState,
-			"working",
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagSetConnection, process, sm.Stay, sm.Stay},
@@ -102,7 +100,6 @@ func newRackInternal(
 
 		sm.WithState(
 			rackTerminalState,
-			"terminated",
 			sm.TerminalEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
