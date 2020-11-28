@@ -193,7 +193,7 @@ func (e ErrItemMissingValue) Error() string {
 		e.Port)
 }
 
-// ErrInvalidItemSelf signals that the specified item has wired a port to itsel.
+// ErrInvalidItemSelf signals that the specified item has wired a port to itself.
 //
 type ErrInvalidItemSelf struct {
 	Field string

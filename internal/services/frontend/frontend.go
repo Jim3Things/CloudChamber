@@ -29,7 +29,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
-	clients "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
@@ -153,7 +152,7 @@ func initClients(cfg *config.GlobalConfig) error {
 func initService(cfg *config.GlobalConfig) error {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Initialize web service"),
-		tracing.WithContextValue(clients.EnsureTickInContext),
+		tracing.WithContextValue(ts.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
 

@@ -591,25 +591,35 @@ func WithRackBlades() InventoryRackOption {
 // ListZones returns the basic zone record for all the discovered zones. Optionally,
 // racks along with the rack component PDU, TOR and blades can also be returned.
 //
-func (m *DBInventory) ListZones(ctx context.Context, options ...InventoryZoneOption) (map[string]*DefinitionZone, int64, error) {return nil, InvalidRev, nil}
+func (m *DBInventory) ListZones(ctx context.Context, options ...InventoryZoneOption) (map[string]*DefinitionZone, int64, error) {
+	return nil, InvalidRev, nil
+}
 
 // ListRacks returns the basic zone record for all the discovered racks within
 // the specified zone. Optionally, the rack component PDU, TOR and blades can
 // also be returned.
 //
-func (m *DBInventory) ListRacks(ctx context.Context, zone string, options ...InventoryRackOption) (map[string]*DefinitionRack, int64, error) {return nil, InvalidRev, nil}
+func (m *DBInventory) ListRacks(ctx context.Context, zone string, options ...InventoryRackOption) (map[string]*DefinitionRack, int64, error) {
+	return nil, InvalidRev, nil
+}
 
 // ListPdus returns the basic records for the PDUs in the specified rack.
 //
-func (m *DBInventory) ListPdus(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionPdu, int64, error) {return nil, InvalidRev, nil}
+func (m *DBInventory) ListPdus(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionPdu, int64, error) {
+	return nil, InvalidRev, nil
+}
 
 // ListTors returns the basic records for the TORs in the specified rack.
 //
-func (m *DBInventory) ListTors(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionTor, int64, error) {return nil, InvalidRev,  nil}
+func (m *DBInventory) ListTors(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionTor, int64, error) {
+	return nil, InvalidRev,  nil
+}
 
 // ListBlades returns the basic records for the blades in the specified rack.
 //
-func (m *DBInventory) ListBlades(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionBlade, int64, error) {return nil, InvalidRev, nil}
+func (m *DBInventory) ListBlades(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionBlade, int64, error) {
+	return nil, InvalidRev, nil
+}
 
 
 // CreateZone is used to create a basic zone record in the store.
