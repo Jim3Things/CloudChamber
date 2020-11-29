@@ -28,7 +28,10 @@ import (
 //
 type DBUsers struct {
 	Store *store.Store
+	val1 int64
 }
+
+var dbUsers *DBUsers
 
 // InitDBUsers is a method to initialize the users store.  For now this is only a map in memory.
 func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {

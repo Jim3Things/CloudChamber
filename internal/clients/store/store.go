@@ -138,6 +138,7 @@ type Store struct {
 
 var (
 	storeRoot global
+	val int64
 )
 
 func (store *Store) traceEnabled() bool { return store.TraceFlags != 0 }

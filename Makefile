@@ -9,6 +9,7 @@ PROTO_FILES = \
     pkg/protos/common/timestamp.proto \
     pkg/protos/log/entry.proto \
     pkg/protos/inventory/actual.proto \
+    pkg/protos/inventory/definition.proto \
     pkg/protos/inventory/external.proto \
     pkg/protos/inventory/internal.proto \
     pkg/protos/inventory/target.proto \
@@ -30,6 +31,7 @@ PROTO_GEN_FILES = \
     pkg/protos/common/timestamp.pb.go \
     pkg/protos/log/entry.pb.go \
     pkg/protos/inventory/actual.pb.go \
+    pkg/protos/inventory/definition.pb.go \
     pkg/protos/inventory/external.pb.go \
     pkg/protos/inventory/internal.pb.go \
     pkg/protos/inventory/target.pb.go \
@@ -152,7 +154,7 @@ VERSION_MARKER = \
 ARTIFACTS = \
     deployments/readme.md \
     deployments/cloudchamber.yaml \
-	deployments/inventory.yaml \
+    deployments/inventory.yaml \
     deployments/Deploy.cmd \
     deployments/StartAll.cmd \
     deployments/StartCloudChamber.cmd \

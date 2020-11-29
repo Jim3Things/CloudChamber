@@ -72,7 +72,7 @@ func InitDBInventoryActual(inven *DBInventory) error {
 			},
 		}
 		
-		inven.Mutex.Lock()
+		inven.mutex.RLock()
 
 		for name, rack := range inven.Zone.Racks {
 			r := &actualRack {
@@ -97,7 +97,7 @@ func InitDBInventoryActual(inven *DBInventory) error {
 			actual.Zone.Racks[name] = r
 		}
 
-		inven.Mutex.Unlock()
+		inven.mutex.RUnlock()
 
 		dbInventoryActual = actual
 	}
