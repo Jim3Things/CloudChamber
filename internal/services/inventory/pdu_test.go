@@ -24,14 +24,14 @@ func (ts *PduTestSuite) TestCreatePdu() {
 
 	r := newRack(context.Background(), ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
-	assert.Equal("awaiting-start", r.sm.CurrentIndex)
+	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
 
 	p := r.pdu
 	require.NotNil(p)
 
 	assert.Equal(2, len(p.cables))
 
-	assert.Equal("working", p.sm.CurrentIndex)
+	assert.Equal(pduWorkingState, p.sm.CurrentIndex)
 
 	for _, c := range p.cables {
 		assert.False(c.on)
@@ -64,7 +64,11 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.pdu.sm.CurrentIndex == pduWorkingState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 
 	for _, c := range r.pdu.cables {
 		assert.True(c.on)
@@ -99,7 +103,11 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 		assert.False(c.on)
 	}
 
-	assert.Equal("off", r.pdu.sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.pdu.sm.CurrentIndex == pduOffState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOffPduTooLate() {
@@ -108,6 +116,11 @@ func (ts *PduTestSuite) TestPowerOffPduTooLate() {
 	startTime := int64(1)
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
+	ok := ts.waitForStateChange(func() bool {
+		return r.pdu.sm.CurrentIndex == pduWorkingState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 
 	rsp := make(chan *sm.Response)
 
@@ -132,7 +145,8 @@ func (ts *PduTestSuite) TestPowerOffPduTooLate() {
 		assert.True(c.on)
 	}
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	// Verify that it did not change - should never need to wait for this.
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnPdu() {
@@ -140,6 +154,11 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 	assert := ts.Assert()
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, true)
+	ok := ts.waitForStateChange(func() bool {
+		return r.pdu.sm.CurrentIndex == pduWorkingState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 
 	rsp := make(chan *sm.Response)
 
@@ -163,7 +182,8 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 		assert.False(c.on)
 	}
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	// Verify that it did not change - should never need to wait for this.
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnBlade() {
@@ -193,7 +213,9 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	assert.True(r.pdu.cables[0].on)
 	assert.False(r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnBladeBadID() {
@@ -221,7 +243,9 @@ func (ts *PduTestSuite) TestPowerOnBladeBadID() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Less(r.pdu.sm.Guard, msg.Guard)
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
@@ -254,7 +278,9 @@ func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
 	assert.True(r.pdu.cables[0].on)
 	assert.False(r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
@@ -288,7 +314,9 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	assert.Less(commandTime, r.pdu.cables[0].Guard)
 	assert.False(r.pdu.cables[0].on)
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestStuckCable() {
@@ -322,7 +350,9 @@ func (ts *PduTestSuite) TestStuckCable() {
 	assert.False(r.pdu.cables[0].on)
 	assert.Equal(true, r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestStuckCablePduOff() {
@@ -353,7 +383,11 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 		assert.False(c.on)
 	}
 
-	assert.Equal("off", r.pdu.sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.pdu.sm.CurrentIndex == pduOffState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 }
 
 func TestPduTestSuite(t *testing.T) {
