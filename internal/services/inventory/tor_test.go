@@ -9,6 +9,7 @@ import (
 
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
@@ -31,7 +32,7 @@ func (ts *TorTestSuite) TestCreateTor() {
 
 	assert.Equal(2, len(t.cables))
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.CurrentIndex)
 
 	for _, c := range t.cables {
 		assert.False(c.on)
@@ -55,16 +56,21 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	rsp := make(chan *sm.Response)
 
 	r.Receive(
-		newSetConnection(ctx, newTargetTor(ts.rackName()), common.TickFromContext(ctx), false, rsp))
+		messages.NewSetConnection(
+			ctx,
+			messages.NewTargetTor(ts.rackName()),
+			common.TickFromContext(ctx),
+			false,
+			rsp))
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(ErrInvalidTarget, res.Err)
+	assert.Equal(messages.ErrInvalidTarget, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.CurrentIndex)
 
 	for _, c := range t.cables {
 		assert.True(c.on)
@@ -84,7 +90,12 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), commandTime, true, rsp)
+	msg := messages.NewSetConnection(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
+		rsp)
 
 	r.Receive(msg)
 
@@ -92,7 +103,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	require.NotNil(res)
 
 	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
+	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
 
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
@@ -101,7 +112,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	assert.Less(t.cables[0].Guard, res.At)
 	assert.False(t.cables[0].on)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestConnectBlade() {
@@ -110,7 +121,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
 
-	ctx = ts.bootBlade(ctx, r, 0)
+	assert.Equal(bladeOffDiscon, r.blades[0].sm.CurrentIndex)
 
 	t := r.tor
 	require.NotNil(t)
@@ -123,7 +134,12 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	rsp := make(chan *sm.Response)
 
 	r.Receive(
-		newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), common.TickFromContext(ctx), true, rsp))
+		messages.NewSetConnection(
+			ctx,
+			messages.NewTargetBlade(ts.rackName(), 0),
+			common.TickFromContext(ctx),
+			true,
+			rsp))
 
 	span.End()
 
@@ -139,8 +155,58 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.True(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
+	assert.Equal(bladeOffConn, r.blades[0].sm.CurrentIndex)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.CurrentIndex)
+}
+
+func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
+
+	ctx = ts.bootBlade(ctx, r, 0)
+
+	t := r.tor
+	require.NotNil(t)
+
+	require.True(t.cables[0].on)
+	require.False(t.cables[0].faulted)
+	require.Equal(bladeWorking, r.blades[0].sm.CurrentIndex)
+
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test connecting up a blade"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
+
+	rsp := make(chan *sm.Response)
+
+	r.Receive(
+		messages.NewSetConnection(
+			ctx,
+			messages.NewTargetBlade(ts.rackName(), 0),
+			common.TickFromContext(ctx),
+			false,
+			rsp))
+
+	span.End()
+
+	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+
+	assert.NoError(res.Err)
+
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
+
+	assert.Equal(common.TickFromContext(ctx), t.sm.Guard)
+	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
+	assert.False(t.cables[0].on)
+	assert.False(t.cables[0].faulted)
+	assert.Equal(bladeIsolated, r.blades[0].sm.CurrentIndex)
+
+	assert.Equal("working", t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestStuckCable() {
@@ -155,7 +221,12 @@ func (ts *TorTestSuite) TestStuckCable() {
 	rsp := make(chan *sm.Response)
 
 	commandTime := common.TickFromContext(ctx)
-	msg := newSetConnection(ctx, newTargetBlade(ts.rackName(), 0), commandTime, true, rsp)
+	msg := messages.NewSetConnection(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
+		rsp)
 
 	r.Receive(msg)
 
@@ -173,7 +244,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 	assert.False(t.cables[0].on)
 	assert.Equal(true, t.cables[0].faulted)
 
-	assert.Equal("working", t.sm.Current.Name())
+	assert.Equal("working", t.sm.CurrentIndex)
 }
 
 func TestTorTestSuite(t *testing.T) {

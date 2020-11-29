@@ -10,6 +10,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
@@ -75,7 +76,7 @@ func (ts *testSuiteCore) createAndStartRack(
 	ctx context.Context,
 	bladeCount int,
 	power bool,
-	connect bool) (context.Context, *rack) {
+	connect bool) (context.Context, *Rack) {
 
 	require := ts.Require()
 
@@ -107,21 +108,37 @@ func (ts *testSuiteCore) createAndStartRack(
 	return ctx, r
 }
 
-func (ts *testSuiteCore) bootBlade(ctx context.Context, r *rack, id int64) context.Context {
+func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) context.Context {
 	require := ts.Require()
 
 	rsp := make(chan *sm.Response)
 
-	msg := newSetPower(ctx, newTargetBlade(r.name, id), common.TickFromContext(ctx), true, rsp)
-
-	r.Receive(msg)
+	r.Receive(messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(r.name, id),
+		common.TickFromContext(ctx),
+		true,
+		rsp))
 
 	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.NotNil(res)
 	require.NoError(res.Err)
 
+	rsp = make(chan *sm.Response)
+
+	r.Receive(messages.NewSetConnection(
+		ctx,
+		messages.NewTargetBlade(r.name, id),
+		common.TickFromContext(ctx),
+		true,
+		rsp))
+
+	res = ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.NotNil(res)
+	require.NoError(res.Err)
+
 	ctx, ok := ts.advanceToStateChange(ctx, 10, func() bool {
-		return bladeWorkingState == r.blades[id].sm.CurrentIndex
+		return bladeWorking == r.blades[id].sm.CurrentIndex
 	})
 
 	require.True(ok)
@@ -145,7 +162,10 @@ func (ts *testSuiteCore) advance(ctx context.Context) context.Context {
 	return common.ContextWithTick(ctx, timestamp.Tick(ctx))
 }
 
-func (ts *testSuiteCore) advanceToStateChange(ctx context.Context, num int, compare func() bool) (context.Context, bool) {
+func (ts *testSuiteCore) advanceToStateChange(
+	ctx context.Context,
+	num int,
+	compare func() bool) (context.Context, bool) {
 	for i := 0; i < num; i++ {
 		ctx = ts.advance(ctx)
 		if compare() {
@@ -158,11 +178,11 @@ func (ts *testSuiteCore) advanceToStateChange(ctx context.Context, num int, comp
 
 func (ts *testSuiteCore) waitForStateChange(compare func() bool) bool {
 	for i := 0; i < 10; i++ {
-		time.Sleep(time.Duration(100) * time.Millisecond)
 		if compare() {
 			return true
 		}
+		time.Sleep(time.Duration(100) * time.Millisecond)
 	}
 
-	return false
+	return compare()
 }

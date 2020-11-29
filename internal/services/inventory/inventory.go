@@ -9,6 +9,7 @@ import (
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
@@ -18,7 +19,7 @@ import (
 type server struct {
 	pb.UnimplementedInventoryServer
 
-	racks map[string]*rack
+	racks map[string]*Rack
 
 	timers *ts.Timers
 }
@@ -44,7 +45,7 @@ func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
 		grpc.WithUnaryInterceptor(ct.Interceptor))
 
 	s := &server{
-		racks:  make(map[string]*rack),
+		racks:  make(map[string]*Rack),
 		timers: timers,
 	}
 
@@ -116,7 +117,7 @@ func (s *server) startBlades() error {
 		tracing.Info(ctx, "Booting the blades in rack %q", name)
 		for _, b := range r.blades {
 			r.Receive(
-				newSetPower(ctx, b.me(), common.TickFromContext(ctx), true, rsp))
+				messages.NewSetPower(ctx, b.me(), common.TickFromContext(ctx), true, rsp))
 			<-rsp
 		}
 	}
