@@ -84,7 +84,7 @@ func (s *server) initializeRacks(path string) error {
 		tracing.WithContextValue(ts.EnsureTickInContext))
 	defer span.End()
 
-	zone, err := config.ReadInventoryDefinition(path)
+	zone, err := config.ReadInventoryDefinition(ctx, path)
 	if err != nil {
 		return err
 	}

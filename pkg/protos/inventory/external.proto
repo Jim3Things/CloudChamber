@@ -6,7 +6,7 @@
 
 syntax = "proto3";
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
+import "pkg/protos/common/capacity.proto";
 
 package inventory;
 

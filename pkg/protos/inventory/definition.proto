@@ -1,0 +1,287 @@
+// This file contains the definitions used by configuration definitions for describing the simulated
+// inventory.  These definitions describe the items, but do not define any observed or actual status for them.
+//
+// Note that we may, at some point, want to add an initial status definition in order to define inventory that begins
+// in a partially failed manner.
+
+syntax = "proto3";
+
+import "pkg/protos/common/capacity.proto";
+
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+
+message definition {
+
+    // Underlying condition of item within the inventory. Allows control of the basic state of the item. Note that
+    // for an item to be usable, it must also be enabled.
+    //
+    enum condition {
+        not_in_service = 0;
+        operational = 1;
+        burn_in = 2;
+        out_for_repair = 3;
+        retiring = 4;
+        retired = 5;
+    }
+
+    // Describes potential targets for wiring connections between a Pdu or Tor port and a specific
+    // item of equipment.
+    //
+    message item {
+
+        // Defines the type of hardware that can be wired up to a Pdu power port or a Tor network port.
+        //
+        enum item_type {
+            // The type of hardware is not yet known
+            //
+            unknown = 0;
+
+            // This item is a PDU (Power Distribution Unit).
+            //
+            pdu = 1;
+
+            // Equipment is a TOR (Top of Rack network switch)
+            //
+            tor = 2;
+
+            // Equipment is a blade computer
+            //
+            blade = 3;
+        }
+
+        // The type or item or piece of equipment
+        //
+        item_type type = 1;
+
+        // Defines an instance of the piece of equipment. For example there are likely to be multiple
+        // blades and the id is used to dissinguish amongst them.
+        //
+        int64 id = 2;
+
+        // If the item has multiple connectors, the port field can be used to indicate which connector
+        // is used for this port.
+        //
+        int64 port = 3;
+    }
+
+    message power_port {
+        // Defines whether or not the port is actually connected to the associated item of equipment.
+        //
+        bool wired = 1;
+
+        // Defines what the port is wired up to.
+        //
+        item item = 2;
+    }
+
+    message network_port {
+        // Defines whether or not the port is actually connected to the associated item of equipment.
+        //
+        bool wired = 1;
+
+        // Defines what the port is wired up to.
+        //
+        item item = 2;
+    }
+    
+    // The two types here are common overhead items in a rack.  All are pure skeletons at this point.
+    // Note that all have implied connectivity with all other items in a rack.  Currently elided in the external model,
+    // but used in the other models.
+
+    // Power distribution unit.  Network accessible power controller
+    //
+    message pdu {
+        // Note that full internal name for a pdu is <rackname>-pdu-0
+
+        // Whether or not the pdu is enabled. This is orthoganal to the condition of the
+        // pdu. For resources within the pdu to be schedulable, the pdu must be both
+        // enabled and the condition must be operational.
+        //
+        bool enabled = 1;
+
+        // Defines the overall condition of the pdu. This is orthoganal to the enabling of
+        // the pdu. For resources within the pdu to be schedulable, the pdu must be both
+        // enabled and the condition must be operational.
+        //
+        condition condition = 2;
+
+        // Defines a power "socket" which is used to provide power to a blade. There is
+        // a 1 to 1 mapping of a power port to a blade within a single rack and it is an
+        // error if there fewer power ports than blades.
+        //
+        map<int64, power_port> ports = 10;
+    }
+
+    // Rack-level network switch.
+    //
+    message tor {
+        // Note that full internal name for a tor is <rackname>-tor-0
+
+        // Whether or not the tor is enabled. This is orthoganal to the condition of the
+        // tor. For resources within the tor to be schedulable, the tor must be both
+        // enabled and the condition must be operational.
+        //
+        bool enabled = 1;
+
+        // Defines the overall condition of the tor. This is orthoganal to the enabling of
+        // the tor. For resources within the tor to be schedulable, the tor must be both
+        // enabled and the condition must be operational.
+        //
+        condition condition = 2;
+
+        // Defines a network "port" which is used to provide a network connection to a
+        // blade. There is a 1 to 1 mapping of a network port to a blade within a single
+        // rack and it is an error if there fewer netwrok ports than blades.
+        //
+        map<int64, network_port> ports = 10;
+    }
+
+    message boot_method {
+        enum method {
+            local = 0;
+            network = 1;
+        }
+
+        method source = 1;
+        string image = 2;
+        string version = 3;
+        string parameters = 4;
+    }
+
+    // Individual blade within the rack
+    //
+    message blade {
+        // Whether or not the blade is enabled. This is orthoganal to the condition of the
+        // blade. For resources within the blade to be schedulable, the blade must be both
+        // enabled and the condition must be operational.
+        //
+        bool enabled = 1;
+
+        // Defines the overall condition of the blade. This is orthoganal to the enabling of
+        // the blade. For resources within the blade to be schedulable, the blade must be both
+        // enabled and the condition must be operational.
+        //
+        condition condition = 2;
+
+        common.blade_capacity capacity = 3;
+
+        // Defines whether or not the blade automatically begins a boot sequence when power is
+        // appplied to the blade.
+        //
+        bool boot_on_power_on = 4;
+
+        // Describes the default boot mechanism
+        //
+        boot_method image = 5;
+    }
+
+    message rack {
+        // This assumes a single overhead item per rack.  May want to allow multiple to handle
+        // subdivisions for power or network, say.
+
+        // Whether or not the rack as a whole is enabled. This is orthoganal to the condition
+        // of the rack. For resources within the rack to be schedulable, the rack must be both
+        // enabled and the condition must be operational.
+        //
+        bool enabled = 1;
+
+        // Defines the overall condition of the rack. This is orthoganal to the enabling of
+        // the rack. For resources within the rack to be schedulable, the rack must be both
+        // enabled and the condition must be operational.
+        //
+        condition condition = 2;
+
+        // Arbitrary string used to allow the physical location of the rack to be recorded in
+        // a user defined format. Has no effect on the operation of the rack, for display
+        // purposes only.
+        //
+        string location = 4;
+
+        // Arbitrary string used to allow any operational notes for the blade to be recorded
+        // in a user defined format. Has no effect on the operation of the rack, for display
+        // purposes only.
+        //
+        string notes = 5;
+    }
+
+    // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a
+    // key in the map below.
+    //
+    message zone {
+        enum state {
+            not_in_service = 0;
+            operational = 1;
+            commissioning = 2;
+            assumed_failed = 3;
+            retiring = 4;
+            retired = 5;
+        }
+    
+        // Whether or not the zone as a whole is enabled. This is orthoganal to the condition
+        // of the zone. For resources within the zone to be schedulable, the zone must be both
+        // enabled and the condition must be operational.
+        //
+        bool enabled = 1;
+
+        // Defines the overall condition of the zone. This is orthoganal to the enabling of
+        // the zone. For resources within the zone to be schedulable, the zone must be both
+        // enabled and the condition must be operational.
+        //
+        state condition = 2;
+
+        // Arbitrary string used to allow the physical location of the zone to be recorded in
+        // a user defined format. Has no effect on the operation of the zone, for display
+        // purposes only.
+        //
+        string location = 3;
+
+        // Arbitrary string used to allow any operational notes for the zone to be recorded
+        // in a user defined format. Has no effect on the operation of the zone, for display
+        // purposes only.
+        //
+        string notes = 4;
+    }
+
+    // A complete description of a rack internal "in-memory" usage as oppoesed to reading
+    // and/or writing individual rack records from the store, i.e. a "container" structure.
+    //
+    message rack_internal {
+
+        rack details = 1;
+
+        // Specify the pdus in the rack.  Each pdu is defined by an integer index within
+        // that rack, which is used here as the key.
+        //
+        map<int64, pdu> pdus = 10;
+
+        // specify the tors in the rack.  Each tor is defined by an integer index within
+        // that rack, which is used here as the key.
+        //
+        map<int64, tor> tors = 11;
+
+        // specify the blades in the rack.  Each blade is defined by an integer index within
+        // that rack, which is used here as the key.
+        //
+        map<int64, blade> blades = 12;
+    }
+
+    // A complete description of a zone internal "in-memory" usage as oppoesed to reading
+    // and/or writing individual zone records from the store, i.e. a "container" structure.
+    //
+    message zone_internal {
+
+        zone details = 1;
+
+        // The set of racks forming an individual zone. All racks in the zone are affected
+        // by the properties of the zone or any conditions affecting the zone. Each rack is
+        // defined by a string name within the zone, and that name is used here as a key.
+        //
+        map<string, rack_internal> racks = 10;
+    }
+}
+
+message region {
+    string name = 1;
+    map<string, definition.zone_internal> zones = 10;
+}
+

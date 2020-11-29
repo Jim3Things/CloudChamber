@@ -36,10 +36,6 @@ const (
 	Logout = "logout"
 )
 
-var (
-	dbUsers *DBUsers
-)
-
 // +++ Route handling methods
 
 // This section contains the route definitions, and the top level handlers for
