@@ -32,7 +32,7 @@ func (ts *TorTestSuite) TestCreateTor() {
 
 	assert.Equal(2, len(t.cables))
 
-	assert.Equal("working", t.sm.CurrentIndex)
+	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 
 	for _, c := range t.cables {
 		assert.False(c.on)
@@ -70,7 +70,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal("working", t.sm.CurrentIndex)
+	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 
 	for _, c := range t.cables {
 		assert.True(c.on)
@@ -112,7 +112,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	assert.Less(t.cables[0].Guard, res.At)
 	assert.False(t.cables[0].on)
 
-	assert.Equal("working", t.sm.CurrentIndex)
+	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestConnectBlade() {
@@ -121,7 +121,17 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
 
-	assert.Equal(bladeOffDiscon, r.blades[0].sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.tor.sm.CurrentIndex == torWorkingState
+	})
+
+	require.True(ok, "state is %v", r.tor.sm.CurrentIndex)
+
+	ok = ts.waitForStateChange(func() bool {
+		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
+	})
+
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	t := r.tor
 	require.NotNil(t)
@@ -155,9 +165,13 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.True(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	assert.Equal(bladeOffConn, r.blades[0].sm.CurrentIndex)
+	ok = ts.waitForStateChange(func() bool {
+		return r.blades[0].sm.CurrentIndex == bladeOffConn
+	})
 
-	assert.Equal("working", t.sm.CurrentIndex)
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
@@ -204,9 +218,13 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.False(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	assert.Equal(bladeIsolated, r.blades[0].sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.blades[0].sm.CurrentIndex == bladeIsolated
+	})
 
-	assert.Equal("working", t.sm.CurrentIndex)
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestStuckCable() {
@@ -244,7 +262,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 	assert.False(t.cables[0].on)
 	assert.Equal(true, t.cables[0].faulted)
 
-	assert.Equal("working", t.sm.CurrentIndex)
+	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 }
 
 func TestTorTestSuite(t *testing.T) {

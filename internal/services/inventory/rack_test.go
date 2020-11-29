@@ -59,10 +59,18 @@ func (ts *RackTestSuite) TestStartStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.sm.CurrentIndex == rackWorkingState
+	})
+
+	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
+	ok = ts.waitForStateChange(func() bool {
+		return r.sm.CurrentIndex == rackTerminalState
+	})
+
+	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	span.End()
 }
@@ -88,7 +96,11 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.sm.CurrentIndex == rackWorkingState
+	})
+
+	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	err = r.start(ctx)
 	assert.Error(err)
@@ -97,7 +109,11 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
+	ok = ts.waitForStateChange(func() bool {
+		return r.sm.CurrentIndex == rackTerminalState
+	})
+
+	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	span.End()
 }
@@ -123,10 +139,18 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.sm.CurrentIndex == rackWorkingState
+	})
+
+	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
+	ok = ts.waitForStateChange(func() bool {
+		return r.sm.CurrentIndex == rackTerminalState
+	})
+
+	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
 	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
@@ -179,7 +203,11 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
+	ok := ts.waitForStateChange(func() bool {
+		return r.sm.CurrentIndex == rackWorkingState
+	})
+
+	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	ctx = ts.advance(ctx)
 
@@ -208,7 +236,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 		assert.False(c.on)
 	}
 
-	assert.Equal("working", r.pdu.sm.CurrentIndex)
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 
 	r.stop(ctx)
 	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
