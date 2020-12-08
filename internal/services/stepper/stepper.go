@@ -178,7 +178,7 @@ func (s *stepper) start(ctx context.Context) error {
 	s.startLock.Lock()
 	defer s.startLock.Unlock()
 
-	// Only start the rack state machine once.  If it has already been started
+	// Only start the state machine once.  If it has already been started
 	// then ignore this call.
 	if s.sm.CurrentIndex == awaitingStart {
 		go s.simulate()
