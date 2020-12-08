@@ -13,7 +13,7 @@ type GetStatus struct {
 	sm.EnvelopeState
 }
 
-func NewGetStatus(ctx context.Context, ch chan *sm.Response) *GetStatus  {
+func NewGetStatus(ctx context.Context, ch chan *sm.Response) *GetStatus {
 	msg := &GetStatus{}
 	msg.Initialize(ctx, TagGetStatus, ch)
 
@@ -45,4 +45,3 @@ func NewStatusResponseBody(
 		Policy:        policy,
 	}
 }
-

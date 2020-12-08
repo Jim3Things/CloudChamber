@@ -37,14 +37,14 @@ func (e *errInvalidPolicy) Error() string {
 }
 
 type errPolicyTooLate struct {
-	guard int64
+	guard   int64
 	current int64
 }
 
 func (e *errPolicyTooLate) Error() string {
 	return fmt.Sprintf(
-		"the SetPolicy operation expects to replace policy version %d, " +
+		"the SetPolicy operation expects to replace policy version %d, "+
 			"but the current policy version is %d",
-			e.guard,
-			e.current)
+		e.guard,
+		e.current)
 }

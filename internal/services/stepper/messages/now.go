@@ -17,4 +17,3 @@ func NewNow(ctx context.Context, ch chan *sm.Response) *Now {
 
 	return msg
 }
-

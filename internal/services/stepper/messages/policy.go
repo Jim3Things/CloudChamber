@@ -86,7 +86,6 @@ func (nwp *NoWaitPolicy) String() string {
 		replacing = fmt.Sprintf(", replacing policy generation %d", nwp.Guard)
 	}
 
-
 	return fmt.Sprintf("Advance time to first waiter%s", replacing)
 }
 
@@ -125,4 +124,3 @@ func (mp *MeasuredPolicy) String() string {
 
 	return fmt.Sprintf("Advance time automatically every %v%s", mp.Delay, replacing)
 }
-

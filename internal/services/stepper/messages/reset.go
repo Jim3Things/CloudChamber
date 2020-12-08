@@ -18,4 +18,3 @@ func NewReset(ctx context.Context, ch chan *sm.Response) *Reset {
 
 	return msg
 }
-

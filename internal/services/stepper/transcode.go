@@ -82,7 +82,7 @@ func toExternalStatusResponse(rsp *sm.Response) (*pb.StatusResponse, error) {
 		MeasuredDelay: ptypes.DurationProto(body.MeasuredDelay),
 		Now:           &common.Timestamp{Ticks: rsp.At},
 		Epoch:         body.Guard,
-		WaiterCount: body.Waiters,
+		WaiterCount:   body.Waiters,
 	}, nil
 }
 

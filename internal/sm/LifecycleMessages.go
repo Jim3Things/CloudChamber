@@ -4,7 +4,6 @@ import (
 	"context"
 )
 
-
 const (
 	// TagStartSM identifies the message used to start a state machine
 	// goroutine
