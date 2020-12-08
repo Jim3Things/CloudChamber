@@ -28,7 +28,7 @@ type Rack struct {
 	pdu    *pdu
 	blades map[int64]*blade
 
-	sm *sm.SimpleSM
+	sm *sm.SM
 
 	timers *timestamp.Timers
 
@@ -76,12 +76,12 @@ func newRackInternal(
 		startLock: sync.Mutex{},
 	}
 
-	r.sm = sm.NewSimpleSM(r,
+	r.sm = sm.NewSM(r,
 		sm.WithFirstState(
 			rackAwaitingStartState,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagStartSim, startSim, rackWorkingState, rackTerminalState},
+				{sm.TagStartSM, startSim, rackWorkingState, rackTerminalState},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
@@ -93,7 +93,7 @@ func newRackInternal(
 				{messages.TagSetConnection, process, sm.Stay, sm.Stay},
 				{messages.TagSetPower, process, sm.Stay, sm.Stay},
 				{messages.TagTimerExpiry, process, sm.Stay, sm.Stay},
-				{messages.TagStopSim, stopSim, rackTerminalState, sm.Stay},
+				{sm.TagStopSM, stopSim, rackTerminalState, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
@@ -165,7 +165,7 @@ func (r *Rack) forwardToBlade(ctxIn context.Context, id int64, msg sm.Envelope) 
 			ctxIn,
 			tracing.WithName(fmt.Sprintf("Processing message %q on blade", msg)),
 			tracing.WithNewRoot(),
-			tracing.WithLink(msg.GetSpanContext(), msg.GetLinkID()),
+			tracing.WithLink(msg.SpanContext(), msg.LinkID()),
 			tracing.WithContextValue(timestamp.EnsureTickInContext))
 		defer span.End()
 
@@ -203,7 +203,7 @@ func (r *Rack) start(ctx context.Context) error {
 
 		repl := make(chan *sm.Response)
 
-		msg := messages.NewStartSim(ctx, repl)
+		msg := sm.NewStartSM(ctx, repl)
 
 		r.ch <- msg
 
@@ -228,7 +228,7 @@ func (r *Rack) stop(ctx context.Context) {
 		if !r.sm.Terminated {
 			repl := make(chan *sm.Response)
 
-			msg := messages.NewStopSim(ctx, repl)
+			msg := sm.NewStopSM(ctx, repl)
 
 			r.ch <- msg
 
@@ -254,7 +254,7 @@ func (r *Rack) simulate() {
 			context.Background(),
 			tracing.WithName("Executing simulated inventory operation"),
 			tracing.WithNewRoot(),
-			tracing.WithLink(msg.GetSpanContext(), msg.GetLinkID()),
+			tracing.WithLink(msg.SpanContext(), msg.LinkID()),
 			tracing.WithContextValue(timestamp.EnsureTickInContext))
 
 		r.sm.Current.Receive(ctx, r.sm, msg)
@@ -267,11 +267,11 @@ func (r *Rack) simulate() {
 
 // startSim starts the rack simulation state machine, and all those of all the
 // elements contained within the rack.
-func startSim(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+func startSim(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	r := machine.Parent.(*Rack)
 	at := common.TickFromContext(ctx)
 
-	msg := m.(*messages.StartSim)
+	msg := m.(*sm.StartSM)
 
 	tracing.UpdateSpanName(
 		ctx,
@@ -296,7 +296,7 @@ func startSim(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 		err = b.sm.Start(ctx)
 	}
 
-	msg.GetCh() <- &sm.Response{
+	msg.Ch() <- &sm.Response{
 		Err: err,
 		At:  at,
 		Msg: nil,
@@ -306,21 +306,21 @@ func startSim(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 }
 
 // process an incoming message, forwarding to the relevant managed element.
-func process(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
+func process(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	body := msg.(messages.RepairMessage)
 	r := machine.Parent.(*Rack)
 
 	if err := body.SendVia(ctx, r); err != nil {
-		msg.GetCh() <- messages.FailedResponse(common.TickFromContext(ctx), err)
+		msg.Ch() <- sm.FailedResponse(common.TickFromContext(ctx), err)
 	}
 
 	return true
 }
 
 // stopSim is used to stop the rack simulation, and signal that it is now done.
-func stopSim(ctx context.Context, machine *sm.SimpleSM, msg sm.Envelope) bool {
+func stopSim(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	// Stop the rack simulation.
-	msg.GetCh() <- &sm.Response{
+	msg.Ch() <- &sm.Response{
 		Err: machine.ChangeState(ctx, rackTerminalState),
 		At:  common.TickFromContext(ctx),
 		Msg: nil,

@@ -26,14 +26,6 @@ const (
 	// TagSetPower identifies a power change message
 	TagSetPower
 
-	// TagStartSim identifies the message used to start a rack-level
-	// simulation
-	TagStartSim
-
-	// TagStopSim identifies the message used to terminate a rack-level
-	// simulation
-	TagStopSim
-
 	// TagTimerExpiry identifies a timer expiration message.
 	TagTimerExpiry
 )
@@ -43,7 +35,7 @@ const (
 // messageBase is the standard header structure for an inventory repair or
 // status message.
 type messageBase struct {
-	EnvelopeState
+	sm.EnvelopeState
 
 	Target *MessageTarget
 
@@ -74,7 +66,7 @@ type RepairMessage interface {
 // simulation status request messages.
 type StatusMessage interface {
 	messageForwarder
-	GetStatus(ctx context.Context, sm *sm.SimpleSM, s RepairActionState)
+	GetStatus(ctx context.Context, sm *sm.SM, s RepairActionState)
 }
 
 // --- Base message and interfaces

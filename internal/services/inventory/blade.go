@@ -62,7 +62,7 @@ type blade struct {
 	id int64
 
 	// sm is the state machine for this blade's simulation.
-	sm *sm.SimpleSM
+	sm *sm.SM
 
 	capacity *capacity
 
@@ -163,7 +163,7 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 		b.capacity.consumables[acceleratorPrefix+a.String()] = float64(1)
 	}
 
-	b.sm = sm.NewSimpleSM(b,
+	b.sm = sm.NewSM(b,
 		sm.WithFirstState(
 			bladeStart,
 			startedOnEnter,
@@ -287,13 +287,13 @@ func (b *blade) me() *messages.MessageTarget {
 
 // startedOnEnter initializes the simulation state and transitions to the
 // off and disconnected state.
-func startedOnEnter(ctx context.Context, machine *sm.SimpleSM) error {
+func startedOnEnter(ctx context.Context, machine *sm.SM) error {
 	return machine.ChangeState(ctx, bladeOffDiscon)
 }
 
 // poweredConnOnEnter checks if automatic booting is enabled.  If it is, the
 // blade transitions immediately into booting.
-func poweredConnOnEnter(ctx context.Context, machine *sm.SimpleSM) error {
+func poweredConnOnEnter(ctx context.Context, machine *sm.SM) error {
 	b := machine.Parent.(*blade)
 
 	if b.bootOnPower {
@@ -305,19 +305,19 @@ func poweredConnOnEnter(ctx context.Context, machine *sm.SimpleSM) error {
 
 // bootingOnEnter starts the delay timer used to simulate the time needed to
 // boot.
-func bootingOnEnter(ctx context.Context, machine *sm.SimpleSM) error {
+func bootingOnEnter(ctx context.Context, machine *sm.SM) error {
 	return setTimer(ctx, machine, bootDelay())
 }
 
 // bootingTimerExpiry processes the boot delay timer expiration message.  This
 // will lead to a transition to the next state, if successful.
-func bootingTimerExpiry(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+func bootingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	return timerExpiration(ctx, machine, m, "Boot")
 }
 
 // bootingOnLeave ensures that any active boot delay timer is canceled before
 // proceeding to a non-booting state.
-func bootingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState string) {
+func bootingOnLeave(ctx context.Context, machine *sm.SM, nextState string) {
 	if nextState != bladeBooting {
 		cancelTimer(ctx, machine, "boot")
 	}
@@ -326,13 +326,13 @@ func bootingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState string)
 // stoppingTimerExpiry processes the planned shutdown delay timer expiration.
 // This will allow a transition to the appropriate stopped state, if
 // successful.
-func stoppingTimerExpiry(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+func stoppingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	return timerExpiration(ctx, machine, m, "Shutdown")
 }
 
 // stoppingOnLeave ensures that any active time is canceled before proceeding
 // to a non-stopping state.
-func stoppingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState string) {
+func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState string) {
 	if nextState != bladeStopping && nextState != bladeStoppingIsolated {
 		cancelTimer(ctx, machine, "shutdown")
 	}
@@ -341,7 +341,7 @@ func stoppingOnLeave(ctx context.Context, machine *sm.SimpleSM, nextState string
 // faultedEnter cancels any outstanding timers as a belt-and-braces practice,
 // given that faulted is the state that the blade transitions to on any of
 // several error paths.
-func faultedEnter(ctx context.Context, machine *sm.SimpleSM) error {
+func faultedEnter(ctx context.Context, machine *sm.SM) error {
 	cancelTimer(ctx, machine, "outstanding")
 	return nil
 }
@@ -350,7 +350,7 @@ func faultedEnter(ctx context.Context, machine *sm.SimpleSM) error {
 // if the connection is to be on, false if it is to be off.  Absent any earlier
 // filtering this can result in null transitions (state-a to state-a), which
 // the state machine needs to be prepared for.
-func setConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+func setConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	msg := m.(*messages.SetConnection)
 
 	tracing.UpdateSpanName(
@@ -368,7 +368,7 @@ func setConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) boo
 // if the power is to be on, false if it is to be off.  Absent any earlier
 // filtering this can result in null transitions (state-a to state-a), which
 // the state machine needs to be prepared for.
-func setPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+func setPower(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	msg := m.(*messages.SetPower)
 
 	tracing.UpdateSpanName(
@@ -387,7 +387,7 @@ func setPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
 // +++ support functions
 
 // setTimer establishes a new timer if one is not currently active.
-func setTimer(ctx context.Context, machine *sm.SimpleSM, delay int64) error {
+func setTimer(ctx context.Context, machine *sm.SM, delay int64) error {
 	b := machine.Parent.(*blade)
 
 	if !b.hasActiveTimer {
@@ -420,7 +420,7 @@ func setTimer(ctx context.Context, machine *sm.SimpleSM, delay int64) error {
 // is still expected, and cleanup of the blade's context.
 func timerExpiration(
 	ctx context.Context,
-	machine *sm.SimpleSM,
+	machine *sm.SM,
 	m sm.Envelope,
 	opCompleted string) bool {
 	msg := m.(*messages.TimerExpiry)
@@ -447,7 +447,7 @@ func timerExpiration(
 // clears the internal flag that denotes a timer is expected.  This ensures
 // that the timer is treated as canceled, regardless of whether or not it was
 // successfully canceled.
-func cancelTimer(ctx context.Context, machine *sm.SimpleSM, name string) {
+func cancelTimer(ctx context.Context, machine *sm.SM, name string) {
 	b := machine.Parent.(*blade)
 	r := b.holder
 

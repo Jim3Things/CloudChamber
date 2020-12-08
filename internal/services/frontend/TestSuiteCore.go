@@ -1,28 +1,28 @@
 package frontend
 
 import (
-	"bufio"
-	"bytes"
-	"context"
-	"fmt"
-	"io"
-	"io/ioutil"
-	"math/rand"
-	"net/http"
-	"net/http/httptest"
-	"strings"
+    "bufio"
+    "bytes"
+    "context"
+    "fmt"
+    "io"
+    "io/ioutil"
+    "math/rand"
+    "net/http"
+    "net/http/httptest"
+    "strings"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/suite"
-	"google.golang.org/grpc"
+    "github.com/golang/protobuf/jsonpb"
+    "github.com/golang/protobuf/proto"
+    "github.com/golang/protobuf/ptypes/duration"
+    "github.com/stretchr/testify/suite"
+    "google.golang.org/grpc"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	"github.com/Jim3Things/CloudChamber/internal/config"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
-	"github.com/Jim3Things/CloudChamber/test/utilities"
+    "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
+    "github.com/Jim3Things/CloudChamber/internal/config"
+    "github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+    "github.com/Jim3Things/CloudChamber/test/setup"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -57,7 +57,7 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
 
-	c, err := utilities.StartSimSupportServices()
+	c, err := setup.StartSimSupportServices()
 	require.NoError(err)
 	ts.cfg = c
 

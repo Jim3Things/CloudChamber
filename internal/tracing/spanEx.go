@@ -369,6 +369,24 @@ func addAnnotations(cfg *TraceDetail, a []interface{}) int {
 // Note: The set of methods that are implemented below are based on what is
 // currently needed.  Others will be added as required.
 
+// Debug posts a debug-level trace event
+func Debug(ctx context.Context, a ...interface{}) {
+	cfg := newTraceDetail()
+	start := addAnnotations(cfg, a)
+
+	res := append(
+		cfg.toKvPairs(),
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Debug)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, formatIf(a[start:]...)))
+
+	trace.SpanFromContext(ctx).AddEvent(
+		ctx,
+		MethodName(2),
+		res...)
+}
+
 // Info posts an informational trace event
 func Info(ctx context.Context, a ...interface{}) {
 	cfg := newTraceDetail()

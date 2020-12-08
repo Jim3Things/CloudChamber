@@ -10,7 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
-	stepper "github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
+	"github.com/Jim3Things/CloudChamber/internal/services/stepper"
 	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
@@ -79,7 +79,7 @@ func (ts *stepperTestClientSuite) ensureStepperStarted() {
 		lis = bufconn.Listen(bufSize)
 		s = grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
 
-		if err := stepper.Register(s, pb.StepperPolicy_Invalid); err != nil {
+		if err := stepper.Register(context.Background(), s, pb.StepperPolicy_Invalid); err != nil {
 			log.Fatalf("Failed to register stepper actor: %v", err)
 			return
 		}

@@ -77,7 +77,7 @@ SRC_STEPPER_ACTOR = \
     $(SRC_SM) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, internal/services/stepper_actor)
+	$(call ProdFiles, internal/services/stepper)
 
 SRC_STORE = \
 	$(SRC_TRACING) \
@@ -236,7 +236,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test -count=1 $(PROJECT)/internal/clients/timestamp
 	go test -count=1 $(PROJECT)/internal/services/frontend
 	go test -count=1 $(PROJECT)/internal/services/inventory
-	go test -count=1 $(PROJECT)/internal/services/stepper_actor
+	go test -count=1 $(PROJECT)/internal/services/stepper
 	go test -count=1 $(PROJECT)/internal/services/tracing_sink
 	go test -count=1 $(PROJECT)/internal/tracing/exporters
 	go test -count=1 $(PROJECT)/internal/config

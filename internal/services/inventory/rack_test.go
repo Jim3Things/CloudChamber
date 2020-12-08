@@ -12,6 +12,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 type RackTestSuite struct {
@@ -59,14 +60,14 @@ func (ts *RackTestSuite) TestStartStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
 	})
 
 	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.sm.CurrentIndex == rackTerminalState
 	})
 
@@ -96,7 +97,7 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
 	})
 
@@ -109,7 +110,7 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.sm.CurrentIndex == rackTerminalState
 	})
 
@@ -139,14 +140,14 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
 	})
 
 	require.True(ok, "state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.sm.CurrentIndex == rackTerminalState
 	})
 
@@ -203,7 +204,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
 	})
 

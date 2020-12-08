@@ -10,6 +10,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 type PduTestSuite struct {
@@ -64,7 +65,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduWorkingState
 	})
 
@@ -103,7 +104,7 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 		assert.False(c.on)
 	}
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduOffState
 	})
 
@@ -116,7 +117,7 @@ func (ts *PduTestSuite) TestPowerOffPduTooLate() {
 	startTime := int64(1)
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduWorkingState
 	})
 
@@ -154,7 +155,7 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 	assert := ts.Assert()
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, true)
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduWorkingState
 	})
 
@@ -383,7 +384,7 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 		assert.False(c.on)
 	}
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduOffState
 	})
 

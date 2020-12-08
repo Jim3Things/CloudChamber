@@ -17,7 +17,7 @@ for %%j in (store timestamp) do (
   if "%1" == "%%j" (call :TestRunClient %1 %2)
 )
 
-for %%j in (frontend stepper_actor) do (
+for %%j in (frontend time) do (
   if "%1" == "%%j" (call :TestRunService %1 %2)
 )
 
@@ -32,7 +32,7 @@ for %%j in (timestamp store) do (
     call :TestRunClient %%j %2
 )
 
-for %%j in (frontend stepper_actor) do (
+for %%j in (frontend time) do (
     call :TestRunService %%j %2
 )
 
@@ -43,7 +43,7 @@ for %%j in (deferrable) do (
 goto :TestExit
 
 rem Protective EXIT
-rem 
+rem
 goto :TestExit
 
 

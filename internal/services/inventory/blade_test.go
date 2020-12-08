@@ -12,6 +12,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 type BladeTestSuite struct {
@@ -129,7 +130,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 
@@ -154,7 +155,7 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeIsolated
 	})
 
@@ -171,7 +172,7 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeWorking
 	})
 
@@ -196,7 +197,7 @@ func (ts *BladeTestSuite) TestWorkingToOffConn() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 
@@ -221,7 +222,7 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 
@@ -231,7 +232,7 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
 	})
 
@@ -254,7 +255,7 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 	require.NotNil(res)
 	require.Equal(ErrNoOperation, res.Err)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
 	})
 
@@ -264,7 +265,7 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 	require.NotNil(res)
 	require.Equal(ErrNoOperation, res.Err)
 
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
 	})
 
