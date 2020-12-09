@@ -16,7 +16,7 @@ func (g GetStatus) SendVia(ctx context.Context, r viaSender) error {
 	panic("implement me")
 }
 
-func (g GetStatus) GetStatus(ctx context.Context, sm *sm.SimpleSM, s RepairActionState) {
+func (g GetStatus) GetStatus(ctx context.Context, sm *sm.SM, s RepairActionState) {
 	panic("implement me")
 }
 

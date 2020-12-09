@@ -14,20 +14,20 @@ type Envelope interface {
 	// for any completion responses.
 	Initialize(ctx context.Context, tag int, ch chan *Response)
 
-	// GetCh returns the response channel.
-	GetCh() chan *Response
+	// Ch returns the response channel.
+	Ch() chan *Response
 
-	// GetSpanContext returns the source span used in the source's add-link
+	// SpanContext returns the source span used in the source's add-link
 	// event, and used as the linked-from span when processing this message.
-	GetSpanContext() trace.SpanContext
+	SpanContext() trace.SpanContext
 
-	// GetLinkID returns the unique link id that further decorates the span
+	// LinkID returns the unique link id that further decorates the span
 	// context above.
-	GetLinkID() string
+	LinkID() string
 
-	// GetTag returns the type ID to use when matching this message in the
+	// Tag returns the type ID to use when matching this message in the
 	// action state table.
-	GetTag() int
+	Tag() int
 }
 
 // Response holds the completion response for a processed request, whether it
@@ -59,12 +59,32 @@ func (um *ErrUnexpectedMessage) Error() string {
 
 // UnexpectedMessageResponse constructs a failure response for the case where
 // the incoming request arrives when it is unexpected by the state machine.
-func UnexpectedMessageResponse(machine *SimpleSM, occursAt int64, body interface{}) *Response {
+func UnexpectedMessageResponse(machine *SM, occursAt int64, body interface{}) *Response {
 	return &Response{
 		Err: &ErrUnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", body),
 			State: machine.CurrentIndex,
 		},
+		At:  occursAt,
+		Msg: nil,
+	}
+}
+
+// FailedResponse constructs a failure response message with the correct time,
+// target, and reason.
+func FailedResponse(occursAt int64, err error) *Response {
+	return &Response{
+		Err: err,
+		At:  occursAt,
+		Msg: nil,
+	}
+}
+
+// SuccessResponse constructs a success response message with the correct time
+// and target.
+func SuccessResponse(occursAt int64) *Response {
+	return &Response{
+		Err: nil,
 		At:  occursAt,
 		Msg: nil,
 	}

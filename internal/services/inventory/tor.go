@@ -26,7 +26,7 @@ type tor struct {
 	holder *Rack
 
 	// sm is the state machine for this TOR's simulation
-	sm *sm.SimpleSM
+	sm *sm.SM
 }
 
 const (
@@ -49,7 +49,7 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 		sm:     nil,
 	}
 
-	t.sm = sm.NewSimpleSM(t,
+	t.sm = sm.NewSM(t,
 		sm.WithFirstState(
 			torWorkingState,
 			sm.NullEnter,
@@ -120,7 +120,7 @@ func (t *tor) notifyBladeOfConnectionChange(ctx context.Context, msg *messages.S
 
 // workingSetConnection processes a setConnection request, updating the network
 // connection state as required.
-func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	msg := m.(*messages.SetConnection)
 	t := machine.Parent.(*tor)
 
@@ -141,7 +141,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 			"No network connection for %s was found.",
 			msg.Target.Describe())
 
-		msg.GetCh() <- messages.InvalidTargetResponse(occursAt)
+		msg.Ch() <- messages.InvalidTargetResponse(occursAt)
 		return false
 	}
 
@@ -159,7 +159,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 		if changed {
 			t.notifyBladeOfConnectionChange(ctx, msg, id)
 
-			msg.GetCh() <- messages.SuccessResponse(occursAt)
+			msg.Ch() <- sm.SuccessResponse(occursAt)
 		} else {
 			tracing.Info(
 				ctx,
@@ -167,7 +167,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 				msg.Target.Describe(),
 				common.AOrB(c.on, "enabled", "disabled"))
 
-			msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
+			msg.Ch() <- sm.FailedResponse(occursAt, ErrNoOperation)
 		}
 		break
 
@@ -178,7 +178,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 			msg.Target.Describe(),
 			common.AOrB(c.on, "enabled", "disabled"))
 
-		msg.GetCh() <- messages.FailedResponse(occursAt, err)
+		msg.Ch() <- sm.FailedResponse(occursAt, err)
 		break
 
 	case ErrTooLate:
@@ -189,13 +189,13 @@ func workingSetConnection(ctx context.Context, machine *sm.SimpleSM, m sm.Envelo
 				"state remains unchanged.",
 			msg.Target.Describe())
 
-		msg.GetCh() <- messages.DroppedResponse(occursAt)
+		msg.Ch() <- messages.DroppedResponse(occursAt)
 		break
 
 	default:
 		tracing.Warn(ctx, "Unexpected error code: %v", err)
 
-		msg.GetCh() <- messages.FailedResponse(occursAt, err)
+		msg.Ch() <- sm.FailedResponse(occursAt, err)
 	}
 
 	return true

@@ -22,7 +22,7 @@ type pdu struct {
 	holder *Rack
 
 	// sm is the state machine for this PDU simulation.
-	sm *sm.SimpleSM
+	sm *sm.SM
 }
 
 const (
@@ -49,7 +49,7 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 		sm:     nil,
 	}
 
-	p.sm = sm.NewSimpleSM(p,
+	p.sm = sm.NewSM(p,
 		sm.WithFirstState(
 			pduWorkingState,
 			sm.NullEnter,
@@ -128,7 +128,7 @@ func (p *pdu) notifyBladeOfPowerChange(ctx context.Context, msg *messages.SetPow
 // workingSetPower processes a set power message for a PDU in the normal
 // operational state.  It handles power change messages for either a blade that
 // the PDU supports, or for the PDU itself.
-func workingSetPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) bool {
+func workingSetPower(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	msg := m.(*messages.SetPower)
 
 	tracing.UpdateSpanName(ctx, msg.String())
@@ -178,7 +178,7 @@ func workingSetPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) b
 
 		setPowerForBlade(ctx, machine, msg, id, occursAt)
 	} else {
-		msg.GetCh() <- messages.InvalidTargetResponse(occursAt)
+		msg.Ch() <- messages.InvalidTargetResponse(occursAt)
 	}
 
 	return true
@@ -187,7 +187,7 @@ func workingSetPower(ctx context.Context, machine *sm.SimpleSM, m sm.Envelope) b
 // setPowerForPdu processes a set power message that targets this PDU.
 func setPowerForPdu(
 	ctx context.Context,
-	machine *sm.SimpleSM,
+	machine *sm.SM,
 	msg *messages.SetPower,
 	occursAt int64) bool {
 	p := machine.Parent.(*pdu)
@@ -205,14 +205,14 @@ func setPowerForPdu(
 				}
 			}
 
-			msg.GetCh() <- messages.DroppedResponse(occursAt)
+			msg.Ch() <- messages.DroppedResponse(occursAt)
 			return false
 		}
 	} else {
 		tracing.Info(ctx, "Request ignored as it has arrived too late")
 	}
 
-	msg.GetCh() <- messages.DroppedResponse(occursAt)
+	msg.Ch() <- messages.DroppedResponse(occursAt)
 	return true
 }
 
@@ -220,7 +220,7 @@ func setPowerForPdu(
 // by this PDU.
 func setPowerForBlade(
 	ctx context.Context,
-	machine *sm.SimpleSM,
+	machine *sm.SM,
 	msg *messages.SetPower,
 	id int64,
 	occursAt int64) {
@@ -231,7 +231,7 @@ func setPowerForBlade(
 	if !ok {
 		tracing.Warn(ctx, "No power connection for blade %d was found.", id)
 
-		msg.GetCh() <- messages.InvalidTargetResponse(occursAt)
+		msg.Ch() <- messages.InvalidTargetResponse(occursAt)
 		return
 	}
 
@@ -248,7 +248,7 @@ func setPowerForBlade(
 
 		if changed {
 			p.notifyBladeOfPowerChange(ctx, msg, id)
-			msg.GetCh() <- messages.SuccessResponse(occursAt)
+			msg.Ch() <- sm.SuccessResponse(occursAt)
 		} else {
 			tracing.Info(
 				ctx,
@@ -256,7 +256,7 @@ func setPowerForBlade(
 				msg.Target.Describe(),
 				common.AOrB(c.on, "on", "off"))
 
-			msg.GetCh() <- messages.FailedResponse(occursAt, ErrNoOperation)
+			msg.Ch() <- sm.FailedResponse(occursAt, ErrNoOperation)
 		}
 		break
 
@@ -267,7 +267,7 @@ func setPowerForBlade(
 			msg.Target.Describe(),
 			common.AOrB(msg.On, "on", "off"))
 
-		msg.GetCh() <- messages.FailedResponse(occursAt, err)
+		msg.Ch() <- sm.FailedResponse(occursAt, err)
 		break
 
 	case ErrTooLate:
@@ -277,12 +277,12 @@ func setPowerForBlade(
 				"after other changed occurred.  The blade's power state remains unchanged.",
 			msg.Target.Describe())
 
-		msg.GetCh() <- messages.DroppedResponse(occursAt)
+		msg.Ch() <- messages.DroppedResponse(occursAt)
 		break
 
 	default:
 		tracing.Warn(ctx, "Unexpected error code: %v", err)
 
-		msg.GetCh() <- messages.FailedResponse(occursAt, err)
+		msg.Ch() <- sm.FailedResponse(occursAt, err)
 	}
 }

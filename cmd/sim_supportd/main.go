@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -11,7 +12,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	"github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
+	"github.com/Jim3Things/CloudChamber/internal/services/stepper"
 	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/server"
@@ -67,7 +68,7 @@ func main() {
 			"failed to register the tracing sink.  Err: %v", err)
 	}
 
-	if err = stepper.Register(s, section.GetPolicyType()); err != nil {
+	if err = stepper.Register(context.Background(), s, section.GetPolicyType()); err != nil {
 		log.Fatalf(
 			"failed to register the stepper actor.  default policy: %v, err: %v",
 			section.GetPolicyType(),

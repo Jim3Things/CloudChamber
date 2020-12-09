@@ -17,6 +17,7 @@ import (
 	pbc "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
+	"github.com/Jim3Things/CloudChamber/test/setup"
 	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
@@ -36,7 +37,7 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
 
-	cfg, err := utilities.StartSimSupportServices()
+	cfg, err := setup.StartSimSupportServices()
 	ts.Require().NoError(err)
 
 	ts.cfg = cfg
@@ -51,7 +52,7 @@ func (ts *testSuiteCore) SetupTest() {
 	ctx := context.Background()
 
 	ts.Require().Nil(timestamp.SetPolicy(ctx, services.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
-	ts.timers = utilities.InitTimers()
+	ts.timers = setup.InitTimers()
 }
 
 func (ts *testSuiteCore) TearDownTest() {
@@ -173,16 +174,5 @@ func (ts *testSuiteCore) advanceToStateChange(
 		}
 	}
 
-	return ctx, ts.waitForStateChange(compare)
-}
-
-func (ts *testSuiteCore) waitForStateChange(compare func() bool) bool {
-	for i := 0; i < 10; i++ {
-		if compare() {
-			return true
-		}
-		time.Sleep(time.Duration(100) * time.Millisecond)
-	}
-
-	return compare()
+	return ctx, utilities.WaitForStateChange(1, compare)
 }

@@ -22,7 +22,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
-	"github.com/Jim3Things/CloudChamber/test/utilities"
+	"github.com/Jim3Things/CloudChamber/test/setup"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -37,7 +37,7 @@ var (
 type testSuiteCore struct {
 	suite.Suite
 
-	baseURI     string
+	baseURI string
 
 	utf *exporters.Exporter
 
@@ -57,7 +57,7 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
 
-	c, err := utilities.StartSimSupportServices()
+	c, err := setup.StartSimSupportServices()
 	require.NoError(err)
 	ts.cfg = c
 

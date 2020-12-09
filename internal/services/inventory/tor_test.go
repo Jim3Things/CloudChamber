@@ -12,6 +12,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 type TorTestSuite struct {
@@ -121,13 +122,13 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
 
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.tor.sm.CurrentIndex == torWorkingState
 	})
 
 	require.True(ok, "state is %v", r.tor.sm.CurrentIndex)
 
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
 	})
 
@@ -165,7 +166,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.True(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	ok = ts.waitForStateChange(func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
 	})
 
@@ -218,7 +219,7 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.False(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	ok := ts.waitForStateChange(func() bool {
+	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeIsolated
 	})
 

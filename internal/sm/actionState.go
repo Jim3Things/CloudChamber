@@ -14,7 +14,10 @@ const (
 )
 
 var (
+	// NullEnter defines a state entry function that does nothing.
 	NullEnter EnterFunc = nil
+
+	// NullLeave defines a state exit function that does nothing.
 	NullLeave LeaveFunc = nil
 )
 
@@ -41,17 +44,17 @@ type ActionState struct {
 }
 
 // EnterFunc is the signature definition for OnEnter functions.
-type EnterFunc func(ctx context.Context, machine *SimpleSM) error
+type EnterFunc func(ctx context.Context, machine *SM) error
 
 // LeaveFunc is the signature definition for OnLeave functions.  The nextState
 // parameter contains the state ID for the state being transitioned to.  This
 // allows for special processing when, for instance, the transition is from
 // the current state back into the current state.
-type LeaveFunc func(ctx context.Context, machine *SimpleSM, nextState string)
+type LeaveFunc func(ctx context.Context, machine *SM, nextState string)
 
 // ActionFunc is the signature definition for a message processing function
 // listed in an ActionEntry.
-type ActionFunc func(ctx context.Context, machine *SimpleSM, msg Envelope) bool
+type ActionFunc func(ctx context.Context, machine *SM, msg Envelope) bool
 
 // ActionEntry defines a single match and process rule for a state.
 type ActionEntry struct {
@@ -83,7 +86,7 @@ func NewActionState(
 		OnLeave:   onLeave,
 	}
 }
-func (s *ActionState) Enter(ctx context.Context, machine *SimpleSM) error {
+func (s *ActionState) Enter(ctx context.Context, machine *SM) error {
 	if s.OnEnter != nil {
 		return s.OnEnter(ctx, machine)
 	}
@@ -91,13 +94,13 @@ func (s *ActionState) Enter(ctx context.Context, machine *SimpleSM) error {
 	return nil
 }
 
-func (s *ActionState) Receive(ctx context.Context, machine *SimpleSM, msg Envelope) {
+func (s *ActionState) Receive(ctx context.Context, machine *SM, msg Envelope) {
 	if err := s.Process(ctx, machine, msg); err != nil {
 		_ = tracing.Error(ctx, err)
 	}
 }
 
-func (s *ActionState) Leave(ctx context.Context, sm *SimpleSM, nextState string) {
+func (s *ActionState) Leave(ctx context.Context, sm *SM, nextState string) {
 	if s.OnLeave != nil {
 		s.OnLeave(ctx, sm, nextState)
 	}
@@ -107,11 +110,11 @@ func (s *ActionState) Leave(ctx context.Context, sm *SimpleSM, nextState string)
 // executes it.
 func (s *ActionState) Process(
 	ctx context.Context,
-	machine *SimpleSM,
+	machine *SM,
 	msg Envelope) error {
 
 	for _, entry := range s.Entries {
-		if entry.Match == msg.GetTag() {
+		if entry.Match == msg.Tag() {
 			if entry.Action != nil {
 				nextState := entry.FalseState
 
@@ -132,13 +135,24 @@ func (s *ActionState) Process(
 	return nil
 }
 
+// Ignore is a standard processing action that ignores the arriving message and
+// produces no reply message at all.
+func Ignore(ctx context.Context, machine *SM, msg Envelope) bool {
+	tracing.Debug(
+		ctx,
+		"ignoring message %v while in state %q",
+		msg,
+		machine.CurrentIndex)
+	return true
+}
+
 // UnexpectedMessage is an action function that signals that the incoming
 // message was not expected, and its presence suggests a model consistency
 // failure.
-func UnexpectedMessage(ctx context.Context, machine *SimpleSM, msg Envelope) bool {
+func UnexpectedMessage(ctx context.Context, machine *SM, msg Envelope) bool {
 	_ = tracing.Error(ctx, "Unexpected message %v arrived in state %q", msg, machine.CurrentIndex)
 
-	ch := msg.GetCh()
+	ch := msg.Ch()
 
 	if ch != nil {
 		ch <- UnexpectedMessageResponse(machine, common.TickFromContext(ctx), msg)
