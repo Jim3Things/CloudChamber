@@ -3,14 +3,12 @@ package stepper
 
 import (
 	"context"
-	"log"
 	"net"
 	"testing"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	clienttrace "github.com/Jim3Things/CloudChamber/internal/tracing/client"
@@ -26,342 +24,434 @@ import (
 
 const bufSize = 1024 * 1024
 
-var (
+type StepperTestSuite struct {
+	suite.Suite
+
+	utf    *exporters.Exporter
 	lis    *bufconn.Listener
 	client pb.StepperClient
+	conn   *grpc.ClientConn
+}
 
-	utf *exporters.Exporter
-)
+func (ts *StepperTestSuite) SetupSuite() {
+	require := ts.Require()
 
-func init() {
-	utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.ConnectToProvider(utf)
+	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.ConnectToProvider(ts.utf)
 
-	lis = bufconn.Listen(bufSize)
+	ts.lis = bufconn.Listen(bufSize)
 	s := grpc.NewServer(grpc.UnaryInterceptor(srvtrace.Interceptor))
-	if err := Register(context.Background(), s, pb.StepperPolicy_Invalid); err != nil {
-		log.Fatalf("Failed to register wither error: %v", err)
-	}
+	err := Register(context.Background(), s, pb.StepperPolicy_Invalid)
+	require.NoError(err)
 
 	go func() {
-		if err := s.Serve(lis); err != nil {
-			log.Fatalf("Server exited with error: %v", err)
-		}
+		err2 := s.Serve(ts.lis)
+		require.NoError(err2)
 	}()
 }
 
-func bufDialer(_ context.Context, _ string) (net.Conn, error) {
-	return lis.Dial()
+func (ts *StepperTestSuite) SetupTest() {
+	require := ts.Require()
+
+	_ = ts.utf.Open(ts.T())
+
+	var err error
+
+	ts.conn, err = grpc.Dial(
+		"test_channel",
+		grpc.WithContextDialer(ts.bufDialer),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(clienttrace.Interceptor))
+	require.NoError(err)
+
+	ts.client = pb.NewStepperClient(ts.conn)
+
+	_, err = ts.client.Reset(context.Background(), &pb.ResetRequest{})
+	require.NoError(err)
 }
 
-func callNow(t *testing.T, ctx context.Context) int64 {
-	resp, err := client.Now(ctx, &pb.NowRequest{})
-	assert.Nilf(t, err, "Now failed: %v", err)
+func (ts *StepperTestSuite) TearDownTest() {
+	_ = ts.conn.Close()
+	ts.utf.Close()
+}
+
+func (ts *StepperTestSuite) bufDialer(_ context.Context, _ string) (net.Conn, error) {
+	return ts.lis.Dial()
+}
+
+func (ts *StepperTestSuite) callNow(ctx context.Context) int64 {
+	require := ts.Require()
+
+	resp, err := ts.client.Now(ctx, &pb.NowRequest{})
+	require.NoError(err)
 
 	return resp.GetTicks()
 }
 
-func callNowVerify(t *testing.T, ctx context.Context, expected int64) {
-	current := callNow(t, ctx)
-	assert.Equalf(t, expected, current, "Now returned an invalid value: %d, should be %d", current, expected)
+func (ts *StepperTestSuite) callNowVerify(ctx context.Context, expected int64) {
+	assert := ts.Assert()
+
+	current := ts.callNow(ctx)
+	assert.Equal(expected, current)
 }
 
-func callNowAtLeast(t *testing.T, ctx context.Context, atLeast int64) {
-	current := callNow(t, ctx)
-	assert.Truef(t, current >= atLeast, "Now returned an invalid value: %d, should be at least %d", current, atLeast)
-	t.Logf("Now returned %d", current)
+func (ts *StepperTestSuite) testNow(ctx context.Context, expected int64) {
+	log := ts.T().Log
+
+	ts.callNowVerify(ctx, expected)
+
+	log("Now subtest complete")
 }
 
-func testNow(t *testing.T, ctx context.Context, expected int64) {
-	callNowVerify(t, ctx, expected)
-
-	t.Log("Now subtest complete")
-}
-
-func testGetStatus(
-	t *testing.T,
+func (ts *StepperTestSuite) testGetStatus(
 	ctx context.Context,
 	minTime int64,
 	policy pb.StepperPolicy,
 	duration *duration.Duration,
 	waiters int64) {
-	resp, err := client.GetStatus(ctx, &pb.GetStatusRequest{})
-	assert.Nilf(t, err, "GetStatus failed: %v", err)
+	assert := ts.Assert()
 
-	assert.GreaterOrEqual(
-		t,
-		minTime, resp.Now.Ticks,
-		"Time returned is less than expected, %d should be no more than %d", minTime, resp.Now.Ticks)
+	resp, err := ts.client.GetStatus(ctx, &pb.GetStatusRequest{})
+	assert.NoError(err)
 
-	assert.Equal(t, policy, resp.Policy, "Expected policy %v, got policy %v", policy, resp.Policy)
-	assert.Equal(t, duration.Seconds, resp.MeasuredDelay.Seconds, "Expected delay to be %d, was %d", duration.Seconds, resp.MeasuredDelay.Seconds)
-	assert.Equal(t, duration.Nanos, resp.MeasuredDelay.Nanos, "Expected delay to be %d, was %d", duration.Seconds, resp.MeasuredDelay.Seconds)
-	assert.Equal(t, waiters, resp.WaiterCount, "Expected waiter count to be %d, was %d", waiters, resp.WaiterCount)
+	assert.GreaterOrEqual(minTime, resp.Now.Ticks)
+
+	assert.Equal(policy, resp.Policy)
+	assert.Equal(duration.Seconds, resp.MeasuredDelay.Seconds)
+	assert.Equal(duration.Nanos, resp.MeasuredDelay.Nanos)
+	assert.Equal(waiters, resp.WaiterCount)
 }
 
-func callStep(t *testing.T, ctx context.Context, expected int64) {
-	_, err := client.Step(ctx, &pb.StepRequest{})
-	assert.Nilf(t, err, "Step failed: %v", err)
-	callNowVerify(t, ctx, expected)
+func (ts *StepperTestSuite) callStep(ctx context.Context, expected int64) {
+	assert := ts.Assert()
+
+	_, err := ts.client.Step(ctx, &pb.StepRequest{})
+	assert.NoError(err)
+	ts.callNowVerify(ctx, expected)
 }
 
-func testStep(t *testing.T, ctx context.Context, expected int64) {
-	callStep(t, ctx, expected)
-	t.Log("Step subtest complete")
+func (ts *StepperTestSuite) testStep(ctx context.Context, expected int64) {
+	log := ts.T().Log
+
+	ts.callStep(ctx, expected)
+
+	log("Step subtest complete")
 }
 
-func testDelay(t *testing.T, ctx context.Context, atLeast int64, jitter int64) {
-	start := callNow(t, ctx)
+func (ts *StepperTestSuite) testDelay(ctx context.Context, atLeast int64, jitter int64) {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	resp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: atLeast}, Jitter: jitter})
-	assert.Nilf(t, err, "Delay failed: %v, err")
+	start := ts.callNow(ctx)
+
+	resp, err := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: atLeast}, Jitter: jitter})
+	assert.NoError(err)
 
 	minLegal := atLeast
 	maxLegal := start + atLeast + jitter
 
 	assert.True(
-		t,
 		resp.Ticks >= minLegal && resp.Ticks <= maxLegal,
 		"Delay out of range, should be %d - %d, is %d",
 		minLegal,
 		maxLegal,
 		resp.Ticks)
 
-	t.Log("Delay subtest complete")
+	log("Delay subtest complete")
 }
 
-func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
+func (ts *StepperTestSuite) TestInvalidSetPolicyType() {
+	assert := ts.Assert()
+
 	ctx := context.Background()
-	conn, err := grpc.Dial(
-		"bufnet",
-		grpc.WithContextDialer(bufDialer),
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(clienttrace.Interceptor))
-	assert.Nilf(t, err, "Failed to dial bufnet: %v", err)
 
-	client = pb.NewStepperClient(conn)
-	_, err = client.Reset(ctx, &pb.ResetRequest{})
-	assert.Nilf(t, err, "Failed to reset: %v", err)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Invalid,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
 
-	return ctx, conn
+	assert.Error(err)
 }
 
-func TestInvalidSetPolicyType(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestInvalidSetPolicyManual() {
+	assert := ts.Assert()
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
+	ctx := context.Background()
 
-	client = pb.NewStepperClient(conn)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Manual,
+			MeasuredDelay: &duration.Duration{Seconds: 1},
+			MatchEpoch:    -1})
+	assert.Error(err)
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Invalid, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.NotNilf(t, err, "SetPolicy unexpectedly succeeded with an invalid policy type")
+	_, err = ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Manual,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
+	assert.NoError(err)
+
+	_, err = ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Manual,
+			MeasuredDelay: &duration.Duration{Seconds: 2},
+			MatchEpoch:    -1})
+	assert.Error(err)
 }
 
-func TestInvalidSetPolicyManual(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestInvalidSetPolicyMeasured() {
+	assert := ts.Assert()
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
+	ctx := context.Background()
 
-	client = pb.NewStepperClient(conn)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Measured,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
+	assert.Error(err)
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Manual, MeasuredDelay: &duration.Duration{Seconds: 1}, MatchEpoch: -1})
-	assert.NotNilf(t, err, "SetPolicy unexpectedly succeeded with an invalid duration: %v", err)
+	_, err = ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Measured,
+			MeasuredDelay: &duration.Duration{Seconds: 1},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 
-	_, err = client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Manual, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy unexpectedly failed: %v", err)
-
-	_, err = client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Manual, MeasuredDelay: &duration.Duration{Seconds: 2}, MatchEpoch: -1})
-	assert.NotNilf(t, err, "SetPolicy unexpectedly succeeded with an invalid duration: %v", err)
+	_, err = ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Measured,
+			MeasuredDelay: &duration.Duration{Seconds: 2},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 }
 
-func TestInvalidSetPolicyMeasured(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestInvalidSetPolicyNoWait() {
+	assert := ts.Assert()
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
+	ctx := context.Background()
 
-	client = pb.NewStepperClient(conn)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_NoWait,
+			MeasuredDelay: &duration.Duration{Seconds: 1},
+			MatchEpoch:    -1})
+	assert.Error(err)
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Measured, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.NotNilf(t, err, "SetPolicy unexpectedly succeeded with an invalid duration: %v", err)
+	_, err = ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_NoWait,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 
-	_, err = client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Measured, MeasuredDelay: &duration.Duration{Seconds: 1}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy unexpectedly failed: %v", err)
-
-	_, err = client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Measured, MeasuredDelay: &duration.Duration{Seconds: 2}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy unexpectedly failed: %v", err)
-
-	time.Sleep(time.Duration(2) * time.Second)
+	_, err = ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_NoWait,
+			MeasuredDelay: &duration.Duration{Seconds: 2},
+			MatchEpoch:    -1})
+	assert.Error(err)
 }
 
-func TestInvalidSetPolicyNoWait(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestInvalidDelay() {
+	assert := ts.Assert()
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
+	ctx := context.Background()
 
-	client = pb.NewStepperClient(conn)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_NoWait,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_NoWait, MeasuredDelay: &duration.Duration{Seconds: 1}, MatchEpoch: -1})
-	assert.NotNilf(t, err, "SetPolicy unexpectedly succeeded with an invalid duration: %v", err)
+	_, err = ts.client.Delay(
+		ctx,
+		&pb.DelayRequest{
+			AtLeast: &ct.Timestamp{Ticks: -1},
+			Jitter:  0})
+	assert.Error(err)
 
-	_, err = client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_NoWait, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy unexpectedly failed: %v", err)
-
-	_, err = client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_NoWait, MeasuredDelay: &duration.Duration{Seconds: 2}, MatchEpoch: -1})
-	assert.NotNilf(t, err, "SetPolicy unexpectedly succeeded with an invalid duration: %v", err)
+	_, err = ts.client.Delay(
+		ctx,
+		&pb.DelayRequest{
+			AtLeast: &ct.Timestamp{Ticks: 1},
+			Jitter:  -1})
+	assert.Error(err)
 }
 
-func TestInvalidDelay(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestStepper_NoWait() {
+	assert := ts.Assert()
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
-
-	client = pb.NewStepperClient(conn)
-
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_NoWait, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy unexpectedly failed: %v", err)
-
-	_, err = client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: -1}, Jitter: 0})
-	assert.NotNil(t, err, "Delay unexpectedly succeeded with an invalid base delay time")
-
-	_, err = client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 1}, Jitter: -1})
-	assert.NotNil(t, err, "Delay unexpectedly succeeded with an invalid jitter")
-}
-
-func TestStepper_NoWait(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
-
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
-
-	client = pb.NewStepperClient(conn)
+	ctx := context.Background()
 
 	// These need to execute in a particular order, so we're calling them as
 	// included subtests in this unit test
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_NoWait, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy failed: %v", err)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_NoWait,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 
-	testNow(t, ctx, 0)
-	testGetStatus(t, ctx, 0, pb.StepperPolicy_NoWait, &duration.Duration{Seconds: 0}, 0)
-	testDelay(t, ctx, 1, 2)
+	ts.testNow(ctx, 0)
+	ts.testGetStatus(ctx, 0, pb.StepperPolicy_NoWait, &duration.Duration{Seconds: 0}, 0)
+	ts.testDelay(ctx, 1, 2)
 }
 
-func TestStepper_Measured(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestStepper_Measured() {
+	assert := ts.Assert()
+	log := ts.T().Log
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
-
-	client = pb.NewStepperClient(conn)
+	ctx := context.Background()
 
 	// These need to execute in a particular order, so we're calling them as
 	// included subtests in this unit test
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Measured, MeasuredDelay: &duration.Duration{Seconds: 1}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy failed: %v", err)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Measured,
+			MeasuredDelay: &duration.Duration{Seconds: 1},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 
-	testNow(t, ctx, 0)
-	testGetStatus(t, ctx, 0, pb.StepperPolicy_Measured, &duration.Duration{Seconds: 1}, 0)
-	time.Sleep(time.Duration(2) * time.Second)
+	ts.testNow(ctx, 0)
+	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Measured, &duration.Duration{Seconds: 1}, 0)
 
-	callNowAtLeast(t, ctx, 1)
+	utilities.WaitForStateChange(2, func() bool {
+		current := ts.callNow(ctx)
+		return current > 1
+	})
 
-	t.Log("Now subtest complete")
-	testDelay(t, ctx, 3, 2)
+	log("Now subtest complete")
+	ts.testDelay(ctx, 3, 2)
 }
 
-func TestStepper_Manual(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestStepper_Manual() {
+	assert := ts.Assert()
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
-
-	client = pb.NewStepperClient(conn)
+	ctx := context.Background()
 
 	// These need to execute in a particular order, so we're calling them as
 	// included subtests in this unit test
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Manual, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy failed: %v", err)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Manual,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 
-	testNow(t, ctx, 0)
-	testGetStatus(t, ctx, 0, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
+	ts.testNow(ctx, 0)
+	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
 
-	testStep(t, ctx, 1)
-	testGetStatus(t, ctx, 1, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
+	ts.testStep(ctx, 1)
+	ts.testGetStatus(ctx, 1, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
 
 	ch := make(chan bool)
 
 	go func(res chan<- bool) {
-		rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
-		assert.Nilf(t, err, "Delay called failed, returned %v", err)
-		assert.Equal(t, rsp.Ticks, int64(3), "Delay returned an invalid time.  Should be 3, but was %d", rsp.Ticks)
+		rsp, err2 := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
+		assert.NoError(err2)
+		assert.Equal(rsp.Ticks, int64(3))
 
 		res <- true
 	}(ch)
 
-	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(1)*time.Second))
-	testGetStatus(t, ctx, 1, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
+	assert.True(common.DoNotCompleteWithin(ch, time.Duration(1)*time.Second))
+	ts.testGetStatus(ctx, 1, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
 
-	callStep(t, ctx, 2)
-	assert.True(t, common.DoNotCompleteWithin(ch, time.Duration(1)*time.Second))
+	ts.callStep(ctx, 2)
+	assert.True(common.DoNotCompleteWithin(ch, time.Duration(1)*time.Second))
 
-	callStep(t, ctx, 3)
-	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	ts.callStep(ctx, 3)
+	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
 
-	testGetStatus(t, ctx, 3, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
-
-	t.Log("DelayManual subtest complete")
+	ts.testGetStatus(ctx, 3, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
 }
 
-func TestStepperResetWithActiveDelays(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *StepperTestSuite) TestStepperResetWithActiveDelays() {
+	assert := ts.Assert()
 
-	ctx, conn := commonSetup(t)
-	defer func() { _ = conn.Close() }()
+	ctx := context.Background()
 
-	client = pb.NewStepperClient(conn)
+	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Manual,
+			MeasuredDelay: &duration.Duration{Seconds: 0},
+			MatchEpoch:    -1})
+	assert.NoError(err)
 
-	_, err := client.SetPolicy(ctx, &pb.PolicyRequest{Policy: pb.StepperPolicy_Manual, MeasuredDelay: &duration.Duration{Seconds: 0}, MatchEpoch: -1})
-	assert.Nilf(t, err, "SetPolicy failed: %v", err)
-	testGetStatus(t, ctx, 0, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
+	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
 
 	ch := make(chan bool)
 
 	go func(res chan<- bool) {
-		rsp, err2 := client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
-		assert.NotNilf(t, err2, "Delay called succeeded")
-		assert.Nil(t, rsp)
+		rsp, err2 := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
+		assert.Error(err2, "Delay called succeeded")
+		assert.Nil(rsp)
 
 		res <- true
 	}(ch)
 
 	utilities.WaitForStateChange(1, func() bool {
-		resp, err2 := client.GetStatus(ctx, &pb.GetStatusRequest{})
-		require.Nilf(t, err2, "GetStatus failed: %v", err2)
+		require := ts.Require()
+
+		resp, err2 := ts.client.GetStatus(ctx, &pb.GetStatusRequest{})
+		require.NoError(err2)
 
 		return resp.WaiterCount == 1
 	})
 
-	testGetStatus(t, ctx, 0, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
+	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
 
-	_, err = client.Reset(ctx, &pb.ResetRequest{})
-	assert.Nilf(t, err, "Failed to reset: %v", err)
+	_, err = ts.client.Reset(ctx, &pb.ResetRequest{})
+	assert.NoError(err)
 
-	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
-	testGetStatus(t, ctx, 0, pb.StepperPolicy_Invalid, &duration.Duration{Seconds: 0}, 0)
+	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Invalid, &duration.Duration{Seconds: 0}, 0)
+}
+
+func (ts *StepperTestSuite) TestInvalidOperations() {
+	assert := ts.Assert()
+
+	ctx := context.Background()
+
+	nowRsp, err := ts.client.Now(ctx, &pb.NowRequest{})
+	assert.Error(err)
+	assert.Nil(nowRsp)
+
+	stepRsp, err := ts.client.Step(ctx, &pb.StepRequest{})
+	assert.Error(err)
+	assert.Nil(stepRsp)
+
+	delayRsp, err := ts.client.Delay(ctx, &pb.DelayRequest{
+		AtLeast: &ct.Timestamp{Ticks: 1},
+		Jitter:  0,
+	})
+
+	assert.Error(err)
+	assert.Nil(delayRsp)
+}
+
+func TestStepperTestSuite(T *testing.T) {
+	suite.Run(T, new(StepperTestSuite))
 }
