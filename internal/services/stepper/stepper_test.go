@@ -160,6 +160,7 @@ func (ts *StepperTestSuite) testDelay(ctx context.Context, atLeast int64, jitter
 	log("Delay subtest complete")
 }
 
+// Verify that it is not legal to set the stepper to the "Invalid" policy.
 func (ts *StepperTestSuite) TestInvalidSetPolicyType() {
 	assert := ts.Assert()
 
@@ -175,6 +176,8 @@ func (ts *StepperTestSuite) TestInvalidSetPolicyType() {
 	assert.Error(err)
 }
 
+// Verify that a 'Manual' policy must specify a measured delay that
+// is zero (this delay value is only valid for the 'Measured" policy).
 func (ts *StepperTestSuite) TestInvalidSetPolicyManual() {
 	assert := ts.Assert()
 
@@ -205,12 +208,22 @@ func (ts *StepperTestSuite) TestInvalidSetPolicyManual() {
 	assert.Error(err)
 }
 
+// Verify that a 'Measured' policy must have a non-zero and positive
+// measured delay value.
 func (ts *StepperTestSuite) TestInvalidSetPolicyMeasured() {
 	assert := ts.Assert()
 
 	ctx := context.Background()
 
 	_, err := ts.client.SetPolicy(
+		ctx,
+		&pb.PolicyRequest{
+			Policy:        pb.StepperPolicy_Measured,
+			MeasuredDelay: &duration.Duration{Seconds: -1},
+			MatchEpoch:    -1})
+	assert.Error(err)
+
+	_, err = ts.client.SetPolicy(
 		ctx,
 		&pb.PolicyRequest{
 			Policy:        pb.StepperPolicy_Measured,
@@ -235,6 +248,7 @@ func (ts *StepperTestSuite) TestInvalidSetPolicyMeasured() {
 	assert.NoError(err)
 }
 
+// Verify that a 'NoWait' policy has a zero measured delay value.
 func (ts *StepperTestSuite) TestInvalidSetPolicyNoWait() {
 	assert := ts.Assert()
 
@@ -265,6 +279,8 @@ func (ts *StepperTestSuite) TestInvalidSetPolicyNoWait() {
 	assert.Error(err)
 }
 
+// Verify that a delay request has a non-zero and positive delay, and a
+// non-negative jitter value.
 func (ts *StepperTestSuite) TestInvalidDelay() {
 	assert := ts.Assert()
 
@@ -293,6 +309,7 @@ func (ts *StepperTestSuite) TestInvalidDelay() {
 	assert.Error(err)
 }
 
+// Verify the basic operations while under the 'NoWait' policy.
 func (ts *StepperTestSuite) TestStepper_NoWait() {
 	assert := ts.Assert()
 
@@ -314,6 +331,7 @@ func (ts *StepperTestSuite) TestStepper_NoWait() {
 	ts.testDelay(ctx, 1, 2)
 }
 
+// Verify the basic operations while under the 'Measured' policy.
 func (ts *StepperTestSuite) TestStepper_Measured() {
 	assert := ts.Assert()
 	log := ts.T().Log
@@ -334,6 +352,7 @@ func (ts *StepperTestSuite) TestStepper_Measured() {
 	ts.testNow(ctx, 0)
 	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Measured, &duration.Duration{Seconds: 1}, 0)
 
+	// Verify that simulated time moves forward as a result of wall clock time.
 	utilities.WaitForStateChange(2, func() bool {
 		current := ts.callNow(ctx)
 		return current > 1
@@ -343,6 +362,7 @@ func (ts *StepperTestSuite) TestStepper_Measured() {
 	ts.testDelay(ctx, 3, 2)
 }
 
+// Verify the basic operations while under the 'Manual' policy.
 func (ts *StepperTestSuite) TestStepper_Manual() {
 	assert := ts.Assert()
 
@@ -429,7 +449,7 @@ func (ts *StepperTestSuite) TestStepperResetWithActiveDelays() {
 	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
 	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Invalid, &duration.Duration{Seconds: 0}, 0)
 }
-
+// Verify the basic operations while under the 'Invalid' policy fai.
 func (ts *StepperTestSuite) TestInvalidOperations() {
 	assert := ts.Assert()
 
