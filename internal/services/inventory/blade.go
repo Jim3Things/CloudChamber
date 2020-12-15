@@ -18,41 +18,9 @@ type workload struct {
 }
 
 const (
-	capacityCores   = "_cores"
-	capacityMemory  = "_memoryInMB"
-	capacityDisk    = "_diskInGB"
-	capacityNetwork = "_networkBandwidthInMbps"
-
-	// acceleratorPrefix is put in front of any accelerator name to ensure that
-	// there is no collision with the core capacity categories listed above.
-	acceleratorPrefix = "a_"
-)
-
-const (
 	bladeBootDelayMin = int64(3)
 	bladeBootDelayMax = int64(5)
 )
-
-// capacity defines the consumable and capability portions of a blade or
-// workload.
-type capacity struct {
-	// consumables are named units of capacity that are used by a workload such
-	// that the amount available to other workloads is reduced by that amount.
-	// For example, a core may only be used by one workload at a time.
-	consumables map[string]float64
-
-	// features are statements of capabilities that are available for use, but
-	// that are not consumed when used.  For example, the presence of security
-	// enclave support would be a feature.
-	features map[string]bool
-}
-
-func newCapacity() *capacity {
-	return &capacity{
-		consumables: make(map[string]float64),
-		features:    make(map[string]bool),
-	}
-}
 
 type blade struct {
 	// Rack holds the pointer to the Rack that contains this blade.
@@ -64,11 +32,11 @@ type blade struct {
 	// sm is the state machine for this blade's simulation.
 	sm *sm.SM
 
-	capacity *capacity
+	capacity *messages.Capacity
 
 	architecture string
 
-	used *capacity
+	used *messages.Capacity
 
 	workloads map[string]*workload
 
@@ -144,9 +112,9 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 		holder:           r,
 		id:               id,
 		sm:               nil,
-		capacity:         newCapacity(),
+		capacity:         messages.NewCapacity(),
 		architecture:     def.Arch,
-		used:             newCapacity(),
+		used:             messages.NewCapacity(),
 		workloads:        make(map[string]*workload),
 		bootOnPower:      true,
 		hasActiveTimer:   false,
@@ -154,13 +122,13 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 		matchTimerExpiry: 0,
 	}
 
-	b.capacity.consumables[capacityCores] = float64(def.Cores)
-	b.capacity.consumables[capacityMemory] = float64(def.MemoryInMb)
-	b.capacity.consumables[capacityDisk] = float64(def.DiskInGb)
-	b.capacity.consumables[capacityNetwork] = float64(def.NetworkBandwidthInMbps)
+	b.capacity.Consumables[messages.CapacityCores] = float64(def.Cores)
+	b.capacity.Consumables[messages.CapacityMemory] = float64(def.MemoryInMb)
+	b.capacity.Consumables[messages.CapacityDisk] = float64(def.DiskInGb)
+	b.capacity.Consumables[messages.CapacityNetwork] = float64(def.NetworkBandwidthInMbps)
 
 	for _, a := range def.Accelerators {
-		b.capacity.consumables[acceleratorPrefix+a.String()] = float64(1)
+		b.capacity.Consumables[messages.AcceleratorPrefix+a.String()] = float64(1)
 	}
 
 	b.sm = sm.NewSM(b,
@@ -185,6 +153,7 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 			bladeOffConn,
 			sm.NullEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, sm.Ignore, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, setConnection, sm.Stay, bladeOffDiscon},
 				{messages.TagSetPower, setPower, bladePoweredConn, sm.Stay},
 			},
@@ -205,6 +174,7 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 			bladePoweredConn,
 			poweredConnOnEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
 				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
 			},
@@ -215,6 +185,7 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 			bladeBooting,
 			bootingOnEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
 				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
 				{messages.TagTimerExpiry, bootingTimerExpiry, bladeWorking, sm.Stay},
@@ -226,6 +197,7 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 			bladeWorking,
 			sm.NullEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, setConnection, sm.Stay, bladeIsolated},
 				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
 			},
@@ -246,6 +218,7 @@ func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
 			bladeStopping,
 			sm.NullEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, setConnection, sm.Stay, bladeStoppingIsolated},
 				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
 				{messages.TagTimerExpiry, stoppingTimerExpiry, bladeOffConn, sm.Stay},
@@ -344,6 +317,31 @@ func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState string) {
 func faultedEnter(ctx context.Context, machine *sm.SM) error {
 	cancelTimer(ctx, machine, "outstanding")
 	return nil
+}
+
+// bladeGetStatus returns a summary of this blade's current execution status.
+func bladeGetStatus(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
+	b := machine.Parent.(*blade)
+
+	ch := m.Ch()
+	defer close(ch)
+
+	status := &messages.BladeStatus{
+		StatusBody: messages.StatusBody{
+			State:     b.sm.CurrentIndex,
+			EnteredAt: b.sm.EnteredAt,
+		},
+		Capacity:  b.capacity.Clone(),
+		Used:      b.used.Clone(),
+		Workloads: []string{},
+	}
+
+	for k := range b.workloads {
+		status.Workloads = append(status.Workloads, k)
+	}
+
+	ch <- messages.NewStatusResponse(common.TickFromContext(ctx), status)
+	return true
 }
 
 // setConnection processes the incoming set connection message, returning true

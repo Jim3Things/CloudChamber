@@ -2,14 +2,12 @@ package inventory
 
 import (
 	"context"
-	"errors"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // pdu defines the state required to simulate a PDU in a Rack.
@@ -54,6 +52,7 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 			pduWorkingState,
 			sm.NullEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
 				{messages.TagSetPower, workingSetPower, sm.Stay, pduOffState},
 			},
 			sm.UnexpectedMessage,
@@ -62,14 +61,18 @@ func newPdu(_ *pb.ExternalPdu, r *Rack) *pdu {
 		sm.WithState(
 			pduOffState,
 			sm.NullEnter,
-			[]sm.ActionEntry{},
+			[]sm.ActionEntry{
+				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
+			},
 			messages.DropMessage,
 			sm.NullLeave),
 
 		sm.WithState(
 			pduStuckState,
 			sm.NullEnter,
-			[]sm.ActionEntry{},
+			[]sm.ActionEntry{
+				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
+			},
 			messages.DropMessage,
 			sm.NullLeave),
 	)
@@ -95,17 +98,6 @@ func (p *pdu) Receive(ctx context.Context, msg sm.Envelope) {
 	p.sm.Receive(ctx, msg)
 }
 
-// newStatusReport is a helper function to construct a status response for this
-// PDU.
-func (p *pdu) newStatusReport(
-	_ context.Context,
-	_ *services.InventoryAddress) *sm.Response {
-	return &sm.Response{
-		Err: errors.New("not yet implemented"),
-		Msg: nil,
-	}
-}
-
 // notifyBladeOfPowerChange constructs a setPower message that notifies the specified
 // blade of the change in power, and sends it along.
 func (p *pdu) notifyBladeOfPowerChange(ctx context.Context, msg *messages.SetPower, i int64) {
@@ -123,6 +115,35 @@ func (p *pdu) notifyBladeOfPowerChange(ctx context.Context, msg *messages.SetPow
 		"Power connection to %s has changed.  It is now powered %s.",
 		fwd.Target.Describe(),
 		common.AOrB(fwd.On, "on", "off"))
+}
+
+// pduGetStatus returns the current simulated status for the PDU.
+func pduGetStatus(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
+	p := machine.Parent.(*pdu)
+
+	ch := m.Ch()
+	defer close(ch)
+
+	pduStatus := &messages.PduStatus{
+		StatusBody: messages.StatusBody{
+			State:     p.sm.CurrentIndex,
+			EnteredAt: p.sm.EnteredAt,
+		},
+		Cables: make(map[int64]*messages.CableState),
+	}
+
+	for i, c := range p.cables {
+		pduStatus.Cables[i] = &messages.CableState{
+			On:      c.on,
+			Faulted: c.faulted,
+		}
+	}
+
+	ch <- messages.NewStatusResponse(
+		common.TickFromContext(ctx),
+		pduStatus)
+
+	return true
 }
 
 // workingSetPower processes a set power message for a PDU in the normal
@@ -178,7 +199,7 @@ func workingSetPower(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 
 		setPowerForBlade(ctx, machine, msg, id, occursAt)
 	} else {
-		msg.Ch() <- messages.InvalidTargetResponse(occursAt)
+		processInvalidTarget(ctx, msg, msg.Target.Describe(), occursAt)
 	}
 
 	return true
@@ -191,6 +212,9 @@ func setPowerForPdu(
 	msg *messages.SetPower,
 	occursAt int64) bool {
 	p := machine.Parent.(*pdu)
+
+	ch := msg.Ch()
+	defer close(ch)
 
 	if machine.Pass(msg.Guard, occursAt) {
 		// Change power at the PDU.  This only matters if the command is to
@@ -205,14 +229,12 @@ func setPowerForPdu(
 				}
 			}
 
-			msg.Ch() <- messages.DroppedResponse(occursAt)
 			return false
 		}
 	} else {
 		tracing.Info(ctx, "Request ignored as it has arrived too late")
 	}
 
-	msg.Ch() <- messages.DroppedResponse(occursAt)
 	return true
 }
 
@@ -229,11 +251,12 @@ func setPowerForBlade(
 	c, ok := p.cables[id]
 
 	if !ok {
-		tracing.Warn(ctx, "No power connection for blade %d was found.", id)
-
-		msg.Ch() <- messages.InvalidTargetResponse(occursAt)
+		processInvalidTarget(ctx, msg, msg.Target.Describe(), occursAt)
 		return
 	}
+
+	ch := msg.Ch()
+	defer close(ch)
 
 	changed, err := p.cables[id].set(msg.On, msg.Guard, occursAt)
 
@@ -248,7 +271,7 @@ func setPowerForBlade(
 
 		if changed {
 			p.notifyBladeOfPowerChange(ctx, msg, id)
-			msg.Ch() <- sm.SuccessResponse(occursAt)
+			ch <- sm.SuccessResponse(occursAt)
 		} else {
 			tracing.Info(
 				ctx,
@@ -256,7 +279,7 @@ func setPowerForBlade(
 				msg.Target.Describe(),
 				common.AOrB(c.on, "on", "off"))
 
-			msg.Ch() <- sm.FailedResponse(occursAt, ErrNoOperation)
+			ch <- sm.FailedResponse(occursAt, ErrNoOperation)
 		}
 		break
 
@@ -267,7 +290,7 @@ func setPowerForBlade(
 			msg.Target.Describe(),
 			common.AOrB(msg.On, "on", "off"))
 
-		msg.Ch() <- sm.FailedResponse(occursAt, err)
+		ch <- sm.FailedResponse(occursAt, err)
 		break
 
 	case ErrTooLate:
@@ -277,12 +300,11 @@ func setPowerForBlade(
 				"after other changed occurred.  The blade's power state remains unchanged.",
 			msg.Target.Describe())
 
-		msg.Ch() <- messages.DroppedResponse(occursAt)
 		break
 
 	default:
 		tracing.Warn(ctx, "Unexpected error code: %v", err)
 
-		msg.Ch() <- sm.FailedResponse(occursAt, err)
+		ch <- sm.FailedResponse(occursAt, err)
 	}
 }

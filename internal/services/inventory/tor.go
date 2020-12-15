@@ -2,14 +2,12 @@ package inventory
 
 import (
 	"context"
-	"errors"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
 
 // tor defines the state required to simulate a top-of-rack network
@@ -54,6 +52,7 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 			torWorkingState,
 			sm.NullEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, torGetStatus, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, workingSetConnection, sm.Stay, sm.Stay},
 			},
 			sm.UnexpectedMessage,
@@ -62,7 +61,9 @@ func newTor(_ *pb.ExternalTor, r *Rack) *tor {
 		sm.WithState(
 			torStuckState,
 			sm.NullEnter,
-			[]sm.ActionEntry{},
+			[]sm.ActionEntry{
+				{messages.TagGetStatus, torOnlyGetStatus, sm.Stay, sm.Stay},
+			},
 			messages.DropMessage,
 			sm.NullLeave),
 	)
@@ -88,17 +89,6 @@ func (t *tor) Receive(ctx context.Context, msg sm.Envelope) {
 	t.sm.Receive(ctx, msg)
 }
 
-// newStatusReport is a helper function to construct a status response for this
-// TOR.
-func (t *tor) newStatusReport(
-	_ context.Context,
-	_ *services.InventoryAddress) *sm.Response {
-	return &sm.Response{
-		Err: errors.New("not yet implemented"),
-		Msg: nil,
-	}
-}
-
 // notifyBladeOfConnectionChange constructs a setConnection message that targets the
 // specified blade, and forwards it along.
 func (t *tor) notifyBladeOfConnectionChange(ctx context.Context, msg *messages.SetConnection, i int64) {
@@ -118,10 +108,102 @@ func (t *tor) notifyBladeOfConnectionChange(ctx context.Context, msg *messages.S
 		common.AOrB(fwd.Enabled, "enabled", "disabled"))
 }
 
+// torGetStatus returns the current simulated status for the TOR, or passes
+// through to the blade, if that is the target.
+func torGetStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
+	t := machine.Parent.(*tor)
+	m := msg.(*messages.GetStatus)
+
+	occursAt := common.TickFromContext(ctx)
+
+	if m.Target.IsTor() {
+		return torOnlyGetStatus(ctx, machine, msg)
+	} else if i, isBladeTarget := m.Target.BladeID(); isBladeTarget {
+		return torToBladeGetStatus(ctx, t, i, msg)
+	}
+
+	processInvalidTarget(ctx, m, m.Target.Describe(), occursAt)
+	return true
+}
+
+// torToBladeGetStatus processes a get status request that has targeted a
+// blade.  It will forward it, if possible, or handle the error, if not.
+func torToBladeGetStatus(ctx context.Context, t *tor, i int64, msg sm.Envelope) bool {
+	m := msg.(*messages.GetStatus)
+
+	occursAt := common.TickFromContext(ctx)
+
+	c, ok := t.cables[i]
+
+	if !ok {
+		processInvalidTarget(ctx, msg, m.Target.Describe(), occursAt)
+		return false
+	}
+
+	if !c.on || c.faulted {
+		ch := msg.Ch()
+		if ch != nil {
+			close(ch)
+		}
+
+		return false
+	}
+
+	if !t.holder.forwardToBlade(ctx, i, msg) {
+		ch := msg.Ch()
+		if ch != nil {
+			close(ch)
+		}
+
+		return false
+	}
+
+	return true
+}
+
+// torOnlyGetStatus returns the current simulated status for the TOR.
+func torOnlyGetStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
+	t := machine.Parent.(*tor)
+	m := msg.(*messages.GetStatus)
+
+	ch := msg.Ch()
+	defer close(ch)
+
+	tracing.UpdateSpanName(
+		ctx,
+		"Getting the current status for %s",
+		m.Target.Describe())
+
+	torStatus := &messages.TorStatus{
+		StatusBody: messages.StatusBody{
+			State:     t.sm.CurrentIndex,
+			EnteredAt: t.sm.EnteredAt,
+		},
+		Cables: make(map[int64]*messages.CableState),
+	}
+
+	for i, c := range t.cables {
+		torStatus.Cables[i] = &messages.CableState{
+			On:      c.on,
+			Faulted: c.faulted,
+		}
+	}
+
+	ch <- messages.NewStatusResponse(
+		common.TickFromContext(ctx),
+		torStatus)
+
+	return true
+}
+
 // workingSetConnection processes a setConnection request, updating the network
 // connection state as required.
 func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	msg := m.(*messages.SetConnection)
+
+	ch := msg.Ch()
+	defer close(ch)
+
 	t := machine.Parent.(*tor)
 
 	occursAt := common.TickFromContext(ctx)
@@ -141,7 +223,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 			"No network connection for %s was found.",
 			msg.Target.Describe())
 
-		msg.Ch() <- messages.InvalidTargetResponse(occursAt)
+		ch <- messages.InvalidTargetResponse(occursAt)
 		return false
 	}
 
@@ -159,7 +241,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 		if changed {
 			t.notifyBladeOfConnectionChange(ctx, msg, id)
 
-			msg.Ch() <- sm.SuccessResponse(occursAt)
+			ch <- sm.SuccessResponse(occursAt)
 		} else {
 			tracing.Info(
 				ctx,
@@ -167,7 +249,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 				msg.Target.Describe(),
 				common.AOrB(c.on, "enabled", "disabled"))
 
-			msg.Ch() <- sm.FailedResponse(occursAt, ErrNoOperation)
+			ch <- sm.FailedResponse(occursAt, ErrNoOperation)
 		}
 		break
 
@@ -178,7 +260,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 			msg.Target.Describe(),
 			common.AOrB(c.on, "enabled", "disabled"))
 
-		msg.Ch() <- sm.FailedResponse(occursAt, err)
+		ch <- sm.FailedResponse(occursAt, err)
 		break
 
 	case ErrTooLate:
@@ -188,14 +270,12 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 				"after other changed occurred.  The blade's network connection "+
 				"state remains unchanged.",
 			msg.Target.Describe())
-
-		msg.Ch() <- messages.DroppedResponse(occursAt)
 		break
 
 	default:
 		tracing.Warn(ctx, "Unexpected error code: %v", err)
 
-		msg.Ch() <- sm.FailedResponse(occursAt, err)
+		ch <- sm.FailedResponse(occursAt, err)
 	}
 
 	return true

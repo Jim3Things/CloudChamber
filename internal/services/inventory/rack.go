@@ -90,6 +90,7 @@ func newRackInternal(
 			rackWorkingState,
 			sm.NullEnter,
 			[]sm.ActionEntry{
+				{messages.TagGetStatus, process, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, process, sm.Stay, sm.Stay},
 				{messages.TagSetPower, process, sm.Stay, sm.Stay},
 				{messages.TagTimerExpiry, process, sm.Stay, sm.Stay},
@@ -214,7 +215,7 @@ func (r *Rack) start(ctx context.Context) error {
 		}
 	}
 
-	return messages.ErrRepairMessageDropped
+	return ErrAlreadyStarted
 }
 
 // stop terminates the simulated Rack state machine, and its handler.
@@ -273,6 +274,9 @@ func startSim(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 
 	msg := m.(*sm.StartSM)
 
+	ch := msg.Ch()
+	defer close(ch)
+
 	tracing.UpdateSpanName(
 		ctx,
 		"Starting the simulation of rack %q",
@@ -296,7 +300,7 @@ func startSim(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 		err = b.sm.Start(ctx)
 	}
 
-	msg.Ch() <- &sm.Response{
+	ch <- &sm.Response{
 		Err: err,
 		At:  at,
 		Msg: nil,
@@ -311,7 +315,11 @@ func process(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	r := machine.Parent.(*Rack)
 
 	if err := body.SendVia(ctx, r); err != nil {
-		msg.Ch() <- sm.FailedResponse(common.TickFromContext(ctx), err)
+		// Forwarding failed, so issue the response here (as no one else could
+		// have handled it)
+		ch := msg.Ch()
+		ch <- sm.FailedResponse(common.TickFromContext(ctx), err)
+		close(ch)
 	}
 
 	return true
@@ -319,8 +327,11 @@ func process(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 
 // stopSim is used to stop the rack simulation, and signal that it is now done.
 func stopSim(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
+	ch := msg.Ch()
+	defer close(ch)
+
 	// Stop the rack simulation.
-	msg.Ch() <- &sm.Response{
+	ch <- &sm.Response{
 		Err: machine.ChangeState(ctx, rackTerminalState),
 		At:  common.TickFromContext(ctx),
 		Msg: nil,

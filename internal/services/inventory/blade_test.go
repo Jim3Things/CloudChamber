@@ -49,6 +49,83 @@ func (ts *BladeTestSuite) issueSetConnection(ctx context.Context, r *Rack, id in
 	return ts.completeWithin(rsp, time.Duration(1)*time.Second)
 }
 
+func (ts *BladeTestSuite) issueGetStatus(ctx context.Context, r *Rack, id int64) *sm.Response {
+	rsp := make(chan *sm.Response)
+	msg := messages.NewGetStatus(ctx,
+		messages.NewTargetBlade(ts.rackName(), id),
+		common.TickFromContext(ctx),
+		rsp)
+
+	r.Receive(msg)
+
+	return ts.completeWithin(rsp, time.Duration(1)*time.Second)
+}
+
+func (ts *BladeTestSuite) TestGetStatus() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	rackDef := ts.createDummyRack(2)
+
+	r := newRack(context.Background(), ts.rackName(), rackDef, ts.timers)
+	require.NotNil(r)
+	ctx := ts.advance(context.Background())
+
+	require.NoError(r.start(context.Background()))
+
+	// Powered off, so this should fail
+	sres := ts.issueGetStatus(ctx, r, 0)
+	require.Nil(sres)
+
+	p := ts.issueSetPower(ctx, r, 0, true)
+	require.NotNil(p)
+	require.NoError(p.Err)
+
+	ctx, ok := ts.advanceToStateChange(ctx, 5, func() bool {
+		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
+	})
+
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	// Powered on, but disconnected, so this should fail
+	sres = ts.issueGetStatus(ctx, r, 0)
+	require.Nil(sres)
+
+	c := ts.issueSetConnection(ctx, r, 0, true)
+	require.NotNil(c)
+	require.NoError(c.Err)
+
+	ctx, ok = ts.advanceToStateChange(ctx, 5, func() bool {
+		return r.blades[0].sm.CurrentIndex == bladeBooting
+	})
+
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	sres = ts.issueGetStatus(ctx, r, 0)
+	require.NotNil(sres)
+	require.NoError(sres.Err)
+
+	status, ok := sres.Msg.(*messages.BladeStatus)
+	require.True(ok)
+
+	assert.Equal(bladeBooting, status.State)
+
+	ctx, ok = ts.advanceToStateChange(ctx, 5, func() bool {
+		return r.blades[0].sm.CurrentIndex == bladeWorking
+	})
+
+	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	sres = ts.issueGetStatus(ctx, r, 0)
+	require.NotNil(sres)
+	require.NoError(sres.Err)
+
+	status, ok = sres.Msg.(*messages.BladeStatus)
+	require.True(ok)
+
+	assert.Equal(bladeWorking, status.State)
+}
+
 func (ts *BladeTestSuite) TestPowerOn() {
 	require := ts.Require()
 	assert := ts.Assert()
@@ -79,6 +156,9 @@ func (ts *BladeTestSuite) TestPowerOn() {
 	})
 
 	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	res2 := ts.issueGetStatus(ctx, r, 0)
+	require.Nil(res2)
 }
 
 func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
@@ -105,6 +185,9 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 
 	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
+	res2 := ts.issueGetStatus(ctx, r, 0)
+	require.Nil(res2)
+
 	res = ts.issueSetConnection(ctx, r, 0, true)
 
 	require.NotNil(res)
@@ -117,6 +200,13 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	})
 
 	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	res2 = ts.issueGetStatus(ctx, r, 0)
+	require.NotNil(res2)
+	require.NoError(res2.Err)
+	require.NotNil(res2.Msg)
+	status := res2.Msg.(*messages.BladeStatus)
+	assert.Equal(bladeBooting, status.State)
 
 	span.End()
 
@@ -135,6 +225,9 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	})
 
 	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+
+	res2 = ts.issueGetStatus(ctx, r, 0)
+	require.Nil(res2)
 
 	span.End()
 }

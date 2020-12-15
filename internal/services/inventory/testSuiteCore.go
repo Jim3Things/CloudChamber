@@ -149,8 +149,13 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 
 func (ts *testSuiteCore) completeWithin(ch <-chan *sm.Response, delay time.Duration) *sm.Response {
 	select {
-	case res := <-ch:
+	case res, ok := <-ch:
+		if !ok {
+			return nil
+		}
+
 		return res
+
 	case <-time.After(delay):
 		return nil
 	}
