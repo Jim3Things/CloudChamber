@@ -102,7 +102,7 @@ func (ts *BladeTestSuite) TestGetStatus() {
 
 	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
-	// Powered on, but disconnected, so this should fail
+	// Powered on, but disconnected, so this should do nothing
 	sres = ts.issueGetStatus(ctx, r, 0)
 	require.Nil(sres)
 
