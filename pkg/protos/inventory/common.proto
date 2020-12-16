@@ -1,0 +1,232 @@
+// Defines the data structures used to describe the capacity of an inventory
+// item. Capacity is a multi-dimensional aspect of any inventory item, since
+// each item has multiple internal resources, any one or combination of which
+// can be exhausted.
+//
+// The multi-dimensionality is important for schedulers to understand, as the
+// exhaustion of one dimension can lead to a case where the other unused
+// capacity dimensions are stranded.  For instance, if all cores are consumed
+// then no free memory, disk, or other dimensions of a blade can be used.
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+
+// Underlying condition of hardware items within the inventory. Allows control of the basic
+// state of the item. Can be applied to racks, blades, tors, pdus, cables (power and network).
+//
+enum condition {
+    not_in_service = 0;
+    operational = 1;
+    burn_in = 2;
+    out_for_repair = 3;
+    retiring = 4;
+    retired = 5;
+}
+
+// Underlying state of logical items within the inventory. Allows the basic state to be
+// described. Applies to zones and regions.
+//
+enum state {
+    out_of_service = 0;
+    in_service = 1;
+    commissioning = 2;
+    assumed_failed = 3;
+    decommisioning = 4;
+    decommisioned = 5;
+}
+
+
+// Describes potential targets for wiring connections between a Pdu or Tor port and a specific
+// item of equipment.
+//
+message hardware {
+
+    // Defines the type of hardware that can be wired up to a Pdu power port or a Tor network port.
+    //
+    enum hw_type {
+        // The type of hardware is not yet known
+        //
+        unknown = 0;
+
+        // This item is a PDU (Power Distribution Unit).
+        //
+        pdu = 1;
+
+        // Equipment is a TOR (Top of Rack network switch)
+        //
+        tor = 2;
+
+        // Equipment is a blade computer
+        //
+        blade = 3;
+    }
+
+    // The type or item or piece of equipment
+    //
+    hw_type type = 1;
+
+    // Defines an instance of the piece of equipment. For example there are likely to be multiple
+    // blades and the id is used to distinguish amongst them.
+    //
+    int64 id = 2;
+
+    // If the item has multiple connectors, the port field can be used to indicate which connector
+    // is used for this port.
+    //
+    int64 port = 3;
+}
+
+message power_port {
+    // Defines whether or not the port is actually connected to the associated item of equipment.
+    //
+    bool wired = 1;
+
+    // Defines what the port is wired up to.
+    //
+    hardware item = 2;
+}
+
+message network_port {
+    // Defines whether or not the port is actually connected to the associated item of equipment.
+    //
+    bool wired = 1;
+
+    // Defines what the port is wired up to.
+    //
+    hardware item = 2;
+}
+    
+message blade_boot {
+    enum method {
+        local = 0;
+        network = 1;
+    }
+
+    method source = 1;
+    string image = 2;
+    string version = 3;
+    string parameters = 4;
+}
+
+// Power distribution unit.  Network accessible power controller
+//
+message pdu_details {
+    // Note that full internal name for a pdu is <rackname>-pdu-0
+
+    // Whether or not the pdu is enabled. This is orthoganal to the condition of the
+    // pdu. For resources within the pdu to be schedulable, the pdu must be both
+    // enabled and the condition must be operational.
+    //
+    bool enabled = 1;
+
+    // Defines the overall condition of the pdu. This is orthoganal to the enabling of
+    // the pdu. For resources within the pdu to be schedulable, the pdu must be both
+    // enabled and the condition must be operational.
+    //
+    condition condition = 2;
+}
+
+// Rack-level network switch.
+//
+message tor_details {
+    // Note that full internal name for a tor is <rackname>-tor-0
+
+    // Whether or not the tor is enabled. This is orthoganal to the condition of the
+    // tor. For resources within the tor to be schedulable, the tor must be both
+    // enabled and the condition must be operational.
+    //
+    bool enabled = 1;
+
+    // Defines the overall condition of the tor. This is orthoganal to the enabling of
+    // the tor. For resources within the tor to be schedulable, the tor must be both
+    // enabled and the condition must be operational.
+    //
+    condition condition = 2;
+}
+
+message rack_details {
+    // This assumes a single overhead item per rack.  May want to allow multiple to handle
+    // subdivisions for power or network, say.
+
+    // Whether or not the rack as a whole is enabled. This is orthoganal to the condition
+    // of the rack. For resources within the rack to be schedulable, the rack must be both
+    // enabled and the condition must be operational.
+    //
+    bool enabled = 1;
+
+    // Defines the overall condition of the rack. This is orthoganal to the enabling of
+    // the rack. For resources within the rack to be schedulable, the rack must be both
+    // enabled and the condition must be operational.
+    //
+    condition condition = 2;
+
+    // Arbitrary string used to allow the physical location of the rack to be recorded in
+    // a user defined format. Has no effect on the operation of the rack, for display
+    // purposes only.
+    //
+    string location = 3;
+
+    // Arbitrary string used to allow any operational notes for the blade to be recorded
+    // in a user defined format. Has no effect on the operation of the rack, for display
+    // purposes only.
+    //
+    string notes = 4;
+}
+
+// Finally, a zone is a collection of racks.  Each rack has a name, which is used as a
+// key in the map below.
+//
+message zone_details {
+    // Whether or not the zone as a whole is enabled. This is orthoganal to the condition
+    // of the zone. For resources within the zone to be schedulable, the zone must be both
+    // enabled and the condition must be operational.
+    //
+    bool enabled = 1;
+
+    // Defines the overall condition of the zone. This is orthoganal to the enabling of
+    // the zone. For resources within the zone to be schedulable, the zone must be both
+    // enabled and the condition must be operational.
+    //
+    state state = 2;
+
+    // Arbitrary string used to allow the physical location of the zone to be recorded in
+    // a user defined format. Has no effect on the operation of the zone, for display
+    // purposes only.
+    //
+    string location = 3;
+
+    // Arbitrary string used to allow any operational notes for the zone to be recorded
+    // in a user defined format. Has no effect on the operation of the zone, for display
+    // purposes only.
+    //
+    string notes = 4;
+}
+
+message region_details {
+    // The name of a region. 
+    //
+    // NOTE: Not sure we need an explicit name field since the name of the record is 
+    // implicit in identifying the record.
+    //
+    string name = 1;
+
+    // Defines the overall condition of the region. For resources within the region to
+    // be schedulable, the region  condition must be operational.
+    //
+    state state = 2;
+
+    // Arbitrary string used to allow the physical location of the zone to be recorded in
+    // a user defined format. Has no effect on the operation of the zone, for display
+    // purposes only.
+    //
+    string location = 3;
+
+    // Arbitrary string used to allow any operational notes for the zone to be recorded
+    // in a user defined format. Has no effect on the operation of the zone, for display
+    // purposes only.
+    //
+    string notes = 4;
+}
+

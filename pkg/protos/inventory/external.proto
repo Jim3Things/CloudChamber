@@ -6,9 +6,9 @@
 
 syntax = "proto3";
 
-import "pkg/protos/common/capacity.proto";
-
 package inventory;
+
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
@@ -37,7 +37,7 @@ message external {
 
         // specify the blades in the rack.  Each blade is defined by an integer index within that rack, which is used
         // here as the key.
-        map<int64, common.blade_capacity> blades = 3;
+        map<int64, blade_capacity> blades = 3;
     }
 
     // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in the map below.
@@ -64,6 +64,6 @@ message external {
         int64 max_blade_count = 2;
 
         // The largest capacity values found in any blade
-        common.blade_capacity max_capacity = 3;
+        blade_capacity max_capacity = 3;
     }
 }

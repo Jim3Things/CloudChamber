@@ -15,46 +15,17 @@ package frontend
 
 import (
 	"context"
-	"fmt"
 	"sync"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/pkg/errors"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
-
-const (
-	keyFormatZone  = "zones/%s"
-	keyFormatRack  = "zone/%s/racks/%s"
-	keyFormatPdu   = "zone/%s/rack/%s/pdu/%v"
-	keyFormatTor   = "zone/%s/rack/%s/tor/%v"
-	keyFormatBlade = "zone/%s/rack/%s/blade/%v"
-)
-
-func getKeyForZone(zone string) string {
-	return fmt.Sprintf(keyFormatZone, zone)
-}
-
-func getKeyForRack(zone string, rack string) string {
-	return fmt.Sprintf(keyFormatRack, zone, rack)
-}
-
-func getKeyForPdu(zone string, rack string, pdu int64) string {
-	return fmt.Sprintf(keyFormatPdu, zone, rack, pdu)
-}
-
-func getKeyForTor(zone string, rack string, tor int64) string {
-	return fmt.Sprintf(keyFormatTor, zone, rack, tor)
-}
-
-func getKeyForBlade(zone string, rack string, blade int64) string {
-	return fmt.Sprintf(keyFormatBlade, zone, rack, blade)
-}
 
 // DBInventory is a structure used to establish synchronized access to
 // the in-memory version of the inventory.
@@ -77,10 +48,10 @@ type DBInventory struct {
 
 	ZoneCount     int
 	MaxBladeCount int64
-	MaxCapacity   *ct.BladeCapacity
+	MaxCapacity   *pb.BladeCapacity
 	Store         *store.Store
 
-	Region *pb.Region
+	Region *pb.DefinitionRegion
 }
 
 var dbInventory *DBInventory
@@ -98,9 +69,9 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			mutex:         sync.RWMutex{},
 			Zone:          nil,
 			MaxBladeCount: 0,
-			MaxCapacity:   &ct.BladeCapacity{},
+			MaxCapacity:   &pb.BladeCapacity{},
 			Store:         store.NewStore(),
-			Region:        &pb.Region{},
+			Region:       &pb.DefinitionRegion{},
 		}
 
 		if err = db.Initialize(ctx, cfg); err != nil {
@@ -158,7 +129,7 @@ func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) 
 	return nil
 }
 
-func (m *DBInventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.Region, error) {
+func (m *DBInventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.DefinitionRegion, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from store"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -228,7 +199,7 @@ func (m *DBInventory) UpdateInventoryDefinition(
 // which any currently running services have previously established and deliver
 // a set of arrival and/or departure notifications as appropriate.
 //
-func (m *DBInventory) reconcileNewInventory(ctx context.Context, regionFile *pb.Region, regionStore *pb.Region) error {
+func (m *DBInventory) reconcileNewInventory(ctx context.Context, regionFile *pb.DefinitionRegion, regionStore *pb.DefinitionRegion) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Reconcile current inventory with update"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -247,7 +218,7 @@ func (m *DBInventory) reconcileNewInventory(ctx context.Context, regionFile *pb.
 
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
-func (m *DBInventory) GetMemoData() (int, int64, *ct.BladeCapacity) {
+func (m *DBInventory) GetMemoData() (int, int64, *pb.BladeCapacity) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -305,7 +276,7 @@ func (m *DBInventory) ScanBladesInRack(rackID string, action func(bladeID int64)
 
 // GetBlade returns the details of a blade matching the supplied rackID and
 // bladeID
-func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*ct.BladeCapacity, error) {
+func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*pb.BladeCapacity, error) {
 	m.mutex.RLock()
 	defer m.mutex.RUnlock()
 
@@ -330,7 +301,7 @@ func (m *DBInventory) GetBlade(rackID string, bladeID int64) (*ct.BladeCapacity,
 func (m *DBInventory) buildSummary(ctx context.Context) {
 
 	maxBladeCount := int64(0)
-	memo := &ct.BladeCapacity{}
+	memo := &pb.BladeCapacity{}
 
 	for _, rack := range m.Zone.Racks {
 		for _, blade := range rack.Blades {
@@ -358,10 +329,10 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 // - the maximum number of blades in a rack
 // - the memo data itself
 //
-func (m *DBInventory) buildSummaryForRegion(ctx context.Context, zm *pb.Region) (int, int64, *ct.BladeCapacity) {
+func (m *DBInventory) buildSummaryForRegion(ctx context.Context, zm *pb.DefinitionRegion) (int, int64, *pb.BladeCapacity) {
 
 	maxBladeCount := int64(0)
-	maxCapacity := &ct.BladeCapacity{}
+	maxCapacity := &pb.BladeCapacity{}
 
 	for _, zone := range zm.Zones {
 		for _, rack := range zone.Racks {
@@ -641,10 +612,13 @@ func (m *DBInventory) CreateZone(
 	// of a single field value change.
 	//
 	z := &pb.DefinitionZone{
-		Enabled:   zone.Enabled,
-		Condition: zone.Condition,
-		Location:  zone.Location,
-		Notes:     zone.Notes,
+		Details: &pb.ZoneDetails{
+		Enabled:  zone.Details.Enabled,
+		State:    zone.Details.State,
+		Location: zone.Details.Location,
+		Notes:    zone.Details.Notes,
+		},
+		Racks: make(map[string]*pb.DefinitionRack),
 	}
 
 	v, err := store.Encode(z)
@@ -653,7 +627,11 @@ func (m *DBInventory) CreateZone(
 		return InvalidRev, err
 	}
 
-	k := getKeyForZone(name)
+	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
@@ -678,10 +656,12 @@ func (m *DBInventory) CreateRack(
 	options ...InventoryRackOption) (int64, error) {
 
 	r := &pb.DefinitionRack{
-		Enabled:   rack.Enabled,
-		Condition: rack.Condition,
-		Location:  rack.Location,
-		Notes:     rack.Notes,
+		Details: &pb.RackDetails{
+			Enabled: rack.Details.Enabled,
+			Condition: rack.Details.Condition,
+			Location: rack.Details.Location,
+			Notes: rack.Details.Notes,
+		},
 	}
 
 	v, err := store.Encode(r)
@@ -690,7 +670,11 @@ func (m *DBInventory) CreateRack(
 		return InvalidRev, err
 	}
 
-	k := getKeyForRack(zone, name)
+	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
@@ -720,16 +704,18 @@ func (m *DBInventory) CreatePdu(
 	}
 
 	r := &pb.DefinitionPdu{
-		Enabled:   pdu.Enabled,
-		Condition: pdu.Condition,
-		Ports:     make(map[int64]*pb.DefinitionPowerPort, len(pdu.Ports)),
+		Details: &pb.PduDetails{
+			Enabled:   pdu.Details.Enabled,
+			Condition: pdu.Details.Condition,
+		},
+		Ports: make(map[int64]*pb.PowerPort, len(pdu.Ports)),
 	}
 
 	for i, p := range pdu.Ports {
-		r.Ports[i] = &pb.DefinitionPowerPort{Wired: p.Wired}
+		r.Ports[i] = &pb.PowerPort{Wired: p.Wired}
 
 		if p.Item != nil {
-			r.Ports[i].Item = &pb.DefinitionItem{
+			r.Ports[i].Item = &pb.Hardware{
 				Type: p.Item.Type,
 				Id:   p.Item.Id,
 				Port: p.Item.Port,
@@ -743,7 +729,11 @@ func (m *DBInventory) CreatePdu(
 		return InvalidRev, err
 	}
 
-	k := getKeyForPdu(zone, rack, index)
+	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
@@ -773,16 +763,18 @@ func (m *DBInventory) CreateTor(
 	}
 
 	r := &pb.DefinitionTor{
-		Enabled:   tor.Enabled,
-		Condition: tor.Condition,
-		Ports:     make(map[int64]*pb.DefinitionNetworkPort, len(tor.Ports)),
+		Details: &pb.TorDetails{
+			Enabled:   tor.Details.Enabled,
+			Condition: tor.Details.Condition,
+		},
+		Ports: make(map[int64]*pb.NetworkPort, len(tor.Ports)),
 	}
 
 	for i, p := range tor.Ports {
-		r.Ports[i] = &pb.DefinitionNetworkPort{Wired: p.Wired}
+		r.Ports[i] = &pb.NetworkPort{Wired: p.Wired}
 
 		if p.Item != nil {
-			r.Ports[i].Item = &pb.DefinitionItem{
+			r.Ports[i].Item = &pb.Hardware{
 				Type: p.Item.Type,
 				Id:   p.Item.Id,
 				Port: p.Item.Port,
@@ -796,7 +788,11 @@ func (m *DBInventory) CreateTor(
 		return InvalidRev, err
 	}
 
-	k := getKeyForTor(zone, rack, index)
+	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
@@ -833,7 +829,11 @@ func (m *DBInventory) CreateBlade(
 		return InvalidRev, err
 	}
 
-	k := getKeyForBlade(zone, rack, index)
+	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
@@ -853,7 +853,11 @@ func (m *DBInventory) ReadZone(
 	name string,
 	options ...InventoryZoneOption) (*pb.DefinitionZone, int64, error) {
 
-	k := getKeyForZone(name)
+	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
@@ -879,7 +883,11 @@ func (m *DBInventory) ReadRack(
 	name string,
 	options ...InventoryRackOption) (*pb.DefinitionRack, int64, error) {
 
-	k := getKeyForRack(zone, name)
+	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
@@ -905,7 +913,11 @@ func (m *DBInventory) ReadPdu(
 	index int64,
 	options ...InventoryOption) (*pb.DefinitionPdu, int64, error) {
 
-	k := getKeyForPdu(zone, rack, index)
+	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
@@ -931,7 +943,11 @@ func (m *DBInventory) ReadTor(
 	index int64,
 	options ...InventoryOption) (*pb.DefinitionTor, int64, error) {
 
-	k := getKeyForTor(zone, rack, index)
+	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
@@ -957,7 +973,11 @@ func (m *DBInventory) ReadBlade(
 	index int64,
 	options ...InventoryOption) (*pb.DefinitionBlade, int64, error) {
 
-	k := getKeyForBlade(zone, rack, index)
+	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
@@ -987,10 +1007,12 @@ func (m *DBInventory) UpdateZone(
 	options ...InventoryZoneOption) (int64, error) {
 
 	z := &pb.DefinitionZone{
-		Enabled:   zone.Enabled,
-		Condition: zone.Condition,
-		Location:  zone.Location,
-		Notes:     zone.Notes,
+		Details: &pb.ZoneDetails{
+			Enabled:  zone.Details.Enabled,
+			State:    zone.Details.State,
+			Location: zone.Details.Location,
+			Notes:    zone.Details.Notes,
+		},
 	}
 
 	v, err := store.Encode(z)
@@ -999,7 +1021,11 @@ func (m *DBInventory) UpdateZone(
 		return InvalidRev, err
 	}
 
-	k := getKeyForZone(name)
+	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
@@ -1023,10 +1049,12 @@ func (m *DBInventory) UpdateRack(
 	rack *pb.DefinitionRack, options ...InventoryRackOption) (int64, error) {
 
 	r := &pb.DefinitionRack{
-		Enabled:   rack.Enabled,
-		Condition: rack.Condition,
-		Location:  rack.Location,
-		Notes:     rack.Notes,
+		Details: &pb.RackDetails{
+			Enabled:   rack.Details.Enabled,
+			Condition: rack.Details.Condition,
+			Location:  rack.Details.Location,
+			Notes:     rack.Details.Notes,
+		},
 	}
 
 	v, err := store.Encode(r)
@@ -1035,7 +1063,11 @@ func (m *DBInventory) UpdateRack(
 		return store.RevisionInvalid, err
 	}
 
-	k := getKeyForRack(zone, name)
+	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
@@ -1057,14 +1089,16 @@ func (m *DBInventory) UpdatePdu(
 	options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionPdu{
-		Enabled:   pdu.Enabled,
-		Condition: pdu.Condition,
+		Details: &pb.PduDetails{
+			Enabled:   pdu.Details.Enabled,
+			Condition: pdu.Details.Condition,
+		},
 	}
 
 	for i, p := range pdu.Ports {
-		r.Ports[i] = &pb.DefinitionPowerPort{
+		r.Ports[i] = &pb.PowerPort{
 			Wired: p.Wired,
-			Item: &pb.DefinitionItem{
+			Item: &pb.Hardware{
 				Type: p.Item.Type,
 				Id:   p.Item.Id,
 				Port: p.Item.Port,
@@ -1078,7 +1112,11 @@ func (m *DBInventory) UpdatePdu(
 		return InvalidRev, err
 	}
 
-	k := getKeyForPdu(zone, rack, index)
+	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
@@ -1100,14 +1138,16 @@ func (m *DBInventory) UpdateTor(
 	options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionTor{
-		Enabled:   tor.Enabled,
-		Condition: tor.Condition,
+		Details: &pb.TorDetails{
+			Enabled: tor.Details.Enabled,
+			Condition: tor.Details.Condition,
+		},
 	}
 
 	for i, p := range tor.Ports {
-		r.Ports[i] = &pb.DefinitionNetworkPort{
+		r.Ports[i] = &pb.NetworkPort{
 			Wired: p.Wired,
-			Item: &pb.DefinitionItem{
+			Item: &pb.Hardware{
 				Type: p.Item.Type,
 				Id:   p.Item.Id,
 				Port: p.Item.Port,
@@ -1121,7 +1161,11 @@ func (m *DBInventory) UpdateTor(
 		return InvalidRev, err
 	}
 
-	k := getKeyForTor(zone, rack, index)
+	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
@@ -1154,7 +1198,11 @@ func (m *DBInventory) UpdateBlade(
 		return InvalidRev, err
 	}
 
-	k := getKeyForBlade(zone, rack, index)
+	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
@@ -1174,7 +1222,11 @@ func (m *DBInventory) DeleteZone(
 	name string,
 	options ...InventoryOption) (int64, error) {
 
-	k := getKeyForZone(name)
+	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
@@ -1195,7 +1247,11 @@ func (m *DBInventory) DeleteRack(
 	name string,
 	options ...InventoryOption) (int64, error) {
 
-	k := getKeyForRack(zone, name)
+	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
@@ -1221,7 +1277,11 @@ func (m *DBInventory) DeletePdu(
 	pdu int64,
 	options ...InventoryOption) (int64, error) {
 
-	k := getKeyForPdu(zone, rack, pdu)
+	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, pdu)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
@@ -1247,7 +1307,11 @@ func (m *DBInventory) DeleteTor(
 	tor int64,
 	options ...InventoryOption) (int64, error) {
 
-	k := getKeyForTor(zone, rack, tor)
+	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, tor)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
@@ -1273,7 +1337,11 @@ func (m *DBInventory) DeleteBlade(
 	blade int64,
 	options ...InventoryOption) (int64, error) {
 
-	k := getKeyForBlade(zone, rack, blade)
+	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, blade)
+
+	if err != nil {
+		return InvalidRev, err
+	}
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 

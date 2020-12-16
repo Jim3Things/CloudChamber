@@ -99,7 +99,7 @@ func(x *DefinitionPdu) check(prefix string) error {
 			// While this prevents a potentially legal case of chained
 			// Pdus, it also prevents wiring a Pdu to itself.
 			//
-			if p.Item.Type == DefinitionItem_pdu {
+			if p.Item.Type == Hardware_pdu {
 				return errors.ErrInvalidItemSelf{
 					Field:  prefixedItem,
 					Item:   "PDU",
@@ -201,7 +201,7 @@ func(x *DefinitionTor) check(prefix string) error {
 			// While this prevents a potentially legal case of chained
 			// Pdus, it also prevents wiring a Pdu to itself.
 			//
-			if p.Item.Type == DefinitionItem_tor {
+			if p.Item.Type == Hardware_tor {
 				return errors.ErrInvalidItemSelf{
 					Field:  prefixedItem,
 					Item:   "TOR",
@@ -218,7 +218,7 @@ func(x *DefinitionTor) check(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionRack instance
 // is structurally legal
 //
-func (x *DefinitionRackInternal) Validate(prefix string) error {
+func (x *DefinitionRack) Validate(prefix string) error {
 	// Verify that rack has at least one Pdu
 	//
 	// NOTE: at present we expect there to be exactly one Pdu per-rack
@@ -288,7 +288,7 @@ func (x *DefinitionRackInternal) Validate(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionZone instance
 // is structurally legal
 //
-func (x *DefinitionZoneInternal) Validate() error {
+func (x *DefinitionZone) Validate() error {
 	// Verify that zone has at least one rack
 	//
 	actual := int64(len(x.Racks))

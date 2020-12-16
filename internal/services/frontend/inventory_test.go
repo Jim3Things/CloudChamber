@@ -13,7 +13,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -221,7 +220,7 @@ func (ts *InventoryTestSuite) TestBladeRead() {
 	response = ts.doHTTP(request, response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
 
-	blade := &common.BladeCapacity{}
+	blade := &pb.BladeCapacity{}
 	err := ts.getJSONBody(response, blade)
 	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
@@ -247,7 +246,7 @@ func (ts *InventoryTestSuite) TestBlade2Read() {
 	response = ts.doHTTP(request, response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
 
-	blade := &common.BladeCapacity{}
+	blade := &pb.BladeCapacity{}
 	err := ts.getJSONBody(response, blade)
 	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 

@@ -8,10 +8,10 @@ import (
 
 	"github.com/spf13/viper"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/pkg/errors"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -113,7 +113,7 @@ func toExternalZone(xfr *xfrZone) (*pb.ExternalZone, error) {
 		cfg.Racks[r.Name] = &pb.ExternalRack{
 			Tor:    &pb.ExternalTor{},
 			Pdu:    &pb.ExternalPdu{},
-			Blades: make(map[int64]*common.BladeCapacity),
+			Blades: make(map[int64]*pb.BladeCapacity),
 		}
 
 		for _, b := range r.Blades {
@@ -124,7 +124,7 @@ func toExternalZone(xfr *xfrZone) (*pb.ExternalZone, error) {
 				}
 			}
 
-			cfg.Racks[r.Name].Blades[b.Index] = &common.BladeCapacity{
+			cfg.Racks[r.Name].Blades[b.Index] = &pb.BladeCapacity{
 				Cores:                  b.Cores,
 				MemoryInMb:             b.MemoryInMb,
 				DiskInGb:               b.DiskInGb,
@@ -148,7 +148,7 @@ func toExternalZone(xfr *xfrZone) (*pb.ExternalZone, error) {
 // an external YAML file and transforms it into the
 // internal Cloud chamber binary format.
 //
-func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Region, error) {
+func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.DefinitionRegion, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -190,25 +190,27 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Regi
 }
 
 // toDefinitionRegionInternal converts intermediate values to the final format
-// One important difference is that the intermediate is array based.
+// One important differnce is that the intermediate is array based.
 // The final format is map based using specific fields in array
 // entries as the map keys
 //
-func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
+func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 
-	region := &pb.Region{Zones: make(map[string]*pb.DefinitionZoneInternal)}
+	region := &pb.DefinitionRegion{
+		Details: &pb.RegionDetails{},
+		Zones: make(map[string]*pb.DefinitionZone)}
 
 	// Since we only have a single zone at present, there is no loop
 	// here. But there will be eventually.
 	//
-	zone := &pb.DefinitionZoneInternal{
-		Details: &pb.DefinitionZone{
+	zone := &pb.DefinitionZone{
+		Details: &pb.ZoneDetails{
 			Enabled:   true,
-			Condition: pb.DefinitionZone_operational,
+			State:     pb.State_in_service,
 			Location:  "DC-PNW-0",
 			Notes:     "Base zone",
 		},
-		Racks: make(map[string]*pb.DefinitionRackInternal),
+		Racks: make(map[string]*pb.DefinitionRack),
 	}
 
 	// For each rack in the supplied configuration, create rack in the
@@ -220,16 +222,16 @@ func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
 			return nil, errors.ErrDuplicateRack(r.Name)
 		}
 
-		zone.Racks[r.Name] = &pb.DefinitionRackInternal{
-			Details: &pb.DefinitionRack{
+		rack := &pb.DefinitionRack{
+			Details: &pb.RackDetails{
 				Enabled:   true,
-				Condition: pb.Definition_operational,
+				Condition: pb.Condition_operational,
 				Location:  "DC-PNW-0-" + r.Name,
 				Notes:     "RackName: " + r.Name,
 			},
 			Pdus:   make(map[int64]*pb.DefinitionPdu),
 			Tors:   make(map[int64]*pb.DefinitionTor),
-			Blades: make(map[int64]*pb.DefinitionBlade),
+			Blades:    make(map[int64]*pb.DefinitionBlade),
 		}
 
 		// Currently only have one each of Pdu and Tor per-rack.
@@ -238,16 +240,20 @@ func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
 		// synthesized and not actually read from the definition
 		// file.
 		//
-		zone.Racks[r.Name].Pdus[0] = &pb.DefinitionPdu{
-			Enabled:   true,
-			Condition: pb.Definition_operational,
-			Ports:     make(map[int64]*pb.DefinitionPowerPort),
+		rack.Pdus[0] = &pb.DefinitionPdu{
+			Details: &pb.PduDetails{
+				Enabled:   true,
+				Condition: pb.Condition_operational,
+			},
+			Ports:     make(map[int64]*pb.PowerPort),
 		}
 
-		zone.Racks[r.Name].Tors[0] = &pb.DefinitionTor{
-			Enabled:   true,
-			Condition: pb.Definition_operational,
-			Ports:     make(map[int64]*pb.DefinitionNetworkPort),
+		rack.Tors[0] = &pb.DefinitionTor{
+			Details: &pb.TorDetails{
+				Enabled:   true,
+				Condition: pb.Condition_operational,
+			},
+			Ports:     make(map[int64]*pb.NetworkPort),
 		}
 
 		// We do support more than a single blade for each rack
@@ -261,7 +267,7 @@ func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
 			// not allow, so fail describing where we found the
 			// issue.
 			//
-			if _, ok := zone.Racks[r.Name].Blades[b.Index]; ok {
+			if _, ok := rack.Blades[b.Index]; ok {
 				return nil, errors.ErrDuplicateBlade{
 					Blade: b.Index,
 					Rack:  r.Name,
@@ -273,10 +279,10 @@ func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
 			// (currently) have an existence in the configuration
 			// file.
 			//
-			zone.Racks[r.Name].Blades[b.Index] = &pb.DefinitionBlade{
+			rack.Blades[b.Index] = &pb.DefinitionBlade{
 				Enabled:   true,
-				Condition: pb.Definition_operational,
-				Capacity: &common.BladeCapacity{
+				Condition: pb.Condition_operational,
+				Capacity: &pb.BladeCapacity{
 					Cores:                  b.Cores,
 					MemoryInMb:             b.MemoryInMb,
 					DiskInGb:               b.DiskInGb,
@@ -289,10 +295,10 @@ func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
 			// in the PDU to allow power for the blade to be
 			// connected and controlled.
 			//
-			zone.Racks[r.Name].Pdus[0].Ports[b.Index] = &pb.DefinitionPowerPort{
+			rack.Pdus[0].Ports[b.Index] = &pb.PowerPort{
 				Wired: true,
-				Item: &pb.DefinitionItem{
-					Type: pb.DefinitionItem_blade,
+				Item:  &pb.Hardware{
+					Type: pb.Hardware_blade,
 					Id:   b.Index,
 					Port: 0,
 				},
@@ -302,25 +308,26 @@ func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
 			// in the TOR to allow a network for the blade to be
 			// connected and controlled.
 			//
-			zone.Racks[r.Name].Tors[0].Ports[b.Index] = &pb.DefinitionNetworkPort{
+			rack.Tors[0].Ports[b.Index] = &pb.NetworkPort{
 				Wired: true,
-				Item: &pb.DefinitionItem{
-					Type: pb.DefinitionItem_blade,
+				Item:  &pb.Hardware{
+					Type: pb.Hardware_blade,
 					Id:   b.Index,
 					Port: 0,
 				},
 			}
 		}
 
-		if err := zone.Racks[r.Name].Validate(""); err != nil {
+		if err := rack.Validate(""); err != nil {
 			return nil, errors.ErrRackValidationFailure{
 				Rack: r.Name,
 				Err:  err,
-			}
 		}
+
+		zone.Racks[r.Name] = rack
 	}
 
-	region.Zones["zone1"] = zone
+	region.Zones[inventory.DefaultZone] = zone
 
 	return region, nil
 }

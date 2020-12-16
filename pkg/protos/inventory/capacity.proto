@@ -9,9 +9,9 @@
 // then no free memory, disk, or other dimensions of a blade can be used.
 syntax = "proto3";
 
-package common;
+package inventory;
 
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/common";
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 // Describe the capabilities of a physical blade
 // TODO: Do we need anything about host system software, or is this purely physical attributes?
