@@ -300,6 +300,7 @@ func setPowerForBlade(
 				"after other changed occurred.  The blade's power state remains unchanged.",
 			msg.Target.Describe())
 
+		ch <- sm.FailedResponse(occursAt, err)
 		break
 
 	default:

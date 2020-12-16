@@ -224,7 +224,8 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	r.Receive(msg)
 	span.End()
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.Nil(res)
 
 	for _, c := range r.pdu.cables {

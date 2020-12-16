@@ -270,6 +270,8 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 				"after other changed occurred.  The blade's network connection "+
 				"state remains unchanged.",
 			msg.Target.Describe())
+
+		ch <- sm.FailedResponse(occursAt, err)
 		break
 
 	default:

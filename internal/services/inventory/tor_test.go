@@ -64,7 +64,8 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 			false,
 			rsp))
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
 	assert.Equal(messages.ErrInvalidTarget, res.Err)
@@ -103,8 +104,10 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
-	require.Nil(res)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.NotNil(res)
+	require.Error(ErrTooLate, res.Err)
 
 	assert.Less(t.sm.Guard, checkTime)
 	assert.Less(t.cables[0].Guard, checkTime)
@@ -151,7 +154,8 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	span.End()
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.NoError(res.Err)
@@ -204,7 +208,8 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 
 	span.End()
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.NoError(res.Err)
@@ -216,7 +221,7 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.False(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	ok := utilities.WaitForStateChange(1, func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeIsolated
 	})
 
@@ -246,7 +251,8 @@ func (ts *TorTestSuite) TestStuckCable() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.Error(res.Err)
@@ -278,7 +284,8 @@ func (ts *TorTestSuite) TestWorkingGetStatus() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.NoError(res.Err)

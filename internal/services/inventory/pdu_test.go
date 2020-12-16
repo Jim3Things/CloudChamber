@@ -57,7 +57,8 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 
 	r.Receive(badMsg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.Error(res.Err)
@@ -65,7 +66,7 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduWorkingState
 	})
 
@@ -93,14 +94,15 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
 	}
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduOffState
 	})
 
@@ -126,10 +128,11 @@ func (ts *PduTestSuite) TestOffGetStatus() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.Nil(res)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduOffState
 	})
 
@@ -147,7 +150,8 @@ func (ts *PduTestSuite) TestOffGetStatus() {
 
 	r.Receive(msg2)
 
-	res2 := ts.completeWithin(rsp2, time.Duration(1)*time.Second)
+	res2, ok := ts.completeWithin(rsp2, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res2)
 	require.NoError(res2.Err)
 	assert.Equal(common.TickFromContext(ctx), res2.At)
@@ -190,7 +194,8 @@ func (ts *PduTestSuite) TestPowerOffPduTooLate() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
@@ -223,7 +228,8 @@ func (ts *PduTestSuite) TestPowerOnPdu() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
@@ -255,7 +261,8 @@ func (ts *PduTestSuite) TestWorkingGetStatus() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	require.NoError(res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
@@ -293,7 +300,8 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	assert.NoError(res.Err)
 
@@ -325,7 +333,8 @@ func (ts *PduTestSuite) TestPowerOnBladeBadID() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
 	assert.Equal(messages.ErrInvalidTarget, res.Err)
@@ -355,8 +364,8 @@ func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
-
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	require.Error(res.Err)
 	assert.Equal(ErrNoOperation, res.Err)
@@ -393,8 +402,10 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
-	require.Nil(res)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.NotNil(res)
+	require.Error(ErrTooLate, res.Err)
 
 	assert.Less(r.pdu.sm.Guard, common.TickFromContext(ctx))
 	assert.Less(commandTime, r.pdu.cables[0].Guard)
@@ -424,7 +435,8 @@ func (ts *PduTestSuite) TestStuckCable() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
 	assert.Equal(ErrCableStuck, res.Err)
@@ -458,14 +470,15 @@ func (ts *PduTestSuite) TestStuckCablePduOff() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
 	}
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.pdu.sm.CurrentIndex == pduOffState
 	})
 

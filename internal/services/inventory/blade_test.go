@@ -20,6 +20,8 @@ type BladeTestSuite struct {
 }
 
 func (ts *BladeTestSuite) issueSetPower(ctx context.Context, r *Rack, id int64, on bool) *sm.Response {
+	require := ts.Require()
+
 	rsp := make(chan *sm.Response)
 
 	msg := messages.NewSetPower(
@@ -31,10 +33,15 @@ func (ts *BladeTestSuite) issueSetPower(ctx context.Context, r *Rack, id int64, 
 
 	r.Receive(msg)
 
-	return ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+
+	return res
 }
 
 func (ts *BladeTestSuite) issueSetConnection(ctx context.Context, r *Rack, id int64, on bool) *sm.Response {
+	require := ts.Require()
+
 	rsp := make(chan *sm.Response)
 
 	msg := messages.NewSetConnection(
@@ -46,10 +53,15 @@ func (ts *BladeTestSuite) issueSetConnection(ctx context.Context, r *Rack, id in
 
 	r.Receive(msg)
 
-	return ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+
+	return res
 }
 
 func (ts *BladeTestSuite) issueGetStatus(ctx context.Context, r *Rack, id int64) *sm.Response {
+	require := ts.Require()
+
 	rsp := make(chan *sm.Response)
 	msg := messages.NewGetStatus(ctx,
 		messages.NewTargetBlade(ts.rackName(), id),
@@ -58,7 +70,10 @@ func (ts *BladeTestSuite) issueGetStatus(ctx context.Context, r *Rack, id int64)
 
 	r.Receive(msg)
 
-	return ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+
+	return res
 }
 
 func (ts *BladeTestSuite) TestGetStatus() {
