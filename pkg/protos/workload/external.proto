@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package workload;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/workload";
 
@@ -38,7 +38,7 @@ message external {
         int64 affinity_group = 1;
 
         // Defined the required blade capacity used by this instance
-        common.instance_requirements required_capacity = 2;
+        inventory.instance_requirements required_capacity = 2;
 
         // Boot volume name
         string system_name = 3;

@@ -1,0 +1,549 @@
+package inventory
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
+)
+
+const (
+
+	// DefaultRegion is a default value until the correct region can be
+	// retrieved from the external configuration file. It is not intended
+	// for permananet usage.
+	//
+	DefaultRegion = "DefRegion"
+
+	// DefaultZone is a default value until the correct zone can be
+	// retrieved from the external configuration file. It is not intended
+	// for permananet usage.
+	//
+	DefaultZone   = "DefZone"
+
+	// DefinitionTable is a constant to indicate the inventory operation should be
+	// performed against the inventory definition table for the item of interest.
+	//
+	DefinitionTable = "definition"
+
+	// ActualTable is a constant to indicate the inventory operation should be
+	// performed against the inventory actual state table for the item of interest.
+	//
+	ActualTable     = "actual"
+
+	// ObservedTable is a constant to indicate the inventory operation should be
+	// performed against the inventory observed state table for the item of interest.
+	//
+	ObservedTable   = "observed"
+
+	// TargetTable is a constant to indicate the inventory operation should be
+	// performed against the inventory target state table for the item of interest.
+	//
+	TargetTable     = "target"
+
+	prefixRegion = "region"
+	prefixZone   = "zone"
+	prefixRack   = "rack"
+	prefixBlade  = "blade"
+	prefixPdu    = "pdu"
+	prefixTor    = "tor"
+
+	keyFormatIndexRegions  = "%s/" + prefixRegion + "s"
+	keyFormatIndexZones    = "%s/" + prefixRegion + "/%s/" + prefixZone + "s"
+	keyFormatIndexRacks    = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "s"
+	keyFormatIndexPdus     = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "s"
+	keyFormatIndexTors     = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "s"
+	keyFormatIndexBlades   = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "s"
+
+	keyFormatRegion = "%s/" + prefixRegion + "/%s"
+	keyFormatZone   = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s"
+	keyFormatRack   = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s"
+	keyFormatPdu    = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "/%v"
+	keyFormatTor    = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "/%v"
+	keyFormatBlade  = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%v"
+
+	maxBladeID = int64(10 * 1000 * 1000)
+	maxPduID   = int64(2)
+	maxTorID   = int64(2)
+)
+
+
+func verifyTable(table string) error {
+	switch (table) {
+	case DefinitionTable: return nil
+	case ActualTable:     return nil
+	case ObservedTable:   return nil
+	case TargetTable:     return nil
+
+	case "":
+		return ErrTableNameMissing(table)
+
+	default:
+		return ErrTableNameInvalid(table)
+	}
+}
+
+func verifyRegion(val string) error {
+
+	if "" == val {
+		return ErrRegionNameMissing(val)
+	}
+
+	return nil
+}
+
+func verifyZone(val string) error {
+
+	if "" == val {
+		return ErrZoneNameMissing(val)
+	}
+
+	return nil
+}
+
+func verifyRack(val string) error {
+
+	if "" == val {
+		return ErrRackNameMissing(val)
+	}
+
+	return nil
+}
+
+func verifyBlade(val int64) error {
+
+	if val < 0 || val > maxBladeID {
+		return ErrBladeIDInvalid(val)
+	}
+
+	return nil
+}
+
+func verifyPdu(val int64) error {
+
+	if val < 0 || val > maxPduID {
+		return ErrPduIDInvalid(val)
+	}
+
+	return nil
+}
+
+func verifyTor(val int64) error {
+
+	if val < 0 || val > maxTorID {
+		return ErrTorIDInvalid(val)
+	}
+
+	return nil
+}
+
+
+// GetKeyForIndexRegion generates the key to discover the list of regions within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexRegion(table string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexRegions, table), nil
+}
+
+
+// GetKeyForIndexZone generates the key to discover the list of zones within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexZone(table string, region string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexZones, table, region), nil
+}
+
+// GetKeyForIndexIndexRack generates the key to discover the list of reracksgions within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexIndexRack(table string, region string, zone string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err := verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err := verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexRacks, table, region, zone), nil
+}
+
+// GetKeyForIndexPdu generates the key to discover the list of pdus within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexPdu(table string, region string, zone string, rack string) (key string, err error) {
+	
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	if err = verifyRack(rack); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexPdus, table, region, zone, rack), nil
+}
+
+// GetKeyForIndexTor generates the key to discover the list of tors within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexTor(table string, region string, zone string, rack string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err:= verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	if err = verifyRack(rack); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexTors, table, region, zone, rack), nil
+}
+
+// GetKeyForIndexBlade generates the key to discover the list of blades within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexBlade(table string, region string, zone string, rack string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	if err = verifyRack(rack); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexBlades, table, region, zone, rack), nil
+}
+
+
+// GetKeyForRegion generates the key to operate on the record for a region within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForRegion(table string, region string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatRegion, table, region), nil
+}
+
+// GetKeyForZone generates the key to operate on the record for a zone within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForZone(table string, region string, zone string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatZone, table, region, zone), nil
+}
+
+// GetKeyForRack generates the key to operate on the record for a rack within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForRack(table string, region string, zone string, rack string) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	if err = verifyRack(rack); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatRack, table, region, zone, rack), nil
+}
+
+// GetKeyForPdu generates the key to operate on the record for a pdu within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForPdu(table string, region string, zone string, rack string, pdu int64) (key string, err error) {
+	
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	if err = verifyRack(rack); err != nil {
+		return key, err
+	}
+
+	if err = verifyBlade(pdu); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatPdu, table, region, zone, rack, pdu), nil
+}
+
+// GetKeyForTor generates the key to operate on the record for a tor within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForTor(table string, region string, zone string, rack string, tor int64) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	if err = verifyRack(rack); err != nil {
+		return key, err
+	}
+
+	if err:= verifyTor(tor); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatTor, table, region, zone, rack, tor), nil
+}
+
+// GetKeyForBlade generates the key to operate on the record for a blade within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForBlade(table string, region string, zone string, rack string, blade int64) (key string, err error) {
+
+	if err = verifyTable(table); err != nil {
+		return key, err
+	}
+
+	if err = verifyRegion(region); err != nil {
+		return key, err
+	}
+
+	if err = verifyZone(zone); err != nil {
+		return key, err
+	}
+
+	if err = verifyRack(rack); err != nil {
+		return key, err
+	}
+
+	if err = verifyBlade(blade); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatBlade, table, region, zone, rack, blade), nil
+}
+
+
+// Address is a
+//
+type Address struct {
+	region string
+	zone string
+	rack string
+	item *pb.Hardware
+}
+
+type item struct {
+	address Address
+	key string
+}
+
+// GetKeyForAddress generates the key to operate on the record for an inventory item within a
+// specific table (definition, actual, observed, target)
+//
+func GetKeyForAddress(table string, addr *Address) (string, error) {
+
+	switch  {
+	case addr.region != "" && addr.zone != "" && addr.rack != "" && addr.item != nil:
+		switch addr.item.Type {
+		case pb.Hardware_pdu: 
+			return GetKeyForPdu(table, addr.region, addr.zone, addr.rack, addr.item.Id)
+
+		case pb.Hardware_tor:
+			return GetKeyForPdu(table, addr.region, addr.zone, addr.rack, addr.item.Id)
+
+		case pb.Hardware_blade:
+			return GetKeyForPdu(table, addr.region, addr.zone, addr.rack, addr.item.Id)
+		}
+
+	case addr.region != "" && addr.zone != "" && addr.rack != "":
+		return GetKeyForRack(table, addr.region, addr.zone, addr.rack)
+
+	case addr.region != "" && addr.zone != "":
+		return GetKeyForZone(table, addr.region, addr.zone)
+
+	case addr.region != "":
+		return GetKeyForRegion(table, addr.region)
+	}
+
+	return "", ErrInvalidAddress{table, addr}
+}
+
+// Region, zone and rack are "containers" whereas tor, pdu and blade are "things". You can send operations and commands to things, but not containers.
+type inventoryItem interface {
+	SetAddress(addr Address) error
+	GetKey() (*string, error)
+	Create(ctx context.Context) error
+	Read(ctx context.Context) (*interface{}, error)
+	Update(ctx context.Context) error
+	Delete(ctx context.Context) error
+
+}
+
+// type inventoryContainer interface {
+// 	ListChildren(ctx context.Context) (map[int64]*interface{}, error)
+// }
+
+// type inventoryRegion interface {
+// 	inventoryContainer
+// 	ListZones(ctx context.Context) (*map[string]*pb.DefinitionZone, error)
+// }
+// type inventoryZone interface {
+// 	inventoryContainer
+// 	ListRacks(ctx context.Context) (*map[string]*pb.DefinitionRack, error)
+// }
+// type inventoryRack interface {
+// 	inventoryContainer
+// 	istPdus(ctx context.Context)    (*map[int64]*pb.DefinitionPdu,  error)
+// 	ListTors(ctx context.Context)   (*map[int64]*pb.DefinitionTor,  error)
+// 	ListBlades(ctx context.Context) (*map[int64]*pb.DefinitionBlade, error)
+// }
+
+type inventoryRegion interface {
+	inventoryItem
+	SetName(ctx context.Context, region string) error
+	ListZones(ctx context.Context) (*map[string]*interface{}, error)
+}
+
+type inventoryZone interface {
+	inventoryItem
+	SetName(ctx context.Context, region string, zone string) error
+	ListRacks(ctx context.Context) (*map[string]*interface{}, error)
+}
+
+type inventoryRack interface {
+	inventoryItem
+	SetName(ctx context.Context, region string, zone string, rack string) error
+	ListPdus(ctx context.Context)   (*map[int64]*interface{}, error)
+	ListTors(ctx context.Context)   (*map[int64]*interface{}, error)
+	ListBlades(ctx context.Context) (*map[int64]*interface{}, error)
+}
+
+type inventoryPdu interface {
+	inventoryItem
+	SetName(ctx context.Context, region string, zone string, rack string, pdu int64) error
+}
+
+type inventoryTor interface {
+	inventoryItem
+	SetName(ctx context.Context, region string, zone string, rack string, tor int64) error
+}
+
+type inventoryBlade interface {
+	inventoryItem
+	SetName(ctx context.Context, region string, zone string, rack string, blade int64) error
+}
+
+
+var (
+	errNullItem           = errors.New("item not initialized")
+)
+
+type nullItem struct {}
+
+func (n *nullItem) SetAddress(addr Address) error {
+	return errNullItem
+}
+
+func (n *nullItem) GetKey() (*string, error) {
+	return nil, errNullItem
+}
+
+func (n *nullItem) Create(ctx context.Context) error {
+	return errNullItem
+}
+
+func (n *nullItem) Read(ctx context.Context) (*nullItem, error){
+	return nil, errNullItem
+}
+
+func (n *nullItem) Update(ctx context.Context) error {
+	return errNullItem
+}
+
+func (n *nullItem) Delete(ctx context.Context) error {
+	return errNullItem
+}
+
