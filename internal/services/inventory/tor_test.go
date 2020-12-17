@@ -64,7 +64,8 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 			false,
 			rsp))
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
 	assert.Equal(messages.ErrInvalidTarget, res.Err)
@@ -89,6 +90,9 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	t := r.tor
 	require.NotNil(t)
 
+	ctx = ts.advance(ctx)
+	checkTime := common.TickFromContext(ctx)
+
 	rsp := make(chan *sm.Response)
 
 	msg := messages.NewSetConnection(
@@ -100,17 +104,13 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
+	require.Error(ErrTooLate, res.Err)
 
-	require.Error(res.Err)
-	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
-
-	assert.Equal(common.TickFromContext(ctx), res.At)
-	assert.Nil(res.Msg)
-
-	assert.Less(t.sm.Guard, res.At)
-	assert.Less(t.cables[0].Guard, res.At)
+	assert.Less(t.sm.Guard, checkTime)
+	assert.Less(t.cables[0].Guard, checkTime)
 	assert.False(t.cables[0].on)
 
 	assert.Equal(torWorkingState, t.sm.CurrentIndex)
@@ -154,7 +154,8 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	span.End()
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.NoError(res.Err)
@@ -207,7 +208,8 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 
 	span.End()
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.NoError(res.Err)
@@ -219,7 +221,7 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.False(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	ok := utilities.WaitForStateChange(1, func() bool {
+	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeIsolated
 	})
 
@@ -249,7 +251,8 @@ func (ts *TorTestSuite) TestStuckCable() {
 
 	r.Receive(msg)
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.Error(res.Err)
@@ -264,6 +267,40 @@ func (ts *TorTestSuite) TestStuckCable() {
 	assert.Equal(true, t.cables[0].faulted)
 
 	assert.Equal(torWorkingState, t.sm.CurrentIndex)
+}
+
+func (ts *TorTestSuite) TestWorkingGetStatus() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, false)
+
+	rsp := make(chan *sm.Response)
+	msg := messages.NewGetStatus(
+		ctx,
+		messages.NewTargetTor(ts.rackName()),
+		common.TickFromContext(ctx),
+		rsp)
+
+	r.Receive(msg)
+
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.NotNil(res)
+
+	assert.NoError(res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	require.NotNil(res.Msg)
+
+	status := res.Msg.(*messages.TorStatus)
+
+	assert.Equal(torWorkingState, status.State)
+	assert.Equal(int64(0), status.EnteredAt)
+
+	for i, c := range status.Cables {
+		assert.False(c.On, "Cable.On[%d]", i)
+		assert.False(c.Faulted, "Cable.Faulted[%d]", i)
+	}
 }
 
 func TestTorTestSuite(t *testing.T) {

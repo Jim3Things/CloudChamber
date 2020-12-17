@@ -34,6 +34,9 @@ type SM struct {
 
 	// Terminated is true if the state machine has reached its final state.
 	Terminated bool
+
+	// EnteredAt is the simulated time tick when the current state was entered.
+	EnteredAt int64
 }
 
 // StateDecl defines the type expected for a state declaration decorator when
@@ -88,6 +91,7 @@ func NewSM(parent interface{}, decls ...StateDecl) *SM {
 		States:       states,
 		Parent:       parent,
 		Terminated:   false,
+		EnteredAt:    0,
 	}
 }
 
@@ -106,7 +110,10 @@ func (sm *SM) ChangeState(ctx context.Context, newState string) error {
 	cur = sm.States[newState]
 	sm.CurrentIndex = newState
 	sm.Current = cur
-	sm.AdvanceGuard(common.TickFromContext(ctx))
+
+	tick := common.TickFromContext(ctx)
+	sm.EnteredAt = tick
+	sm.AdvanceGuard(tick)
 
 	if err := cur.Enter(ctx, sm); err != nil {
 		return tracing.Error(ctx, err)

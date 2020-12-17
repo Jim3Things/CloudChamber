@@ -121,7 +121,8 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 		true,
 		rsp))
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	require.NoError(res.Err)
 
@@ -134,11 +135,12 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 		true,
 		rsp))
 
-	res = ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok = ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ctx, ok := ts.advanceToStateChange(ctx, 10, func() bool {
+	ctx, ok = ts.advanceToStateChange(ctx, 10, func() bool {
 		return bladeWorking == r.blades[id].sm.CurrentIndex
 	})
 
@@ -147,12 +149,17 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 	return ctx
 }
 
-func (ts *testSuiteCore) completeWithin(ch <-chan *sm.Response, delay time.Duration) *sm.Response {
+func (ts *testSuiteCore) completeWithin(ch <-chan *sm.Response, delay time.Duration) (*sm.Response, bool) {
 	select {
-	case res := <-ch:
-		return res
+	case res, ok := <-ch:
+		if !ok {
+			return nil, true
+		}
+
+		return res, true
+
 	case <-time.After(delay):
-		return nil
+		return nil, false
 	}
 }
 

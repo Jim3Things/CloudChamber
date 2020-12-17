@@ -111,13 +111,14 @@ func (s *server) startBlades() error {
 		tracing.WithContextValue(ts.EnsureTickInContext))
 	defer span.End()
 
-	rsp := make(chan *sm.Response)
-
 	for name, r := range s.racks {
 		tracing.Info(ctx, "Booting the blades in rack %q", name)
 		for _, b := range r.blades {
+			rsp := make(chan *sm.Response)
+
 			r.Receive(
 				messages.NewSetPower(ctx, b.me(), common.TickFromContext(ctx), true, rsp))
+
 			<-rsp
 		}
 	}

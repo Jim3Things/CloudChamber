@@ -135,14 +135,20 @@ func (s *ActionState) Process(
 	return nil
 }
 
-// Ignore is a standard processing action that ignores the arriving message and
-// produces no reply message at all.
+// Ignore is a standard processing action that ignores the arriving message, and
+// closes any provided reply channel.
 func Ignore(ctx context.Context, machine *SM, msg Envelope) bool {
 	tracing.Debug(
 		ctx,
 		"ignoring message %v while in state %q",
 		msg,
 		machine.CurrentIndex)
+
+	ch := msg.Ch()
+	if ch != nil {
+		close(ch)
+	}
+
 	return true
 }
 
@@ -156,6 +162,7 @@ func UnexpectedMessage(ctx context.Context, machine *SM, msg Envelope) bool {
 
 	if ch != nil {
 		ch <- UnexpectedMessageResponse(machine, common.TickFromContext(ctx), msg)
+		close(ch)
 	}
 
 	return true

@@ -105,7 +105,7 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 
 	err = r.start(ctx)
 	assert.Error(err)
-	assert.Equal(messages.ErrRepairMessageDropped, err)
+	assert.Equal(ErrAlreadyStarted, err)
 
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 
@@ -224,14 +224,9 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	r.Receive(msg)
 	span.End()
 
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
-	require.NotNil(res)
-	require.Error(res.Err)
-	assert.Equal(messages.ErrRepairMessageDropped, res.Err)
-
-	// Since the stepper service is not set up, we should expect a false time here.
-	assert.Equal(tsc.Tick(ctx), res.At)
-	assert.Nil(res.Msg)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
