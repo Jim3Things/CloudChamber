@@ -69,7 +69,7 @@ func (ernm ErrRackNameMissing) Error() string {
 type ErrBladeIDInvalid int64
 
 func (ebii ErrBladeIDInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: bladeID %q is out of range (0 to %v)", string(ebii), maxBladeID)
+	return fmt.Sprintf("CloudChamber: bladeID %v is out of range (0 to %v)", int64(ebii), maxBladeID)
 }
 
 // ErrPduIDInvalid indicates the supplied pduID was out of range, either < less than 0 or greater than maxPduID
@@ -77,7 +77,7 @@ func (ebii ErrBladeIDInvalid) Error() string {
 type ErrPduIDInvalid int64
 
 func (epii ErrPduIDInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: pduID %q is out of range (0 to %v)", string(epii), maxPduID)
+	return fmt.Sprintf("CloudChamber: pduID %v is out of range (0 to %v)", int64(epii), maxPduID)
 }
 
 // ErrTorIDInvalid indicates the supplied torID was out of range, either < less than 0 or greater than maxTorID
@@ -85,6 +85,6 @@ func (epii ErrPduIDInvalid) Error() string {
 type ErrTorIDInvalid int64
 
 func (etii ErrTorIDInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: torID %q is out of range (0 to %v)", string(etii), maxTorID)
+	return fmt.Sprintf("CloudChamber: torID %v is out of range (0 to %v)", int64(etii), maxTorID)
 }
 

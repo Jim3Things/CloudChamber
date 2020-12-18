@@ -12,8 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 var (
@@ -130,11 +131,11 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 	//
 	require.Equal(t, 1, len(zonemap.Zones))
 
-	zone, ok := zonemap.Zones["zone1"]
+	zone, ok := zonemap.Zones[inventory.DefaultZone]
 	require.True(t, ok)
 
 	assert.True(t, zone.Details.Enabled)
-	assert.Equal(t, inventory.State_in_service, zone.Details.State)
+	assert.Equal(t, pb.State_in_service, zone.Details.State)
 	assert.Equal(t, "DC-PNW-0", zone.Details.Location)
 	assert.Equal(t, "Base zone", zone.Details.Notes)
 
@@ -148,7 +149,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, r.Details.Enabled)
-		assert.Equal(t, inventory.Condition_operational, r.Details.Condition)
+		assert.Equal(t, pb.Condition_operational, r.Details.Condition)
 		assert.Equal(t, "DC-PNW-0-" + name, r.Details.Location)
 		assert.Equal(t, "RackName: " + name, r.Details.Notes)
 
@@ -169,7 +170,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, p0b1.Wired)
-		assert.Equal(t, inventory.Hardware_blade, p0b1.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, p0b1.Item.Type)
 		assert.Equal(t, int64(1), p0b1.Item.Id)
 		assert.Equal(t, int64(0), p0b1.Item.Port)
 
@@ -177,7 +178,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, p0b2.Wired)
-		assert.Equal(t, inventory.Hardware_blade, p0b2.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, p0b2.Item.Type)
 		assert.Equal(t, int64(2), p0b2.Item.Id)
 		assert.Equal(t, int64(0), p0b2.Item.Port)
 
@@ -194,7 +195,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, t0b1.Wired)
-		assert.Equal(t, inventory.Hardware_blade, t0b1.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, t0b1.Item.Type)
 		assert.Equal(t, int64(1), t0b1.Item.Id)
 		assert.Equal(t, int64(0), t0b1.Item.Port)
 
@@ -202,7 +203,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, t0b2.Wired)
-		assert.Equal(t, inventory.Hardware_blade, t0b2.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, t0b2.Item.Type)
 		assert.Equal(t, int64(2), t0b2.Item.Id)
 		assert.Equal(t, int64(0), t0b2.Item.Port)
 
@@ -212,7 +213,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, b1.Enabled)
-		assert.Equal(t, inventory.Condition_operational, b1.Condition)
+		assert.Equal(t, pb.Condition_operational, b1.Condition)
 
 		assert.Equal(t, int64(16),    b1.Capacity.Cores)
 		assert.Equal(t, int64(16834), b1.Capacity.MemoryInMb)
@@ -224,7 +225,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, b2.Enabled)
-		assert.Equal(t, inventory.Condition_operational, b2.Condition)
+		assert.Equal(t, pb.Condition_operational, b2.Condition)
 
 		assert.Equal(t, int64(8),     b2.Capacity.Cores)
 		assert.Equal(t, int64(16834), b2.Capacity.MemoryInMb)
