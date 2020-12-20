@@ -22,19 +22,33 @@ func decode(keywords []string, source string) ([]bool, error){
 	var test []string = strings.Split(source, ",")
 	
 	// Third subtask is to loop through all the test slice elements.
+	var outputkeywords []bool := make([]bool, len(keywords))
+	// I need to create putput array of right size with all elements set to False
 	
-	for i := 0; i < 3; i++ {
-
+	for _, t := range test{
+		
+		for i, k := range keywords{
+		
 	// Second subtask is to figure out how to test one element in the test slice
 	// -- how to tell if test[0] matches any of the keywords elements, and which one.
-		if (strings.Contains(test[i], keywords[i])) {
-
-			 response = append(response, keywords[i])
+			if (k == t {
+			//Set the output element of [i] to true 
+				outputkeywords[i] = true
 			
+				response = append(response, outputkeywords[i])
+
+			else 
+
+			return error
+			
+			}
 		}
-		
+		return (outputkeywords, nil)
+
 	} 
-	
+	// Output array, nil 
+	//How and where we catch the error of mismatch(Write code to just spot the error) write a loop return  an error (true or false)
+
 	// keywords and source are passed into decode and are immutable.
 	// 1st subtask creates this: test is created from the data in source
 	// 2nd subtack creates this: matches []bool that is created inside decode and 
