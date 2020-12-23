@@ -5,6 +5,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	ic "github.com/Jim3Things/CloudChamber/internal/clients/inventory"
 	ts "github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/common"
@@ -85,7 +86,7 @@ func (s *server) initializeRacks(path string) error {
 		tracing.WithContextValue(ts.EnsureTickInContext))
 	defer span.End()
 
-	zone, err := config.ReadInventoryDefinition(ctx, path)
+	zone, err := ic.ReadInventoryDefinition(ctx, path)
 	if err != nil {
 		return err
 	}

@@ -86,7 +86,7 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 		// version here to allow all the current tests to run before we have a
 		// complete cut-over to the store based inventory definition.
 		//
-		zone, err := config.ReadInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition)
+		zone, err := inventory.ReadInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition)
 
 		if err != nil {
 			return err
@@ -175,7 +175,7 @@ func (m *DBInventory) UpdateInventoryDefinition(
 	// into the store looking to see if there are any material changes between
 	// what is already in the store and what is now found in the file.
 	//
-	zmFile, err := config.ReadInventoryDefinitionFromFile(ctx, cfg.Inventory.InventoryDefinition)
+	zmFile, err := inventory.ReadInventoryDefinitionFromFile(ctx, cfg.Inventory.InventoryDefinition) 
 	if err != nil {
 		return err
 	}
