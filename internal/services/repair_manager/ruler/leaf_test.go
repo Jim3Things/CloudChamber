@@ -124,6 +124,8 @@ func (ts *LeafTestSuite) TestAsInt32() {
 	ts.testInt32Val(NewLeafInt64(1), 1, nil)
 	ts.testInt32Val(NewLeafInt64(-1), -1, nil)
 	ts.testInt32Val(NewLeafInt64(2), 2, nil)
+	ts.testInt32Val(NewLeafInt64(1<<33+2), 2, nil)
+	ts.testInt32Val(NewLeafInt64(1<<34-2), -2, nil)
 
 	ts.testInt32Val(NewLeafString("test"), 0, ErrInvalidType)
 }

@@ -104,7 +104,7 @@ func (v *Leaf) AsInt64() (int64, error) {
 	}
 }
 
-// AsInt32 returns the int632 value, if it is a numeric value.  int32 and int64
+// AsInt32 returns the int32 value, if it is a numeric value.  int32 and int64
 // values are returned as expected (including truncation), boolean returns 1
 // for true, 0 for false, while string values return an error.
 func (v *Leaf) AsInt32() (int32, error) {
