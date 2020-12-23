@@ -236,6 +236,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test -count=1 $(PROJECT)/internal/clients/timestamp
 	go test -count=1 $(PROJECT)/internal/services/frontend
 	go test -count=1 $(PROJECT)/internal/services/inventory
+	go test -count=1 $(PROJECT)/internal/services/repair_manager/ruler
 	go test -count=1 $(PROJECT)/internal/services/stepper
 	go test -count=1 $(PROJECT)/internal/services/tracing_sink
 	go test -count=1 $(PROJECT)/internal/tracing/exporters
