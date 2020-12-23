@@ -1,4 +1,4 @@
-package config
+package inventory
 
 // Inventory reader parses the YAML file and returns Zone. into a pb external zone.
 
@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/viper"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/pkg/errors"
@@ -17,6 +16,7 @@ import (
 
 const (
 	defaultDefinitionFile = "inventory.yaml"
+	defaultConfigType     = "yaml"
 )
 
 // +++ Intermediate binary format
@@ -327,7 +327,7 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 		zone.Racks[r.Name] = rack
 	}
 
-	region.Zones[inventory.DefaultZone] = zone
+	region.Zones[DefaultZone] = zone
 
 	return region, nil
 }

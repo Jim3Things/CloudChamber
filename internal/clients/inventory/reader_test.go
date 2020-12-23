@@ -1,5 +1,5 @@
 // Test to parse the Inventory.Yaml file
-package config
+package inventory
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/Jim3Things/CloudChamber/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -43,7 +42,7 @@ func TestReadInventoryDefinition(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata")
+	response, err := ReadInventoryDefinition(context.Background(), "./testdata/Basic")
 	require.Nil(t, err)
 
 	require.Equal(t, 2, len(response.Racks))
@@ -124,14 +123,14 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata")
+	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Basic")
 	require.NoError(t, err)
 
 	// There should only be a single zone.
 	//
 	require.Equal(t, 1, len(zonemap.Zones))
 
-	zone, ok := zonemap.Zones[inventory.DefaultZone]
+	zone, ok := zonemap.Zones[DefaultZone]
 	require.True(t, ok)
 
 	assert.True(t, zone.Details.Enabled)
