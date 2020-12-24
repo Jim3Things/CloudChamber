@@ -47,28 +47,18 @@ message definition {
     // Individual blade within the rack
     //
     message blade {
-        // Whether or not the blade is enabled. This is orthoganal to the condition of the
-        // blade. For resources within the blade to be schedulable, the blade must be both
-        // enabled and the condition must be operational.
-        //
-        bool enabled = 1;
+        blade_details details = 1;
 
-        // Defines the overall condition of the blade. This is orthoganal to the enabling of
-        // the blade. For resources within the blade to be schedulable, the blade must be both
-        // enabled and the condition must be operational.
-        //
-        condition condition = 2;
-
-        blade_capacity capacity = 3;
+        blade_capacity capacity = 10;
 
         // Defines whether or not the blade automatically begins a boot sequence when power is
         // appplied to the blade.
         //
-        bool boot_on_power_on = 4;
+        bool boot_on_power_on = 11;
 
         // Describes the default boot mechanism
         //
-        blade_boot image = 5;
+        blade_boot image = 12;
     }
 
 

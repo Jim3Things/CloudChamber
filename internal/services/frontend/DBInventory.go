@@ -606,40 +606,31 @@ func (m *DBInventory) CreateZone(
 	zone *pb.DefinitionZone,
 	options ...InventoryZoneOption) (int64, error) {
 
-	// First, construct the base record for the zone specific fields. This does not include
-	// any of the fields for Pdus, Tors or Blades as they are handled as separate records
-	// to allow them to be updated without having to re-write the entire zone just because
-	// of a single field value change.
-	//
-	z := &pb.DefinitionZone{
-		Details: &pb.ZoneDetails{
-		Enabled:  zone.Details.Enabled,
-		State:    zone.Details.State,
-		Location: zone.Details.Location,
-		Notes:    zone.Details.Notes,
-		},
-		Racks: make(map[string]*pb.DefinitionRack),
-	}
-
-	v, err := store.Encode(z)
+	z, err := inventory.NewZone(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		name)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
-
+	err = z.SetDetails(ctx, zone.Details)
+	
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
+
+	rev, err := z.Create(ctx)
 
 	if err == errors.ErrStoreAlreadyExists(k) {
 		return InvalidRev, errors.ErrZoneAlreadyExists(name)
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // CreateRack is used to create a basic rack record in the store.
@@ -818,9 +809,8 @@ func (m *DBInventory) CreateBlade(
 	options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionBlade{
-		Enabled:   blade.Enabled,
-		Condition: blade.Condition,
-		Capacity:  blade.Capacity,
+		Details:  blade.Details,
+		Capacity: blade.Capacity,
 	}
 
 	v, err := store.Encode(r)
@@ -1187,8 +1177,7 @@ func (m *DBInventory) UpdateBlade(
 	options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionBlade{
-		Enabled:   blade.Enabled,
-		Condition: blade.Condition,
+		Details:  blade.Details,
 		Capacity:  blade.Capacity,
 	}
 

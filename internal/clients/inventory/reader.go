@@ -280,8 +280,10 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 			// file.
 			//
 			rack.Blades[b.Index] = &pb.DefinitionBlade{
-				Enabled:   true,
-				Condition: pb.Condition_operational,
+				Details: &pb.BladeDetails{
+				Enabled: true,
+					Condition: pb.Condition_operational,
+				},
 				Capacity: &pb.BladeCapacity{
 					Cores:                  b.Cores,
 					MemoryInMb:             b.MemoryInMb,

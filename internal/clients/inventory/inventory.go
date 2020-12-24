@@ -168,10 +168,10 @@ func GetKeyForIndexZone(table string, region string) (key string, err error) {
 	return fmt.Sprintf(keyFormatIndexZones, table, region), nil
 }
 
-// GetKeyForIndexIndexRack generates the key to discover the list of reracksgions within a
+// GetKeyForIndexRack generates the key to discover the list of reracksgions within a
 // specific table (definition, actual, observed, target)
 // 
-func GetKeyForIndexIndexRack(table string, region string, zone string) (key string, err error) {
+func GetKeyForIndexRack(table string, region string, zone string) (key string, err error) {
 
 	if err = verifyTable(table); err != nil {
 		return key, err
@@ -453,97 +453,134 @@ func GetKeyForAddress(table string, addr *Address) (string, error) {
 
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things". You can send operations and commands to things, but not containers.
 type inventoryItem interface {
-	SetAddress(addr Address) error
-	GetKey() (*string, error)
-	Create(ctx context.Context) error
+	SetAddress(ctx context.Context, addr Address) error
+	SetName(ctx context.Context, name string) error
+	GetKey(ctx context.Context) (*string, error)
+
+	SetDetails(ctx context.Context, details *interface{}) error
+	GetDetails(ctx context.Context) (*interface{}, error)
+
+	Create(ctx context.Context) (int64, error)
 	Read(ctx context.Context) (*interface{}, error)
-	Update(ctx context.Context) error
+	Update(ctx context.Context) (int64, error)
 	Delete(ctx context.Context) error
 
+	NewChild(ctx context.Context, name string) (*interface{}, error)
+	ListChildren(ctx context.Context) (*map[string]interface{}, error)
 }
 
-// type inventoryContainer interface {
-// 	ListChildren(ctx context.Context) (map[int64]*interface{}, error)
+// type inventoryRoot interface {
+// 	inventoryItem
 // }
-
 // type inventoryRegion interface {
-// 	inventoryContainer
-// 	ListZones(ctx context.Context) (*map[string]*pb.DefinitionZone, error)
+// 	inventoryItem
 // }
+
 // type inventoryZone interface {
-// 	inventoryContainer
-// 	ListRacks(ctx context.Context) (*map[string]*pb.DefinitionRack, error)
-// }
-// type inventoryRack interface {
-// 	inventoryContainer
-// 	istPdus(ctx context.Context)    (*map[int64]*pb.DefinitionPdu,  error)
-// 	ListTors(ctx context.Context)   (*map[int64]*pb.DefinitionTor,  error)
-// 	ListBlades(ctx context.Context) (*map[int64]*pb.DefinitionBlade, error)
+// 	inventoryItem
 // }
 
-type inventoryRegion interface {
+type inventoryItemRack interface {
 	inventoryItem
-	SetName(ctx context.Context, region string) error
-	ListZones(ctx context.Context) (*map[string]*interface{}, error)
-}
 
-type inventoryZone interface {
-	inventoryItem
-	SetName(ctx context.Context, region string, zone string) error
-	ListRacks(ctx context.Context) (*map[string]*interface{}, error)
-}
+	NewPdu(ctx context.Context,   name string) (*interface{}, error)
+	NewTor(ctx context.Context,   name string) (*interface{}, error)
+	NewBlade(ctx context.Context, name string) (*interface{}, error)
 
-type inventoryRack interface {
-	inventoryItem
-	SetName(ctx context.Context, region string, zone string, rack string) error
 	ListPdus(ctx context.Context)   (*map[int64]*interface{}, error)
 	ListTors(ctx context.Context)   (*map[int64]*interface{}, error)
 	ListBlades(ctx context.Context) (*map[int64]*interface{}, error)
 }
 
-type inventoryPdu interface {
-	inventoryItem
-	SetName(ctx context.Context, region string, zone string, rack string, pdu int64) error
-}
+// type inventoryPdu interface {
+// 	inventoryItem
+// }
 
-type inventoryTor interface {
-	inventoryItem
-	SetName(ctx context.Context, region string, zone string, rack string, tor int64) error
-}
+// type inventoryTor interface {
+// 	inventoryItem
+// }
 
-type inventoryBlade interface {
-	inventoryItem
-	SetName(ctx context.Context, region string, zone string, rack string, blade int64) error
-}
+// type inventoryBlade interface {
+// 	inventoryItem
+// }
 
 
 var (
-	errNullItem           = errors.New("item not initialized")
+	// ErrNullItem indicates the supplied item does not exist
+	//
+	ErrNullItem             = errors.New("item not initialized")
+
+	// ErrFunctionNotAvailable indicates the specified object does
+	// not have the requested method.
+	//
+	ErrFunctionNotAvailable = errors.New("function not available")
 )
 
 type nullItem struct {}
 
 func (n *nullItem) SetAddress(addr Address) error {
-	return errNullItem
+	return ErrNullItem
+}
+
+// SetName is a
+//
+func (n *nullItem) SetName(addr Address) error {
+	return 	ErrNullItem
 }
 
 func (n *nullItem) GetKey() (*string, error) {
-	return nil, errNullItem
+	return nil, ErrNullItem
+}
+
+
+func (n *nullItem) SetDetails(ctx context.Context, detaila *nullItem) error {
+	return ErrNullItem
+}
+
+func (n *nullItem) GetDetails(ctx context.Context) (*nullItem, error) {
+	return nil, ErrNullItem
 }
 
 func (n *nullItem) Create(ctx context.Context) error {
-	return errNullItem
+	return ErrNullItem
 }
 
 func (n *nullItem) Read(ctx context.Context) (*nullItem, error){
-	return nil, errNullItem
+	return nil, ErrNullItem
 }
 
 func (n *nullItem) Update(ctx context.Context) error {
-	return errNullItem
+	return ErrNullItem
 }
 
 func (n *nullItem) Delete(ctx context.Context) error {
-	return errNullItem
+	return ErrNullItem
 }
 
+
+// Additional functions for the rack specialization of the basic inventory item
+//
+
+func (n *nullItem) NewPdu(ctx context.Context,   name string) (*interface{}, error) {
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) NewTor(ctx context.Context,   name string) (*interface{}, error) {
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) NewBlade(ctx context.Context, name string) (*interface{}, error) {
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) ListPdus(ctx context.Context)   (*map[int64]*interface{}, error) {
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) ListTors(ctx context.Context)   (*map[int64]*interface{}, error) {
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) ListBlades(ctx context.Context) (*map[int64]*interface{}, error) {
+	return nil, ErrNullItem
+}

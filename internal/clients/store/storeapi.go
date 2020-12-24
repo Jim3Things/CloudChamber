@@ -25,6 +25,9 @@ const (
 	KeyRootStoreTest KeyRoot = iota
 	KeyRootUsers
 
+	KeyRootInventory
+	KeyRootWorkloads
+
 	KeyRootInventoryDefinitions
 	KeyRootInventoryTargetState
 	KeyRootInventoryActualState
@@ -60,6 +63,8 @@ const (
 var namespaceRoots = map[KeyRoot]string{
 	KeyRootStoreTest:              namespaceRootStoreTest,
 	KeyRootUsers:                  namespaceRootUsers,
+	KeyRootInventory:              namespaceRootInventory,
+	KeyRootWorkloads:              namespaceRootWorkloads,
 	KeyRootInventoryDefinitions:   namespaceRootInventoryDefinition,
 	KeyRootInventoryTargetState:   namespaceRootInventoryTargetState,
 	KeyRootInventoryActualState:   namespaceRootInventoryActualState,
@@ -687,7 +692,7 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 //       be updated to use an "interrupted" enum style call to allow for
 //		 an essentially infinite number of records.
 //
-func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Record, revision int64, err error) {
+func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map[string]Record, revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
@@ -700,7 +705,9 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 		return nil, RevisionInvalid, err
 	}
 
-	response, err := store.ListWithPrefix(ctx, prefix)
+	k := getKeyFromKeyRootAndName(r, n)
+
+	response, err := store.ListWithPrefix(ctx, k)
 
 	if err != nil {
 		return nil, RevisionInvalid, err
@@ -725,3 +732,5 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 
 	return &recs, response.Revision, nil
 }
+
+

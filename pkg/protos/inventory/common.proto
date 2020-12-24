@@ -146,6 +146,23 @@ message tor_details {
     condition condition = 2;
 }
 
+// Rack-level blade computer
+//
+message blade_details {
+        // Whether or not the blade is enabled. This is orthoganal to the condition of the
+        // blade. For resources within the blade to be schedulable, the blade must be both
+        // enabled and the condition must be operational.
+        //
+        bool enabled = 1;
+
+        // Defines the overall condition of the blade. This is orthoganal to the enabling of
+        // the blade. For resources within the blade to be schedulable, the blade must be both
+        // enabled and the condition must be operational.
+        //
+        condition condition = 2;
+}
+
+
 message rack_details {
     // This assumes a single overhead item per rack.  May want to allow multiple to handle
     // subdivisions for power or network, say.
@@ -222,6 +239,21 @@ message region_details {
     // purposes only.
     //
     string location = 3;
+
+    // Arbitrary string used to allow any operational notes for the zone to be recorded
+    // in a user defined format. Has no effect on the operation of the zone, for display
+    // purposes only.
+    //
+    string notes = 4;
+}
+
+message root_details {
+    // The name of the root of the configuration / simulation. 
+    //
+    // NOTE: Not sure we need an explicit name field since the name of the record is 
+    // implicit in identifying the record.
+    //
+    string name = 1;
 
     // Arbitrary string used to allow any operational notes for the zone to be recorded
     // in a user defined format. Has no effect on the operation of the zone, for display

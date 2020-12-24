@@ -138,8 +138,10 @@ func (ts *DBInventoryTestSuite) ensureBasicZone() {
 	}
 
 	blade := pb.DefinitionBlade{
-		Enabled: true,
-		Condition: pb.Condition_operational,
+		Details: &pb.BladeDetails{
+			Enabled: true,
+			Condition: pb.Condition_operational,
+		},
 		Capacity: &pb.BladeCapacity{
 			Cores: 8,
 			MemoryInMb: 8192,
@@ -468,8 +470,10 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	bladeID := int64(1)
 
 	blade := &pb.DefinitionBlade{
-		Enabled: true,
-		Condition: pb.Condition_operational,
+		Details: &pb.BladeDetails{
+			Enabled: true,
+			Condition: pb.Condition_operational,
+		},
 		Capacity: &pb.BladeCapacity{
 			Cores: 8,
 			MemoryInMb: 8192,
@@ -488,8 +492,8 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(b)
 
-	assert.Equal(blade.Enabled,   b.Enabled)
-	assert.Equal(blade.Condition, b.Condition)
+	assert.Equal(blade.Details.Enabled,   b.Details.Enabled)
+	assert.Equal(blade.Details.Condition, b.Details.Condition)
 	
 	assert.Equal(blade.Capacity.Cores,                  b.Capacity.Cores)
 	assert.Equal(blade.Capacity.MemoryInMb,             b.Capacity.MemoryInMb)

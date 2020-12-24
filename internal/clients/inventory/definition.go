@@ -2,159 +2,1128 @@ package inventory
 
 import (
 	"context"
+	"strconv"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
-type definitionBase interface {
-	SetAddress(addr Address) error
-	GetKey() (*string, error)
-	Create(ctx context.Context) error
-	Read(ctx context.Context) (*interface{}, error)
-	Update(ctx context.Context) error
-	Delete(ctx context.Context) error
+// type definitionBase interface {
+// 	SetAddress(ctx context.Context, addr Address) error
+// 	SetName(ctx context.Context, name string) error
+// 	GetKey(ctx context.Context) (*string, error)
+// 	Create(ctx context.Context) error
+// 	Read(ctx context.Context) (*interface{}, error)
+// 	Update(ctx context.Context) error
+// 	Delete(ctx context.Context) error
+
+// 	NewChild(ctx context.Context, name string) (*interface{}, error)
+// 	ListChildren(ctx context.Context) (*map[string]interface{}, error)
+// }
+
+type definitionRoot interface {
+	inventoryItem
 }
 
 type definitionRegion interface {
-	definitionBase
-	SetName(ctx context.Context, region string) error
-	ListZones(ctx context.Context) (*map[string]*interface{}, error)
-}
+	inventoryItem
+	}
 
 type definitionZone interface {
-	definitionBase
-	SetName(ctx context.Context, region string, zone string) error
-	ListRacks(ctx context.Context) (*map[string]*interface{}, error)
+	inventoryItem
 }
 
 type definitionRack interface {
-	definitionBase
-	SetName(ctx context.Context, region string, zone string, rack string) error
-	ListPdus(ctx context.Context)   (*map[int64]*interface{}, error)
-	ListTors(ctx context.Context)   (*map[int64]*interface{}, error)
-	ListBlades(ctx context.Context) (*map[int64]*interface{}, error)
+	inventoryItemRack
+
+	// NewPdu(ctx context.Context,   name int64) (*interface{}, error)
+	// NewTor(ctx context.Context,   name int64) (*interface{}, error)
+	// NewBlade(ctx context.Context, name int64) (*interface{}, error)
+
+	// ListPdus(ctx context.Context)   (*map[int64]*interface{}, error)
+	// ListTors(ctx context.Context)   (*map[int64]*interface{}, error)
+	// ListBlades(ctx context.Context) (*map[int64]*interface{}, error)
 }
 
 type definitionPdu interface {
-	definitionBase
-	SetName(ctx context.Context, region string, zone string, rack string, pdu int64) error
+	inventoryItem
 }
 
 type definitionTor interface {
-	definitionBase
-	SetName(ctx context.Context, region string, zone string, rack string, tor int64) error
+	inventoryItem
 }
 
 type definitionBlade interface {
-	definitionBase
-	SetName(ctx context.Context, region string, zone string, rack string, blade int64) error
+	inventoryItem
 }
 
 
-type bladeRecord struct {
-	revision int64
-	record *pb.StoreRecordDefinitionBlade
-}
+// type regionRecord struct {
+// 	revision int64
+// 	record *pb.StoreRecordDefinitionRegion
+// }
 
-type pduRecord struct {
-	revision int64
-	record *pb.StoreRecordDefinitionPdu
-}
+// type zoneRecord struct {
+// 	revision int64
+// 	record *pb.StoreRecordDefinitionZone
+// }
 
-type torRecord struct {
-	revision int64
-	record *pb.StoreRecordDefinitionTor
-}
+// type rackRecord struct {
+// 	revision int64
+// 	record *pb.StoreRecordDefinitionRack
+// }
 
-type rackRecord struct {
-	revision int64
-	record *pb.StoreRecordDefinitionRack
-}
+// type pduRecord struct {
+// 	revision int64
+// 	record *pb.StoreRecordDefinitionPdu
+// }
 
-type zoneRecord struct {
-	revision int64
-	record *pb.StoreRecordDefinitionZone
-}
+// type torRecord struct {
+// 	revision int64
+// 	record *pb.StoreRecordDefinitionTor
+// }
 
-type regionRecord struct {
-	revision int64
-	record *pb.StoreRecordDefinitionRegion
-}
+// type bladeRecord struct {
+// 	revision int64
+// 	record *pb.StoreRecordDefinitionBlade
+// }
 
-// Blade is a
+
+
+
+// NewRoot returns a root struct which can be used to navigate
+// the namespace for a given table
 //
-type Blade struct {
-	region string
-	zone   string
-	rack   string
-	id     int64
-	key    string
-
-	record *bladeRecord
-}
-
-// Pdu is a
+// Valid tables are 
+//	- DefinitionTable
+//	- ActualTable
+//	- ObservedTable
+//	- TargetTable
 //
-type Pdu struct {
-	region string
-	zone   string
-	rack   string
-	id     int64
-	key    string
+func NewRoot(ctx context.Context, store *store.Store, table string) (*Root, error) {
 
-	record *pduRecord
+	k, err := GetKeyForIndexRegion(table)
+
+	if err != nil {
+		return nil, err
+	}
+
+	r := &Root{
+		Store:         store,
+		KeyChildIndex: k,
+	}
+
+	return r, nil
 }
 
-// Tor is a
+// NewRegion is a convenience function used to construct a Region struct
+// from scratch rather than relative to its parent.
 //
-type Tor struct {
-	region string
-	zone   string
-	rack   string
-	id     int64
-	key    string
+func NewRegion(ctx context.Context, store *store.Store, table string, region string) (*Region, error) {
 
-	record torRecord
+	keyIndex, err := GetKeyForIndexZone(table, region)
+
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := GetKeyForRegion(DefinitionTable, region)
+
+	if nil != err {
+		return nil, err
+	}
+
+	r := &Region{
+		Store:         store,
+		KeyChildIndex: keyIndex,
+		Key:           key,
+		Region:        region,
+	}
+
+	return r, nil
 }
 
-// Rack is a
+// NewZone is a convenience function used to construct a Zone struct
+// from scratch rather than relative to its parent.
 //
-type Rack struct {
+func NewZone(ctx context.Context, store *store.Store, table string, region string, zone string) (*Zone, error) {
 
-	region string
-	zone   string
-	rack   string
-	key    string
+	keyIndex, err := GetKeyForIndexRack(table, region, zone)
 
-	record *rackRecord	
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := GetKeyForZone(DefinitionTable, region, zone)
+
+	if nil != err {
+		return nil, err
+	}
+
+	z := &Zone{
+		Store:         store,
+		KeyChildIndex: keyIndex,
+		Key:           key,
+		Region:        region,
+		Zone:          zone,
+	}
+
+	return z, nil
 }
 
-// Zone is a
+// NewRack is a convenience function used to construct a Rack struct
+// from scratch rather than relative to its parent.
 //
-type Zone struct {
+func NewRack(ctx context.Context, store *store.Store, table string, region string, zone string, rack string) (*Rack, error) {
 
-	region string
-	zone   string
-	key    string
+	keyIndexPdu, err := GetKeyForIndexPdu(table, region, zone, rack)
 
-	record *zoneRecord	
+	if err != nil {
+		return nil, err
+	}
+
+	keyIndexTor, err := GetKeyForIndexTor(table, region, zone, rack)
+
+	if err != nil {
+		return nil, err
+	}
+
+	keyIndexBlade, err := GetKeyForIndexBlade(table, region, zone, rack)
+
+	if err != nil {
+		return nil, err
+	}
+
+	key, err := GetKeyForRack(DefinitionTable, region, zone, rack)
+
+	if nil != err {
+		return nil, err
+	}
+
+	r := &Rack{
+		Store:         store,
+		KeyIndexPdu:   keyIndexPdu,
+		KeyIndexTor:   keyIndexTor,
+		KeyIndexBlade: keyIndexBlade,
+		Key:           key,
+		Region:        region,
+		Zone:          zone,
+		Rack:          rack,
+	}
+
+	return r, nil
 }
+
+// NewPdu is a convenience function used to construct a Pdu struct
+// from scratch rather than relative to its parent.
+//
+func NewPdu(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Pdu, error) {
+
+	key, err := GetKeyForPdu(DefinitionTable, region, zone, rack, id)
+
+	if nil != err {
+		return nil, err
+	}
+
+	p := &Pdu{
+		Store:  store,
+		Key:    key,
+		Region: region,
+		Zone:   zone,
+		Rack:   rack,
+		ID:     id,
+	}
+
+	return p, nil
+}
+
+// NewTor is a convenience function used to construct a Pdu struct
+// from scratch rather than relative to its parent.
+//
+func NewTor(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Tor, error) {
+
+	key, err := GetKeyForTor(DefinitionTable, region, zone, rack, id)
+
+	if nil != err {
+		return nil, err
+	}
+
+	t := &Tor{
+		Store:  store,
+		Key:    key,
+		Region: region,
+		Zone:   zone,
+		Rack:   rack,
+		ID:     id,
+	}
+
+	return t, nil
+}
+
+// NewBlade is a convenience function used to construct a Pdu struct
+// from scratch rather than relative to its parent.
+//
+func NewBlade(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Blade, error) {
+
+	key, err := GetKeyForBlade(DefinitionTable, region, zone, rack, id)
+
+	if nil != err {
+		return nil, err
+	}
+
+	b := &Blade{
+		Store:  store,
+		Key:    key,
+		Region: region,
+		Zone:   zone,
+		Rack:   rack,
+		ID:     id,
+	}
+
+	return b, nil
+}
+
+
+
+
+// Root is a 
+//
+type Root struct {
+
+	Store        *store.Store
+	KeyChildIndex string
+
+	details *pb.RootDetails
+}
+
+
+// SetAddress is a
+//
+func (r *Root) SetAddress(ctx context.Context, addr Address) error {
+	return 	ErrFunctionNotAvailable
+}
+
+// SetName is a
+//
+func (r *Root) SetName(ctx context.Context, name string) error {
+	
+	keyIndex , err := GetKeyForIndexZone(DefinitionTable, name)
+
+	if err != nil {
+		return err
+	}
+
+	r.KeyChildIndex = keyIndex
+
+	return nil
+}
+
+// GetKey is a
+//
+func (r *Root) GetKey(ctx context.Context) error {
+	return 	ErrFunctionNotAvailable
+}
+
+// SetDetails is a
+//
+func (r *Root) SetDetails(ctx context.Context, details *pb.RootDetails) error {
+
+	r.details = details
+
+	return 	nil
+}
+
+// GetDetails is a
+//
+func (r *Root) GetDetails(ctx context.Context) (*pb.RootDetails, error) {
+	if r.details == nil {
+		return nil, ErrDetailsNotAvailable("root")
+	}
+	
+	return 	r.details, nil
+}
+
+// Create is a
+//
+func (r *Root) Create(ctx context.Context) (int64, error) {
+	return store.RevisionInvalid, ErrFunctionNotAvailable
+}
+
+// Read is a
+//
+func (r *Root) Read(ctx context.Context) (*interface{}, error) {
+	return 	nil, ErrFunctionNotAvailable
+}
+
+// Update is a
+//
+func (r *Root) Update(ctx context.Context) (int64, error) {
+	return store.RevisionInvalid, ErrFunctionNotAvailable
+}
+
+// Delete is a
+//
+func (r *Root) Delete(ctx context.Context) error {
+	return 	ErrFunctionNotAvailable
+}
+
+// NewChild is a
+//
+func (r *Root) NewChild(ctx context.Context, name string) (*Region, error) {
+
+	region, err := NewRegion(ctx, r.Store, DefinitionTable, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return region, nil
+}
+
+// ListChildren is a
+//
+func (r *Root) ListChildren(ctx context.Context) (*map[string]Region, error) {
+
+	records, _, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
+
+	if err == store.ErrStoreKeyNotFound(r.KeyChildIndex) {
+		return nil, ErrRootNotFound{DefinitionTable}
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	regions := make(map[string]Region, len(*records))
+
+	for k, v := range *records {
+
+		record := &pb.StoreRecordDefinitionRegion{}
+
+		if err = store.Decode(v.Value, record); err != nil {
+			return nil, err
+		}
+
+		region, err := r.NewChild(ctx, k)
+
+		if err != nil {
+			return nil, err
+		}
+
+		region.revision = v.Revision
+		region.record   = record
+		region.details  = record.Details
+
+		regions[k] = *region
+	}
+
+	return &regions, nil
+}
+
+
+
+
+
 
 // Region is a
 //
 type Region struct {
 
-	region string
-	zone   string
-	rack   string
-	key    string
+	Store         *store.Store
+	KeyChildIndex string
+	Key           string
+	Region        string
 
-	record *regionRecord	
+	revision int64
+	record   *pb.StoreRecordDefinitionRegion
+	details  *pb.RegionDetails
+}
+
+// SetAddress is
+//
+func (r *Region) SetAddress(ctx context.Context, addr Address) error {
+	return ErrFunctionNotAvailable
+}
+
+// SetName is a 
+//
+func (r *Region) SetName(ctx context.Context, name string) error {
+
+	key, err := GetKeyForRegion(DefinitionTable, name)
+
+	if nil != err {
+		return err
+	}
+
+	r.Key = key
+
+	return nil
+}
+
+// GetKey is
+//
+func (r *Region) GetKey(ctx context.Context) (*string, error) {
+	return nil, ErrFunctionNotAvailable
+}
+
+// SetDetails is a
+//
+func (r *Region) SetDetails(ctx context.Context, details *pb.RegionDetails) error {
+
+	r.details = details
+
+	return 	nil
+}
+
+// GetDetails is a
+//
+func (r *Region) GetDetails(ctx context.Context) (*pb.RegionDetails, error) {
+	if r.details == nil {
+		return nil, ErrDetailsNotAvailable("region")
+	}
+	
+	return 	r.details, nil
+}
+
+// Create is
+//
+func (r *Region) Create(ctx context.Context) (int64, error) {
+
+	v, err := store.Encode(r.details)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
+
+	if err == store.ErrStoreAlreadyExists(r.Key) {
+		return store.RevisionInvalid, ErrZoneAlreadyExists(r.Region)
+	}
+
+	r.revision = rev
+
+	return r.revision, nil
+}
+
+// Read is
+//
+func (r *Region) Read(ctx context.Context) (*pb.DefinitionRegion, error) {
+
+	return nil, nil
+}
+
+// Update is
+//
+func (r *Region) Update(ctx context.Context) (int64, error) {
+
+	return store.RevisionInvalid, nil
+}
+
+// Delete is
+//
+func (r *Region) Delete(ctx context.Context) error {
+
+	return nil
+}
+
+// NewChild is a 
+//
+func (r *Region) NewChild(ctx context.Context, name string) (*Zone, error) {
+
+	z, err := NewZone(ctx, r.Store, DefinitionTable, r.Region, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return z, err
+}
+
+
+// ListChildren is a
+//
+func (r *Region) ListChildren(ctx context.Context) (*map[string]Zone, error) {
+
+	records, _, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
+
+	if err == store.ErrStoreIndexNotFound(r.KeyChildIndex) {
+		return nil, ErrIndexNotFound(r.KeyChildIndex)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	zones := make(map[string]Zone, len(*records))
+
+	for k, v := range *records {
+
+		record := &pb.StoreRecordDefinitionZone{}
+
+		if err = store.Decode(v.Value, record); err != nil {
+			return nil, err
+		}
+
+		zone, err := r.NewChild(ctx, k)
+
+		if err != nil {
+			return nil, err
+		}
+	
+		zone.revision = v.Revision
+		zone.record   = record
+		zone.details  = record.Details
+		
+		zones[k] = *zone
+	}
+
+	return &zones, nil
+}
+
+
+
+
+
+// Zone is a
+//
+type Zone struct {
+
+	Store         *store.Store
+	KeyChildIndex string
+	Key           string
+	Region        string
+	Zone          string
+
+	revision int64
+	record   *pb.StoreRecordDefinitionZone
+	details  *pb.ZoneDetails
+}
+
+// SetAddress is
+//
+func (z *Zone) SetAddress(ctx context.Context, addr Address) error {
+
+	return nil
+}
+
+// SetName is a 
+//
+func (z *Zone) SetName(ctx context.Context, name string) error {
+
+	key, err := GetKeyForZone(DefinitionTable, z.Region, name)
+
+	if nil != err {
+		return err
+	}
+
+	z.Key = key
+
+	return nil
+}
+
+// GetKey is
+//
+func (z *Zone) GetKey(ctx context.Context) (*string, error) {
+	return nil, nil
+}
+
+// SetDetails is a
+//
+func (z *Zone) SetDetails(ctx context.Context, details *pb.ZoneDetails) error {
+
+	z.details = details
+
+	return 	nil
+}
+
+// GetDetails is a
+//
+func (z *Zone) GetDetails(ctx context.Context) (*pb.ZoneDetails, error) {
+	if z.details == nil {
+		return nil, ErrDetailsNotAvailable("zone")
+	}
+	
+	return 	z.details, nil
+}
+
+// Create is
+//
+func (z *Zone) Create(ctx context.Context) (int64, error) {
+
+	v, err := store.Encode(z.details)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := z.Store.Create(ctx, store.KeyRootInventory, z.Key, v)
+
+	if err == store.ErrStoreAlreadyExists(z.Key) {
+		return store.RevisionInvalid, ErrZoneAlreadyExists(z.Zone)
+	}
+
+	z.revision = rev
+
+	return z.revision, nil
+}
+
+// Read is
+//
+func (z *Zone) Read(ctx context.Context) (*pb.DefinitionZone, error) {
+
+	return nil, nil
+}
+
+// Update is
+//
+func (z *Zone) Update(ctx context.Context) error {
+
+	return nil
+}
+
+// Delete is
+//
+func (z *Zone) Delete(ctx context.Context) error {
+
+	return nil
+}
+
+// NewChild is a 
+//
+func (z *Zone) NewChild(ctx context.Context, name string) (*Rack, error) {
+
+	r, err := NewRack(ctx, z.Store, DefinitionTable, z.Region, z.Zone, name)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return r, err
+}
+
+
+// ListChildren is a
+//
+func (z *Zone) ListChildren(ctx context.Context) (*map[string]Rack, error) {
+
+	records, _, err := z.Store.List(ctx, store.KeyRootInventory, z.KeyChildIndex)
+
+	if err == store.ErrStoreIndexNotFound(z.KeyChildIndex) {
+		return nil, ErrIndexNotFound(z.KeyChildIndex)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	racks := make(map[string]Rack, len(*records))
+
+	for k, v := range *records {
+
+		record := &pb.StoreRecordDefinitionRack{}
+
+		if err = store.Decode(v.Value, record); err != nil {
+			return nil, err
+		}
+
+		rack, err := z.NewChild(ctx, k)
+
+		if err != nil {
+			return nil, err
+		}
+	
+		rack.revision = v.Revision
+		rack.record   = record
+		rack.details  = record.Details
+		
+		racks[k] = *rack
+	}
+
+	return &racks, nil
+}
+
+
+
+
+// Rack is a
+//
+type Rack struct {
+
+	Store         *store.Store
+	KeyIndexPdu   string
+	KeyIndexTor   string
+	KeyIndexBlade string
+	Key           string
+	Region        string
+	Zone          string
+	Rack          string
+
+	revision int64
+	record   *pb.StoreRecordDefinitionRack
+	details  *pb.RackDetails
+}
+
+// SetAddress is
+//
+func (r *Rack) SetAddress(ctx context.Context, addr Address) error {
+	return ErrFunctionNotAvailable
+}
+
+// SetName is a 
+//
+func (r *Rack) SetName(ctx context.Context, name string) error {
+
+	key, err := GetKeyForRegion(DefinitionTable, name)
+
+	if nil != err {
+		return err
+	}
+
+	r.Key = key
+
+	return nil
+}
+
+// GetKey is
+//
+func (r *Rack) GetKey(ctx context.Context) (*string, error) {
+	return nil, ErrFunctionNotAvailable
+}
+
+// SetDetails is a
+//
+func (r *Rack) SetDetails(ctx context.Context, details *pb.RackDetails) error {
+
+	r.details = details
+
+	return 	nil
+}
+
+// GetDetails is a
+//
+func (r *Rack) GetDetails(ctx context.Context) (*pb.RackDetails, error) {
+	if r.details == nil {
+		return nil, ErrDetailsNotAvailable("rack")
+	}
+	
+	return 	r.details, nil
+}
+
+// Create is
+//
+func (r *Rack) Create(ctx context.Context) (int64, error) {
+
+	v, err := store.Encode(r.details)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
+
+	if err == store.ErrStoreAlreadyExists(r.Key) {
+		return store.RevisionInvalid, ErrZoneAlreadyExists(r.Region)
+	}
+
+	r.revision = rev
+
+	return r.revision, nil
+}
+
+// Read is
+//
+func (r *Rack) Read(ctx context.Context) (*pb.DefinitionRack, error) {
+
+	return nil, nil
+}
+
+// Update is
+//
+func (r *Rack) Update(ctx context.Context) (int64, error) {
+
+	return store.RevisionInvalid, nil
+}
+
+// Delete is
+//
+func (r *Rack) Delete(ctx context.Context) error {
+
+	return nil
+}
+
+// NewChild is a 
+//
+func (r *Rack) NewChild(ctx context.Context, name string) (*Zone, error) {
+	return nil, ErrFunctionNotAvailable
+}
+
+// NewPdu is a 
+//
+func (r *Rack) NewPdu(ctx context.Context, ID int64) (*Pdu, error) {
+
+	p, err := NewPdu(ctx, r.Store, DefinitionTable, r.Region, r.Zone, r.Rack, ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return p, err
+}
+
+// NewTor is a 
+//
+func (r *Rack) NewTor(ctx context.Context, ID int64) (*Tor, error) {
+
+	t, err := NewTor(ctx, r.Store, DefinitionTable, r.Region, r.Zone, r.Rack, ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return t, err
+}
+
+// NewBlade is a 
+//
+func (r *Rack) NewBlade(ctx context.Context, ID int64) (*Blade, error) {
+
+	b, err := NewBlade(ctx, r.Store, DefinitionTable, r.Region, r.Zone, r.Rack, ID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return b, err
+}
+
+// ListChildren is a
+//
+func (r *Rack) ListChildren(ctx context.Context) (*map[string]Zone, error) {
+	return nil, ErrFunctionNotAvailable
+}
+
+
+// ListPdus is a
+//
+func (r *Rack) ListPdus(ctx context.Context) (*map[int64]Pdu, error) {
+
+	records, _, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexPdu)
+
+	if err == store.ErrStoreIndexNotFound(r.KeyIndexPdu) {
+		return nil, ErrIndexNotFound(r.KeyIndexPdu)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	pdus := make(map[int64]Pdu, len(*records))
+
+	for k, v := range *records {
+
+		i, err := strconv.ParseInt(k, 10, 0)
+
+		if err != nil {
+			return nil, err
+		}
+
+		record := &pb.StoreRecordDefinitionPdu{}
+
+		if err = store.Decode(v.Value, record); err != nil {
+			return nil, err
+		}
+
+		pdu, err := r.NewPdu(ctx, i)
+
+		if err != nil {
+			return nil, err
+		}
+	
+		pdu.revision           = v.Revision
+		pdu.record             = record
+		pdu.definition.Details = record.Details
+		pdu.definition.Ports   = record.Ports
+		
+		pdus[i] = *pdu
+	}
+
+	return &pdus, nil
+}
+
+// ListTors is a
+//
+func (r *Rack) ListTors(ctx context.Context) (*map[int64]Tor, error) {
+
+	records, _, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexTor)
+
+	if err == store.ErrStoreIndexNotFound(r.KeyIndexTor) {
+		return nil, ErrIndexNotFound(r.KeyIndexTor)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	tors := make(map[int64]Tor, len(*records))
+
+	for k, v := range *records {
+
+		i, err := strconv.ParseInt(k, 10, 0)
+
+		if err != nil {
+			return nil, err
+		}
+
+		record := &pb.StoreRecordDefinitionTor{}
+
+		if err = store.Decode(v.Value, record); err != nil {
+			return nil, err
+		}
+
+		tor, err := r.NewTor(ctx, i)
+
+		if err != nil {
+			return nil, err
+		}
+	
+		tor.revision           = v.Revision
+		tor.record             = record
+		tor.definition.Details = record.Details
+		tor.definition.Ports   = record.Ports
+	
+		tors[i] = *tor
+	}
+
+	return &tors, nil
+}
+
+// ListBlades is a
+//
+func (r *Rack) ListBlades(ctx context.Context) (*map[int64]Blade, error) {
+
+	records, _, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexBlade)
+
+	if err == store.ErrStoreIndexNotFound(r.KeyIndexBlade) {
+		return nil, ErrIndexNotFound(r.KeyIndexBlade)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	blades := make(map[int64]Blade, len(*records))
+
+	for k, v := range *records {
+
+		i, err := strconv.ParseInt(k, 10, 0)
+
+		if err != nil {
+			return nil, err
+		}
+
+		record := &pb.StoreRecordDefinitionBlade{}
+
+		if err = store.Decode(v.Value, record); err != nil {
+			return nil, err
+		}
+
+		blade, err := r.NewBlade(ctx, i)
+
+		if err != nil {
+			return nil, err
+		}
+	
+		blade.revision = v.Revision
+		blade.record                   = record
+		blade.definition.Details       = record.Details
+		blade.definition.Capacity      = record.Capacity
+		blade.definition.BootOnPowerOn = record.BootOnPowerOn
+		blade.definition.Image         = record.Image
+		
+		blades[i] = *blade
+	}
+
+	return &blades, nil
+}
+
+
+
+
+
+
+
+// Pdu is a
+//
+type Pdu struct {
+
+	Store  *store.Store
+	Key    string
+	Region string
+	Zone   string
+	Rack   string
+	ID     int64
+
+	revision   int64
+	record     *pb.StoreRecordDefinitionPdu
+	definition *pb.DefinitionPdu
+}
+
+// Tor is a
+//
+type Tor struct {
+
+	Store  *store.Store
+	Key    string
+	Region string
+	Zone   string
+	Rack   string
+	ID     int64
+
+	revision   int64
+	record     *pb.StoreRecordDefinitionTor
+	definition *pb.DefinitionTor
+}
+
+// Blade is a
+//
+type Blade struct {
+
+	Store  *store.Store
+	Key    string
+	Region string
+	Zone   string
+	Rack   string
+	ID     int64
+
+	revision   int64
+	record     *pb.StoreRecordDefinitionBlade
+	definition *pb.DefinitionBlade
 }
 
 // SetAddress is
 //
 func (b *Blade) SetAddress(addr Address) error {
+	return ErrFunctionNotAvailable
+}
+
+// SetName is a 
+//
+func (b *Blade) SetName(ctx context.Context, region string, zone string, rack string, blade int64) error {
+
+	key, err := GetKeyForBlade(DefinitionTable, region, zone, rack, blade)
+
+	if nil != err {
+		return err
+	}
+
+	b.Region = region
+	b.Zone   = zone
+	b.Rack   = rack
+	b.ID     = blade
+
+	b.Key    = key
+	b.record = nil
 
 	return nil
 }
@@ -163,6 +1132,25 @@ func (b *Blade) SetAddress(addr Address) error {
 //
 func (b *Blade) GetKey() (*string, error) {
 	return nil, nil
+}
+
+// SetDetails is a
+//
+func (b *Blade) SetDetails(ctx context.Context, details *pb.BladeDetails) error {
+
+	b.definition.Details = details
+
+	return 	nil
+}
+
+// GetDetails is a
+//
+func (b *Blade) GetDetails(ctx context.Context) (*pb.BladeDetails, error) {
+	if b.definition.Details == nil {
+		return nil, ErrDetailsNotAvailable("blade")
+	}
+	
+	return 	b.definition.Details, nil
 }
 
 // Create is
@@ -194,24 +1182,4 @@ func (b *Blade) Delete(ctx context.Context) error {
 }
 
 
-// SetName is a 
-//
-func (b *Blade) SetName(ctx context.Context, region string, zone string, rack string, blade int64) error {
-
-	key, err := GetKeyForBlade(DefinitionTable, region, zone, rack, blade)
-
-	if nil != err {
-		return err
-	}
-
-	b.region = region
-	b.zone   = zone
-	b.rack   = rack
-	b.id     = blade
-
-	b.key    = key
-	b.record = nil
-
-	return nil
-}
 

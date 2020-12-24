@@ -211,8 +211,8 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		b1, ok := r.Blades[1]
 		require.True(t, ok)
 
-		assert.True(t, b1.Enabled)
-		assert.Equal(t, pb.Condition_operational, b1.Condition)
+		assert.True(t, b1.Details.Enabled)
+		assert.Equal(t, pb.Condition_operational, b1.Details.Condition)
 
 		assert.Equal(t, int64(16),    b1.Capacity.Cores)
 		assert.Equal(t, int64(16834), b1.Capacity.MemoryInMb)
@@ -223,8 +223,8 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		b2, ok := r.Blades[2]
 		require.True(t, ok)
 
-		assert.True(t, b2.Enabled)
-		assert.Equal(t, pb.Condition_operational, b2.Condition)
+		assert.True(t, b2.Details.Enabled)
+		assert.Equal(t, pb.Condition_operational, b2.Details.Condition)
 
 		assert.Equal(t, int64(8),     b2.Capacity.Cores)
 		assert.Equal(t, int64(16834), b2.Capacity.MemoryInMb)
