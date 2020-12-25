@@ -8,93 +8,10 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
-// type definitionBase interface {
-// 	SetAddress(ctx context.Context, addr Address) error
-// 	SetName(ctx context.Context, name string) error
-// 	GetKey(ctx context.Context) (*string, error)
-// 	Create(ctx context.Context) error
-// 	Read(ctx context.Context) (*interface{}, error)
-// 	Update(ctx context.Context) error
-// 	Delete(ctx context.Context) error
-
-// 	NewChild(ctx context.Context, name string) (*interface{}, error)
-// 	ListChildren(ctx context.Context) (*map[string]interface{}, error)
-// }
-
-type definitionRoot interface {
-	inventoryItem
-}
-
-type definitionRegion interface {
-	inventoryItem
-	}
-
-type definitionZone interface {
-	inventoryItem
-}
-
-type definitionRack interface {
-	inventoryItemRack
-
-	// NewPdu(ctx context.Context,   name int64) (*interface{}, error)
-	// NewTor(ctx context.Context,   name int64) (*interface{}, error)
-	// NewBlade(ctx context.Context, name int64) (*interface{}, error)
-
-	// ListPdus(ctx context.Context)   (*map[int64]*interface{}, error)
-	// ListTors(ctx context.Context)   (*map[int64]*interface{}, error)
-	// ListBlades(ctx context.Context) (*map[int64]*interface{}, error)
-}
-
-type definitionPdu interface {
-	inventoryItem
-}
-
-type definitionTor interface {
-	inventoryItem
-}
-
-type definitionBlade interface {
-	inventoryItem
-}
-
-
-// type regionRecord struct {
-// 	revision int64
-// 	record *pb.StoreRecordDefinitionRegion
-// }
-
-// type zoneRecord struct {
-// 	revision int64
-// 	record *pb.StoreRecordDefinitionZone
-// }
-
-// type rackRecord struct {
-// 	revision int64
-// 	record *pb.StoreRecordDefinitionRack
-// }
-
-// type pduRecord struct {
-// 	revision int64
-// 	record *pb.StoreRecordDefinitionPdu
-// }
-
-// type torRecord struct {
-// 	revision int64
-// 	record *pb.StoreRecordDefinitionTor
-// }
-
-// type bladeRecord struct {
-// 	revision int64
-// 	record *pb.StoreRecordDefinitionBlade
-// }
-
-
-
-
 // NewRoot returns a root struct which can be used to navigate
 // the namespace for a given table
 //
-// Valid tables are 
+// Valid tables are
 //	- DefinitionTable
 //	- ActualTable
 //	- ObservedTable
@@ -293,7 +210,7 @@ type Root struct {
 	Store        *store.Store
 	KeyChildIndex string
 
-	details *pb.RootDetails
+	details      *pb.RootDetails
 }
 
 
@@ -489,7 +406,15 @@ func (r *Region) GetDetails(ctx context.Context) (*pb.RegionDetails, error) {
 //
 func (r *Region) Create(ctx context.Context) (int64, error) {
 
-	v, err := store.Encode(r.details)
+	if r.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("region")
+	}
+
+	record := &pb.StoreRecordDefinitionRegion{
+		Details: r.details,
+	}
+
+	v, err := store.Encode(record)
 
 	if err != nil {
 		return store.RevisionInvalid, err
@@ -508,7 +433,7 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (r *Region) Read(ctx context.Context) (*pb.DefinitionRegion, error) {
+func (r *Region) Read(ctx context.Context) (*pb.RegionDetails, error) {
 
 	return nil, nil
 }
@@ -651,7 +576,15 @@ func (z *Zone) GetDetails(ctx context.Context) (*pb.ZoneDetails, error) {
 //
 func (z *Zone) Create(ctx context.Context) (int64, error) {
 
-	v, err := store.Encode(z.details)
+	if z.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("zone")
+	}
+
+	record := &pb.StoreRecordDefinitionZone{
+		Details: z.details,
+	}
+
+	v, err := store.Encode(record)
 
 	if err != nil {
 		return store.RevisionInvalid, err
@@ -670,7 +603,7 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (z *Zone) Read(ctx context.Context) (*pb.DefinitionZone, error) {
+func (z *Zone) Read(ctx context.Context) (*pb.ZoneDetails, error) {
 
 	return nil, nil
 }
@@ -762,6 +695,7 @@ type Rack struct {
 	revision int64
 	record   *pb.StoreRecordDefinitionRack
 	details  *pb.RackDetails
+
 }
 
 // SetAddress is
@@ -814,7 +748,15 @@ func (r *Rack) GetDetails(ctx context.Context) (*pb.RackDetails, error) {
 //
 func (r *Rack) Create(ctx context.Context) (int64, error) {
 
-	v, err := store.Encode(r.details)
+	if r.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("rack")
+	}
+
+	record := &pb.StoreRecordDefinitionRack{
+		Details: r.details,
+	}
+
+	v, err := store.Encode(record)
 
 	if err != nil {
 		return store.RevisionInvalid, err
@@ -833,7 +775,7 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (r *Rack) Read(ctx context.Context) (*pb.DefinitionRack, error) {
+func (r *Rack) Read(ctx context.Context) (*pb.RackDetails, error) {
 
 	return nil, nil
 }
@@ -940,10 +882,10 @@ func (r *Rack) ListPdus(ctx context.Context) (*map[int64]Pdu, error) {
 			return nil, err
 		}
 	
-		pdu.revision           = v.Revision
-		pdu.record             = record
-		pdu.definition.Details = record.Details
-		pdu.definition.Ports   = record.Ports
+		pdu.revision = v.Revision
+		pdu.record   = record
+		pdu.details  = record.Details
+		pdu.ports    = &record.Ports
 		
 		pdus[i] = *pdu
 	}
@@ -987,10 +929,10 @@ func (r *Rack) ListTors(ctx context.Context) (*map[int64]Tor, error) {
 			return nil, err
 		}
 	
-		tor.revision           = v.Revision
-		tor.record             = record
-		tor.definition.Details = record.Details
-		tor.definition.Ports   = record.Ports
+		tor.revision = v.Revision
+		tor.record   = record
+		tor.details  = record.Details
+		tor.ports    = &record.Ports
 	
 		tors[i] = *tor
 	}
@@ -1034,12 +976,12 @@ func (r *Rack) ListBlades(ctx context.Context) (*map[int64]Blade, error) {
 			return nil, err
 		}
 	
-		blade.revision = v.Revision
-		blade.record                   = record
-		blade.definition.Details       = record.Details
-		blade.definition.Capacity      = record.Capacity
-		blade.definition.BootOnPowerOn = record.BootOnPowerOn
-		blade.definition.Image         = record.Image
+		blade.revision      = v.Revision
+		blade.record        = record
+		blade.details       = record.Details
+		blade.capacity      = record.Capacity
+		blade.bootOnPowerOn = record.BootOnPowerOn
+		blade.bootInfo      = record.BootInfo
 		
 		blades[i] = *blade
 	}
@@ -1064,10 +1006,138 @@ type Pdu struct {
 	Rack   string
 	ID     int64
 
-	revision   int64
-	record     *pb.StoreRecordDefinitionPdu
-	definition *pb.DefinitionPdu
+	revision int64
+	record   *pb.StoreRecordDefinitionPdu
+	details  *pb.PduDetails
+	ports    *map[int64]*pb.PowerPort
 }
+
+// SetAddress is
+//
+func (p *Pdu) SetAddress(ctx context.Context, addr Address) error {
+
+	return nil
+}
+
+// SetName is a 
+//
+func (p *Pdu) SetName(ctx context.Context, ID int64) error {
+
+	key, err := GetKeyForPdu(DefinitionTable, p.Region, p.Zone, p.Rack, ID)
+
+	if nil != err {
+		return err
+	}
+
+	p.Key = key
+
+	return nil
+}
+
+// GetKey is
+//
+func (p *Pdu) GetKey(ctx context.Context) (*string, error) {
+	return nil, nil
+}
+
+// SetDetails is a
+//
+func (p *Pdu) SetDetails(ctx context.Context, details *pb.PduDetails) error {
+
+	p.details = details
+
+	return 	nil
+}
+
+// GetDetails is a
+//
+func (p *Pdu) GetDetails(ctx context.Context) (*pb.PduDetails, error) {
+
+	if p.details == nil {
+		return nil, ErrDetailsNotAvailable("pdu")
+	}
+	
+	return 	p.details, nil
+}
+
+// SetPorts is a
+//
+func (p *Pdu) SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort) error {
+
+	p.ports = ports
+
+	return nil
+}
+
+// GetPorts is a 
+//
+func (p *Pdu) GetPorts(ctx context.Context) (*map[int64]*pb.PowerPort, error) {
+	if p.ports == nil {
+		return nil, ErrPortsNotAvailable("pdu")
+	}
+
+	return p.ports, nil
+}
+
+// Create is
+//
+func (p *Pdu) Create(ctx context.Context) (int64, error) {
+
+	if p.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("pdu")
+	}
+
+	if p.ports == nil {
+		return store.RevisionInvalid, ErrPortsNotAvailable("pdu")
+	}
+
+	record := &pb.StoreRecordDefinitionPdu{
+		Details: p.details,
+		Ports:   *p.ports,
+	}
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := p.Store.Create(ctx, store.KeyRootInventory, p.Key, v)
+
+	if err == store.ErrStoreAlreadyExists(p.Key) {
+		return store.RevisionInvalid, ErrfPduAlreadyExists(p.Zone, p.Rack, p.ID)
+	}
+
+	p.revision = rev
+
+	return p.revision, nil
+}
+
+// Read is
+//
+func (p *Pdu) Read(ctx context.Context) (*pb.PduDetails, error) {
+
+	return nil, nil
+}
+
+// Update is
+//
+func (p *Pdu) Update(ctx context.Context) error {
+
+	return nil
+}
+
+// Delete is
+//
+func (p *Pdu) Delete(ctx context.Context) error {
+
+	return nil
+}
+
+
+
+
+
+
 
 // Tor is a
 //
@@ -1080,10 +1150,137 @@ type Tor struct {
 	Rack   string
 	ID     int64
 
-	revision   int64
-	record     *pb.StoreRecordDefinitionTor
-	definition *pb.DefinitionTor
+	revision int64
+	record   *pb.StoreRecordDefinitionTor
+	details  *pb.TorDetails
+	ports    *map[int64]*pb.NetworkPort
 }
+
+// SetAddress is
+//
+func (t *Tor) SetAddress(ctx context.Context, addr Address) error {
+
+	return nil
+}
+
+// SetName is a 
+//
+func (t *Tor) SetName(ctx context.Context, ID int64) error {
+
+	key, err := GetKeyForPdu(DefinitionTable, t.Region, t.Zone, t.Rack, ID)
+
+	if nil != err {
+		return err
+	}
+
+	t.Key = key
+
+	return nil
+}
+
+// GetKey is
+//
+func (t *Tor) GetKey(ctx context.Context) (*string, error) {
+	return nil, nil
+}
+
+// SetDetails is a
+//
+func (t *Tor) SetDetails(ctx context.Context, details *pb.TorDetails) error {
+
+	t.details = details
+
+	return 	nil
+}
+
+// GetDetails is a
+//
+func (t *Tor) GetDetails(ctx context.Context) (*pb.TorDetails, error) {
+	if t.details == nil {
+		return nil, ErrDetailsNotAvailable("tor")
+	}
+	
+	return 	t.details, nil
+}
+
+// SetPorts is a
+//
+func (t *Tor) SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort) error {
+	t.ports = ports
+
+	return nil
+}
+
+// GetPorts is a 
+//
+func (t *Tor) GetPorts(ctx context.Context) (*map[int64]*pb.NetworkPort, error) {
+	if t.ports == nil {
+		return nil, ErrPortsNotAvailable("tor")
+	}
+
+	return t.ports, nil
+}
+
+// Create is
+//
+func (t *Tor) Create(ctx context.Context) (int64, error) {
+
+	if t.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("tor")
+	}
+
+	if t.ports == nil {
+		return store.RevisionInvalid, ErrPortsNotAvailable("tor")
+	}
+
+	record := &pb.StoreRecordDefinitionTor{
+		Details: t.details,
+		Ports:   *t.ports,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := t.Store.Create(ctx, store.KeyRootInventory, t.Key, v)
+
+	if err == store.ErrStoreAlreadyExists(t.Key) {
+		return store.RevisionInvalid, ErrfPduAlreadyExists(t.Zone, t.Rack, t.ID)
+	}
+
+	t.revision = rev
+
+	return t.revision, nil
+}
+
+// Read is
+//
+func (t *Tor) Read(ctx context.Context) (*pb.TorDetails, error) {
+
+	return nil, nil
+}
+
+// Update is
+//
+func (t *Tor) Update(ctx context.Context) error {
+
+	return nil
+}
+
+// Delete is
+//
+func (t *Tor) Delete(ctx context.Context) error {
+
+	return nil
+}
+
+
+
+
+
+
 
 // Blade is a
 //
@@ -1096,9 +1293,12 @@ type Blade struct {
 	Rack   string
 	ID     int64
 
-	revision   int64
-	record     *pb.StoreRecordDefinitionBlade
-	definition *pb.DefinitionBlade
+	revision      int64
+	record        *pb.StoreRecordDefinitionBlade
+	details       *pb.BladeDetails
+	capacity      *pb.BladeCapacity
+	bootInfo      *pb.BladeBootInfo
+	bootOnPowerOn bool
 }
 
 // SetAddress is
@@ -1138,7 +1338,7 @@ func (b *Blade) GetKey() (*string, error) {
 //
 func (b *Blade) SetDetails(ctx context.Context, details *pb.BladeDetails) error {
 
-	b.definition.Details = details
+	b.details = details
 
 	return 	nil
 }
@@ -1146,18 +1346,89 @@ func (b *Blade) SetDetails(ctx context.Context, details *pb.BladeDetails) error 
 // GetDetails is a
 //
 func (b *Blade) GetDetails(ctx context.Context) (*pb.BladeDetails, error) {
-	if b.definition.Details == nil {
+	if b.details == nil {
 		return nil, ErrDetailsNotAvailable("blade")
 	}
 	
-	return 	b.definition.Details, nil
+	return 	b.details, nil
+}
+
+
+// SetCapacity is a
+//
+func (b *Blade) SetCapacity(ctx context.Context, capacity *pb.BladeCapacity) error {
+	b.capacity = capacity
+
+	return nil
+}
+
+// SetBootInfo is a
+//
+func (b *Blade) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) error {
+	b.bootOnPowerOn = bootOnPowerOn
+	b.bootInfo      = bootInfo
+
+	return nil
+}
+
+// GetCapacity is a
+//
+func (b *Blade) GetCapacity(ctx context.Context) (*pb.BladeCapacity, error) {
+	if b.capacity == nil {
+		return nil, ErrCapacityNotAvailable("blade")
+	}
+
+	return b.capacity, nil
+}
+
+// GetBootInfo is a
+//
+func (b *Blade) GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo, error) {
+	if b.bootInfo == nil {
+		return false, nil, ErrBootInfoNotAvailable("blade")
+	}
+
+	return b.bootOnPowerOn, b.bootInfo, nil
 }
 
 // Create is
 //
-func (b *Blade) Create(ctx context.Context) error {
+func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 
-	return nil
+	if b.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("blade")
+	}
+
+	if b.capacity == nil {
+		return store.RevisionInvalid, ErrCapacityNotAvailable("blade")
+	}
+
+	if b.bootInfo == nil {
+		return store.RevisionInvalid, ErrBootInfoNotAvailable("blade")
+	}
+
+	record := &pb.StoreRecordDefinitionBlade{
+		Details:       b.details,
+		Capacity:      b.capacity,
+		BootOnPowerOn: b.bootOnPowerOn,
+		BootInfo:      b.bootInfo,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := b.Store.Create(ctx, store.KeyRootInventory, b.Key, v)
+
+	if err == store.ErrStoreAlreadyExists(b.Key) {
+		return store.RevisionInvalid, ErrfPduAlreadyExists(b.Zone, b.Rack, b.ID)
+	}
+
+	b.revision = rev
+
+	return b.revision, nil
 }
 
 // Read is
