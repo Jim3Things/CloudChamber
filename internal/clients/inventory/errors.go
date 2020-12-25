@@ -280,6 +280,33 @@ func (edna ErrDetailsNotAvailable) Error() string {
 	return fmt.Sprintf("CloudChamber: %q details not available", string(edna))
 }
 
+// ErrPortsNotAvailable indicates the requested detail for the item have not
+// yet been establiehed.
+//
+type ErrPortsNotAvailable string
+
+func (epna ErrPortsNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q ports not available", string(epna))
+}
+
+// ErrCapacityNotAvailable indicates the requested capacity information for 
+// the item have not yet been establiehed.
+//
+type ErrCapacityNotAvailable string
+
+func (ecna ErrCapacityNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q capacity not available", string(ecna))
+}
+
+// ErrBootInfoNotAvailable indicates the requested boot information for the item
+// have not yet been establiehed.
+//
+type ErrBootInfoNotAvailable string
+
+func (ebina ErrBootInfoNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q boot information not available", string(ebina))
+}
+
 // ErrfRegionNotFound is a wrapper around the composite literal based error of the related name
 //
 func ErrfRegionNotFound(zone string, rack string, blade int64) error {return ErrBladeNotFound{zone, rack, blade}}

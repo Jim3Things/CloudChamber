@@ -58,7 +58,7 @@ message definition {
 
         // Describes the default boot mechanism
         //
-        blade_boot image = 12;
+        blade_boot_info boot_info = 12;
     }
 
 
@@ -103,4 +103,9 @@ message definition {
         map<string, zone> zones = 10;
     }
 
+    message root {
+        root_details details = 1;
+
+        map<string, region> regions = 10;
+    }
 }

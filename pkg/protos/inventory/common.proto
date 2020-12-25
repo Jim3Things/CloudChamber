@@ -98,7 +98,7 @@ message network_port {
     hardware item = 2;
 }
     
-message blade_boot {
+message blade_boot_info {
     enum method {
         local = 0;
         network = 1;
@@ -149,19 +149,18 @@ message tor_details {
 // Rack-level blade computer
 //
 message blade_details {
-        // Whether or not the blade is enabled. This is orthoganal to the condition of the
-        // blade. For resources within the blade to be schedulable, the blade must be both
-        // enabled and the condition must be operational.
-        //
-        bool enabled = 1;
+    // Whether or not the blade is enabled. This is orthoganal to the condition of the
+    // blade. For resources within the blade to be schedulable, the blade must be both
+    // enabled and the condition must be operational.
+    //
+    bool enabled = 1;
 
-        // Defines the overall condition of the blade. This is orthoganal to the enabling of
-        // the blade. For resources within the blade to be schedulable, the blade must be both
-        // enabled and the condition must be operational.
-        //
-        condition condition = 2;
+    // Defines the overall condition of the blade. This is orthoganal to the enabling of
+    // the blade. For resources within the blade to be schedulable, the blade must be both
+    // enabled and the condition must be operational.
+    //
+    condition condition = 2;
 }
-
 
 message rack_details {
     // This assumes a single overhead item per rack.  May want to allow multiple to handle
@@ -192,9 +191,6 @@ message rack_details {
     string notes = 4;
 }
 
-// Finally, a zone is a collection of racks.  Each rack has a name, which is used as a
-// key in the map below.
-//
 message zone_details {
     // Whether or not the zone as a whole is enabled. This is orthoganal to the condition
     // of the zone. For resources within the zone to be schedulable, the zone must be both

@@ -454,7 +454,6 @@ func GetKeyForAddress(table string, addr *Address) (string, error) {
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things". You can send operations and commands to things, but not containers.
 type inventoryItem interface {
 	SetAddress(ctx context.Context, addr Address) error
-	SetName(ctx context.Context, name string) error
 	GetKey(ctx context.Context) (*string, error)
 
 	SetDetails(ctx context.Context, details *interface{}) error
@@ -464,9 +463,6 @@ type inventoryItem interface {
 	Read(ctx context.Context) (*interface{}, error)
 	Update(ctx context.Context) (int64, error)
 	Delete(ctx context.Context) error
-
-	NewChild(ctx context.Context, name string) (*interface{}, error)
-	ListChildren(ctx context.Context) (*map[string]interface{}, error)
 }
 
 // type inventoryRoot interface {
@@ -480,6 +476,15 @@ type inventoryItem interface {
 // 	inventoryItem
 // }
 
+type inventoryItemNode interface {
+	inventoryItem
+
+	SetName(ctx context.Context, name string) error
+
+	NewChild(ctx context.Context, name string) (*interface{}, error)
+	ListChildren(ctx context.Context) (*map[string]interface{}, error)
+}
+
 type inventoryItemRack interface {
 	inventoryItem
 
@@ -492,17 +497,35 @@ type inventoryItemRack interface {
 	ListBlades(ctx context.Context) (*map[int64]*interface{}, error)
 }
 
-// type inventoryPdu interface {
-// 	inventoryItem
-// }
+type inventoryItemPdu interface {
+	inventoryItem
 
-// type inventoryTor interface {
-// 	inventoryItem
-// }
+	SetName(ctx context.Context, ID int64) error
 
-// type inventoryBlade interface {
-// 	inventoryItem
-// }
+	SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort) error
+	GetPorts(ctx context.Context) (*map[int64]*pb.PowerPort, error)
+}
+
+type inventoryTor interface {
+	inventoryItem
+
+	SetName(ctx context.Context, ID int64) error
+
+	SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort) error
+	GetPorts(ctx context.Context) (*map[int64]*pb.NetworkPort, error)
+}
+
+type inventoryBlade interface {
+	inventoryItem
+
+	SetName(ctx context.Context, ID int64) error
+
+	SetCapacity(ctx context.Context, capacity *pb.BladeCapacity) error
+	GetCapacity(ctx context.Context) (*pb.BladeCapacity, error)
+
+	SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) error
+	GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo, error)
+}
 
 
 var (
@@ -524,8 +547,8 @@ func (n *nullItem) SetAddress(addr Address) error {
 
 // SetName is a
 //
-func (n *nullItem) SetName(addr Address) error {
-	return 	ErrNullItem
+func (n *nullItem) SetName(name interface{}) error {
+	return ErrNullItem
 }
 
 func (n *nullItem) GetKey() (*string, error) {
@@ -533,7 +556,7 @@ func (n *nullItem) GetKey() (*string, error) {
 }
 
 
-func (n *nullItem) SetDetails(ctx context.Context, detaila *nullItem) error {
+func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) error {
 	return ErrNullItem
 }
 
@@ -583,4 +606,28 @@ func (n *nullItem) ListTors(ctx context.Context)   (*map[int64]*interface{}, err
 
 func (n *nullItem) ListBlades(ctx context.Context) (*map[int64]*interface{}, error) {
 	return nil, ErrNullItem
+}
+
+func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{}) error {
+	return ErrNullItem
+}
+
+func (n *nullItem) GetPorts(ctx context.Context) (*map[int64]*interface{}, error) {
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) SetCapacity(ctx context.Context, capacity *interface{}) error {
+	return ErrNullItem
+}
+
+func (n *nullItem) GetCapacity(ctx context.Context) (*interface{}, error) {
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *interface{}) error {
+	return ErrNullItem
+}
+
+func (n *nullItem) GetBootInfo(ctx context.Context) (bool, *interface{}, error) {
+	return false, nil, ErrNullItem
 }

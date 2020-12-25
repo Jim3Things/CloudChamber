@@ -31,10 +31,10 @@ message store {
         }
 
         message blade {
-            blade_details  details          =  1;
-            blade_capacity capacity         = 10;
-            bool           boot_on_power_on = 11;
-            blade_boot     image            = 12;
+            blade_details   details          =  1;
+            blade_capacity  capacity         = 10;
+            bool            boot_on_power_on = 11;
+            blade_boot_info boot_info        = 12;
         }
 
         message rack {
