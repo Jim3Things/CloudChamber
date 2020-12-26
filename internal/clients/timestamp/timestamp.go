@@ -5,12 +5,12 @@ package timestamp
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/duration"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
@@ -18,9 +18,6 @@ import (
 )
 
 var (
-	errAlreadyInitialized = errors.New("timestamp client has already been initialized")
-	errNotReady           = errors.New("client is not ready")
-
 	tsc timeClient = &notReady{}
 )
 
@@ -51,33 +48,33 @@ func (n notReady) initialize(name string, opts ...grpc.DialOption) error {
 
 // SetPolicy sets the stepper policy
 func (n *notReady) setPolicy(_ context.Context, _ pb.StepperPolicy, _ *duration.Duration, _ int64) error {
-	return errNotReady
+	return errors.ErrClientNotReady("timestamp")
 }
 
 func (n *notReady) advance(_ context.Context) error {
-	return errNotReady
+	return errors.ErrClientNotReady("timestamp")
 }
 
 func (n *notReady) now(_ context.Context) (*ct.Timestamp, error) {
-	return nil, errNotReady
+	return nil, errors.ErrClientNotReady("timestamp")
 }
 
 func (n *notReady) after(_ context.Context, _ *ct.Timestamp) <-chan TimeData {
 	ch := make(chan TimeData)
 	ch <- TimeData{
 		Time: nil,
-		Err:  errNotReady,
+		Err:  errors.ErrClientNotReady("timestamp"),
 	}
 
 	return ch
 }
 
 func (n *notReady) status(_ context.Context) (*pb.StatusResponse, error) {
-	return nil, errNotReady
+	return nil, errors.ErrClientNotReady("timestamp")
 }
 
 func (n *notReady) reset(_ context.Context) error {
-	return errNotReady
+	return errors.ErrClientNotReady("timestamp")
 }
 
 // activeClient is the timestamp client that has been configured to connect to
@@ -123,7 +120,7 @@ func (t *activeClient) setPolicy(
 }
 
 func (t *activeClient) initialize(_ string, _ ...grpc.DialOption) error {
-	return errAlreadyInitialized
+	return errors.ErrClientAlreadyInitialized("timestamp")
 }
 
 func (t *activeClient) advance(ctx context.Context) error {

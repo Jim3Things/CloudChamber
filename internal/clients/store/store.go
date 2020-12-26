@@ -81,6 +81,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // All CloudChamber key-value pairs are stored under a common namespace root.
@@ -138,7 +139,7 @@ type Store struct {
 
 var (
 	storeRoot global
-	val int64
+	val       int64
 )
 
 func (store *Store) traceEnabled() bool { return store.TraceFlags != 0 }
@@ -183,7 +184,7 @@ func setDefaultNamespaceSuffix(suffix string) {
 func (store *Store) connected(ctx context.Context) error {
 
 	if nil != store.Client {
-		return ErrStoreConnected("already connected")
+		return errors.ErrStoreConnected("already connected")
 	}
 
 	return nil
@@ -192,7 +193,7 @@ func (store *Store) connected(ctx context.Context) error {
 func (store *Store) disconnected(ctx context.Context) error {
 
 	if nil == store.Client {
-		return ErrStoreNotConnected("already disconnected")
+		return errors.ErrStoreNotConnected("already disconnected")
 	}
 
 	return nil
@@ -252,7 +253,7 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 		tracing.Fatal(
 			ctx,
 			"invalid configuration: : %v",
-			ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
+			errors.ErrStoreInvalidConfiguration("both UseUniqueInstance and PreCleanStore are enabled"))
 	}
 
 	// For test purposes, need to set an alternate namespace rather than
@@ -553,7 +554,7 @@ func (store *Store) Connect() error {
 	})
 
 	if err != nil {
-		return ErrStoreConnectionFailed{store.GetAddress(), err}
+		return errors.ErrStoreConnectionFailed{Endpoints: store.GetAddress(), Reason: err}
 	}
 
 	// Hookup the namespace prefixing mechanism
@@ -702,7 +703,7 @@ func (store *Store) SetWatch(key string) error {
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	return ErrStoreNotImplemented("SetWatch")
+	return errors.ErrStoreNotImplemented("SetWatch")
 }
 
 // SetWatchMultiple is a method used to establish a set of watchpoints on a set of
@@ -716,7 +717,7 @@ func (store *Store) SetWatchMultiple(key []string) error {
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	return ErrStoreNotImplemented("SetWatchMultiple")
+	return errors.ErrStoreNotImplemented("SetWatchMultiple")
 }
 
 // SetWatchWithPrefix is a method used to establish a watchpoint on a entire
@@ -727,7 +728,7 @@ func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	return ErrStoreNotImplemented("SetWatchWithPrefix")
+	return errors.ErrStoreNotImplemented("SetWatchWithPrefix")
 }
 
 // RevisionInvalid is returned from certain operations if
@@ -757,6 +758,8 @@ const (
 	ConditionRevisionEqualOrGreater = Condition(">=")
 	ConditionRevisionGreater        = Condition(">")
 )
+
+func (c *Condition) String() string { return string(*c) }
 
 // Record is a struct defining a single value and the associated revision describing
 // the store revision when the value was last updated.
@@ -796,7 +799,7 @@ func generatePrefetchKeys(req *Request) (*[]string, error) {
 
 		case ConditionRevisionGreater:
 			if r.Revision == RevisionInvalid {
-				return nil, ErrStoreBadArgRevision{k, RevisionInvalid, r.Revision}
+				return nil, errors.ErrStoreBadArgRevision{Key: k, Requested: RevisionInvalid, Actual: r.Revision}
 			}
 
 			fallthrough
@@ -808,7 +811,7 @@ func generatePrefetchKeys(req *Request) (*[]string, error) {
 			prefetchKeys = append(prefetchKeys, k)
 
 		default:
-			return nil, ErrStoreBadArgCondition{k, c}
+			return nil, errors.ErrStoreBadArgCondition{Key: k, Condition: c.String()}
 		}
 	}
 
@@ -832,49 +835,49 @@ func checkConditions(stm concurrency.STM, req *Request) error {
 		switch c {
 		case ConditionCreate:
 			if rev != 0 {
-				return ErrStoreAlreadyExists(k)
+				return errors.ErrStoreAlreadyExists(k)
 			}
 
 		case ConditionRequired:
 			if rev == 0 {
-				return ErrStoreKeyNotFound(k)
+				return errors.ErrStoreKeyNotFound(k)
 			}
 
 		case ConditionRevisionLess:
 			if rev >= r.Revision {
-				return ErrStoreConditionFail{k, r.Revision, c, rev}
+				return errors.ErrStoreConditionFail{Key: k, Requested: r.Revision, Condition: c.String(), Actual: rev}
 			}
 
 		case ConditionRevisionLessOrEqual:
 			if rev > r.Revision {
-				return ErrStoreConditionFail{k, r.Revision, c, rev}
+				return errors.ErrStoreConditionFail{Key: k, Requested: r.Revision, Condition: c.String(), Actual: rev}
 			}
 
 		case ConditionRevisionEqual:
 			if rev != r.Revision {
-				return ErrStoreConditionFail{k, r.Revision, c, rev}
+				return errors.ErrStoreConditionFail{Key: k, Requested: r.Revision, Condition: c.String(), Actual: rev}
 			}
 
 		case ConditionRevisionNotEqual:
 			if rev == r.Revision {
-				return ErrStoreConditionFail{k, r.Revision, c, rev}
+				return errors.ErrStoreConditionFail{Key: k, Requested: r.Revision, Condition: c.String(), Actual: rev}
 			}
 
 		case ConditionRevisionEqualOrGreater:
 			if rev < r.Revision {
-				return ErrStoreConditionFail{k, r.Revision, c, rev}
+				return errors.ErrStoreConditionFail{Key: k, Requested: r.Revision, Condition: c.String(), Actual: rev}
 			}
 
 		case ConditionRevisionGreater:
 			if rev <= r.Revision {
-				return ErrStoreConditionFail{k, r.Revision, c, rev}
+				return errors.ErrStoreConditionFail{Key: k, Requested: r.Revision, Condition: c.String(), Actual: rev}
 			}
 
 		case ConditionUnconditional:
 			// do nothing
 
 		default:
-			return ErrStoreBadArgCondition{key: k, condition: c}
+			return errors.ErrStoreBadArgCondition{Key: k, Condition: c.String()}
 		}
 	}
 
@@ -1046,7 +1049,7 @@ func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Re
 	}
 
 	if !txnResponse.Succeeded {
-		return nil, ErrStoreKeyReadFailure(request.Reason)
+		return nil, errors.ErrStoreKeyReadFailure(request.Reason)
 	}
 
 	// And finally, the revision for the store as a whole.
@@ -1108,7 +1111,7 @@ func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *R
 	}
 
 	if !txnResponse.Succeeded {
-		return nil, ErrStoreKeyWriteFailure(request.Reason)
+		return nil, errors.ErrStoreKeyWriteFailure(request.Reason)
 	}
 
 	// And finally, the revision for the store as a whole.
@@ -1170,7 +1173,7 @@ func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *
 	}
 
 	if !txnResponse.Succeeded {
-		return nil, ErrStoreKeyDeleteFailure(request.Reason)
+		return nil, errors.ErrStoreKeyDeleteFailure(request.Reason)
 	}
 
 	// And finally, the revision for the store as a whole.
