@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -23,7 +24,7 @@ const (
 // This mirrors the external zone format except the keys
 // are fields of array
 
-type zone struct {
+type xfrZone struct {
 	Racks []rack
 }
 
@@ -50,33 +51,6 @@ type pdu struct {
 }
 
 // --- Intermediate binary format
-
-// ErrDuplicateRack indicates duplicates rack names found
-type ErrDuplicateRack string
-
-func (edr ErrDuplicateRack) Error() string {
-	return fmt.Sprintf("Duplicate rack %q detected", string(edr))
-}
-
-// ErrDuplicateBlade indicates duplicates blade indexes found
-type ErrDuplicateBlade struct {
-	rack  string
-	blade int64
-}
-
-func (edb ErrDuplicateBlade) Error() string {
-	return fmt.Sprintf("Duplicate Blade %d in Rack %q detected", edb.blade, edb.rack)
-}
-
-// ErrValidationFailure indicates validation failure in blades
-type ErrValidationFailure struct {
-	rack string
-	err  error
-}
-
-func (evf ErrValidationFailure) Error() string {
-	return fmt.Sprintf("In rack %q: %v", evf.rack, evf.err)
-}
 
 // ReadInventoryDefinition imports the inventory from
 // external YAML file and transforms it into the
@@ -106,7 +80,7 @@ func ReadInventoryDefinition(ctx context.Context, path string) (*pb.ExternalZone
 	}
 
 	// First we are going to put it into intermediate format
-	xfr := &zone{}
+	xfr := &xfrZone{}
 	if err := viper.UnmarshalExact(xfr); err != nil {
 		return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 	}
@@ -123,17 +97,17 @@ func ReadInventoryDefinition(ctx context.Context, path string) (*pb.ExternalZone
 }
 
 // toExternalZone converts intermediate values to the final format
-// One important differnce is that the intermediate is array based.
+// One important difference is that the intermediate is array based.
 // The final format is map based using specific fields in array
-// enteries as the map keys
-func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
+// entries as the map keys
+func toExternalZone(xfr *xfrZone) (*pb.ExternalZone, error) {
 	cfg := &pb.ExternalZone{
 		Racks: make(map[string]*pb.ExternalRack),
 	}
 
 	for _, r := range xfr.Racks {
 		if _, ok := cfg.Racks[r.Name]; ok {
-			return nil, ErrDuplicateRack(r.Name)
+			return nil, errors.ErrDuplicateRack(r.Name)
 		}
 
 		cfg.Racks[r.Name] = &pb.ExternalRack{
@@ -144,9 +118,9 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 
 		for _, b := range r.Blades {
 			if _, ok := cfg.Racks[r.Name].Blades[b.Index]; ok {
-				return nil, ErrDuplicateBlade{
-					blade: b.Index,
-					rack:  r.Name,
+				return nil, errors.ErrDuplicateBlade{
+					Blade: b.Index,
+					Rack:  r.Name,
 				}
 			}
 
@@ -160,9 +134,9 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 		}
 
 		if err := cfg.Racks[r.Name].Validate(); err != nil {
-			return nil, ErrValidationFailure{
-				rack: r.Name,
-				err:  err,
+			return nil, errors.ErrRackValidationFailure{
+				Rack: r.Name,
+				Err:  err,
 			}
 		}
 	}
@@ -199,7 +173,7 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Regi
 	}
 
 	// First we are going to put it into intermediate format
-	xfr := &zone{}
+	xfr := &xfrZone{}
 	if err := viper.UnmarshalExact(xfr); err != nil {
 		return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 	}
@@ -216,11 +190,11 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Regi
 }
 
 // toDefinitionRegionInternal converts intermediate values to the final format
-// One important differnce is that the intermediate is array based.
+// One important difference is that the intermediate is array based.
 // The final format is map based using specific fields in array
-// enteries as the map keys
+// entries as the map keys
 //
-func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
+func toDefinitionRegionInternal(xfr *xfrZone) (*pb.Region, error) {
 
 	region := &pb.Region{Zones: make(map[string]*pb.DefinitionZoneInternal)}
 
@@ -238,12 +212,12 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 	}
 
 	// For each rack in the supplied configuration, create rack in the
-	// zone. Each rack has some details, a set of Pdus, a set of Tors, 
+	// zone. Each rack has some details, a set of PDUs, a set of TORs,
 	// and a set of blades.
 	//
 	for _, r := range xfr.Racks {
 		if _, ok := zone.Racks[r.Name]; ok {
-			return nil, ErrDuplicateRack(r.Name)
+			return nil, errors.ErrDuplicateRack(r.Name)
 		}
 
 		zone.Racks[r.Name] = &pb.DefinitionRackInternal{
@@ -252,10 +226,10 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 				Condition: pb.Definition_operational,
 				Location:  "DC-PNW-0-" + r.Name,
 				Notes:     "RackName: " + r.Name,
-				},
-			Pdus:      make(map[int64]*pb.DefinitionPdu),
-			Tors:      make(map[int64]*pb.DefinitionTor),
-			Blades:    make(map[int64]*pb.DefinitionBlade),
+			},
+			Pdus:   make(map[int64]*pb.DefinitionPdu),
+			Tors:   make(map[int64]*pb.DefinitionTor),
+			Blades: make(map[int64]*pb.DefinitionBlade),
 		}
 
 		// Currently only have one each of Pdu and Tor per-rack.
@@ -276,7 +250,7 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 			Ports:     make(map[int64]*pb.DefinitionNetworkPort),
 		}
 
-		// We do suuport more than a single blade for each rack
+		// We do support more than a single blade for each rack
 		// so iterate over each of the blades in the supplied
 		// configuration.
 		//
@@ -288,9 +262,9 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 			// issue.
 			//
 			if _, ok := zone.Racks[r.Name].Blades[b.Index]; ok {
-				return nil, ErrDuplicateBlade{
-					blade: b.Index,
-					rack:  r.Name,
+				return nil, errors.ErrDuplicateBlade{
+					Blade: b.Index,
+					Rack:  r.Name,
 				}
 			}
 
@@ -300,7 +274,7 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 			// file.
 			//
 			zone.Racks[r.Name].Blades[b.Index] = &pb.DefinitionBlade{
-				Enabled: true,
+				Enabled:   true,
 				Condition: pb.Definition_operational,
 				Capacity: &common.BladeCapacity{
 					Cores:                  b.Cores,
@@ -317,11 +291,11 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 			//
 			zone.Racks[r.Name].Pdus[0].Ports[b.Index] = &pb.DefinitionPowerPort{
 				Wired: true,
-				Item:  &pb.DefinitionItem{
+				Item: &pb.DefinitionItem{
 					Type: pb.DefinitionItem_blade,
-					Id: b.Index,
+					Id:   b.Index,
 					Port: 0,
-					},
+				},
 			}
 
 			// For the given blade index, add a matching connection
@@ -330,18 +304,18 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.Region, error) {
 			//
 			zone.Racks[r.Name].Tors[0].Ports[b.Index] = &pb.DefinitionNetworkPort{
 				Wired: true,
-				Item:  &pb.DefinitionItem{
+				Item: &pb.DefinitionItem{
 					Type: pb.DefinitionItem_blade,
-					Id: b.Index,
+					Id:   b.Index,
 					Port: 0,
-					},
+				},
 			}
 		}
 
 		if err := zone.Racks[r.Name].Validate(""); err != nil {
-			return nil, ErrValidationFailure{
-				rack: r.Name,
-				err:  err,
+			return nil, errors.ErrRackValidationFailure{
+				Rack: r.Name,
+				Err:  err,
 			}
 		}
 	}

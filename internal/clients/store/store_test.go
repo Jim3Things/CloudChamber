@@ -11,6 +11,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 const revStoreInitial = int64(0)
@@ -139,7 +140,7 @@ func TestStoreConnectDisconnect(t *testing.T) {
 
 	err = store.Connect()
 	assert.NotNilf(t, err, "Unexpectedly connected to store again - error: %v", err)
-	assert.Equal(t, ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected("already connected"), err)
+	assert.Equal(t, errors.ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreConnected("already connected"), err)
 
 	store.Disconnect()
 
@@ -178,7 +179,7 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 		getDefaultTraceFlags(),
 		getDefaultNamespaceSuffix())
 	assert.NotNilf(t, err, "Unexpectedly re-initialized store after connect - error: %v", err)
-	assert.Equal(t, ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected("already connected"), err)
+	assert.Equal(t, errors.ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreConnected("already connected"), err)
 
 	store.Disconnect()
 
@@ -227,22 +228,22 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 
 	err = store.SetAddress(endpoints)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to update the address - error: %v", err)
-	assert.Equal(t, ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected("already connected"), err)
+	assert.Equal(t, errors.ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreConnected("already connected"), err)
 
 	err = store.SetTimeoutConnect(timeoutConnect)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to update the connect timeout - error: %v", err)
-	assert.Equal(t, ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected("already connected"), err)
+	assert.Equal(t, errors.ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreConnected("already connected"), err)
 
 	err = store.SetTimeoutRequest(timeoutRequest)
 	assert.Nilf(t, err, "Failed to update the request timeout - error: %v", err)
 
 	err = store.SetNamespaceSuffix(namespaceSuffix)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to update the namespace suffix - error: %v", err)
-	assert.Equal(t, ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected("already connected"), err)
+	assert.Equal(t, errors.ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreConnected("already connected"), err)
 
 	err = store.Connect()
 	assert.NotNilf(t, err, "Unexpectedly connected to store again - error: %v", err)
-	assert.Equal(t, ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreConnected("already connected"), err)
+	assert.Equal(t, errors.ErrStoreConnected("already connected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreConnected("already connected"), err)
 
 	store.Disconnect()
 
@@ -327,7 +328,7 @@ func TestStoreWriteReadTxnRequired(t *testing.T) {
 	//
 	readResponse, err := store.ReadTxn(ctx, readRequest)
 	assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
-	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+	assert.Equal(t, errors.ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
 	assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 
 	// Now write the key
@@ -489,7 +490,7 @@ func TestStoreWriteReadMultipleTxnRequired(t *testing.T) {
 	var foundError bool
 
 	for k := range readRequest.Records {
-		if err == ErrStoreKeyNotFound(k) {
+		if err == errors.ErrStoreKeyNotFound(k) {
 			foundError = true
 			break
 		}
@@ -682,7 +683,7 @@ func TestStoreWriteDeleteTxn(t *testing.T) {
 	//
 	readResponse, err := store.ReadTxn(ctx, readRequest)
 	assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
-	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+	assert.Equal(t, errors.ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
 	assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 
 	// Now write the key
@@ -715,7 +716,7 @@ func TestStoreWriteDeleteTxn(t *testing.T) {
 	//
 	readResponse, err = store.ReadTxn(ctx, readRequest)
 	assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
-	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+	assert.Equal(t, errors.ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
 	assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 
 	store.Disconnect()
@@ -753,14 +754,14 @@ func TestStoreWriteDeleteTxnDeleteAbsent(t *testing.T) {
 	//
 	readResponse, err := store.ReadTxn(ctx, readRequest)
 	assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
-	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+	assert.Equal(t, errors.ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
 	assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 
 	// Try to delete the key we just verified is absent
 	//
 	deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
 	assert.NotNilf(t, err, "Unexpectedly deleted the key from store for a second time - error: %v key: %v", err, key)
-	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for a previously deleted key - error %v", err)
+	assert.Equal(t, errors.ErrStoreKeyNotFound(key), err, "unexpected failure when looking for a previously deleted key - error %v", err)
 	assert.Nil(t, deleteResponse)
 
 	// Now write the key
@@ -793,7 +794,7 @@ func TestStoreWriteDeleteTxnDeleteAbsent(t *testing.T) {
 	//
 	readResponse, err = store.ReadTxn(ctx, readRequest)
 	assert.NotNilf(t, err, "Unexpected success reading key supposedly absent - error: %v key: %v", err)
-	assert.Equal(t, ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
+	assert.Equal(t, errors.ErrStoreKeyNotFound(key), err, "unexpected failure when looking for an absent key - error %v", err)
 	assert.Nilf(t, readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 
 	store.Disconnect()
@@ -846,7 +847,7 @@ func TestStoreWriteDeleteMultipleTxnRequired(t *testing.T) {
 	var foundError bool
 
 	for k := range readRequest.Records {
-		if err == ErrStoreKeyNotFound(k) {
+		if err == errors.ErrStoreKeyNotFound(k) {
 			foundError = true
 			break
 		}
@@ -1053,7 +1054,7 @@ func TestStoreWriteDeleteMultipleTxnPartialRequired(t *testing.T) {
 	//
 	deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
 	assert.NotNilf(t, err, "Failed to delete one or more keys from store - error: %v key: %v", err)
-	assert.Equal(t, ErrStoreKeyNotFound(keyComplete), err)
+	assert.Equal(t, errors.ErrStoreKeyNotFound(keyComplete), err)
 	assert.Nil(t, deleteResponse)
 
 	// Verify we still have what we expect by trying to read the complete set of
@@ -1268,22 +1269,22 @@ func TestStoreWriteReadDeleteWithoutConnect(t *testing.T) {
 
 	response, err := store.WriteTxn(ctx, writeRequest)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to write to store - error: %v", err)
-	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
+	assert.Equal(t, errors.ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotConnected("already disconnected"), err)
 	assert.Nil(t, response)
 
 	response, err = store.ReadTxn(ctx, readRequest)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to read from store - error: %v", err)
-	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
+	assert.Equal(t, errors.ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotConnected("already disconnected"), err)
 	assert.Nil(t, response)
 
 	response, err = store.DeleteTxn(ctx, deleteRequest)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to delete from store - error: %v", err)
-	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
+	assert.Equal(t, errors.ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotConnected("already disconnected"), err)
 	assert.Nil(t, response)
 
 	response, err = store.DeleteWithPrefix(ctx, deletePrefix)
 	assert.NotNilf(t, err, "Unexpectedly succeeded to delete from store - error: %v", err)
-	assert.Equal(t, ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotConnected("already disconnected"), err)
+	assert.Equal(t, errors.ErrStoreNotConnected("already disconnected"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotConnected("already disconnected"), err)
 	assert.Nil(t, response)
 
 	store = nil
@@ -1303,7 +1304,7 @@ func TestStoreSetWatch(t *testing.T) {
 
 	err = store.SetWatch(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, ErrStoreNotImplemented("SetWatch"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented("SetWatch"), err)
+	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatch"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatch"), err)
 
 	store.Disconnect()
 
@@ -1326,7 +1327,7 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 
 	err = store.SetWatchMultiple(keySet)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, ErrStoreNotImplemented("SetWatchMultiple"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented("SetWatchMultiple"), err)
+	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchMultiple"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchMultiple"), err)
 
 	store.Disconnect()
 
@@ -1349,7 +1350,7 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 
 	err = store.SetWatchWithPrefix(key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, ErrStoreNotImplemented("SetWatchWithPrefix"), err, "Unexpected error response - expected: %v got: %v", ErrStoreNotImplemented("SetWatchWithPrefix"), err)
+	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err)
 
 	store.Disconnect()
 

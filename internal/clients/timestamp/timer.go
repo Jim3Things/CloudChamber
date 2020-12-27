@@ -2,19 +2,15 @@ package timestamp
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
-)
-
-var (
-	ErrTimerNotFound = errors.New("timer ID was not found")
 )
 
 // timerEntry describes a single active timer
@@ -86,10 +82,10 @@ func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callba
 
 	now := common.TickFromContext(ctx)
 	entry := &timerEntry{
-		id:      t.nextID,
-		dueTime: delay + now,
+		id:       t.nextID,
+		dueTime:  delay + now,
 		callback: callback,
-		msg:     msg,
+		msg:      msg,
 	}
 
 	t.idMap[entry.id] = entry.dueTime
@@ -116,7 +112,7 @@ func (t *Timers) Cancel(timerID int) error {
 
 	dueTime, ok := t.idMap[timerID]
 	if !ok {
-		return ErrTimerNotFound
+		return errors.ErrTimerNotFound(timerID)
 	}
 
 	entries := t.waiters[dueTime]

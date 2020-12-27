@@ -20,6 +20,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
@@ -28,7 +29,7 @@ import (
 //
 type DBUsers struct {
 	Store *store.Store
-	val1 int64
+	val1  int64
 }
 
 var dbUsers *DBUsers
@@ -106,7 +107,7 @@ func (m *DBUsers) Create(ctx context.Context, u *pb.User) (int64, error) {
 
 	rev, err := m.Store.Create(ctx, store.KeyRootUsers, u.Name, v)
 
-	if err == store.ErrStoreAlreadyExists(u.Name) {
+	if err == errors.ErrStoreAlreadyExists(u.Name) {
 		return InvalidRev, ErrUserAlreadyExists(u.Name)
 	}
 
@@ -123,7 +124,7 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
 
-	if err == store.ErrStoreKeyNotFound(name) {
+	if err == errors.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, ErrUserNotFound(name)
 	}
 
@@ -156,7 +157,7 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
 
-	if err == store.ErrStoreKeyNotFound(name) {
+	if err == errors.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, ErrUserNotFound(name)
 	}
 
@@ -204,7 +205,7 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
 
-	if err == store.ErrStoreKeyNotFound(name) {
+	if err == errors.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, ErrUserNotFound(name)
 	}
 
@@ -250,7 +251,7 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, n)
 
-	if err == store.ErrStoreKeyNotFound(n) {
+	if err == errors.ErrStoreKeyNotFound(n) {
 		return ErrUserNotFound(name)
 	}
 
@@ -285,7 +286,7 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 
 	_, err = m.Store.Delete(ctx, store.KeyRootUsers, n, rev)
 
-	if err == store.ErrStoreKeyNotFound(n) {
+	if err == errors.ErrStoreKeyNotFound(n) {
 		return ErrUserNotFound(name)
 	}
 
