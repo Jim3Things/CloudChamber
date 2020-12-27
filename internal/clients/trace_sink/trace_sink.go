@@ -2,11 +2,11 @@ package trace_sink
 
 import (
 	"context"
-	"errors"
 	"sync"
 
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -20,9 +20,6 @@ type traceClient interface {
 }
 
 var (
-	errAlreadyInitialized = errors.New("trace sink client has already been initialized")
-	errNotReady           = errors.New("client is not ready")
-
 	tsc traceClient = &notReady{}
 )
 
@@ -40,22 +37,22 @@ func (nrc notReady) initialize(name string, opts ...grpc.DialOption) error {
 }
 
 func (nrc notReady) reset(_ context.Context) error {
-	return errNotReady
+	return errors.ErrClientNotReady("tracing")
 }
 
 func (nrc notReady) append(_ context.Context, _ *log.Entry) error {
-	return errNotReady
+	return errors.ErrClientNotReady("tracing")
 }
 
 func (nrc notReady) getPolicy(_ context.Context) (*pb.GetPolicyResponse, error) {
-	return nil, errNotReady
+	return nil, errors.ErrClientNotReady("tracing")
 }
 
 func (nrc notReady) getTraces(_ context.Context, _ int64, _ int64) <-chan traceData {
 	ch := make(chan traceData)
 	ch <- traceData{
 		Traces: nil,
-		Err:    errNotReady,
+		Err:    errors.ErrClientNotReady("tracing"),
 	}
 
 	return ch
@@ -81,7 +78,7 @@ func newTraceClient(dialName string, opts ...grpc.DialOption) traceClient {
 }
 
 func (acl *activeClient) initialize(_ string, _ ...grpc.DialOption) error {
-	return errAlreadyInitialized
+	return errors.ErrClientAlreadyInitialized("stepper")
 }
 
 func (acl *activeClient) reset(ctx context.Context) error {

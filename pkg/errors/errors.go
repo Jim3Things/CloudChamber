@@ -1,6 +1,4 @@
-// Package store - Errors contains the store package specific errors.
-//
-package store
+package errors
 
 import (
 	"errors"
@@ -8,12 +6,37 @@ import (
 )
 
 var (
-
 	// ErrStoreUnableToCreateClient indicates that it is not currently possible
 	// to create a client.
 	//
 	ErrStoreUnableToCreateClient = errors.New("CloudChamber: unable to create a new client")
 )
+
+// ErrClientAlreadyInitialized indicates that the attempt to initialize the
+// specified internal client library used to mediate access to a microservice
+// has failed because it was already initialized.
+type ErrClientAlreadyInitialized string
+
+func (eai ErrClientAlreadyInitialized) Error() string {
+	return fmt.Sprintf("the %s client has already been initialized", string(eai))
+}
+
+// ErrClientNotReady indicates that an attempt to call an internal microservice
+// through a client library has failed, as that library has not yet been
+// initialized.
+type ErrClientNotReady string
+
+func (enr ErrClientNotReady) Error() string {
+	return fmt.Sprintf("the %s client is not ready to process requests", string(enr))
+}
+
+// ErrTimerNotFound indicates that the specified timer ID was not found when
+// attempting to look up an active timer.
+type ErrTimerNotFound int
+
+func (etnf ErrTimerNotFound) Error() string {
+	return fmt.Sprintf("time ID %d was not found", int(etnf))
+}
 
 // ErrStoreNotConnected indicates the store instance does not have a
 // currently active client. The Connect() method can be used to establist a client.
@@ -37,14 +60,14 @@ func (esc ErrStoreConnected) Error() string {
 // from this client to the store failed
 //
 type ErrStoreConnectionFailed struct {
-	endpoints []string
-	reason    error
+	Endpoints []string
+	Reason    error
 }
 
 func (escf ErrStoreConnectionFailed) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: failed to establish connection to store - endpoints: %q reason: %q",
-		escf.endpoints, escf.reason)
+		"CloudChamber: failed to establish connection to store - Endpoints: %q Reason: %q",
+		escf.Endpoints, escf.Reason)
 }
 
 // ErrStoreKeyNotFound indicates the request key was not found when the store
@@ -126,40 +149,40 @@ func (esbrk ErrStoreBadRecordContent) Error() string {
 // This might mean that the store found more, or less, than the number of records expected.
 //
 type ErrStoreBadRecordCount struct {
-	key      string
-	expected int
-	actual   int
+	Key      string
+	Expected int
+	Actual   int
 }
 
 func (esbrc ErrStoreBadRecordCount) Error() string {
 	return fmt.Sprintf(
 		"CloudChamber: unexpected record count for key %q - expected: %v actual %v",
-		esbrc.key, esbrc.expected, esbrc.actual)
+		esbrc.Key, esbrc.Expected, esbrc.Actual)
 }
 
 // ErrStoreBadArgCondition indicates the condition argument specified for the update was not valid.
 //
 type ErrStoreBadArgCondition struct {
-	key       string
-	condition Condition
+	Key       string
+	Condition string
 }
 
 func (esbac ErrStoreBadArgCondition) Error() string {
-	return fmt.Sprintf("CloudChamber: compare operator %q not valid for key %q", esbac.condition, esbac.key)
+	return fmt.Sprintf("CloudChamber: compare operator %q not valid for key %q", esbac.Condition, esbac.Key)
 }
 
 // ErrStoreBadArgRevision indicates the supplied revision argument was invalid.
 //
 type ErrStoreBadArgRevision struct {
-	key       string
-	requested int64
-	actual    int64
+	Key       string
+	Requested int64
+	Actual    int64
 }
 
 func (esbar ErrStoreBadArgRevision) Error() string {
 	return fmt.Sprintf(
 		"CloudChamber: invalid revision argument supplied on update for key %q - requested: %v actual: %v",
-		esbar.key, esbar.requested, esbar.actual)
+		esbar.Key, esbar.Requested, esbar.Actual)
 }
 
 // ErrStoreConditionFail indicates the update transaction failed due to a
@@ -167,16 +190,16 @@ func (esbar ErrStoreBadArgRevision) Error() string {
 // but other conditions may apply.
 //
 type ErrStoreConditionFail struct {
-	key       string
-	requested int64
-	condition Condition
-	actual    int64
+	Key       string
+	Requested int64
+	Condition string
+	Actual    int64
 }
 
 func (esucf ErrStoreConditionFail) Error() string {
 	return fmt.Sprintf(
 		"CloudChamber: condition failure on update for key %q - requested: %v condition: %v actual: %v",
-		esucf.key, esucf.requested, esucf.condition, esucf.actual)
+		esucf.Key, esucf.Requested, esucf.Condition, esucf.Actual)
 }
 
 // ErrStoreAlreadyExists indicates the key, value pair being created already exists
@@ -194,3 +217,32 @@ type ErrStoreInvalidConfiguration string
 func (esic ErrStoreInvalidConfiguration) Error() string {
 	return fmt.Sprintf("CloudChamber: invalid store configuration - %v", string(esic))
 }
+
+// ErrDuplicateRack indicates duplicates rack names found
+type ErrDuplicateRack string
+
+func (edr ErrDuplicateRack) Error() string {
+	return fmt.Sprintf("Duplicate rack %q detected", string(edr))
+}
+
+// ErrDuplicateBlade indicates duplicates blade indexes found
+type ErrDuplicateBlade struct {
+	Rack  string
+	Blade int64
+}
+
+func (edb ErrDuplicateBlade) Error() string {
+	return fmt.Sprintf("Duplicate Blade %d in Rack %q detected", edb.Blade, edb.Rack)
+}
+
+// ErrRackValidationFailure indicates validation failure in the attributes associated
+// with a rack.
+type ErrRackValidationFailure struct {
+	Rack string
+	Err  error
+}
+
+func (evf ErrRackValidationFailure) Error() string {
+	return fmt.Sprintf("In rack %q: %v", evf.Rack, evf.Err)
+}
+

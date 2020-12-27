@@ -23,6 +23,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
@@ -74,10 +75,10 @@ type DBInventory struct {
 
 	Zone *pb.ExternalZone
 
-	ZoneCount int
+	ZoneCount     int
 	MaxBladeCount int64
 	MaxCapacity   *ct.BladeCapacity
-	Store *store.Store
+	Store         *store.Store
 
 	Region *pb.Region
 }
@@ -94,12 +95,12 @@ var dbInventory *DBInventory
 func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	if dbInventory == nil {
 		db := &DBInventory{
-			mutex: sync.RWMutex{},
-			Zone: nil,
+			mutex:         sync.RWMutex{},
+			Zone:          nil,
 			MaxBladeCount: 0,
 			MaxCapacity:   &ct.BladeCapacity{},
 			Store:         store.NewStore(),
-			Region:       &pb.Region{},
+			Region:        &pb.Region{},
 		}
 
 		if err = db.Initialize(ctx, cfg); err != nil {
@@ -109,7 +110,6 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 		if dbInventory == nil {
 			dbInventory = db
 		}
-
 
 		// For temporary backwards compatibilities sake, need to have the older
 		// version here to allow all the current tests to run before we have a
@@ -132,7 +132,7 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 // Initialize initializes an existing, but currently un-initialized DB Inventory
 // structure. This involves connecting to the store, loading the current inventory
 // definition from the definition file, and sending updates to the store to
-// reconcile the persisted state. Note that changes to the store may in turn 
+// reconcile the persisted state. Note that changes to the store may in turn
 // trigger any currently established watch handlers leading to updates elsewhere
 // in the system.
 //
@@ -148,7 +148,7 @@ func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) 
 	}
 
 	if err = m.LoadFromStore(ctx); err != nil {
-	 	return err
+		return err
 	}
 
 	if err = m.UpdateInventoryDefinition(ctx, cfg); err != nil {
@@ -192,7 +192,7 @@ func (m *DBInventory) LoadFromStore(ctx context.Context) error {
 func (m *DBInventory) UpdateInventoryDefinition(
 	ctx context.Context,
 	cfg *config.GlobalConfig,
-	) error {
+) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Update inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -204,15 +204,15 @@ func (m *DBInventory) UpdateInventoryDefinition(
 	// into the store looking to see if there are any material changes between
 	// what is already in the store and what is now found in the file.
 	//
-	zmFile, err := config.ReadInventoryDefinitionFromFile(ctx, cfg.Inventory.InventoryDefinition) 
+	zmFile, err := config.ReadInventoryDefinitionFromFile(ctx, cfg.Inventory.InventoryDefinition)
 	if err != nil {
-			return err 
+		return err
 	}
 
 	zmStore, err := m.readInventoryDefinitionFromStore(ctx)
 
 	if err != nil {
-		return err 
+		return err
 	}
 
 	if err = m.reconcileNewInventory(ctx, zmFile, zmStore); err != nil {
@@ -342,15 +342,14 @@ func (m *DBInventory) buildSummary(ctx context.Context) {
 				blade.NetworkBandwidthInMbps)
 		}
 
-		maxBladeCount = common.MaxInt64(maxBladeCount,	int64(len(rack.Blades)))
+		maxBladeCount = common.MaxInt64(maxBladeCount, int64(len(rack.Blades)))
 	}
 
 	m.MaxBladeCount = maxBladeCount
-	m.MaxCapacity   = memo
+	m.MaxCapacity = memo
 
 	tracing.Info(ctx, "   Updated inventory summary - MaxBladeCount: %d MaxCapacity: %v", m.MaxBladeCount, m.MaxCapacity)
 }
-
 
 // buildSummary constructs the memo-ed summary data for the zone.  This should
 // be called whenever the configured inventory changes. This includes
@@ -367,8 +366,8 @@ func (m *DBInventory) buildSummaryForRegion(ctx context.Context, zm *pb.Region) 
 	for _, zone := range zm.Zones {
 		for _, rack := range zone.Racks {
 			for _, blade := range rack.Blades {
-				maxCapacity.Cores      = common.MaxInt64(maxCapacity.Cores,      blade.Capacity.Cores)
-				maxCapacity.DiskInGb   = common.MaxInt64(maxCapacity.DiskInGb,   blade.Capacity.DiskInGb)
+				maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, blade.Capacity.Cores)
+				maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, blade.Capacity.DiskInGb)
 				maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, blade.Capacity.MemoryInMb)
 
 				maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
@@ -376,7 +375,7 @@ func (m *DBInventory) buildSummaryForRegion(ctx context.Context, zm *pb.Region) 
 					blade.Capacity.NetworkBandwidthInMbps)
 			}
 
-			maxBladeCount = common.MaxInt64(maxBladeCount,	int64(len(rack.Blades)))
+			maxBladeCount = common.MaxInt64(maxBladeCount, int64(len(rack.Blades)))
 		}
 	}
 
@@ -384,7 +383,6 @@ func (m *DBInventory) buildSummaryForRegion(ctx context.Context, zm *pb.Region) 
 
 	return len(zm.Zones), maxBladeCount, maxCapacity
 }
-
 
 // Condition describes the currtent operational condition of an item in the inventory.
 //
@@ -402,33 +400,32 @@ const (
 	ConditionRetired
 )
 
-
 // DefinitionTor describes the revision and value for the request TOR
 //
 type DefinitionTor struct {
 	revision int64
-	tor *pb.DefinitionTor
+	tor      *pb.DefinitionTor
 }
 
 // DefinitionPdu describes the revision and value for the request PDU
 //
 type DefinitionPdu struct {
 	revision int64
-	pdu *pb.DefinitionPdu
+	pdu      *pb.DefinitionPdu
 }
 
 // DefinitionBlade describes the revision and value for the request blade
 //
 type DefinitionBlade struct {
 	revision int64
-	blade *pb.DefinitionBlade
+	blade    *pb.DefinitionBlade
 }
 
 // DefinitionRack describes the revision and value for the request rack
 //
 type DefinitionRack struct {
 	revision int64
-	rack *pb.DefinitionRack
+	rack     *pb.DefinitionRack
 }
 
 // DefinitionZone defines the set of values used to summarize the contents of a zone to
@@ -436,19 +433,16 @@ type DefinitionRack struct {
 //
 type DefinitionZone struct {
 	revision int64
-	zone *pb.DefinitionZone
+	zone     *pb.DefinitionZone
 }
-
-
 
 // Generic options
 
-// InventoryOption is a 
-// 
+// InventoryOption is a
+//
 type InventoryOption func(*InventoryOptions)
 
-
-// InventoryOptions is a struct 
+// InventoryOptions is a struct
 //
 type InventoryOptions struct {
 	revision int64
@@ -463,25 +457,22 @@ func (options *InventoryOptions) applyOpts(optionsArray []InventoryOption) {
 // WithRevision is a
 //
 func WithRevision(rev int64) InventoryZoneOption {
-	return func(options *InventoryZoneOptions) {options.revision = rev}
+	return func(options *InventoryZoneOptions) { options.revision = rev }
 }
-
-
 
 // Zone options
 
-// InventoryZoneOption is a 
-// 
+// InventoryZoneOption is a
+//
 type InventoryZoneOption func(*InventoryZoneOptions)
 
-
-// InventoryZoneOptions is a struct 
+// InventoryZoneOptions is a struct
 //
 type InventoryZoneOptions struct {
-	revision int64
-	includeRacks bool
-	includePdus bool
-	includeTors bool
+	revision      int64
+	includeRacks  bool
+	includePdus   bool
+	includeTors   bool
 	includeBlades bool
 }
 
@@ -491,55 +482,50 @@ func (options *InventoryZoneOptions) applyZoneOpts(optionsArray []InventoryZoneO
 	}
 }
 
-
-
 // WithZoneRevision is a
 //
 func WithZoneRevision(rev int64) InventoryZoneOption {
-	return func(options *InventoryZoneOptions) {options.revision = rev}
+	return func(options *InventoryZoneOptions) { options.revision = rev }
 }
 
 // WithZoneRacks is a
 //
 func WithZoneRacks() InventoryZoneOption {
-	return func(options *InventoryZoneOptions) {options.includeRacks = true}
+	return func(options *InventoryZoneOptions) { options.includeRacks = true }
 }
 
 // WithZoneTors is a
 //
 func WithZoneTors() InventoryZoneOption {
-	return func(options *InventoryZoneOptions) {options.includeTors = true}
+	return func(options *InventoryZoneOptions) { options.includeTors = true }
 }
 
 // WithZonePdus is a
 //
 func WithZonePdus() InventoryZoneOption {
-	return func(options *InventoryZoneOptions) {options.includePdus = true}
+	return func(options *InventoryZoneOptions) { options.includePdus = true }
 }
 
 // WithZoneBlades is a
 //
 func WithZoneBlades() InventoryZoneOption {
-	return func(options *InventoryZoneOptions) {options.includeBlades = true}
+	return func(options *InventoryZoneOptions) { options.includeBlades = true }
 }
-
-
-
 
 // Rack options
 
 // InventoryRackOption is a speciic option to be applied to the
 // operation of interest.
-// 
+//
 type InventoryRackOption func(*InventoryRackOptions)
 
 // InventoryRackOptions is a struct used to colelct the set of
 // options to be applied to the operation of interest.
 //
 type InventoryRackOptions struct {
-	revision int64
-	includePdus bool
-	includeTors bool
+	revision      int64
+	includePdus   bool
+	includeTors   bool
 	includeBlades bool
 }
 
@@ -554,7 +540,7 @@ func (options *InventoryRackOptions) applyRackOpts(optionsArray []InventoryRackO
 // inappropriate, an error will be returned.
 //
 func WithRackRevision(rev int64) InventoryRackOption {
-	return func(options *InventoryRackOptions) {options.revision = rev}
+	return func(options *InventoryRackOptions) { options.revision = rev }
 }
 
 // WithRackPdus is an option to request that the Pdu detaila also
@@ -564,7 +550,7 @@ func WithRackRevision(rev int64) InventoryRackOption {
 // and should be used with care.
 //
 func WithRackPdus() InventoryRackOption {
-	return func(options *InventoryRackOptions) {options.includePdus = true}
+	return func(options *InventoryRackOptions) { options.includePdus = true }
 }
 
 // WithRackTors is an option to request that the Tor detaila also
@@ -574,7 +560,7 @@ func WithRackPdus() InventoryRackOption {
 // and should be used with care.
 //
 func WithRackTors() InventoryRackOption {
-	return func(options *InventoryRackOptions) {options.includeTors = true}
+	return func(options *InventoryRackOptions) { options.includeTors = true }
 }
 
 // WithRackBlades is an option to request that the blade detaila
@@ -584,9 +570,8 @@ func WithRackTors() InventoryRackOption {
 // and should be used with care.
 //
 func WithRackBlades() InventoryRackOption {
-	return func(options *InventoryRackOptions) {options.includeBlades = true}
+	return func(options *InventoryRackOptions) { options.includeBlades = true }
 }
-
 
 // ListZones returns the basic zone record for all the discovered zones. Optionally,
 // racks along with the rack component PDU, TOR and blades can also be returned.
@@ -612,7 +597,7 @@ func (m *DBInventory) ListPdus(ctx context.Context, zone string, rack string, op
 // ListTors returns the basic records for the TORs in the specified rack.
 //
 func (m *DBInventory) ListTors(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionTor, int64, error) {
-	return nil, InvalidRev,  nil
+	return nil, InvalidRev, nil
 }
 
 // ListBlades returns the basic records for the blades in the specified rack.
@@ -620,7 +605,6 @@ func (m *DBInventory) ListTors(ctx context.Context, zone string, rack string, op
 func (m *DBInventory) ListBlades(ctx context.Context, zone string, rack string, options ...InventoryOption) (map[string]*DefinitionBlade, int64, error) {
 	return nil, InvalidRev, nil
 }
-
 
 // CreateZone is used to create a basic zone record in the store.
 //
@@ -636,10 +620,10 @@ func (m *DBInventory) CreateZone(ctx context.Context, name string, zone *pb.Defi
 	// of a single field value change.
 	//
 	z := &pb.DefinitionZone{
-		Enabled: zone.Enabled,
+		Enabled:   zone.Enabled,
 		Condition: zone.Condition,
-		Location: zone.Location,
-		Notes: zone.Notes,
+		Location:  zone.Location,
+		Notes:     zone.Notes,
 	}
 
 	v, err := store.Encode(z)
@@ -652,7 +636,7 @@ func (m *DBInventory) CreateZone(ctx context.Context, name string, zone *pb.Defi
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
-	if err == store.ErrStoreAlreadyExists(k) {
+	if err == errors.ErrStoreAlreadyExists(k) {
 		return InvalidRev, ErrZoneAlreadyExists(name)
 	}
 
@@ -668,10 +652,10 @@ func (m *DBInventory) CreateZone(ctx context.Context, name string, zone *pb.Defi
 func (m *DBInventory) CreateRack(ctx context.Context, zone string, name string, rack *pb.DefinitionRack, options ...InventoryRackOption) (int64, error) {
 
 	r := &pb.DefinitionRack{
-		Enabled: rack.Enabled,
+		Enabled:   rack.Enabled,
 		Condition: rack.Condition,
-		Location: rack.Location,
-		Notes: rack.Notes,
+		Location:  rack.Location,
+		Notes:     rack.Notes,
 	}
 
 	v, err := store.Encode(r)
@@ -684,7 +668,7 @@ func (m *DBInventory) CreateRack(ctx context.Context, zone string, name string, 
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
-	if err == store.ErrStoreAlreadyExists(k) {
+	if err == errors.ErrStoreAlreadyExists(k) {
 		return InvalidRev, ErrRackAlreadyExists{zone, name}
 	}
 
@@ -704,9 +688,9 @@ func (m *DBInventory) CreatePdu(ctx context.Context, zone string, rack string, i
 	}
 
 	r := &pb.DefinitionPdu{
-		Enabled: pdu.Enabled,
+		Enabled:   pdu.Enabled,
 		Condition: pdu.Condition,
-		Ports: make(map[int64]*pb.DefinitionPowerPort, len(pdu.Ports)),
+		Ports:     make(map[int64]*pb.DefinitionPowerPort, len(pdu.Ports)),
 	}
 
 	for i, p := range pdu.Ports {
@@ -715,7 +699,7 @@ func (m *DBInventory) CreatePdu(ctx context.Context, zone string, rack string, i
 		if p.Item != nil {
 			r.Ports[i].Item = &pb.DefinitionItem{
 				Type: p.Item.Type,
-				Id: p.Item.Id,
+				Id:   p.Item.Id,
 				Port: p.Item.Port,
 			}
 		}
@@ -731,7 +715,7 @@ func (m *DBInventory) CreatePdu(ctx context.Context, zone string, rack string, i
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
-	if err == store.ErrStoreAlreadyExists(k) {
+	if err == errors.ErrStoreAlreadyExists(k) {
 		return InvalidRev, ErrPduAlreadyExists{zone, rack, index}
 	}
 
@@ -751,9 +735,9 @@ func (m *DBInventory) CreateTor(ctx context.Context, zone string, rack string, i
 	}
 
 	r := &pb.DefinitionTor{
-		Enabled: tor.Enabled,
+		Enabled:   tor.Enabled,
 		Condition: tor.Condition,
-		Ports: make(map[int64]*pb.DefinitionNetworkPort, len(tor.Ports)),
+		Ports:     make(map[int64]*pb.DefinitionNetworkPort, len(tor.Ports)),
 	}
 
 	for i, p := range tor.Ports {
@@ -762,7 +746,7 @@ func (m *DBInventory) CreateTor(ctx context.Context, zone string, rack string, i
 		if p.Item != nil {
 			r.Ports[i].Item = &pb.DefinitionItem{
 				Type: p.Item.Type,
-				Id: p.Item.Id,
+				Id:   p.Item.Id,
 				Port: p.Item.Port,
 			}
 		}
@@ -778,7 +762,7 @@ func (m *DBInventory) CreateTor(ctx context.Context, zone string, rack string, i
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
-	if err == store.ErrStoreAlreadyExists(k) {
+	if err == errors.ErrStoreAlreadyExists(k) {
 		return InvalidRev, ErrTorAlreadyExists{zone, rack, index}
 	}
 
@@ -794,9 +778,9 @@ func (m *DBInventory) CreateTor(ctx context.Context, zone string, rack string, i
 func (m *DBInventory) CreateBlade(ctx context.Context, zone string, rack string, index int64, blade *pb.DefinitionBlade, options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionBlade{
-		Enabled: blade.Enabled,
+		Enabled:   blade.Enabled,
 		Condition: blade.Condition,
-		Capacity: blade.Capacity,
+		Capacity:  blade.Capacity,
 	}
 
 	v, err := store.Encode(r)
@@ -809,7 +793,7 @@ func (m *DBInventory) CreateBlade(ctx context.Context, zone string, rack string,
 
 	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
 
-	if err == store.ErrStoreAlreadyExists(k) {
+	if err == errors.ErrStoreAlreadyExists(k) {
 		return InvalidRev, ErrBladeAlreadyExists{zone, rack, index}
 	}
 
@@ -826,7 +810,7 @@ func (m *DBInventory) ReadZone(ctx context.Context, name string, options ...Inve
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return nil, InvalidRev, ErrZoneNotFound(name)
 	}
 
@@ -848,7 +832,7 @@ func (m *DBInventory) ReadRack(ctx context.Context, zone string, name string, op
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return nil, InvalidRev, ErrRackNotFound{zone, name}
 	}
 
@@ -869,7 +853,7 @@ func (m *DBInventory) ReadPdu(ctx context.Context, zone string, rack string, ind
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return nil, InvalidRev, ErrPduNotFound{zone, rack, index}
 	}
 
@@ -890,7 +874,7 @@ func (m *DBInventory) ReadTor(ctx context.Context, zone string, rack string, ind
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return nil, InvalidRev, ErrTorNotFound{zone, rack, index}
 	}
 
@@ -911,7 +895,7 @@ func (m *DBInventory) ReadBlade(ctx context.Context, zone string, rack string, i
 
 	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return nil, InvalidRev, ErrBladeNotFound{zone, rack, index}
 	}
 
@@ -924,7 +908,6 @@ func (m *DBInventory) ReadBlade(ctx context.Context, zone string, rack string, i
 	return r, rev, err
 }
 
-
 // UpdateZone is used to update the zone basic details record.
 //
 // Only the zone level details will be updated and any
@@ -934,10 +917,10 @@ func (m *DBInventory) ReadBlade(ctx context.Context, zone string, rack string, i
 func (m *DBInventory) UpdateZone(ctx context.Context, name string, zone *pb.DefinitionZone, options ...InventoryZoneOption) (int64, error) {
 
 	z := &pb.DefinitionZone{
-		Enabled: zone.Enabled,
+		Enabled:   zone.Enabled,
 		Condition: zone.Condition,
-		Location: zone.Location,
-		Notes: zone.Notes,
+		Location:  zone.Location,
+		Notes:     zone.Notes,
 	}
 
 	v, err := store.Encode(z)
@@ -950,7 +933,7 @@ func (m *DBInventory) UpdateZone(ctx context.Context, name string, zone *pb.Defi
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrZoneNotFound(name)
 	}
 
@@ -966,10 +949,10 @@ func (m *DBInventory) UpdateZone(ctx context.Context, name string, zone *pb.Defi
 func (m *DBInventory) UpdateRack(ctx context.Context, zone string, name string, rack *pb.DefinitionRack, options ...InventoryRackOption) (int64, error) {
 
 	r := &pb.DefinitionRack{
-		Enabled: rack.Enabled,
+		Enabled:   rack.Enabled,
 		Condition: rack.Condition,
-		Location: rack.Location,
-		Notes: rack.Notes,
+		Location:  rack.Location,
+		Notes:     rack.Notes,
 	}
 
 	v, err := store.Encode(r)
@@ -982,7 +965,7 @@ func (m *DBInventory) UpdateRack(ctx context.Context, zone string, name string, 
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrRackNotFound{zone, name}
 	}
 
@@ -994,7 +977,7 @@ func (m *DBInventory) UpdateRack(ctx context.Context, zone string, name string, 
 func (m *DBInventory) UpdatePdu(ctx context.Context, zone string, rack string, index int64, pdu *pb.DefinitionPdu, options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionPdu{
-		Enabled: pdu.Enabled,
+		Enabled:   pdu.Enabled,
 		Condition: pdu.Condition,
 	}
 
@@ -1003,7 +986,7 @@ func (m *DBInventory) UpdatePdu(ctx context.Context, zone string, rack string, i
 			Wired: p.Wired,
 			Item: &pb.DefinitionItem{
 				Type: p.Item.Type,
-				Id: p.Item.Id,
+				Id:   p.Item.Id,
 				Port: p.Item.Port,
 			},
 		}
@@ -1019,7 +1002,7 @@ func (m *DBInventory) UpdatePdu(ctx context.Context, zone string, rack string, i
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrPduNotFound{zone, rack, index}
 	}
 
@@ -1031,7 +1014,7 @@ func (m *DBInventory) UpdatePdu(ctx context.Context, zone string, rack string, i
 func (m *DBInventory) UpdateTor(ctx context.Context, zone string, rack string, index int64, tor *pb.DefinitionTor, options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionTor{
-		Enabled: tor.Enabled,
+		Enabled:   tor.Enabled,
 		Condition: tor.Condition,
 	}
 
@@ -1040,7 +1023,7 @@ func (m *DBInventory) UpdateTor(ctx context.Context, zone string, rack string, i
 			Wired: p.Wired,
 			Item: &pb.DefinitionItem{
 				Type: p.Item.Type,
-				Id: p.Item.Id,
+				Id:   p.Item.Id,
 				Port: p.Item.Port,
 			},
 		}
@@ -1056,7 +1039,7 @@ func (m *DBInventory) UpdateTor(ctx context.Context, zone string, rack string, i
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrTorNotFound{zone, rack, index}
 	}
 
@@ -1068,9 +1051,9 @@ func (m *DBInventory) UpdateTor(ctx context.Context, zone string, rack string, i
 func (m *DBInventory) UpdateBlade(ctx context.Context, zone string, rack string, index int64, blade *pb.DefinitionBlade, options ...InventoryOption) (int64, error) {
 
 	r := &pb.DefinitionBlade{
-		Enabled: blade.Enabled,
+		Enabled:   blade.Enabled,
 		Condition: blade.Condition,
-		Capacity: blade.Capacity,
+		Capacity:  blade.Capacity,
 	}
 
 	v, err := store.Encode(r)
@@ -1083,13 +1066,12 @@ func (m *DBInventory) UpdateBlade(ctx context.Context, zone string, rack string,
 
 	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrBladeNotFound{zone, rack, index}
 	}
 
 	return rev, err
 }
-
 
 // DeleteZone is used to delete the zone record and any
 // contained rack records. That is it will delete the
@@ -1101,7 +1083,7 @@ func (m *DBInventory) DeleteZone(ctx context.Context, name string, options ...In
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrZoneNotFound(name)
 	}
 
@@ -1118,7 +1100,7 @@ func (m *DBInventory) DeleteRack(ctx context.Context, zone string, name string, 
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrRackNotFound{zone, name}
 	}
 
@@ -1139,7 +1121,7 @@ func (m *DBInventory) DeletePdu(ctx context.Context, zone string, rack string, p
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrPduNotFound{zone, rack, pdu}
 	}
 
@@ -1160,7 +1142,7 @@ func (m *DBInventory) DeleteTor(ctx context.Context, zone string, rack string, t
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrTorNotFound{zone, rack, tor}
 	}
 
@@ -1181,10 +1163,9 @@ func (m *DBInventory) DeleteBlade(ctx context.Context, zone string, rack string,
 
 	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
 
-	if err == store.ErrStoreKeyNotFound(k) {
+	if err == errors.ErrStoreKeyNotFound(k) {
 		return InvalidRev, ErrBladeNotFound{zone, rack, blade}
 	}
 
 	return rev, err
 }
-

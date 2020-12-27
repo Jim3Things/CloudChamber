@@ -9,6 +9,8 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+
 	"google.golang.org/protobuf/runtime/protoiface"
 )
 
@@ -48,11 +50,11 @@ const (
 	namespaceRootInventoryObservedeState = namespaceRootInventory + "/" + "observed"
 	namespaceRootInventoryRepairActions  = namespaceRootInventory + "/" + "repair"
 
-	namespaceRootWorkloadDefinition      = namespaceRootWorkloads + "/" + "definition"
-	namespaceRootWorkloadTargetState     = namespaceRootWorkloads + "/" + "target"
-	namespaceRootWorkloadActualState     = namespaceRootWorkloads + "/" + "actual"
-	namespaceRootWorkloadObservedeState  = namespaceRootWorkloads + "/" + "observed"
-	namespaceRootWorkloadRepairActions   = namespaceRootWorkloads + "/" + "repair"
+	namespaceRootWorkloadDefinition     = namespaceRootWorkloads + "/" + "definition"
+	namespaceRootWorkloadTargetState    = namespaceRootWorkloads + "/" + "target"
+	namespaceRootWorkloadActualState    = namespaceRootWorkloads + "/" + "actual"
+	namespaceRootWorkloadObservedeState = namespaceRootWorkloads + "/" + "observed"
+	namespaceRootWorkloadRepairActions  = namespaceRootWorkloads + "/" + "repair"
 )
 
 var namespaceRoots = map[KeyRoot]string{
@@ -70,19 +72,18 @@ var namespaceRoots = map[KeyRoot]string{
 	KeyRootWorkloadRepairActions:  namespaceRootWorkloadRepairActions,
 }
 
-
 // Action defines the signature for a function to be invoked when the
 // WithAction option is used.
 //
 type Action func(string) error
 
-// Options is a set of options supplied via zero or more WithXxxx() functions 
+// Options is a set of options supplied via zero or more WithXxxx() functions
 //
 type Options struct {
-	revision int64
-	keysOnly bool
+	revision    int64
+	keysOnly    bool
 	useAsPrefix bool
-	action Action
+	action      Action
 }
 
 func (options *Options) applyOpts(optionsArray []Option) {
@@ -93,7 +94,7 @@ func (options *Options) applyOpts(optionsArray []Option) {
 
 // Option is the signature of the option functions used to select additional
 // optional parameters on a base routine call.
-// 
+//
 type Option func(*Options)
 
 // WithRevision is an option to supply a specific revision that applies to the
@@ -101,7 +102,7 @@ type Option func(*Options)
 // revision of a record.
 //
 func WithRevision(rev int64) Option {
-	return func(options *Options) {options.revision = rev}
+	return func(options *Options) { options.revision = rev }
 }
 
 // WithPrefix is an option used to indicate the supplied name whoult be used
@@ -112,10 +113,10 @@ func WithRevision(rev int64) Option {
 // error could easily lead to an entire namespace being inadvertantly deleted.
 //
 func WithPrefix() Option {
-	return func(options *Options) {options.useAsPrefix = true}
+	return func(options *Options) { options.useAsPrefix = true }
 }
 
-// WithKeysOnly is an option applying to a Read() request to avoid reading any 
+// WithKeysOnly is an option applying to a Read() request to avoid reading any
 // value(s) associated with the requested set of one or more keys.
 //
 // This option is primarily useful when attempting to determine which keys are
@@ -124,17 +125,15 @@ func WithPrefix() Option {
 // increase in performance and/or a reduction in consumed resources.
 //
 func WithKeysOnly() Option {
-	return func(options *Options) {options.keysOnly = true}
+	return func(options *Options) { options.keysOnly = true }
 }
 
 // WithAction allows a caller to supply an action routine which is invoke
 // on each record being processed within the transaction
 //
 func WithAction(action Action) Option {
-	return func(options *Options) {options.action = action}
+	return func(options *Options) { options.action = action }
 }
-
-
 
 func getNamespaceRootFromKeyRoot(r KeyRoot) string {
 	return namespaceRoots[r]
@@ -149,7 +148,7 @@ func getKeyFromKeyRootAndName(r KeyRoot, n string) string {
 }
 
 func getNameFromKeyRootAndKey(r KeyRoot, k string) string {
-	n := strings.TrimPrefix(namespaceRoots[r] + "/", k)
+	n := strings.TrimPrefix(namespaceRoots[r]+"/", k)
 	return n
 }
 
@@ -178,8 +177,6 @@ type Request struct {
 	Actions    map[string]Action
 }
 
-
-
 // // Operation indicates which operation should be applied to the item in the request.
 // //
 // type Operation uint
@@ -192,7 +189,7 @@ type Request struct {
 // 	OpDelete
 // )
 
-// // Item represents a specific record with 
+// // Item represents a specific record with
 // //
 // type Item struct {
 // 	Record Record
@@ -209,8 +206,6 @@ type Request struct {
 // 	Reason     string
 // 	Items      map[string]Item
 // }
-
-
 
 // Response is a struct defining the set of values returned from a request.
 //
@@ -280,8 +275,8 @@ func (store *Store) CreateWithEncode(
 	// Need to strip the namespace prefix and return something described
 	// in terms the caller should recognize
 	//
-	if err == ErrStoreAlreadyExists(k) {
-		return RevisionInvalid, ErrStoreAlreadyExists(n)
+	if err == errors.ErrStoreAlreadyExists(k) {
+		return RevisionInvalid, errors.ErrStoreAlreadyExists(n)
 	}
 
 	if err != nil {
@@ -322,8 +317,8 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 	// Need to strip the namespace prefix and return something described
 	// in terms the caller should recognize
 	//
-	if err == ErrStoreAlreadyExists(k) {
-		return RevisionInvalid, ErrStoreAlreadyExists(n)
+	if err == errors.ErrStoreAlreadyExists(k) {
+		return RevisionInvalid, errors.ErrStoreAlreadyExists(n)
 	}
 
 	if err != nil {
@@ -370,9 +365,9 @@ func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 		// in terms the caller should recognize
 		//
 		for k := range request.Records {
-			if err == ErrStoreAlreadyExists(k) {
+			if err == errors.ErrStoreAlreadyExists(k) {
 				n := getNameFromKeyRootAndKey(r, k)
-				return RevisionInvalid, ErrStoreAlreadyExists(n)
+				return RevisionInvalid, errors.ErrStoreAlreadyExists(n)
 			}
 		}
 
@@ -442,10 +437,10 @@ func (store *Store) ReadWithDecode(
 
 	switch recordCount {
 	default:
-		return RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
+		return RevisionInvalid, errors.ErrStoreBadRecordCount{n, 1, recordCount}
 
 	case 0:
-		return RevisionInvalid, ErrStoreKeyNotFound(n)
+		return RevisionInvalid, errors.ErrStoreKeyNotFound(n)
 
 	case 1:
 		rev = response.Records[k].Revision
@@ -511,10 +506,10 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 
 	switch recordCount {
 	default:
-		return nil, RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
+		return nil, RevisionInvalid, errors.ErrStoreBadRecordCount{n, 1, recordCount}
 
 	case 0:
-		return nil, RevisionInvalid, ErrStoreKeyNotFound(n)
+		return nil, RevisionInvalid, errors.ErrStoreKeyNotFound(n)
 
 	case 1:
 		rev = response.Records[k].Revision
@@ -536,7 +531,7 @@ func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64, 
 	defer span.End()
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
-	k      := getKeyFromKeyRootAndName(r, n)
+	k := getKeyFromKeyRootAndName(r, n)
 
 	tracing.Info(ctx, "Request to update %q under prefix %q", n, prefix)
 
@@ -669,8 +664,8 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 	// Need to strip the namespace prefix and return something described
 	// in terms the caller should recognize
 	//
-	if err == ErrStoreKeyNotFound(k) {
-		return RevisionInvalid, ErrStoreKeyNotFound(n)
+	if err == errors.ErrStoreKeyNotFound(k) {
+		return RevisionInvalid, errors.ErrStoreKeyNotFound(n)
 	}
 
 	if err != nil {
@@ -716,7 +711,7 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 	for k, record := range response.Records {
 
 		if !strings.HasPrefix(k, prefix) {
-			return nil, RevisionInvalid, ErrStoreBadRecordKey(k)
+			return nil, RevisionInvalid, errors.ErrStoreBadRecordKey(k)
 		}
 
 		name := strings.TrimPrefix(k, prefix)
