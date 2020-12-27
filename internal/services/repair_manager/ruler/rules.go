@@ -12,6 +12,14 @@ var ErrInvalidArgLen = errors.New("invalid number of arguments")
 
 // Define the rules definition layout
 
+type Tables interface {
+	GetTable(name string) (*Table, error)
+}
+
+type Table interface {
+	GetValue(key string) (interface{}, error)
+}
+
 // Proposal is the placeholder structure for the result from calling the
 // output function
 type Proposal struct {
@@ -33,6 +41,10 @@ type Rule struct {
 	// various choices are evaluated until one matches.
 	Where Term
 
+	// Reason is the text for the log's reason attribute explaining why this
+	// rule is evaluated.
+	Reason string
+
 	// Choices are the set of conditional subtests, which are listed in order
 	// of decreasing priority.  This enables contextual operation, such as
 	// repair action escalation.
@@ -45,6 +57,14 @@ type RuleChoice struct {
 	// this choice is taken, and this choice's output function is called.
 	Assuming Term
 
+	// Chosen is the supplemental reason text explaining why this choice was
+	// picked.
+	Chosen string
+
+	// Rejected is the supplemental reason text explaining why this choice was
+	// not picked.
+	Rejected string
+
 	// With contains the set of argument and context state to provide to the
 	// output function
 	With []Arg
@@ -54,15 +74,20 @@ type RuleChoice struct {
 	Call OutputFunc
 }
 
-// [ { Where: NotMatch(N("first/%blade%/state"), N("second/%blade%/state")),
+// [ { Where: All(
+//			NotMatch(N("first/%blade%/state"), N("second/%blade%/state")),
+//			Match(N("second/%pdu%/power"), V(true)),
+//			Match(N("second/%pdu%/cables/%blade%/power"), V(true)),
+//			Match(N("second/%tor%/state"), V(torWorking)),
+//			Match(N("second/%tor%/cables/%blade%/connected"), V(true)),
+//			Match(N("second/%blade%/booting"), V(false)),
+//     Reason: "blade needs to be booted, it is bootable, and it has not been booted",
 //	   Choices: []RuleChoice {
 //			{ Assuming: All(
-//     			Match(N("second/%pdu%/power"), V(true)),
-//				Match(N("second/%pdu%/cables/%blade%/power"), V(true)),
-//				Match(N("second/%tor%/state"), V(torWorking)),
-//				Match(N("second/%tor%/cables/%blade%/connected"), V(true)),
-//				Match(N("second/%blade%/booting"), V(false)),
+//				NotMatch(N("second/%blade%/repair"), V("boot"))
 //	   		),
+//			Chosen: "no previous attempt to boot",
+//			Rejected: "already tried to boot",
 //	   		With: []Arg {
 //	  			{Name:"blade", From: N(%blade%)},
 //	  			{Name:"boot", From:V(true)},
