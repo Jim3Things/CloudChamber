@@ -406,56 +406,8 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 }
 
 
-// Address is a
-//
-type Address struct {
-	region string
-	zone string
-	rack string
-	item *pb.Hardware
-}
-
-type item struct {
-	address Address
-	key string
-}
-
-// GetKeyForAddress generates the key to operate on the record for an inventory item within a
-// specific table (definition, actual, observed, target)
-//
-func GetKeyForAddress(table string, addr *Address) (string, error) {
-
-	switch  {
-	case addr.region != "" && addr.zone != "" && addr.rack != "" && addr.item != nil:
-		switch addr.item.Type {
-		case pb.Hardware_pdu: 
-			return GetKeyForPdu(table, addr.region, addr.zone, addr.rack, addr.item.Id)
-
-		case pb.Hardware_tor:
-			return GetKeyForPdu(table, addr.region, addr.zone, addr.rack, addr.item.Id)
-
-		case pb.Hardware_blade:
-			return GetKeyForPdu(table, addr.region, addr.zone, addr.rack, addr.item.Id)
-		}
-
-	case addr.region != "" && addr.zone != "" && addr.rack != "":
-		return GetKeyForRack(table, addr.region, addr.zone, addr.rack)
-
-	case addr.region != "" && addr.zone != "":
-		return GetKeyForZone(table, addr.region, addr.zone)
-
-	case addr.region != "":
-		return GetKeyForRegion(table, addr.region)
-	}
-
-	return "", ErrInvalidAddress{table, addr}
-}
-
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things". You can send operations and commands to things, but not containers.
 type inventoryItem interface {
-	SetAddress(ctx context.Context, addr Address) error
-	GetKey(ctx context.Context) (*string, error)
-
 	SetDetails(ctx context.Context, details *interface{}) error
 	GetDetails(ctx context.Context) (*interface{}, error)
 
@@ -464,17 +416,6 @@ type inventoryItem interface {
 	Update(ctx context.Context) (int64, error)
 	Delete(ctx context.Context) error
 }
-
-// type inventoryRoot interface {
-// 	inventoryItem
-// }
-// type inventoryRegion interface {
-// 	inventoryItem
-// }
-
-// type inventoryZone interface {
-// 	inventoryItem
-// }
 
 type inventoryItemNode interface {
 	inventoryItem
@@ -486,7 +427,7 @@ type inventoryItemNode interface {
 }
 
 type inventoryItemRack interface {
-	inventoryItem
+	inventoryItemNode
 
 	NewPdu(ctx context.Context,   name string) (*interface{}, error)
 	NewTor(ctx context.Context,   name string) (*interface{}, error)
@@ -541,20 +482,11 @@ var (
 
 type nullItem struct {}
 
-func (n *nullItem) SetAddress(addr Address) error {
-	return ErrNullItem
-}
-
 // SetName is a
 //
 func (n *nullItem) SetName(name interface{}) error {
 	return ErrNullItem
 }
-
-func (n *nullItem) GetKey() (*string, error) {
-	return nil, ErrNullItem
-}
-
 
 func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) error {
 	return ErrNullItem

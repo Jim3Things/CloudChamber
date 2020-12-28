@@ -6,17 +6,6 @@ import (
 	"fmt"
 )
 
-// ErrInvalidAddress indicates the supplied region name is absent or otherwise not properly specified.
-//
-type ErrInvalidAddress struct {
-	table string
-	addr  *Address
-}
-
-func (eia ErrInvalidAddress) Error() string {
-	return fmt.Sprintf("CloudChamber: invalid address: table: %q address: %v", eia.table, eia.addr)
-}
-
 // ErrTableNameInvalid indicates the supplied region name is not one of the valid options.
 //
 type ErrTableNameInvalid string
