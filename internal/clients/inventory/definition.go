@@ -214,12 +214,6 @@ type Root struct {
 }
 
 
-// SetAddress is a
-//
-func (r *Root) SetAddress(ctx context.Context, addr Address) error {
-	return 	ErrFunctionNotAvailable
-}
-
 // SetName is a
 //
 func (r *Root) SetName(ctx context.Context, name string) error {
@@ -233,12 +227,6 @@ func (r *Root) SetName(ctx context.Context, name string) error {
 	r.KeyChildIndex = keyIndex
 
 	return nil
-}
-
-// GetKey is a
-//
-func (r *Root) GetKey(ctx context.Context) error {
-	return 	ErrFunctionNotAvailable
 }
 
 // SetDetails is a
@@ -356,12 +344,6 @@ type Region struct {
 	details  *pb.RegionDetails
 }
 
-// SetAddress is
-//
-func (r *Region) SetAddress(ctx context.Context, addr Address) error {
-	return ErrFunctionNotAvailable
-}
-
 // SetName is a 
 //
 func (r *Region) SetName(ctx context.Context, name string) error {
@@ -375,12 +357,6 @@ func (r *Region) SetName(ctx context.Context, name string) error {
 	r.Key = key
 
 	return nil
-}
-
-// GetKey is
-//
-func (r *Region) GetKey(ctx context.Context) (*string, error) {
-	return nil, ErrFunctionNotAvailable
 }
 
 // SetDetails is a
@@ -525,13 +501,6 @@ type Zone struct {
 	details  *pb.ZoneDetails
 }
 
-// SetAddress is
-//
-func (z *Zone) SetAddress(ctx context.Context, addr Address) error {
-
-	return nil
-}
-
 // SetName is a 
 //
 func (z *Zone) SetName(ctx context.Context, name string) error {
@@ -545,12 +514,6 @@ func (z *Zone) SetName(ctx context.Context, name string) error {
 	z.Key = key
 
 	return nil
-}
-
-// GetKey is
-//
-func (z *Zone) GetKey(ctx context.Context) (*string, error) {
-	return nil, nil
 }
 
 // SetDetails is a
@@ -698,12 +661,6 @@ type Rack struct {
 
 }
 
-// SetAddress is
-//
-func (r *Rack) SetAddress(ctx context.Context, addr Address) error {
-	return ErrFunctionNotAvailable
-}
-
 // SetName is a 
 //
 func (r *Rack) SetName(ctx context.Context, name string) error {
@@ -717,12 +674,6 @@ func (r *Rack) SetName(ctx context.Context, name string) error {
 	r.Key = key
 
 	return nil
-}
-
-// GetKey is
-//
-func (r *Rack) GetKey(ctx context.Context) (*string, error) {
-	return nil, ErrFunctionNotAvailable
 }
 
 // SetDetails is a
@@ -1012,13 +963,6 @@ type Pdu struct {
 	ports    *map[int64]*pb.PowerPort
 }
 
-// SetAddress is
-//
-func (p *Pdu) SetAddress(ctx context.Context, addr Address) error {
-
-	return nil
-}
-
 // SetName is a 
 //
 func (p *Pdu) SetName(ctx context.Context, ID int64) error {
@@ -1032,12 +976,6 @@ func (p *Pdu) SetName(ctx context.Context, ID int64) error {
 	p.Key = key
 
 	return nil
-}
-
-// GetKey is
-//
-func (p *Pdu) GetKey(ctx context.Context) (*string, error) {
-	return nil, nil
 }
 
 // SetDetails is a
@@ -1156,13 +1094,6 @@ type Tor struct {
 	ports    *map[int64]*pb.NetworkPort
 }
 
-// SetAddress is
-//
-func (t *Tor) SetAddress(ctx context.Context, addr Address) error {
-
-	return nil
-}
-
 // SetName is a 
 //
 func (t *Tor) SetName(ctx context.Context, ID int64) error {
@@ -1176,12 +1107,6 @@ func (t *Tor) SetName(ctx context.Context, ID int64) error {
 	t.Key = key
 
 	return nil
-}
-
-// GetKey is
-//
-func (t *Tor) GetKey(ctx context.Context) (*string, error) {
-	return nil, nil
 }
 
 // SetDetails is a
@@ -1301,12 +1226,6 @@ type Blade struct {
 	bootOnPowerOn bool
 }
 
-// SetAddress is
-//
-func (b *Blade) SetAddress(addr Address) error {
-	return ErrFunctionNotAvailable
-}
-
 // SetName is a 
 //
 func (b *Blade) SetName(ctx context.Context, region string, zone string, rack string, blade int64) error {
@@ -1326,12 +1245,6 @@ func (b *Blade) SetName(ctx context.Context, region string, zone string, rack st
 	b.record = nil
 
 	return nil
-}
-
-// GetKey is
-//
-func (b *Blade) GetKey() (*string, error) {
-	return nil, nil
 }
 
 // SetDetails is a
