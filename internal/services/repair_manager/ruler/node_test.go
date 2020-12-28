@@ -214,7 +214,7 @@ func (ts *NodeTestSuite) TestAllEvaluate() {
 
 	l, err = n.Evaluate(ec)
 	require.Error(err)
-	assert.Equal(ErrInvalidType, err)
+	assert.Equal(ErrInvalidType(ValueString), err)
 }
 
 func (ts *NodeTestSuite) TestAnyEvaluate() {
@@ -252,7 +252,7 @@ func (ts *NodeTestSuite) TestAnyEvaluate() {
 
 	l, err = n.Evaluate(ec)
 	require.Error(err)
-	assert.Equal(ErrInvalidType, err)
+	assert.Equal(ErrInvalidType(ValueString), err)
 }
 
 func (ts *NodeTestSuite) TestInvalidEvaluate() {
@@ -270,7 +270,7 @@ func (ts *NodeTestSuite) TestInvalidEvaluate() {
 
 	_, err := n.Evaluate(ec)
 	require.Error(err)
-	assert.Equal(ErrInvalidOp, err)
+	assert.Equal(ErrInvalidOp(OpInvalid), err)
 }
 
 func TestNodeTestSuite(t *testing.T) {

@@ -1,24 +1,57 @@
 package ruler
 
 import (
-	"errors"
+	"context"
+	"fmt"
+
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
 // Error definitions.  Placeholder for now.
 
-var ErrInvalidType = errors.New("invalid type")
-var ErrInvalidOp = errors.New("invalid operation")
-var ErrInvalidArgLen = errors.New("invalid number of arguments")
+type ErrInvalidType ValueType
+func (e ErrInvalidType) Error() string {
+	return fmt.Sprintf("unexpected value type %d encountered", int(e))
+}
+
+type ErrInvalidOp OpType
+func (e ErrInvalidOp) Error() string {
+	return fmt.Sprintf("unexpected operation %d encountered", int(e))
+}
+
+type ErrInvalidArgLen struct {
+	op string
+	required string
+	actual int
+}
+func (e ErrInvalidArgLen) Error() string {
+	return fmt.Sprintf("operation %s expects %s but received %d", e.op, e.required, e.actual)
+}
+
+type ErrMissingFieldName string
+func (e ErrMissingFieldName) Error() string {
+	return fmt.Sprintf(
+		"key must have a table name, one or more path elements, and one field name.  " +
+			"no field name was found in %q.", string(e))
+}
+
+type ErrExtraFieldNames string
+func (e ErrExtraFieldNames) Error() string {
+	return fmt.Sprintf(
+		"key must have a table name, one or more path elements, and one field name.  " +
+			"multiple possible field were names found in %q.",
+			string(e))
+}
+
+type ErrMissingPath string
+func (e ErrMissingPath) Error() string {
+	return fmt.Sprintf(
+		"key must have a table name, one or more path elements, and one field name.  " +
+			"No path elements were found in %q.",
+			string(e))
+}
 
 // Define the rules definition layout
-
-type Tables interface {
-	GetTable(name string) (*Table, error)
-}
-
-type Table interface {
-	GetValue(key string) (interface{}, error)
-}
 
 // Proposal is the placeholder structure for the result from calling the
 // output function
@@ -107,24 +140,7 @@ func N(key string) Term {
 
 // V creates a Term holding the specified value.
 func V(value interface{}) Term {
-	switch v := value.(type) {
-	case bool:
-		return NewLeafBool(v)
-
-	case int32:
-		return NewLeafInt32(v)
-
-	case int:
-		return NewLeafInt32(int32(v))
-
-	case int64:
-		return NewLeafInt64(v)
-
-	case string:
-		return NewLeafString(v)
-	}
-
-	return nil
+	return NewLeaf(value)
 }
 
 // Match creates the Terms to hold a Match test
@@ -148,3 +164,78 @@ func Any(terms ...Term) Term {
 }
 
 // --- Rule API functions
+
+// Process is the main entry into the rules processing.  It processes each
+// rule, looking for a match.  When it finds one, it adds it to the set of
+// proposals.  When it gets an error processing, it stops and immediately
+// returns.
+//
+// -- Should it return on the first proposal match?  If it gets an error
+//    should it return the previously completed proposals?
+func Process(rules []Rule, tables Tables, vars map[string]string) ([]*Proposal, error) {
+	ec := &EvalContext{
+		Replacements: varsToReplacements(vars),
+		Tables:       tables,
+	}
+
+	var proposals []*Proposal
+
+	for _, rule := range rules {
+		reason := ""
+
+		v, err := processTerm(rule.Where, ec)
+		if err != nil {
+			return nil, err
+		}
+
+		but := " but"
+		if v {
+			reason = rule.Reason
+			for _, choice := range rule.Choices {
+				v, err := processTerm(choice.Assuming, ec)
+				if err != nil {
+					return nil, err
+				}
+
+				if v {
+					reason = fmt.Sprintf("%s and %s", reason, choice.Chosen)
+					_, span := tracing.StartSpan(context.Background(),
+						tracing.WithReason(reason))
+
+					p, err := choice.Call(choice.With)
+					if err != nil {
+						return nil, err
+					}
+					proposals = append(proposals, p)
+
+					span.End()
+					break
+				} else {
+
+					reason = fmt.Sprintf("%s%s %s", reason, but, choice.Rejected)
+					but = ", "
+				}
+			}
+		}
+	}
+
+	return proposals, nil
+}
+
+func varsToReplacements(vars map[string]string) []string {
+	var r []string
+	for k, v := range vars {
+		r = append(r, k, v)
+	}
+
+	return r
+}
+
+func processTerm(where Term, ec *EvalContext) (bool, error) {
+	res, err := where.Evaluate(ec)
+	if err != nil {
+		return false, err
+	}
+
+	return res.AsBool()
+}

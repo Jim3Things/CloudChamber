@@ -101,7 +101,7 @@ func (ts *LeafTestSuite) TestAsBool() {
 	ts.testBoolVal(NewLeafInt64(2), true, nil)
 	ts.testBoolVal(NewLeafInt64(0), false, nil)
 
-	ts.testBoolVal(NewLeafString("test"), false, ErrInvalidType)
+	ts.testBoolVal(NewLeafString("test"), false, ErrInvalidType(ValueString))
 }
 
 func (ts *LeafTestSuite) testInt32Val(l *Leaf, expected int32, expErr error) {
@@ -127,7 +127,7 @@ func (ts *LeafTestSuite) TestAsInt32() {
 	ts.testInt32Val(NewLeafInt64(1<<33+2), 2, nil)
 	ts.testInt32Val(NewLeafInt64(1<<34-2), -2, nil)
 
-	ts.testInt32Val(NewLeafString("test"), 0, ErrInvalidType)
+	ts.testInt32Val(NewLeafString("test"), 0, ErrInvalidType(ValueString))
 }
 
 func (ts *LeafTestSuite) testInt64Val(l *Leaf, expected int64, expErr error) {
@@ -151,7 +151,7 @@ func (ts *LeafTestSuite) TestAsInt64() {
 	ts.testInt64Val(NewLeafInt64(-1), -1, nil)
 	ts.testInt64Val(NewLeafInt64(2), 2, nil)
 
-	ts.testInt64Val(NewLeafString("test"), 0, ErrInvalidType)
+	ts.testInt64Val(NewLeafString("test"), 0, ErrInvalidType(ValueString))
 }
 
 func (ts *LeafTestSuite) testStringVal(l *Leaf, expected string, expErr error) {

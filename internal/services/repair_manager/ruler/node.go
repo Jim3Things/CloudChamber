@@ -69,7 +69,7 @@ var opToEntry = map[OpType]*opEntry{
 func (n *Node) Evaluate(ec *EvalContext) (*Leaf, error) {
 	item, ok := opToEntry[n.Op]
 	if !ok {
-		return nil, ErrInvalidOp
+		return nil, ErrInvalidOp(n.Op)
 	}
 
 	return item.eval(n.Args, ec)
@@ -143,7 +143,11 @@ func NewNodeAny(terms ...Term) *Node {
 
 func doOpFetch(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) != 1 {
-		return nil, ErrInvalidArgLen
+		return nil, ErrInvalidArgLen{
+			op:       "Fetch",
+			required: "exactly 1 argument",
+			actual:   len(args),
+		}
 	}
 
 	leaf, err := args[0].Evaluate(ec)
@@ -152,17 +156,41 @@ func doOpFetch(args []Term, ec *EvalContext) (*Leaf, error) {
 	}
 
 	// need to fill in what to do with the key.
-	_, err = leaf.AsName(ec.Replacements)
+	path, err := leaf.AsName(ec.Replacements)
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, ErrInvalidOp
+	key, err := MakeKey(path)
+	if err != nil {
+		return nil, err
+	}
+
+	table, err := ec.Tables.GetTable(key)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := table.GetValue(key)
+	if err != nil {
+		return nil, err
+	}
+
+	l := NewLeaf(v)
+	if l == nil {
+		return nil, ErrInvalidType(ValueInvalid)
+	}
+
+	return l, nil
 }
 
 func doOpMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) != 2 {
-		return nil, ErrInvalidArgLen
+		return nil, ErrInvalidArgLen{
+			op:       "Match",
+			required: "exactly 2 arguments",
+			actual:   len(args),
+		}
 	}
 
 	lTerm := args[0]
@@ -183,7 +211,11 @@ func doOpMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 
 func doOpNotMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) != 2 {
-		return nil, ErrInvalidArgLen
+		return nil, ErrInvalidArgLen{
+			op:       "NotMatch",
+			required: "exactly 2 arguments",
+			actual:   len(args),
+		}
 	}
 
 	lTerm := args[0]
@@ -204,7 +236,11 @@ func doOpNotMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 
 func doOpAll(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) <= 0 {
-		return nil, ErrInvalidArgLen
+		return nil, ErrInvalidArgLen{
+			op:       "All",
+			required: "at least 1 argument",
+			actual:   len(args),
+		}
 	}
 
 	for _, arg := range args {
@@ -228,7 +264,11 @@ func doOpAll(args []Term, ec *EvalContext) (*Leaf, error) {
 
 func doOpAny(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) <= 0 {
-		return nil, ErrInvalidArgLen
+		return nil, ErrInvalidArgLen{
+			op:       "Any",
+			required: "at least 1 argument",
+			actual:   len(args),
+		}
 	}
 
 	for _, arg := range args {
