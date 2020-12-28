@@ -6,7 +6,8 @@ type EvalContext struct {
 	// expanding a name string.
 	Replacements []string
 
-	// -- data access values are TBD
+	// Tables holds the access to the data tables used by these rules
+	Tables Tables
 }
 
 // Term is the general definition for an entry in the ruleset - either an

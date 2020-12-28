@@ -68,6 +68,29 @@ func NewLeafInt64(val int64) *Leaf {
 	}
 }
 
+// NewLeaf creates a new Leaf entry of the correct ValueType based on the Go
+// type of the value supplied.
+func NewLeaf(val interface{}) *Leaf {
+	switch v := val.(type) {
+	case bool:
+		return NewLeafBool(v)
+
+	case int32:
+		return NewLeafInt32(v)
+
+	case int:
+		return NewLeafInt32(int32(v))
+
+	case int64:
+		return NewLeafInt64(v)
+
+	case string:
+		return NewLeafString(v)
+	}
+
+	return nil
+}
+
 // --- Constructor functions
 
 // Evaluate returns this Leaf element.
@@ -100,7 +123,7 @@ func (v *Leaf) AsInt64() (int64, error) {
 		return int64(v.numVal), nil
 
 	default:
-		return 0, ErrInvalidType
+		return 0, ErrInvalidType(v.vtype)
 	}
 }
 
@@ -113,7 +136,7 @@ func (v *Leaf) AsInt32() (int32, error) {
 		return int32(v.numVal), nil
 
 	default:
-		return 0, ErrInvalidType
+		return 0, ErrInvalidType(v.vtype)
 	}
 }
 
@@ -125,7 +148,7 @@ func (v *Leaf) AsBool() (bool, error) {
 		return v.numVal != 0, nil
 
 	default:
-		return false, ErrInvalidType
+		return false, ErrInvalidType(v.vtype)
 	}
 }
 
@@ -149,7 +172,7 @@ func (v *Leaf) AsString() (string, error) {
 		return v.strVal, nil
 
 	default:
-		return "", ErrInvalidType
+		return "", ErrInvalidType(v.vtype)
 	}
 }
 
