@@ -1,6 +1,7 @@
 package frontend
 
 import (
+	"errors"
 	"strings"
 )
 
@@ -47,7 +48,9 @@ func decode(keywords []string, source string) ([]bool, error){
 	}
 	for _, t3 := range test{
 		t4 := strings.TrimSpace(t3)
-		for j, h := range keywords{
+		found := false
+		
+		for _, h := range keywords{
 
 	// Output array, nil 
 	//How and where we catch the error of mismatch(Write code to just spot the error) write a loop return  an error (true or false)
@@ -57,11 +60,14 @@ func decode(keywords []string, source string) ([]bool, error){
 	// 2nd subtack creates this: matches []bool that is created inside decode and 
 	// 2nd subtask starts this: ...filled in by the match tests, and then returned
 	// 3rd subtask completes this: ...filled in by the match tests, and then returned
-			if h != t4{
-				outputkeywords[j] = false
+			if h == t4{
+				found = true
 			}
-			return badexpected, error ()
+		}
+		if found == false {
+			return nil, errors.New("Bad view found")
 		}
 	}
 return outputkeywords, nil
 }
+
