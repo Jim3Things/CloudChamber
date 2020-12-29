@@ -1,11 +1,14 @@
 package ruler
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
@@ -50,6 +53,21 @@ func (mt *MockTables) GetTable(key *Key) (Table, error) {
 
 type RulesApiTestSuite struct {
 	suite.Suite
+
+	utf *exporters.Exporter
+}
+
+func (ts *RulesApiTestSuite) SetupSuite() {
+	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.ConnectToProvider(ts.utf)
+}
+
+func (ts *RulesApiTestSuite) SetupTest() {
+	_ = ts.utf.Open(ts.T())
+}
+
+func (ts *RulesApiTestSuite) TearDownTest() {
+	ts.utf.Close()
 }
 
 func (ts *RulesApiTestSuite) testLeaf(l Term, vt ValueType) {
@@ -101,7 +119,7 @@ func (ts *RulesApiTestSuite) TestSimple() {
 					Chosen:   "always chosen",
 					Rejected: "never fails",
 					With:     nil,
-					Call: func(args []Arg) (*Proposal, error) {
+					Call: func(ctx context.Context, args []Arg) (*Proposal, error) {
 						return &Proposal{}, nil
 					},
 				},
@@ -110,7 +128,7 @@ func (ts *RulesApiTestSuite) TestSimple() {
 					Chosen:   "should not be chosen",
 					Rejected: "should not get here",
 					With:     nil,
-					Call: func(args []Arg) (*Proposal, error) {
+					Call: func(ctx context.Context, args []Arg) (*Proposal, error) {
 						require.Fail("should not get here")
 						return &Proposal{}, nil
 					},
@@ -119,7 +137,8 @@ func (ts *RulesApiTestSuite) TestSimple() {
 		},
 	}
 
-	props, err := Process(r, tables, vars)
+	ctx := common.ContextWithTick(context.Background(), -1)
+	props, err := Process(ctx, r, tables, vars)
 	require.NoError(err)
 	require.NotNil(props)
 }

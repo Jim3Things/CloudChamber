@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
@@ -66,7 +67,7 @@ type Arg struct {
 
 // OutputFunc is the signature for a function that generates the result of a
 // ruleset matching.
-type OutputFunc func(args []Arg) (*Proposal, error)
+type OutputFunc func(ctx context.Context, args []Arg) (*Proposal, error)
 
 // Rule defines a matching rule to evaluate and, if matched, execute.
 type Rule struct {
@@ -172,7 +173,7 @@ func Any(terms ...Term) Term {
 //
 // -- Should it return on the first proposal match?  If it gets an error
 //    should it return the previously completed proposals?
-func Process(rules []Rule, tables Tables, vars map[string]string) ([]*Proposal, error) {
+func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]string) ([]*Proposal, error) {
 	ec := &EvalContext{
 		Replacements: varsToReplacements(vars),
 		Tables:       tables,
@@ -199,10 +200,13 @@ func Process(rules []Rule, tables Tables, vars map[string]string) ([]*Proposal, 
 
 				if v {
 					reason = fmt.Sprintf("%s and %s", reason, choice.Chosen)
-					_, span := tracing.StartSpan(context.Background(),
-						tracing.WithReason(reason))
+					ctx, span := tracing.StartSpan(
+						ctx,
+						tracing.WithName("Executing rule"),
+						tracing.WithReason(reason),
+						tracing.WithContextValue(timestamp.EnsureTickInContext))
 
-					p, err := choice.Call(choice.With)
+					p, err := choice.Call(ctx, choice.With)
 					if err != nil {
 						return nil, err
 					}
