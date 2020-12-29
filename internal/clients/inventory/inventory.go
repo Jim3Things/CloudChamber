@@ -409,12 +409,15 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things". You can send operations and commands to things, but not containers.
 type inventoryItem interface {
-	SetDetails(ctx context.Context, details *interface{}) error
-	GetDetails(ctx context.Context) (*interface{}, error)
-	GetRevision(ctx context.Context) (int64, error)
+	SetDetails(ctx context.Context, details *interface{})
+	GetDetails(ctx context.Context) (int64, *interface{})
+	GetRevision(ctx context.Context) (int64)
+	GetRevisionRecord(ctx context.Context) (int64)
+	GetRevisionStore(ctx context.Context) (int64)
+	
 
 	Create(ctx context.Context) (int64, error)
-	Read(ctx context.Context) (int64, *interface{}, error)
+	Read(ctx context.Context) (int64, error)
 	Update(ctx context.Context) (int64, error)
 	Delete(ctx context.Context) (int64, error)
 }
@@ -445,8 +448,8 @@ type inventoryItemPdu interface {
 
 	SetName(ctx context.Context, ID int64) error
 
-	SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort) error
-	GetPorts(ctx context.Context) (*map[int64]*pb.PowerPort, error)
+	SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort)
+	GetPorts(ctx context.Context) (int64, *map[int64]*pb.PowerPort)
 }
 
 type inventoryTor interface {
@@ -454,8 +457,8 @@ type inventoryTor interface {
 
 	SetName(ctx context.Context, ID int64) error
 
-	SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort) error
-	GetPorts(ctx context.Context) (*map[int64]*pb.NetworkPort, error)
+	SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort)
+	GetPorts(ctx context.Context) (int64, *map[int64]*pb.NetworkPort)
 }
 
 type inventoryBlade interface {
@@ -463,11 +466,11 @@ type inventoryBlade interface {
 
 	SetName(ctx context.Context, ID int64) error
 
-	SetCapacity(ctx context.Context, capacity *pb.BladeCapacity) error
-	GetCapacity(ctx context.Context) (*pb.BladeCapacity, error)
+	SetCapacity(ctx context.Context, capacity *pb.BladeCapacity)
+	GetCapacity(ctx context.Context) (int64, *pb.BladeCapacity)
 
-	SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) error
-	GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo, error)
+	SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo)
+	GetBootInfo(ctx context.Context) (int64, bool, *pb.BladeBootInfo)
 }
 
 

@@ -617,12 +617,7 @@ func (m *DBInventory) CreateZone(
 		return InvalidRev, err
 	}
 
-	err = z.SetDetails(ctx, zone.Details)
-	
-	if err != nil {
-		return InvalidRev, err
-	}
-
+	z.SetDetails(ctx, zone.Details)
 
 	rev, err := z.Create(ctx)
 
