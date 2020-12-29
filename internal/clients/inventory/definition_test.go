@@ -76,11 +76,10 @@ func (ts *testSuiteCore) TestNewRoot() {
 	root, err := NewRoot (ctx, ts.store, DefinitionTable)
 	require.NoError(err)
 
-	err = root.SetDetails(ctx, &pb.RootDetails{
+	root.SetDetails(ctx, &pb.RootDetails{
 		Name: ts.rootName(stdSuffix),
 		Notes: "root for inventory definition test",
 	})
-	require.NoError(err)
 }
 
 func (ts *testSuiteCore) TestNewRegion() {
@@ -94,14 +93,12 @@ func (ts *testSuiteCore) TestNewRegion() {
 	r, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
 	require.NoError(err)
 
-	err = r.SetDetails(ctx, &pb.RegionDetails{
+	r.SetDetails(ctx, &pb.RegionDetails{
 		Name:     ts.regionName(stdSuffix),
 		State:    pb.State_in_service,
 		Location: "Pacific NW",
 		Notes:    "region for inventory definition test",
 	})
-
-	require.NoError(err)
 
 	rev, err := r.Create(ctx)
 
@@ -122,23 +119,20 @@ func (ts *testSuiteCore) TestNewChildRegion() {
 	root, err := NewRoot (ctx, ts.store, DefinitionTable)
 	require.NoError(err)
 
-	err = root.SetDetails(ctx, &pb.RootDetails{
+	root.SetDetails(ctx, &pb.RootDetails{
 		Name:  ts.rootName(stdSuffix),
 		Notes: "root for inventory definition test",
 	})
 
-	require.NoError(err)
-
 	region, err := root.NewChild(ctx, regionName)
 	require.NoError(err)
 
-	err = region.SetDetails(ctx, &pb.RegionDetails{
+	region.SetDetails(ctx, &pb.RegionDetails{
 		Name:     regionName,
 		State:    pb.State_in_service,
 		Location: "Pacific NW",
 		Notes:    "region for inventory definition test (" + stdSuffix + ")",
 	})
-	require.NoError(err)
 
 	rev, err := region.Create(ctx)
 	require.NoError(err)
@@ -156,14 +150,12 @@ func (ts *testSuiteCore) TestNewZone() {
 	zone, err := NewZone(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix), ts.zoneName(stdSuffix))
 	require.NoError(err)
 
-	err = zone.SetDetails(ctx, &pb.ZoneDetails{
+	zone.SetDetails(ctx, &pb.ZoneDetails{
 		Enabled:  true,
 		State:    pb.State_in_service,
 		Location: "Pacific NW",
 		Notes:    "zone for inventory definition test",
 	})
-
-	require.NoError(err)
 
 	rev, err := zone.Create(ctx)
 
@@ -191,13 +183,12 @@ func (ts *testSuiteCore) TestNewChildZone() {
 	zone, err := region.NewChild(ctx, zoneName)
 	require.NoError(err)
 
-	err = zone.SetDetails(ctx, &pb.ZoneDetails{
+	zone.SetDetails(ctx, &pb.ZoneDetails{
 		Enabled:  true,
 		State:    pb.State_in_service,
 		Location: "Pacific NW",
 		Notes:    "zone for inventory definition test (" + stdSuffix + ")",
 	})
-	require.NoError(err)
 
 	rev, err := zone.Create(ctx)
 	require.NoError(err)
@@ -222,14 +213,12 @@ func (ts *testSuiteCore) TestNewRack() {
 	)
 	require.NoError(err)
 
-	err = rack.SetDetails(ctx, &pb.RackDetails{
+	rack.SetDetails(ctx, &pb.RackDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
 		Location:  "Pacific NW",
 		Notes:     "rack for inventory definition test",
 	})
-
-	require.NoError(err)
 
 	rev, err := rack.Create(ctx)
 
@@ -261,13 +250,12 @@ func (ts *testSuiteCore) TestNewChildRack() {
 	rack, err := zone.NewChild(ctx, rackName)
 	require.NoError(err)
 
-	err = rack.SetDetails(ctx, &pb.RackDetails{
+	rack.SetDetails(ctx, &pb.RackDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
 		Location:  "Pacific NW",
 		Notes:     "rack for inventory definition test (" + stdSuffix + ")",
 	})
-	require.NoError(err)
 
 	rev, err := rack.Create(ctx)
 	require.NoError(err)
@@ -294,15 +282,12 @@ func (ts *testSuiteCore) TestNewPdu() {
 	)
 	require.NoError(err)
 
-	err = pdu.SetDetails(ctx, &pb.PduDetails{
+	pdu.SetDetails(ctx, &pb.PduDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
 	})
 
-	require.NoError(err)
-
-	err = pdu.SetPorts(ctx, &ports)
-	require.NoError(err)
+	pdu.SetPorts(ctx, &ports)
 
 	rev, err := pdu.Create(ctx)
 
@@ -339,14 +324,12 @@ func (ts *testSuiteCore) TestNewChildPdu() {
 	pdu, err := rack.NewPdu(ctx, pduID)
 	require.NoError(err)
 
-	err = pdu.SetDetails(ctx, &pb.PduDetails{
+	pdu.SetDetails(ctx, &pb.PduDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
 	})
-	require.NoError(err)
 
-	err = pdu.SetPorts(ctx, &ports)
-	require.NoError(err)
+	pdu.SetPorts(ctx, &ports)
 
 	rev, err := pdu.Create(ctx)
 	require.NoError(err)
@@ -392,14 +375,9 @@ func (ts *testSuiteCore) TestNewBlade() {
 	)
 	require.NoError(err)
 
-	err = blade.SetDetails(ctx,details)
-	require.NoError(err)
-
-	err = blade.SetCapacity(ctx, capacity)
-	require.NoError(err)
-
-	err = blade.SetBootInfo(ctx, true, bootInfo)
-	require.NoError(err)
+	blade.SetDetails(ctx,details)
+	blade.SetCapacity(ctx, capacity)
+	blade.SetBootInfo(ctx, true, bootInfo)
 
 	rev, err := blade.Create(ctx)
 
@@ -456,18 +434,55 @@ func (ts *testSuiteCore) TestNewChildBlade() {
 	blade, err := rack.NewBlade(ctx, bladeID)
 	require.NoError(err)
 
-	err = blade.SetDetails(ctx, details)
-	require.NoError(err)
-
-	err = blade.SetCapacity(ctx, capacity)
-	require.NoError(err)
-
-	err = blade.SetBootInfo(ctx, true, bootInfo)
-	require.NoError(err)
+	blade.SetDetails(ctx, details)
+	blade.SetCapacity(ctx, capacity)
+	blade.SetBootInfo(ctx, true, bootInfo)
 
 	rev, err := blade.Create(ctx)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+}
+
+func (ts *testSuiteCore) TestRegionReadDetails() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestRegionReadDetails"
+
+	stdDetails := &pb.RegionDetails{
+		Name:     ts.regionName(stdSuffix),
+		State:    pb.State_in_service,
+		Location: "Pacific NW",
+		Notes:    "region for inventory definition test",
+	}
+
+	ctx := context.Background()
+
+	r, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
+	require.NoError(err)
+
+	r.SetDetails(ctx, stdDetails)
+
+	rev, err := r.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, rev)
+
+	rev2 := r.GetRevision(ctx)
+	assert.Equal(rev, rev2)
+
+
+	rRead, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
+	require.NoError(err)
+
+	revRead, err := rRead.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, revRead)
+	assert.Equal(revRead, rRead.GetRevision(ctx))
+
+	revDet, detRead := rRead.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, revDet)
+	assert.Equal(stdDetails, detRead)
 }
 
 
