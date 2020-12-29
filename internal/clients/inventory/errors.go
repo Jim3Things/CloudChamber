@@ -108,131 +108,149 @@ func (ezsv ErrRegionStaleVersion) Error() string {
 // ErrZoneAlreadyExists indicates the attempt to create a new zone record
 // failed as that zone already exists.
 //
-type ErrZoneAlreadyExists string
+type ErrZoneAlreadyExists struct {
+	Region string
+	Zone string
+}
 
 func (ezae ErrZoneAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q already exists", string(ezae))
+	return fmt.Sprintf("CloudChamber: zone %q already exists in region %q", ezae.Zone, ezae.Region)
 }
 
 // ErrZoneNotFound indicates the attempt to locate a zone record failed as that
 // zone does not exist.
 //
-type ErrZoneNotFound string
+type ErrZoneNotFound struct {
+	Region string
+	Zone string
+}
 
 func (eznf ErrZoneNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q not found", string(eznf))
+	return fmt.Sprintf("CloudChamber: zone %q not found in region %q", eznf.Zone, eznf.Region)
 }
 
 // ErrZoneStaleVersion indicates the attempt to locate a specific version of a
 // zone record failed as either that zone does not exist, or the specific
 // version is no longer present in the store.
 //
-type ErrZoneStaleVersion string
+type ErrZoneStaleVersion struct {
+	Region string
+	Zone string
+}
+
 
 func (ezsv ErrZoneStaleVersion) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q has a newer version than expected", string(ezsv))
+	return fmt.Sprintf("CloudChamber: zone %q in region %q has a newer version than expected", ezsv.Zone, ezsv.Region)
 }
 
 // ErrRackAlreadyExists indicates the attempt to create a new rack record
 // failed as that rack already exists.
 //
 type ErrRackAlreadyExists struct {
+	Region string
 	Zone string
 	Rack string
 }
 
 func (erae ErrRackAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: rack %q in zone %q already exists", erae.Rack, erae.Zone)
+	return fmt.Sprintf("CloudChamber: rack %q in zone %q already exists in region %q", erae.Rack, erae.Zone, erae.Region)
 }
 
 // ErrRackNotFound indicates the attempt to operate on a rack record failed
 // as that record cannot be found.
 //
 type ErrRackNotFound struct {
+	Region string
 	Zone string
 	Rack string
 }
 
 func (ernf ErrRackNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: rack %q in zone %q was not found", ernf.Rack, ernf.Zone)
+	return fmt.Sprintf("CloudChamber: rack %q in zone %q was not found in region %q", ernf.Rack, ernf.Zone, ernf.Region)
 }
 
 // ErrPduAlreadyExists indicates the attempt to create a new pdu record
 // failed as that pdu already exists.
 //
 type ErrPduAlreadyExists struct {
+	Region string
 	Zone string
 	Rack string
 	Pdu int64
 }
 
 func (epae ErrPduAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: pdu %v in zone %q, rack %q already exists", epae.Pdu, epae.Zone, epae.Rack)
+	return fmt.Sprintf("CloudChamber: pdu %v in region %q, zone %q, rack %q already exists", epae.Pdu, epae.Region, epae.Zone, epae.Rack)
 }
 
 // ErrPduNotFound indicates the attempt to operate on a pdu record
 // failed as that record cannot be found.
 //
 type ErrPduNotFound struct {
+	Region string
 	Zone string
 	Rack string
 	Pdu int64
 }
 
 func (epae ErrPduNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: pdu %v in zone %q, rack %q was not found", epae.Pdu, epae.Zone, epae.Rack)
+	return fmt.Sprintf("CloudChamber: pdu %v in region %q, zone %q, rack %q was not found", epae.Pdu, epae.Region, epae.Zone, epae.Rack)
 }
 
 // ErrTorAlreadyExists indicates the attempt to create a new zone record
 // failed as that zone already exists.
 //
 type ErrTorAlreadyExists  struct {
+	Region string
 	Zone string
 	Rack string
 	Tor int64
 }
 
 func (etae ErrTorAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: tor %v in zone %q, rack %q already exists", etae.Tor, etae.Zone, etae.Rack)
+	return fmt.Sprintf("CloudChamber: tor %v in region %q, zone %q, rack %q already exists", etae.Tor, etae.Region, etae.Zone, etae.Rack)
 }
 
 // ErrTorNotFound indicates the attempt to operate on a tor record
 // failed as that record cannot be found.
 //
 type ErrTorNotFound struct {
+	Region string
 	Zone string
 	Rack string
 	Tor int64
 }
 
 func (etnf ErrTorNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: tor %v in zone %q, rack %q was not found", etnf.Tor, etnf.Zone, etnf.Rack)
+	return fmt.Sprintf("CloudChamber: tor %v in region %q, zone %q, rack %q was not found", etnf.Tor, etnf.Region, etnf.Zone, etnf.Rack)
 }
 
 // ErrBladeAlreadyExists indicates the attempt to create a new blade record
 // failed as that blade already exists.
 //
 type ErrBladeAlreadyExists struct {
+	Region string
 	Zone string
 	Rack string
 	Blade int64
 }
 
 func (ebae ErrBladeAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: blade %v in zone %q, rack %q already exists", ebae.Blade, ebae.Zone, ebae.Rack)
+	return fmt.Sprintf("CloudChamber: blade %v in region %q, zone %q, rack %q already exists", ebae.Blade, ebae.Region, ebae.Zone, ebae.Rack)
 }
 
 // ErrBladeNotFound indicates the attempt to operate on a blade record
 // failed as that record cannot be found.
 //
 type ErrBladeNotFound struct {
+	Region string
 	Zone string
 	Rack string
 	Blade int64
 }
 
 func (ebnf ErrBladeNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: blade %v in zone %q, rack %q was not found", ebnf.Blade, ebnf.Zone, ebnf.Rack)
+	return fmt.Sprintf("CloudChamber: blade %v in region %q, zone %q, rack %q was not found", ebnf.Blade, ebnf.Region, ebnf.Zone, ebnf.Rack)
 }
 
 // func ErrBladeNotFound(z string, r string , b int64) error {
@@ -258,6 +276,15 @@ type ErrIndexNotFound string
 
 func (einf ErrIndexNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: index %q not found", string(einf))
+}
+
+// ErrRevisionNotAvailable indicates the requested detail for the item have not
+// yet been establiehed.
+//
+type ErrRevisionNotAvailable string
+
+func (erna ErrRevisionNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q revision not available", string(erna))
 }
 
 // ErrDetailsNotAvailable indicates the requested detail for the item have not
@@ -298,41 +325,49 @@ func (ebina ErrBootInfoNotAvailable) Error() string {
 
 // ErrfRegionNotFound is a wrapper around the composite literal based error of the related name
 //
-func ErrfRegionNotFound(zone string, rack string, blade int64) error {return ErrBladeNotFound{zone, rack, blade}}
+func ErrfRegionNotFound(region string) error {return ErrRegionNotFound(region)}
+
+// ErrfRegionAlreadyExists is a wrapper around the composite literal based error of the related name
+//
+func ErrfRegionAlreadyExists(region string) error {return ErrRegionAlreadyExists(region)}
 
 // ErrfZoneNotFound is a wrapper around the composite literal based error of the related name
 //
-func ErrfZoneNotFound(zone string) error {return ErrZoneNotFound(zone)}
+func ErrfZoneNotFound(region string, zone string) error {return ErrZoneNotFound{region, zone}}
+
+// ErrfZoneAlreadyExists is a wrapper around the composite literal based error of the related name
+//
+func ErrfZoneAlreadyExists(region string, zone string) error {return ErrZoneAlreadyExists{region, zone}}
 
 // ErrfRackNotFound is a wrapper around the composite literal based error of the related name
 //
-func ErrfRackNotFound(zone string, rack string) error {return ErrRackNotFound{zone, rack}}
+func ErrfRackNotFound(region string, zone string, rack string) error {return ErrRackNotFound{region, zone, rack}}
 
 // ErrfRackAlreadyExists is a wrapper around the composite literal based error of the related name
 //
-func ErrfRackAlreadyExists(zone string, rack string) error {return ErrRackAlreadyExists{zone, rack}}
+func ErrfRackAlreadyExists(region string, zone string, rack string) error {return ErrRackAlreadyExists{region, zone, rack}}
 
 // ErrfPduNotFound is a wrapper around the composite literal based error of the related name
 //
-func ErrfPduNotFound(zone string, rack string, pdu int64) error {return ErrPduNotFound{zone, rack, pdu}}
+func ErrfPduNotFound(region string, zone string, rack string, pdu int64) error {return ErrPduNotFound{region, zone, rack, pdu}}
 
 // ErrfPduAlreadyExists is a wrapper around the composite literal based error of the related name
 //
-func ErrfPduAlreadyExists(zone string, rack string, pdu int64) error {return ErrPduAlreadyExists{zone, rack, pdu}}
+func ErrfPduAlreadyExists(region string, zone string, rack string, pdu int64) error {return ErrPduAlreadyExists{region, zone, rack, pdu}}
 
 // ErrfTorNotFound is a wrapper around the composite literal based error of the related name
 //
-func ErrfTorNotFound(zone string, rack string, tor int64) error {return ErrTorNotFound{zone, rack, tor}}
+func ErrfTorNotFound(region string, zone string, rack string, tor int64) error {return ErrTorNotFound{region, zone, rack, tor}}
 
 // ErrfTorAlreadyExists is a wrapper around the composite literal based error of the related name
 //
-func ErrfTorAlreadyExists(zone string, rack string, tor int64) error {return ErrTorAlreadyExists{zone, rack, tor}}
+func ErrfTorAlreadyExists(region string, zone string, rack string, tor int64) error {return ErrTorAlreadyExists{region, zone, rack, tor}}
 
 // ErrfBladeNotFound is a wrapper around the composite literal based error of the related name
 //
-func ErrfBladeNotFound(zone string, rack string, blade int64) error {return ErrBladeNotFound{zone, rack, blade}}
+func ErrfBladeNotFound(region string, zone string, rack string, blade int64) error {return ErrBladeNotFound{region, zone, rack, blade}}
 
 // ErrfBladeAlreadyExists is a wrapper around the composite literal based error of the related name
 //
-func ErrfBladeAlreadyExists(zone string, rack string, blade int64) error {return ErrBladeAlreadyExists{zone, rack, blade}}
+func ErrfBladeAlreadyExists(region string, zone string, rack string, blade int64) error {return ErrBladeAlreadyExists{region, zone, rack, blade}}
 

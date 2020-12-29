@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -410,11 +411,12 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 type inventoryItem interface {
 	SetDetails(ctx context.Context, details *interface{}) error
 	GetDetails(ctx context.Context) (*interface{}, error)
+	GetRevision(ctx context.Context) (int64, error)
 
 	Create(ctx context.Context) (int64, error)
-	Read(ctx context.Context) (*interface{}, error)
+	Read(ctx context.Context) (int64, *interface{}, error)
 	Update(ctx context.Context) (int64, error)
-	Delete(ctx context.Context) error
+	Delete(ctx context.Context) (int64, error)
 }
 
 type inventoryItemNode interface {
@@ -496,20 +498,20 @@ func (n *nullItem) GetDetails(ctx context.Context) (*nullItem, error) {
 	return nil, ErrNullItem
 }
 
-func (n *nullItem) Create(ctx context.Context) error {
-	return ErrNullItem
+func (n *nullItem) Create(ctx context.Context) (int64, error) {
+	return store.RevisionInvalid, ErrNullItem
 }
 
-func (n *nullItem) Read(ctx context.Context) (*nullItem, error){
-	return nil, ErrNullItem
+func (n *nullItem) Read(ctx context.Context) (int64, *nullItem, error){
+	return store.RevisionInvalid, nil, ErrNullItem
 }
 
-func (n *nullItem) Update(ctx context.Context) error {
-	return ErrNullItem
+func (n *nullItem) Update(ctx context.Context) (int64, error) {
+	return store.RevisionInvalid, ErrNullItem
 }
 
-func (n *nullItem) Delete(ctx context.Context) error {
-	return ErrNullItem
+func (n *nullItem) Delete(ctx context.Context) (int64, error) {
+	return store.RevisionInvalid, ErrNullItem
 }
 
 
