@@ -464,16 +464,72 @@ func (r *Region) Read(ctx context.Context) (int64, error) {
 
 // Update is
 //
-func (r *Region) Update(ctx context.Context) (int64, error) {
+func (r *Region) Update(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revUpdate = r.revisionRecord
+
+	if unconditional == true {
+		revUpdate = store.RevisionInvalid
+	}
+
+	if r.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("region")
+	}
+
+	record := &pb.StoreRecordDefinitionRegion{
+		Details: r.details,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := r.Store.Update(ctx, store.KeyRootInventory, r.Key, revUpdate, v)
+
+	if err == store.ErrStoreKeyNotFound(r.Key) {
+		return store.RevisionInvalid, ErrfRegionNotFound(r.Region)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	r.record         = record
+	r.revision       = rev
+	r.revisionRecord = rev
+	r.revisionStore  = rev
+
+	return rev, nil
 }
 
 // Delete is
 //
-func (r *Region) Delete(ctx context.Context) (int64, error) {
+func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revDelete = r.revisionRecord
+
+	if unconditional == true {
+		revDelete = store.RevisionInvalid
+	}
+
+	rev, err := r.Store.Delete(ctx, store.KeyRootInventory, r.Key, revDelete)
+
+	if err == store.ErrStoreKeyNotFound(r.Key) {
+		return store.RevisionInvalid, ErrfRegionNotFound(r.Region)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	r.record         = nil
+	r.revision       = rev
+	r.revisionRecord = rev
+	r.revisionStore  = rev
+
+	return rev, nil
 }
 
 // NewChild is a 
@@ -653,16 +709,72 @@ func (z *Zone) Read(ctx context.Context) (int64, error) {
 
 // Update is
 //
-func (z *Zone) Update(ctx context.Context) (int64, error) {
+func (z *Zone) Update(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revUpdate = z.revisionRecord
+
+	if unconditional == true {
+		revUpdate = store.RevisionInvalid
+	}
+
+	if z.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("zone")
+	}
+
+	record := &pb.StoreRecordDefinitionZone{
+		Details: z.details,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := z.Store.Update(ctx, store.KeyRootInventory, z.Key, revUpdate, v)
+
+	if err == store.ErrStoreKeyNotFound(z.Key) {
+		return store.RevisionInvalid, ErrfZoneNotFound(z.Region, z.Zone)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	z.record         = record
+	z.revision       = rev
+	z.revisionRecord = rev
+	z.revisionStore  = rev
+
+	return rev, nil
 }
 
 // Delete is
 //
-func (z *Zone) Delete(ctx context.Context) (int64, error) {
+func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revDelete = z.revisionRecord
+
+	if unconditional == true {
+		revDelete = store.RevisionInvalid
+	}
+
+	rev, err := z.Store.Delete(ctx, store.KeyRootInventory, z.Key, revDelete)
+
+	if err == store.ErrStoreKeyNotFound(z.Key) {
+		return store.RevisionInvalid, ErrfZoneNotFound(z.Region, z.Zone)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	z.record         = nil
+	z.revision       = rev
+	z.revisionRecord = rev
+	z.revisionStore  = rev
+
+	return rev, nil
 }
 
 // NewChild is a 
@@ -848,16 +960,72 @@ func (r *Rack) Read(ctx context.Context) (int64, error) {
 
 // Update is
 //
-func (r *Rack) Update(ctx context.Context) (int64, error) {
+func (r *Rack) Update(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revUpdate = r.revisionRecord
+
+	if unconditional == true {
+		revUpdate = store.RevisionInvalid
+	}
+
+	if r.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("rack")
+	}
+
+	record := &pb.StoreRecordDefinitionRack{
+		Details: r.details,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := r.Store.Update(ctx, store.KeyRootInventory, r.Key, revUpdate, v)
+
+	if err == store.ErrStoreKeyNotFound(r.Key) {
+		return store.RevisionInvalid, ErrfRegionNotFound(r.Region)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	r.record         = record
+	r.revision       = rev
+	r.revisionRecord = rev
+	r.revisionStore  = rev
+
+	return rev, nil
 }
 
 // Delete is
 //
-func (r *Rack) Delete(ctx context.Context) (int64, error) {
+func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revDelete = r.revisionRecord
+
+	if unconditional == true {
+		revDelete = store.RevisionInvalid
+	}
+
+	rev, err := r.Store.Delete(ctx, store.KeyRootInventory, r.Key, revDelete)
+
+	if err == store.ErrStoreKeyNotFound(r.Key) {
+		return store.RevisionInvalid, ErrfRegionNotFound(r.Region)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	r.record         = nil
+	r.revision       = rev
+	r.revisionRecord = rev
+	r.revisionStore  = rev
+
+	return rev, nil
 }
 
 // NewChild is a 
@@ -1203,16 +1371,77 @@ func (p *Pdu) Read(ctx context.Context) (int64, error) {
 
 // Update is
 //
-func (p *Pdu) Update(ctx context.Context) (int64, error) {
+func (p *Pdu) Update(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revUpdate = p.revisionRecord
+
+	if unconditional == true {
+		revUpdate = store.RevisionInvalid
+	}
+
+	if p.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("pdu")
+	}
+
+	if p.ports == nil {
+		return store.RevisionInvalid, ErrPortsNotAvailable("pdu")
+	}
+
+	record := &pb.StoreRecordDefinitionPdu{
+		Details: p.details,
+		Ports: *p.ports,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := p.Store.Update(ctx, store.KeyRootInventory, p.Key, revUpdate, v)
+
+	if err == store.ErrStoreKeyNotFound(p.Key) {
+		return store.RevisionInvalid, ErrfPduNotFound(p.Region, p.Zone, p.Rack, p.ID)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	p.record         = record
+	p.revision       = rev
+	p.revisionRecord = rev
+	p.revisionStore  = rev
+
+	return rev, nil
 }
 
 // Delete is
 //
-func (p *Pdu) Delete(ctx context.Context) (int64, error) {
+func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revDelete = p.revisionRecord
+
+	if unconditional == true {
+		revDelete = store.RevisionInvalid
+	}
+
+	rev, err := p.Store.Delete(ctx, store.KeyRootInventory, p.Key, revDelete)
+
+	if err == store.ErrStoreKeyNotFound(p.Key) {
+		return store.RevisionInvalid, ErrfRegionNotFound(p.Region)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	p.record         = nil
+	p.revision       = rev
+	p.revisionRecord = rev
+	p.revisionStore  = rev
+
+	return rev, nil
 }
 
 
@@ -1358,16 +1587,76 @@ func (t *Tor) Read(ctx context.Context) (int64, error) {
 
 // Update is
 //
-func (t *Tor) Update(ctx context.Context) (int64, error) {
+func (t *Tor) Update(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revUpdate = t.revisionRecord
+
+	if unconditional == true {
+		revUpdate = store.RevisionInvalid
+	}
+
+	if t.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("tor")
+	}
+
+	if t.ports == nil {
+		return store.RevisionInvalid, ErrPortsNotAvailable("tor")
+	}
+
+	record := &pb.StoreRecordDefinitionTor{
+		Details: t.details,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := t.Store.Update(ctx, store.KeyRootInventory, t.Key, revUpdate, v)
+
+	if err == store.ErrStoreKeyNotFound(t.Key) {
+		return store.RevisionInvalid, ErrfTorNotFound(t.Region, t.Zone, t.Rack, t.ID)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	t.record         = record
+	t.revision       = rev
+	t.revisionRecord = rev
+	t.revisionStore  = rev
+
+	return rev, nil
 }
 
 // Delete is
 //
-func (t *Tor) Delete(ctx context.Context) (int64, error) {
+func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revDelete = t.revisionRecord
+
+	if unconditional == true {
+		revDelete = store.RevisionInvalid
+	}
+
+	rev, err := t.Store.Delete(ctx, store.KeyRootInventory, t.Key, revDelete)
+
+	if err == store.ErrStoreKeyNotFound(t.Key) {
+		return store.RevisionInvalid, ErrfTorNotFound(t.Region, t.Zone, t.Rack, t.ID)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	t.record         = nil
+	t.revision       = rev
+	t.revisionRecord = rev
+	t.revisionStore  = rev
+
+	return rev, nil
 }
 
 
@@ -1543,16 +1832,83 @@ func (b *Blade) Read(ctx context.Context) (int64, error) {
 
 // Update is
 //
-func (b *Blade) Update(ctx context.Context) (int64, error) {
+func (b *Blade) Update(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revUpdate = b.revisionRecord
+
+	if unconditional == true {
+		revUpdate = store.RevisionInvalid
+	}
+
+	if b.details == nil {
+		return store.RevisionInvalid, ErrDetailsNotAvailable("blade")
+	}
+
+	if b.capacity == nil {
+		return store.RevisionInvalid, ErrCapacityNotAvailable("blade")
+	}
+
+	if b.bootInfo == nil {
+		return store.RevisionInvalid, ErrBootInfoNotAvailable("blade")
+	}
+
+	record := &pb.StoreRecordDefinitionBlade{
+		Details: b.details,
+		Capacity: b.capacity,
+		BootInfo: b.bootInfo,
+		BootOnPowerOn: b.bootOnPowerOn,
+	}
+
+	v, err := store.Encode(record)
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	rev, err := b.Store.Update(ctx, store.KeyRootInventory, b.Key, revUpdate, v)
+
+	if err == store.ErrStoreKeyNotFound(b.Key) {
+		return store.RevisionInvalid, ErrfBladeNotFound(b.Region, b.Zone, b.Rack, b.ID)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	b.record         = record
+	b.revision       = rev
+	b.revisionRecord = rev
+	b.revisionStore  = rev
+
+	return rev, nil
 }
 
 // Delete is
 //
-func (b *Blade) Delete(ctx context.Context) (int64, error) {
+func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	return store.RevisionInvalid, nil
+	var revDelete = b.revisionRecord
+
+	if unconditional == true {
+		revDelete = store.RevisionInvalid
+	}
+
+	rev, err := b.Store.Delete(ctx, store.KeyRootInventory, b.Key, revDelete)
+
+	if err == store.ErrStoreKeyNotFound(b.Key) {
+		return store.RevisionInvalid, ErrfBladeNotFound(b.Region, b.Zone, b.Rack, b.ID)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	b.record         = nil
+	b.revision       = rev
+	b.revisionRecord = rev
+	b.revisionStore  = rev
+
+	return rev, nil
 }
 
 

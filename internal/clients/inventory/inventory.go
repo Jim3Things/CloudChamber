@@ -418,8 +418,8 @@ type inventoryItem interface {
 
 	Create(ctx context.Context) (int64, error)
 	Read(ctx context.Context) (int64, error)
-	Update(ctx context.Context) (int64, error)
-	Delete(ctx context.Context) (int64, error)
+	Update(ctx context.Context, unconditional bool) (int64, error)
+	Delete(ctx context.Context, unconditional bool) (int64, error)
 }
 
 type inventoryItemNode interface {
