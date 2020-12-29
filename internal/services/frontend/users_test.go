@@ -17,7 +17,8 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/suite"
 
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 type UserTestSuite struct {
@@ -279,7 +280,7 @@ func (ts *UserTestSuite) TestLoginDupLogins() {
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(
-		fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body),
+		fmt.Sprintf("%s\n", errors.ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// .. and let's just try with another user, which should also fail
@@ -294,7 +295,7 @@ func (ts *UserTestSuite) TestLoginDupLogins() {
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
 	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(
-		fmt.Sprintf("%s\n", ErrUserAlreadyLoggedIn.Error()), string(body),
+		fmt.Sprintf("%s\n", errors.ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// ... and logout, which should succeed

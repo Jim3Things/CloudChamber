@@ -11,7 +11,8 @@ import (
 
 	"github.com/gorilla/sessions"
 
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 const (
@@ -51,7 +52,7 @@ func newSession(session *sessions.Session, state sessionState) error {
 	// Fail if there is already a valid active session
 	if id, ok := session.Values[sessionIDKey].(int64); ok {
 		if _, ok = activeSessions[id]; ok {
-			return ErrUserAlreadyLoggedIn
+			return errors.ErrUserAlreadyLoggedIn
 		}
 	}
 
