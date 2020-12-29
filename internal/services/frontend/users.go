@@ -20,7 +20,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 const (
@@ -482,7 +483,7 @@ func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ s
 	if _, ok := getSession(session); ok {
 		return "", &HTTPError{
 			SC:   http.StatusBadRequest,
-			Base: ErrUserAlreadyLoggedIn,
+			Base: errors.ErrUserAlreadyLoggedIn,
 		}
 	}
 
@@ -494,7 +495,7 @@ func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ s
 	if u, _, err := userRead(ctx, username); err != nil || !u.Enabled {
 		return "", &HTTPError{
 			SC:   http.StatusNotFound,
-			Base: ErrUserAuthFailed,
+			Base: errors.ErrUserAuthFailed,
 		}
 	}
 
@@ -502,7 +503,7 @@ func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ s
 	if pwd, err = ioutil.ReadAll(r.Body); err != nil {
 		return "", &HTTPError{
 			SC:   http.StatusBadRequest,
-			Base: ErrUserAuthFailed,
+			Base: errors.ErrUserAuthFailed,
 		}
 	}
 
@@ -511,7 +512,7 @@ func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ s
 	if userVerifyPassword(ctx, username, pwd) != nil {
 		return "", &HTTPError{
 			SC:   http.StatusForbidden,
-			Base: ErrUserAuthFailed,
+			Base: errors.ErrUserAuthFailed,
 		}
 	}
 
@@ -572,7 +573,7 @@ func userAdd(
 		CanManageAccounts: accountManager,
 		NeverDelete:       neverDelete})
 
-	if err == ErrUserAlreadyExists(name) {
+	if err == errors.ErrUserAlreadyExists(name) {
 		return InvalidRev, NewErrUserAlreadyExists(name)
 	}
 
@@ -586,11 +587,11 @@ func userAdd(
 func userUpdate(ctx context.Context, name string, u *pb.UserUpdate, rev int64) (*pb.User, int64, error) {
 	upd, revision, err := dbUsers.Update(ctx, name, u, rev)
 
-	if err == ErrUserNotFound(name) {
+	if err == errors.ErrUserNotFound(name) {
 		return nil, InvalidRev, NewErrUserNotFound(name)
 	}
 
-	if err == ErrUserStaleVersion(name) {
+	if err == errors.ErrUserStaleVersion(name) {
 		return nil, InvalidRev, NewErrUserStaleVersion(name)
 	}
 
@@ -605,7 +606,7 @@ func userRead(ctx context.Context, name string) (*pb.User, int64, error) {
 
 	u, rev, err := dbUsers.Read(ctx, name)
 
-	if err == ErrUserNotFound(name) {
+	if err == errors.ErrUserNotFound(name) {
 		return nil, InvalidRev, NewErrUserNotFound(name)
 	}
 
@@ -619,15 +620,15 @@ func userRead(ctx context.Context, name string) (*pb.User, int64, error) {
 func userRemove(ctx context.Context, name string) error {
 	err := dbUsers.Delete(ctx, name, InvalidRev)
 
-	if err == ErrUserProtected(name) {
+	if err == errors.ErrUserProtected(name) {
 		return NewErrUserProtected(name)
 	}
 
-	if err == ErrUserStaleVersion(name) {
+	if err == errors.ErrUserStaleVersion(name) {
 		return NewErrUserStaleVersion(name)
 	}
 
-	if err == ErrUserNotFound(name) {
+	if err == errors.ErrUserNotFound(name) {
 		return NewErrUserNotFound(name)
 	}
 
@@ -665,11 +666,11 @@ func userSetPassword(ctx context.Context, name string, changes *pb.UserPassword,
 
 	_, revision, err := dbUsers.UpdatePassword(ctx, name, passwordHash, rev)
 
-	if err == ErrUserNotFound(name) {
+	if err == errors.ErrUserNotFound(name) {
 		return InvalidRev, NewErrUserNotFound(name)
 	}
 
-	if err == ErrUserStaleVersion(name) {
+	if err == errors.ErrUserStaleVersion(name) {
 		return InvalidRev, NewErrUserStaleVersion(name)
 	}
 

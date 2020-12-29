@@ -48,11 +48,16 @@ PROTO_GEN_FILES = \
 
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
 
+SRC_ERRORS = \
+	$(call ProdFiles, pkg/errors)
+
 SRC_CONFIG = \
+	$(SRC_ERRORS) \
 	$(call ProdFiles, internal/config)
 
 SRC_FRONTEND = \
 	$(SRC_CONFIG) \
+	$(SRC_ERRORS) \
 	$(SRC_STORE) \
 	$(SRC_TIMESTAMP) \
 	$(SRC_TRACING) \
@@ -80,11 +85,13 @@ SRC_STEPPER_ACTOR = \
 	$(call ProdFiles, internal/services/stepper)
 
 SRC_STORE = \
+	$(SRC_ERRORS) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
 	$(call ProdFiles, internal/clients/store)
 
 SRC_TIMESTAMP = \
+	$(SRC_ERRORS) \
 	$(call ProdFiles, internal/clients/timestamp)
 
 SRC_TRACING = \
@@ -103,6 +110,7 @@ SRC_TRACING_SERVER = \
 	$(call ProdFiles, internal/tracing/server)
 
 SRC_TRACING_CLIENT = \
+	$(SRC_ERRORS) \
 	$(call ProdFiles, internal/tracing/client)
 
 SRC_VERSION = \

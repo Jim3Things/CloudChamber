@@ -5,7 +5,7 @@
 // this module.  The revision number is returned, and used as a precondition
 // on any update requests.
 
-// Each user entry has an associated key which is the lowercased form of the
+// Each user entry has an associated key which is the lower-cased form of the
 // username.  The supplied name is retained as an attribute in order to present
 // the form that the caller originally used for display purposes.
 
@@ -73,11 +73,11 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	// Secondly, eat the "already exists" failure as there is no need to prevent startup
 	// if the account is already present.
 	//
-	if err == ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
+	if err == errors.ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
 		existingUser, _, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
 
 		if err != nil {
-			return tracing.Error(ctx, ErrUnableToVerifySystemAccount{
+			return tracing.Error(ctx, errors.ErrUnableToVerifySystemAccount{
 				Name: cfg.WebServer.SystemAccount,
 				Err:  err,
 			})
@@ -86,7 +86,11 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 		if err = bcrypt.CompareHashAndPassword(
 			existingUser.GetPasswordHash(),
 			[]byte(cfg.WebServer.SystemAccountPassword)); err != nil {
-			tracing.Info(ctx, "CloudChamber: standard %q account is not using using configured password - error %v", cfg.WebServer.SystemAccount, err)
+			tracing.Info(
+				ctx,
+				"CloudChamber: standard %q account is not using using configured password - error %v",
+				cfg.WebServer.SystemAccount,
+				err)
 		}
 
 		return nil
@@ -108,7 +112,7 @@ func (m *DBUsers) Create(ctx context.Context, u *pb.User) (int64, error) {
 	rev, err := m.Store.Create(ctx, store.KeyRootUsers, u.Name, v)
 
 	if err == errors.ErrStoreAlreadyExists(u.Name) {
-		return InvalidRev, ErrUserAlreadyExists(u.Name)
+		return InvalidRev, errors.ErrUserAlreadyExists(u.Name)
 	}
 
 	if err != nil {
@@ -125,7 +129,7 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
 
 	if err == errors.ErrStoreKeyNotFound(name) {
-		return nil, InvalidRev, ErrUserNotFound(name)
+		return nil, InvalidRev, errors.ErrUserNotFound(name)
 	}
 
 	if err != nil {
@@ -139,7 +143,7 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 	}
 
 	if store.GetNormalizedName(name) != store.GetNormalizedName(u.GetName()) {
-		return nil, InvalidRev, ErrUserBadRecordContent{name, *val}
+		return nil, InvalidRev, errors.ErrUserBadRecordContent{Name: name, Value: *val}
 	}
 
 	return u, rev, nil
@@ -149,7 +153,7 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 // expected (match) revision
 //
 // NOTE: Currently, this uses a *VERY* clumsy read/modify/write action. What is
-//       really needed here is to provide the ability to feed anaction into the
+//       really needed here is to provide the ability to feed an action into the
 //       Update() routine itself to allow the caller to selectively update
 //       individual fields from within the transaction.
 //
@@ -158,7 +162,7 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
 
 	if err == errors.ErrStoreKeyNotFound(name) {
-		return nil, InvalidRev, ErrUserNotFound(name)
+		return nil, InvalidRev, errors.ErrUserNotFound(name)
 	}
 
 	if err != nil {
@@ -166,7 +170,7 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 	}
 
 	if rev != match {
-		return nil, InvalidRev, ErrUserStaleVersion(name)
+		return nil, InvalidRev, errors.ErrUserStaleVersion(name)
 	}
 
 	old := &pb.User{}
@@ -206,7 +210,7 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
 
 	if err == errors.ErrStoreKeyNotFound(name) {
-		return nil, InvalidRev, ErrUserNotFound(name)
+		return nil, InvalidRev, errors.ErrUserNotFound(name)
 	}
 
 	if err != nil {
@@ -214,7 +218,7 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 	}
 
 	if rev != match {
-		return nil, InvalidRev, ErrUserStaleVersion(name)
+		return nil, InvalidRev, errors.ErrUserStaleVersion(name)
 	}
 
 	old := &pb.User{}
@@ -252,7 +256,7 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, n)
 
 	if err == errors.ErrStoreKeyNotFound(n) {
-		return ErrUserNotFound(name)
+		return errors.ErrUserNotFound(name)
 	}
 
 	if err != nil {
@@ -266,7 +270,7 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 	}
 
 	if old.GetNeverDelete() {
-		return ErrUserProtected(name)
+		return errors.ErrUserProtected(name)
 	}
 
 	if InvalidRev == match {
@@ -281,13 +285,13 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 		// Revision matters, so if it does not match then report
 		// the problem
 		//
-		return ErrUserStaleVersion(name)
+		return errors.ErrUserStaleVersion(name)
 	}
 
 	_, err = m.Store.Delete(ctx, store.KeyRootUsers, n, rev)
 
 	if err == errors.ErrStoreKeyNotFound(n) {
-		return ErrUserNotFound(name)
+		return errors.ErrUserNotFound(name)
 	}
 
 	if err != nil {
@@ -317,7 +321,7 @@ func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) e
 		}
 
 		if n != store.GetNormalizedName(u.GetName()) {
-			return ErrUserBadRecordContent{n, r.Value}
+			return errors.ErrUserBadRecordContent{Name: n, Value: r.Value}
 		}
 
 		if err = action(u); err != nil {

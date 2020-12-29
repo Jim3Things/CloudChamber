@@ -6,6 +6,13 @@ import (
 )
 
 var (
+	// ErrNotInitialized is a new error to indicate initialization failures.
+	ErrNotInitialized = errors.New("CloudChamber: initialization failure")
+
+	// ErrWorkloadNotEnabled indicates the specified workload is not enabled
+	// for the purposes of deployment or execution.
+	ErrWorkloadNotEnabled = errors.New("CloudChamber: workload not enabled")
+
 	// ErrStoreUnableToCreateClient indicates that it is not currently possible
 	// to create a client.
 	//
@@ -39,7 +46,7 @@ func (etnf ErrTimerNotFound) Error() string {
 }
 
 // ErrStoreNotConnected indicates the store instance does not have a
-// currently active client. The Connect() method can be used to establist a client.
+// currently active client. The Connect() method can be used to establish a client.
 //
 type ErrStoreNotConnected string
 
@@ -56,7 +63,7 @@ func (esc ErrStoreConnected) Error() string {
 	return fmt.Sprintf("CloudChamber: client currently connected - %s", string(esc))
 }
 
-// ErrStoreConnectionFailed indicates that the attempt to extablish a connection
+// ErrStoreConnectionFailed indicates that the attempt to establish a connection
 // from this client to the store failed
 //
 type ErrStoreConnectionFailed struct {
@@ -94,7 +101,7 @@ func (esktm ErrStoreKeyTypeMismatch) Error() string {
 type ErrStoreNotImplemented string
 
 func (esni ErrStoreNotImplemented) Error() string {
-	return fmt.Sprintf("CloudChamber: method %v not currently implemented", string(esni))
+	return fmt.Sprintf("CloudChamber: method %s not currently implemented", string(esni))
 }
 
 // ErrStoreKeyReadFailure indicates the read transaction failed.
@@ -156,7 +163,7 @@ type ErrStoreBadRecordCount struct {
 
 func (esbrc ErrStoreBadRecordCount) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: unexpected record count for key %q - expected: %v actual %v",
+		"CloudChamber: unexpected record count for key %q - expected: %d actual %d",
 		esbrc.Key, esbrc.Expected, esbrc.Actual)
 }
 
@@ -181,7 +188,7 @@ type ErrStoreBadArgRevision struct {
 
 func (esbar ErrStoreBadArgRevision) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: invalid revision argument supplied on update for key %q - requested: %v actual: %v",
+		"CloudChamber: invalid revision argument supplied on update for key %q - requested: %d actual: %d",
 		esbar.Key, esbar.Requested, esbar.Actual)
 }
 
@@ -198,7 +205,7 @@ type ErrStoreConditionFail struct {
 
 func (esucf ErrStoreConditionFail) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: condition failure on update for key %q - requested: %v condition: %v actual: %v",
+		"CloudChamber: condition failure on update for key %q - requested: %d condition: %s actual: %d",
 		esucf.Key, esucf.Requested, esucf.Condition, esucf.Actual)
 }
 
@@ -215,7 +222,7 @@ func (esae ErrStoreAlreadyExists) Error() string {
 type ErrStoreInvalidConfiguration string
 
 func (esic ErrStoreInvalidConfiguration) Error() string {
-	return fmt.Sprintf("CloudChamber: invalid store configuration - %v", string(esic))
+	return fmt.Sprintf("CloudChamber: invalid store configuration - %s", string(esic))
 }
 
 // ErrDuplicateRack indicates duplicates rack names found
@@ -246,3 +253,222 @@ func (evf ErrRackValidationFailure) Error() string {
 	return fmt.Sprintf("In rack %q: %v", evf.Rack, evf.Err)
 }
 
+var (
+	// ErrUserUnableToCreate indicates the specified user account cannot be
+	// created at this time
+	ErrUserUnableToCreate = errors.New("CloudChamber: unable to create a user account at this time")
+
+	// ErrUserAlreadyLoggedIn indicates that the session is currently logged in
+	// and a new log in cannot be processed
+	ErrUserAlreadyLoggedIn = errors.New("CloudChamber: session already has a logged in user")
+
+	// ErrUserAuthFailed indicates the supplied username and password combination
+	// is not valid.
+	ErrUserAuthFailed = errors.New("CloudChamber: authentication failed, invalid user name or password")
+)
+
+// ErrUserAlreadyExists indicates the attempt to create a new user account
+// failed as that user already exists.
+//
+type ErrUserAlreadyExists string
+
+func (euae ErrUserAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q already exists", string(euae))
+}
+
+// ErrUserNotFound indicates the attempt to locate a user account failed as that
+// user does not exist.
+//
+type ErrUserNotFound string
+
+func (eunf ErrUserNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q not found", string(eunf))
+}
+
+// ErrUserStaleVersion indicates the attempt to locate a user account failed as that
+// user does not exist.
+//
+type ErrUserStaleVersion string
+
+func (eusv ErrUserStaleVersion) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q has a newer version than expected", string(eusv))
+}
+
+// ErrUserProtected indicates the attempt to locate a user account failed as that
+// user does not exist.
+//
+type ErrUserProtected string
+
+func (eup ErrUserProtected) Error() string {
+	return fmt.Sprintf("CloudChamber: user %q is protected and cannot be deleted", string(eup))
+}
+
+// ErrUserBadRecordContent indicates the user record retrieved from the store store
+// has some content that does not match the key. An example might be that the user
+// name used for a key does not match the user name field in the record.
+//
+type ErrUserBadRecordContent struct {
+	Name  string
+	Value string
+}
+
+func (eubrc ErrUserBadRecordContent) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: discovered record for user %q where the content does not match key %q",
+		eubrc.Name, eubrc.Value)
+}
+
+// ErrUnableToVerifySystemAccount indicates that the system account has changed
+// from what is defined in the configuration
+type ErrUnableToVerifySystemAccount struct {
+	Name string
+	Err  error
+}
+
+func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: unable to verify the standard %q account is using configured password - error %v",
+		eutvsa.Name, eutvsa.Err)
+}
+
+// ErrZoneAlreadyExists indicates the attempt to create a new zone record
+// failed as that zone already exists.
+//
+type ErrZoneAlreadyExists string
+
+func (ezae ErrZoneAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: zone %q already exists", string(ezae))
+}
+
+// ErrZoneNotFound indicates the attempt to locate a zone record failed as that
+// zone does not exist.
+//
+type ErrZoneNotFound string
+
+func (eznf ErrZoneNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: zone %q not found", string(eznf))
+}
+
+// ErrZoneStaleVersion indicates the attempt to locate a specific version of a
+// zone record failed as either that zone does not exist, or the specific
+// version is no longer present in the store.
+//
+type ErrZoneStaleVersion string
+
+func (ezsv ErrZoneStaleVersion) Error() string {
+	return fmt.Sprintf("CloudChamber: zone %q has a newer version than expected", string(ezsv))
+}
+
+// ErrRackAlreadyExists indicates the attempt to create a new rack record
+// failed as that rack already exists.
+//
+type ErrRackAlreadyExists struct {
+	Zone string
+	Rack string
+}
+
+func (erae ErrRackAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: rack %q in zone %q already exists", erae.Rack, erae.Zone)
+}
+
+// ErrRackNotFound indicates the attempt to operate on a rack record failed
+// as that record cannot be found.
+//
+type ErrRackNotFound struct {
+	Zone string
+	Rack string
+}
+
+func (ernf ErrRackNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: rack %q in zone %q was not found", ernf.Rack, ernf.Zone)
+}
+
+// ErrPduAlreadyExists indicates the attempt to create a new pdu record
+// failed as that pdu already exists.
+//
+type ErrPduAlreadyExists struct {
+	Zone string
+	Rack string
+	Pdu  int64
+}
+
+func (epae ErrPduAlreadyExists) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: %s already exists",
+		pduAddress(epae.Zone, epae.Rack, epae.Pdu))
+}
+
+// ErrPduNotFound indicates the attempt to operate on a pdu record
+// failed as that record cannot be found.
+//
+type ErrPduNotFound struct {
+	Zone string
+	Rack string
+	Pdu  int64
+}
+
+func (epae ErrPduNotFound) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: %s was not found",
+		pduAddress(epae.Zone, epae.Rack, epae.Pdu))
+}
+
+// ErrTorAlreadyExists indicates the attempt to create a new zone record
+// failed as that zone already exists.
+//
+type ErrTorAlreadyExists struct {
+	Zone string
+	Rack string
+	Tor  int64
+}
+
+func (etae ErrTorAlreadyExists) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: %s already exists",
+		torAddress(etae.Zone, etae.Rack, etae.Tor))
+}
+
+// ErrTorNotFound indicates the attempt to operate on a tor record
+// failed as that record cannot be found.
+//
+type ErrTorNotFound struct {
+	Zone string
+	Rack string
+	Tor  int64
+}
+
+func (etnf ErrTorNotFound) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: %s was not found",
+		torAddress(etnf.Zone, etnf.Rack, etnf.Tor))
+}
+
+// ErrBladeAlreadyExists indicates the attempt to create a new blade record
+// failed as that blade already exists.
+//
+type ErrBladeAlreadyExists struct {
+	Zone  string
+	Rack  string
+	Blade int64
+}
+
+func (ebae ErrBladeAlreadyExists) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: %s already exists",
+		bladeAddress(ebae.Zone, ebae.Rack, ebae.Blade))
+}
+
+// ErrBladeNotFound indicates the attempt to operate on a blade record
+// failed as that record cannot be found.
+//
+type ErrBladeNotFound struct {
+	Zone  string
+	Rack  string
+	Blade int64
+}
+
+func (ebnf ErrBladeNotFound) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: %s was not found",
+		bladeAddress(ebnf.Zone, ebnf.Rack, ebnf.Blade))
+}
