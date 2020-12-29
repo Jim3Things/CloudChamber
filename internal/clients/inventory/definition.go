@@ -256,8 +256,8 @@ func (r *Root) Create(ctx context.Context) (int64, error) {
 
 // Read is a
 //
-func (r *Root) Read(ctx context.Context) (*interface{}, error) {
-	return 	nil, ErrFunctionNotAvailable
+func (r *Root) Read(ctx context.Context) (int64, *interface{}, error) {
+	return 	store.RevisionInvalid, nil, ErrFunctionNotAvailable
 }
 
 // Update is a
@@ -268,8 +268,8 @@ func (r *Root) Update(ctx context.Context) (int64, error) {
 
 // Delete is a
 //
-func (r *Root) Delete(ctx context.Context) error {
-	return 	ErrFunctionNotAvailable
+func (r *Root) Delete(ctx context.Context) (int64, error) {
+	return 	store.RevisionInvalid, ErrFunctionNotAvailable
 }
 
 // NewChild is a
@@ -378,6 +378,16 @@ func (r *Region) GetDetails(ctx context.Context) (*pb.RegionDetails, error) {
 	return 	r.details, nil
 }
 
+// GetRevision is a
+//
+func (r *Region) GetRevision(ctx context.Context) (int64, error) {
+	if r.details == nil {
+		return store.RevisionInvalid, ErrRevisionNotAvailable("region")
+	}
+	
+	return r.revision, nil
+}
+
 // Create is
 //
 func (r *Region) Create(ctx context.Context) (int64, error) {
@@ -399,7 +409,7 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
 
 	if err == store.ErrStoreAlreadyExists(r.Key) {
-		return store.RevisionInvalid, ErrZoneAlreadyExists(r.Region)
+		return store.RevisionInvalid, ErrfRegionAlreadyExists(r.Region)
 	}
 
 	r.revision = rev
@@ -409,9 +419,25 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (r *Region) Read(ctx context.Context) (*pb.RegionDetails, error) {
+func (r *Region) Read(ctx context.Context) (int64, *pb.RegionDetails, error) {
 
-	return nil, nil
+	v, rev, err := r.Store.Read(ctx, store.KeyRootInventory, r.Key)
+
+	if err == store.ErrStoreKeyNotFound(r.Key) {
+		return store.RevisionInvalid, nil, ErrfRegionNotFound(r.Region)
+	}
+
+	record := &pb.StoreRecordDefinitionRegion{}
+
+	if err = store.Decode(*v, record); err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	r.details  = record.Details
+	r.record   = record
+	r.revision = rev
+
+	return r.revision, r.details, nil
 }
 
 // Update is
@@ -423,9 +449,9 @@ func (r *Region) Update(ctx context.Context) (int64, error) {
 
 // Delete is
 //
-func (r *Region) Delete(ctx context.Context) error {
+func (r *Region) Delete(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 // NewChild is a 
@@ -535,6 +561,16 @@ func (z *Zone) GetDetails(ctx context.Context) (*pb.ZoneDetails, error) {
 	return 	z.details, nil
 }
 
+// GetRevision is a
+//
+func (z *Zone) GetRevision(ctx context.Context) (int64, error) {
+	if z.details == nil {
+		return store.RevisionInvalid, ErrRevisionNotAvailable("zone")
+	}
+	
+	return z.revision, nil
+}
+
 // Create is
 //
 func (z *Zone) Create(ctx context.Context) (int64, error) {
@@ -556,7 +592,7 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 	rev, err := z.Store.Create(ctx, store.KeyRootInventory, z.Key, v)
 
 	if err == store.ErrStoreAlreadyExists(z.Key) {
-		return store.RevisionInvalid, ErrZoneAlreadyExists(z.Zone)
+		return store.RevisionInvalid, ErrfZoneAlreadyExists(z.Region, z.Zone)
 	}
 
 	z.revision = rev
@@ -566,23 +602,39 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (z *Zone) Read(ctx context.Context) (*pb.ZoneDetails, error) {
+func (z *Zone) Read(ctx context.Context) (int64, *pb.ZoneDetails, error) {
 
-	return nil, nil
+	v, rev, err := z.Store.Read(ctx, store.KeyRootInventory, z.Key)
+
+	if err == store.ErrStoreKeyNotFound(z.Key) {
+		return store.RevisionInvalid, nil, ErrfZoneNotFound(z.Region, z.Zone)
+	}
+
+	record := &pb.StoreRecordDefinitionZone{}
+
+	if err = store.Decode(*v, record); err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	z.details  = record.Details
+	z.record   = record
+	z.revision = rev
+
+	return z.revision, z.details, nil
 }
 
 // Update is
 //
-func (z *Zone) Update(ctx context.Context) error {
+func (z *Zone) Update(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 // Delete is
 //
-func (z *Zone) Delete(ctx context.Context) error {
+func (z *Zone) Delete(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 // NewChild is a 
@@ -695,6 +747,16 @@ func (r *Rack) GetDetails(ctx context.Context) (*pb.RackDetails, error) {
 	return 	r.details, nil
 }
 
+// GetRevision is a
+//
+func (r *Rack) GetRevision(ctx context.Context) (int64, error) {
+	if r.details == nil {
+		return store.RevisionInvalid, ErrRevisionNotAvailable("rack")
+	}
+
+	return r.revision, nil
+}
+
 // Create is
 //
 func (r *Rack) Create(ctx context.Context) (int64, error) {
@@ -716,7 +778,7 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
 
 	if err == store.ErrStoreAlreadyExists(r.Key) {
-		return store.RevisionInvalid, ErrZoneAlreadyExists(r.Region)
+		return store.RevisionInvalid, ErrfRackAlreadyExists(r.Region, r.Zone, r.Rack)
 	}
 
 	r.revision = rev
@@ -726,9 +788,25 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (r *Rack) Read(ctx context.Context) (*pb.RackDetails, error) {
+func (r *Rack) Read(ctx context.Context) (int64, *pb.RackDetails, error) {
 
-	return nil, nil
+	v, rev, err := r.Store.Read(ctx, store.KeyRootInventory, r.Key)
+
+	if err == store.ErrStoreKeyNotFound(r.Key) {
+		return store.RevisionInvalid, nil, ErrfRackNotFound(r.Region, r.Zone, r.Rack)
+	}
+
+	record := &pb.StoreRecordDefinitionRack{}
+
+	if err = store.Decode(*v, record); err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	r.details  = record.Details
+	r.record   = record
+	r.revision = rev
+
+	return r.revision, r.details, nil
 }
 
 // Update is
@@ -740,9 +818,9 @@ func (r *Rack) Update(ctx context.Context) (int64, error) {
 
 // Delete is
 //
-func (r *Rack) Delete(ctx context.Context) error {
+func (r *Rack) Delete(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 // NewChild is a 
@@ -998,6 +1076,16 @@ func (p *Pdu) GetDetails(ctx context.Context) (*pb.PduDetails, error) {
 	return 	p.details, nil
 }
 
+// GetRevision is a
+//
+func (p *Pdu) GetRevision(ctx context.Context) (int64, error) {
+	if p.details == nil {
+		return store.RevisionInvalid, ErrRevisionNotAvailable("pdu")
+	}
+	
+	return p.revision, nil
+}
+
 // SetPorts is a
 //
 func (p *Pdu) SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort) error {
@@ -1042,7 +1130,7 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 	rev, err := p.Store.Create(ctx, store.KeyRootInventory, p.Key, v)
 
 	if err == store.ErrStoreAlreadyExists(p.Key) {
-		return store.RevisionInvalid, ErrfPduAlreadyExists(p.Zone, p.Rack, p.ID)
+		return store.RevisionInvalid, ErrfPduAlreadyExists(p.Region, p.Zone, p.Rack, p.ID)
 	}
 
 	p.revision = rev
@@ -1052,23 +1140,40 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (p *Pdu) Read(ctx context.Context) (*pb.PduDetails, error) {
+func (p *Pdu) Read(ctx context.Context) (int64, *pb.PduDetails, error) {
 
-	return nil, nil
+	v, rev, err := p.Store.Read(ctx, store.KeyRootInventory, p.Key)
+
+	if err == store.ErrStoreKeyNotFound(p.Key) {
+		return store.RevisionInvalid, nil, ErrfPduNotFound(p.Region, p.Zone, p.Rack, p.ID)
+	}
+
+	record := &pb.StoreRecordDefinitionPdu{}
+
+	if err = store.Decode(*v, record); err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	p.details  = record.Details
+	p.ports    = &record.Ports
+	p.record   = record
+	p.revision = rev
+
+	return p.revision, p.details, nil
 }
 
 // Update is
 //
-func (p *Pdu) Update(ctx context.Context) error {
+func (p *Pdu) Update(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 // Delete is
 //
-func (p *Pdu) Delete(ctx context.Context) error {
+func (p *Pdu) Delete(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 
@@ -1128,6 +1233,16 @@ func (t *Tor) GetDetails(ctx context.Context) (*pb.TorDetails, error) {
 	return 	t.details, nil
 }
 
+// GetRevision is a
+//
+func (t *Tor) GetRevision(ctx context.Context) (int64, error) {
+	if t.details == nil {
+		return store.RevisionInvalid, ErrRevisionNotAvailable("tor")
+	}
+
+	return t.revision, nil
+}
+
 // SetPorts is a
 //
 func (t *Tor) SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort) error {
@@ -1172,7 +1287,7 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 	rev, err := t.Store.Create(ctx, store.KeyRootInventory, t.Key, v)
 
 	if err == store.ErrStoreAlreadyExists(t.Key) {
-		return store.RevisionInvalid, ErrfPduAlreadyExists(t.Zone, t.Rack, t.ID)
+		return store.RevisionInvalid, ErrfPduAlreadyExists(t.Region, t.Zone, t.Rack, t.ID)
 	}
 
 	t.revision = rev
@@ -1182,23 +1297,40 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 
 // Read is
 //
-func (t *Tor) Read(ctx context.Context) (*pb.TorDetails, error) {
+func (t *Tor) Read(ctx context.Context) (int64, *pb.TorDetails, error) {
 
-	return nil, nil
+	v, rev, err := t.Store.Read(ctx, store.KeyRootInventory, t.Key)
+
+	if err == store.ErrStoreKeyNotFound(t.Key) {
+		return store.RevisionInvalid, nil, ErrfPduNotFound(t.Region, t.Zone, t.Rack, t.ID)
+	}
+
+	record := &pb.StoreRecordDefinitionTor{}
+
+	if err = store.Decode(*v, record); err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	t.details  = record.Details
+	t.ports    = &record.Ports
+	t.record   = record
+	t.revision = rev
+
+	return t.revision, t.details, nil
 }
 
 // Update is
 //
-func (t *Tor) Update(ctx context.Context) error {
+func (t *Tor) Update(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 // Delete is
 //
-func (t *Tor) Delete(ctx context.Context) error {
+func (t *Tor) Delete(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 
@@ -1266,6 +1398,15 @@ func (b *Blade) GetDetails(ctx context.Context) (*pb.BladeDetails, error) {
 	return 	b.details, nil
 }
 
+// GetRevision is a
+//
+func (b *Blade) GetRevision(ctx context.Context) (int64, error) {
+	if b.details == nil {
+		return store.RevisionInvalid, ErrRevisionNotAvailable("blade")
+	}
+
+	return b.revision, nil
+}
 
 // SetCapacity is a
 //
@@ -1336,7 +1477,7 @@ func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 	rev, err := b.Store.Create(ctx, store.KeyRootInventory, b.Key, v)
 
 	if err == store.ErrStoreAlreadyExists(b.Key) {
-		return store.RevisionInvalid, ErrfPduAlreadyExists(b.Zone, b.Rack, b.ID)
+		return store.RevisionInvalid, ErrfPduAlreadyExists(b.Region, b.Zone, b.Rack, b.ID)
 	}
 
 	b.revision = rev
@@ -1346,23 +1487,42 @@ func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 
 // Read is
 //
-func (b *Blade) Read(ctx context.Context) (*pb.DefinitionBlade, error) {
+func (b *Blade) Read(ctx context.Context) (int64, *pb.BladeDetails, error) {
 
-	return nil, nil
+	v, rev, err := b.Store.Read(ctx, store.KeyRootInventory, b.Key)
+
+	if err == store.ErrStoreKeyNotFound(b.Key) {
+		return store.RevisionInvalid, nil, ErrfPduNotFound(b.Region, b.Zone, b.Rack, b.ID)
+	}
+
+	record := &pb.StoreRecordDefinitionBlade{}
+
+	if err = store.Decode(*v, record); err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	b.details       = record.Details
+	b.capacity      = record.Capacity
+	b.bootInfo      = record.BootInfo
+	b.bootOnPowerOn = record.BootOnPowerOn
+	b.record        = record
+	b.revision      = rev
+
+	return b.revision, b.details, nil
 }
 
 // Update is
 //
-func (b *Blade) Update(ctx context.Context) error {
+func (b *Blade) Update(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 // Delete is
 //
-func (b *Blade) Delete(ctx context.Context) error {
+func (b *Blade) Delete(ctx context.Context) (int64, error) {
 
-	return nil
+	return store.RevisionInvalid, nil
 }
 
 
