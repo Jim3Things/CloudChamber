@@ -11,45 +11,51 @@ import (
 // Error definitions.  Placeholder for now.
 
 type ErrInvalidType ValueType
+
 func (e ErrInvalidType) Error() string {
 	return fmt.Sprintf("unexpected value type %d encountered", int(e))
 }
 
 type ErrInvalidOp OpType
+
 func (e ErrInvalidOp) Error() string {
 	return fmt.Sprintf("unexpected operation %d encountered", int(e))
 }
 
 type ErrInvalidArgLen struct {
-	op string
+	op       string
 	required string
-	actual int
+	actual   int
 }
+
 func (e ErrInvalidArgLen) Error() string {
 	return fmt.Sprintf("operation %s expects %s but received %d", e.op, e.required, e.actual)
 }
 
 type ErrMissingFieldName string
+
 func (e ErrMissingFieldName) Error() string {
 	return fmt.Sprintf(
-		"key must have a table name, one or more path elements, and one field name.  " +
+		"key must have a table name, one or more path elements, and one field name.  "+
 			"no field name was found in %q.", string(e))
 }
 
 type ErrExtraFieldNames string
+
 func (e ErrExtraFieldNames) Error() string {
 	return fmt.Sprintf(
-		"key must have a table name, one or more path elements, and one field name.  " +
+		"key must have a table name, one or more path elements, and one field name.  "+
 			"multiple possible field were names found in %q.",
-			string(e))
+		string(e))
 }
 
 type ErrMissingPath string
+
 func (e ErrMissingPath) Error() string {
 	return fmt.Sprintf(
-		"key must have a table name, one or more path elements, and one field name.  " +
+		"key must have a table name, one or more path elements, and one field name.  "+
 			"No path elements were found in %q.",
-			string(e))
+		string(e))
 }
 
 // Define the rules definition layout
@@ -59,15 +65,9 @@ func (e ErrMissingPath) Error() string {
 type Proposal struct {
 }
 
-// Arg contains a context item to use when preparing the final output
-type Arg struct {
-	Name string
-	From *Term
-}
-
 // OutputFunc is the signature for a function that generates the result of a
 // ruleset matching.
-type OutputFunc func(ctx context.Context, args []Arg) (*Proposal, error)
+type OutputFunc func(ctx context.Context, args map[string]Term, ec *EvalContext) (*Proposal, error)
 
 // Rule defines a matching rule to evaluate and, if matched, execute.
 type Rule struct {
@@ -101,7 +101,7 @@ type RuleChoice struct {
 
 	// With contains the set of argument and context state to provide to the
 	// output function
-	With []Arg
+	With map[string]Term
 
 	// Call is the function to call when this choice is taken.  The resulting
 	// Proposal is then returned as the evaluation output for the Rule.
@@ -193,12 +193,12 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 		if v {
 			reason = rule.Reason
 			for _, choice := range rule.Choices {
-				v, err := processTerm(choice.Assuming, ec)
+				chosen, err := processTerm(choice.Assuming, ec)
 				if err != nil {
 					return nil, err
 				}
 
-				if v {
+				if chosen {
 					reason = fmt.Sprintf("%s and %s", reason, choice.Chosen)
 					ctx, span := tracing.StartSpan(
 						ctx,
@@ -206,7 +206,7 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 						tracing.WithReason(reason),
 						tracing.WithContextValue(timestamp.EnsureTickInContext))
 
-					p, err := choice.Call(ctx, choice.With)
+					p, err := choice.Call(ctx, choice.With, ec)
 					if err != nil {
 						return nil, err
 					}
