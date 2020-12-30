@@ -12,6 +12,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
@@ -107,7 +108,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.True(ok)
 	require.NotNil(res)
-	require.Error(ErrTooLate, res.Err)
+	require.Error(errors.ErrInventoryChangeTooLate(commandTime), res.Err)
 
 	assert.Less(t.sm.Guard, checkTime)
 	assert.Less(t.cables[0].Guard, checkTime)
@@ -256,7 +257,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 	require.NotNil(res)
 
 	assert.Error(res.Err)
-	assert.Equal(ErrCableStuck, res.Err)
+	assert.Equal(errors.ErrCableStuck, res.Err)
 
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)

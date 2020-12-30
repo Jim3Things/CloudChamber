@@ -10,6 +10,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
@@ -368,7 +369,7 @@ func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
 	require.True(ok)
 	require.NotNil(res)
 	require.Error(res.Err)
-	assert.Equal(ErrNoOperation, res.Err)
+	assert.Equal(errors.ErrNoOperation, res.Err)
 
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
@@ -405,7 +406,7 @@ func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
 	require.True(ok)
 	require.NotNil(res)
-	require.Error(ErrTooLate, res.Err)
+	require.Error(errors.ErrInventoryChangeTooLate(commandTime), res.Err)
 
 	assert.Less(r.pdu.sm.Guard, common.TickFromContext(ctx))
 	assert.Less(commandTime, r.pdu.cables[0].Guard)
@@ -439,7 +440,7 @@ func (ts *PduTestSuite) TestStuckCable() {
 	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(ErrCableStuck, res.Err)
+	assert.Equal(errors.ErrCableStuck, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 

@@ -10,7 +10,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
+    pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 // Rack holds a simulated Rack, consisting of a TOR (top of Rack switch), a
@@ -215,7 +216,7 @@ func (r *Rack) start(ctx context.Context) error {
 		}
 	}
 
-	return ErrAlreadyStarted
+	return errors.ErrAlreadyStarted
 }
 
 // stop terminates the simulated Rack state machine, and its handler.
