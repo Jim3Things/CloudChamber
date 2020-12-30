@@ -1486,8 +1486,8 @@ func (t *Tor) SetName(ctx context.Context, ID int64) error {
 // SetDetails is a
 //
 func (t *Tor) SetDetails(ctx context.Context, details *pb.TorDetails) {
-
-	t.details = details
+	t.details  = details
+	t.revision = store.RevisionInvalid
 }
 
 // GetDetails is a
@@ -1604,6 +1604,7 @@ func (t *Tor) Update(ctx context.Context, unconditional bool) (int64, error) {
 
 	record := &pb.StoreRecordDefinitionTor{
 		Details: t.details,
+		Ports: *t.ports,
 	}
 
 	v, err := store.Encode(record)
@@ -1852,9 +1853,9 @@ func (b *Blade) Update(ctx context.Context, unconditional bool) (int64, error) {
 	}
 
 	record := &pb.StoreRecordDefinitionBlade{
-		Details: b.details,
-		Capacity: b.capacity,
-		BootInfo: b.bootInfo,
+		Details:       b.details,
+		Capacity:      b.capacity,
+		BootInfo:      b.bootInfo,
 		BootOnPowerOn: b.bootOnPowerOn,
 	}
 
