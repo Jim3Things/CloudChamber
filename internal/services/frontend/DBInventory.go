@@ -641,34 +641,27 @@ func (m *DBInventory) CreateRack(
 	rack *pb.DefinitionRack,
 	options ...InventoryRackOption) (int64, error) {
 
-	r := &pb.DefinitionRack{
-		Details: &pb.RackDetails{
-			Enabled: rack.Details.Enabled,
-			Condition: rack.Details.Condition,
-			Location: rack.Details.Location,
-			Notes: rack.Details.Notes,
-		},
-	}
-
-	v, err := store.Encode(r)
+	r, err := inventory.NewRack(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		name)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+	r.SetDetails(ctx, rack.Details)
+
+	rev, err := r.Create(ctx)
 
 	if err != nil {
 		return InvalidRev, err
 	}
-
-	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
-
-	if err == errors.ErrStoreAlreadyExists(k) {
-		return InvalidRev, errors.ErrRackAlreadyExists{Zone: zone, Rack: name}
-	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // CreatePdu is used to create a basic pdu record in the store.
@@ -689,45 +682,30 @@ func (m *DBInventory) CreatePdu(
 		return InvalidRev, err
 	}
 
-	r := &pb.DefinitionPdu{
-		Details: &pb.PduDetails{
-			Enabled:   pdu.Details.Enabled,
-			Condition: pdu.Details.Condition,
-		},
-		Ports: make(map[int64]*pb.PowerPort, len(pdu.Ports)),
-	}
-
-	for i, p := range pdu.Ports {
-		r.Ports[i] = &pb.PowerPort{Wired: p.Wired}
-
-		if p.Item != nil {
-			r.Ports[i].Item = &pb.Hardware{
-				Type: p.Item.Type,
-				Id:   p.Item.Id,
-				Port: p.Item.Port,
-			}
-		}
-	}
-
-	v, err := store.Encode(r)
+	p, err := inventory.NewPdu(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	p.SetDetails(ctx, pdu.Details)
+	p.SetPorts(ctx, &pdu.Ports)
+
+	rev, err := p.Create(ctx)
 
 	if err != nil {
 		return InvalidRev, err
 	}
-
-	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
-
-	if err == errors.ErrStoreAlreadyExists(k) {
-		return InvalidRev, errors.ErrPduAlreadyExists{Zone: zone, Rack: rack, Pdu: index}
-	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // CreateTor is used to create a basic tor record in the store.
@@ -748,45 +726,30 @@ func (m *DBInventory) CreateTor(
 		return InvalidRev, err
 	}
 
-	r := &pb.DefinitionTor{
-		Details: &pb.TorDetails{
-			Enabled:   tor.Details.Enabled,
-			Condition: tor.Details.Condition,
-		},
-		Ports: make(map[int64]*pb.NetworkPort, len(tor.Ports)),
-	}
-
-	for i, p := range tor.Ports {
-		r.Ports[i] = &pb.NetworkPort{Wired: p.Wired}
-
-		if p.Item != nil {
-			r.Ports[i].Item = &pb.Hardware{
-				Type: p.Item.Type,
-				Id:   p.Item.Id,
-				Port: p.Item.Port,
-			}
-		}
-	}
-
-	v, err := store.Encode(r)
+	t, err := inventory.NewTor(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	t.SetDetails(ctx, tor.Details)
+	t.SetPorts(ctx, &tor.Ports)
+
+	rev, err := t.Create(ctx)
 
 	if err != nil {
 		return InvalidRev, err
 	}
-
-	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
-
-	if err == errors.ErrStoreAlreadyExists(k) {
-		return InvalidRev, errors.ErrTorAlreadyExists{Zone: zone, Rack: rack, Tor: index}
-	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // CreateBlade is used to create a basic blade record in the store.
@@ -802,31 +765,38 @@ func (m *DBInventory) CreateBlade(
 	index int64,
 	blade *pb.DefinitionBlade,
 	options ...InventoryOption) (int64, error) {
+	ctx context.Context,
+	zone string,
+	rack string,
+	index int64,
+	blade *pb.DefinitionBlade,
+	options ...InventoryOption) (int64, error) {
 
-	r := &pb.DefinitionBlade{
-		Details:  blade.Details,
-		Capacity: blade.Capacity,
-	}
-
-	v, err := store.Encode(r)
+	b, err := inventory.NewBlade(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	b.SetDetails(ctx, blade.Details)
+	b.SetCapacity(ctx, blade.Capacity)
+	b.SetBootInfo(ctx, blade.BootOnPowerOn, blade.BootInfo)
+
+	rev, err := b.Create(ctx)
 
 	if err != nil {
 		return InvalidRev, err
 	}
-
-	rev, err := m.Store.Create(ctx, store.KeyRootInventoryDefinitions, k, v)
-
-	if err == errors.ErrStoreAlreadyExists(k) {
-		return InvalidRev, errors.ErrBladeAlreadyExists{Zone: zone, Rack: rack, Blade: index}
-	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // ReadZone returns the zone information with optionally additional
@@ -838,25 +808,26 @@ func (m *DBInventory) ReadZone(
 	name string,
 	options ...InventoryZoneOption) (*pb.DefinitionZone, int64, error) {
 
-	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
+	z, err := inventory.NewZone(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		name)
 
 	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
+	rev, err := z.Read(ctx)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return nil, InvalidRev, errors.ErrZoneNotFound(name)
-	}
-
-	r := &pb.DefinitionZone{}
-
-	if err = store.Decode(*v, r); err != nil {
+	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	return r, rev, err
+	_, details := z.GetDetails(ctx)
+
+	return &pb.DefinitionZone{Details: details}, rev, nil
 }
 
 // ReadRack returns the rack information with optionally additional
@@ -868,25 +839,27 @@ func (m *DBInventory) ReadRack(
 	name string,
 	options ...InventoryRackOption) (*pb.DefinitionRack, int64, error) {
 
-	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+	r, err := inventory.NewRack(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		name)
 
 	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
+	rev, err := r.Read(ctx)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return nil, InvalidRev, errors.ErrRackNotFound{Zone: zone, Rack: name}
-	}
-
-	r := &pb.DefinitionRack{}
-
-	if err = store.Decode(*v, r); err != nil {
+	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	return r, rev, err
+	_, details := r.GetDetails(ctx)
+
+	return &pb.DefinitionRack{Details: details}, rev, nil
 }
 
 // ReadPdu returns the PDU information for an optionally specified revision.
@@ -898,25 +871,29 @@ func (m *DBInventory) ReadPdu(
 	index int64,
 	options ...InventoryOption) (*pb.DefinitionPdu, int64, error) {
 
-	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	p, err := inventory.NewPdu(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index)
 
 	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
+	rev, err := p.Read(ctx)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return nil, InvalidRev, errors.ErrPduNotFound{Zone: zone, Rack: rack, Pdu: index}
-	}
-
-	r := &pb.DefinitionPdu{}
-
-	if err = store.Decode(*v, r); err != nil {
+	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	return r, rev, err
+	_, details := p.GetDetails(ctx)
+	_, ports   := p.GetPorts(ctx)
+
+	return &pb.DefinitionPdu{Details: details, Ports: *ports}, rev, nil
 }
 
 // ReadTor returns the TOR information for an optionally specified revision.
@@ -928,25 +905,29 @@ func (m *DBInventory) ReadTor(
 	index int64,
 	options ...InventoryOption) (*pb.DefinitionTor, int64, error) {
 
-	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	t, err := inventory.NewTor(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index)
 
 	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
+	rev, err := t.Read(ctx)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return nil, InvalidRev, errors.ErrTorNotFound{Zone: zone, Rack: rack, Tor: index}
-	}
-
-	r := &pb.DefinitionTor{}
-
-	if err = store.Decode(*v, r); err != nil {
+	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	return r, rev, err
+	_, details := t.GetDetails(ctx)
+	_, ports   := t.GetPorts(ctx)
+
+	return &pb.DefinitionTor{Details: details, Ports: *ports}, rev, nil
 }
 
 // ReadBlade returns the blade information for an optionally specified revision.
@@ -958,25 +939,37 @@ func (m *DBInventory) ReadBlade(
 	index int64,
 	options ...InventoryOption) (*pb.DefinitionBlade, int64, error) {
 
-	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	b, err := inventory.NewBlade(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index)
 
 	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	v, rev, err := m.Store.Read(ctx, store.KeyRootInventoryDefinitions, k)
+	rev, err := b.Read(ctx)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return nil, InvalidRev, errors.ErrBladeNotFound{Zone: zone, Rack: rack, Blade: index}
-	}
-
-	r := &pb.DefinitionBlade{}
-
-	if err = store.Decode(*v, r); err != nil {
+	if err != nil {
 		return nil, InvalidRev, err
 	}
 
-	return r, rev, err
+	_, details := b.GetDetails(ctx)
+	_, capacity := b.GetCapacity(ctx)
+	_, bootOnPowerOn, bootInfo := b.GetBootInfo(ctx)
+
+	blade := &pb.DefinitionBlade{
+		Details:       details,
+		Capacity:      capacity,
+		BootOnPowerOn: bootOnPowerOn,
+		BootInfo:      bootInfo,
+	}
+
+	return blade, rev, nil
 }
 
 // UpdateZone is used to update the zone basic details record.
@@ -991,34 +984,26 @@ func (m *DBInventory) UpdateZone(
 	zone *pb.DefinitionZone,
 	options ...InventoryZoneOption) (int64, error) {
 
-	z := &pb.DefinitionZone{
-		Details: &pb.ZoneDetails{
-			Enabled:  zone.Details.Enabled,
-			State:    zone.Details.State,
-			Location: zone.Details.Location,
-			Notes:    zone.Details.Notes,
-		},
-	}
-
-	v, err := store.Encode(z)
+	z, err := inventory.NewZone(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		name)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
+	z.SetDetails(ctx, zone.Details)
+
+	rev, err := z.Update(ctx, true)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
-
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrZoneNotFound(name)
-	}
-
-	return rev, err
+	return rev, nil
 }
 
 // UpdateRack is used to update the rack basic details record.
@@ -1033,34 +1018,27 @@ func (m *DBInventory) UpdateRack(
 	name string,
 	rack *pb.DefinitionRack, options ...InventoryRackOption) (int64, error) {
 
-	r := &pb.DefinitionRack{
-		Details: &pb.RackDetails{
-			Enabled:   rack.Details.Enabled,
-			Condition: rack.Details.Condition,
-			Location:  rack.Details.Location,
-			Notes:     rack.Details.Notes,
-		},
-	}
-
-	v, err := store.Encode(r)
-
-	if err != nil {
-		return store.RevisionInvalid, err
-	}
-
-	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+	r, err := inventory.NewRack(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		name)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
+	r.SetDetails(ctx, rack.Details)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrRackNotFound{Zone: zone, Rack: name}
+	rev, err := r.Update(ctx, true)
+
+	if err != nil {
+		return InvalidRev, err
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // UpdatePdu is used to update the PDU record.
@@ -1073,43 +1051,30 @@ func (m *DBInventory) UpdatePdu(
 	pdu *pb.DefinitionPdu,
 	options ...InventoryOption) (int64, error) {
 
-	r := &pb.DefinitionPdu{
-		Details: &pb.PduDetails{
-			Enabled:   pdu.Details.Enabled,
-			Condition: pdu.Details.Condition,
-		},
-	}
-
-	for i, p := range pdu.Ports {
-		r.Ports[i] = &pb.PowerPort{
-			Wired: p.Wired,
-			Item: &pb.Hardware{
-				Type: p.Item.Type,
-				Id:   p.Item.Id,
-				Port: p.Item.Port,
-			},
-		}
-	}
-
-	v, err := store.Encode(r)
+	p, err := inventory.NewPdu(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	p.SetDetails(ctx, pdu.Details)
+	p.SetPorts(ctx, &pdu.Ports)
+
+	rev, err := p.Update(ctx, true)
 
 	if err != nil {
 		return InvalidRev, err
 	}
-
-	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
-
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrPduNotFound{Zone: zone, Rack: rack, Pdu: index}
-	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // UpdateTor is used to update the TOR record.
@@ -1122,43 +1087,30 @@ func (m *DBInventory) UpdateTor(
 	tor *pb.DefinitionTor,
 	options ...InventoryOption) (int64, error) {
 
-	r := &pb.DefinitionTor{
-		Details: &pb.TorDetails{
-			Enabled: tor.Details.Enabled,
-			Condition: tor.Details.Condition,
-		},
-	}
-
-	for i, p := range tor.Ports {
-		r.Ports[i] = &pb.NetworkPort{
-			Wired: p.Wired,
-			Item: &pb.Hardware{
-				Type: p.Item.Type,
-				Id:   p.Item.Id,
-				Port: p.Item.Port,
-			},
-		}
-	}
-
-	v, err := store.Encode(r)
+	t, err := inventory.NewTor(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	t.SetDetails(ctx, tor.Details)
+	t.SetPorts(ctx, &tor.Ports)
+
+	rev, err := t.Update(ctx, true)
 
 	if err != nil {
 		return InvalidRev, err
 	}
-
-	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
-
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrTorNotFound{Zone: zone, Rack: rack, Tor: index}
-	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // UpdateBlade is used to update the blade record.
@@ -1171,30 +1123,31 @@ func (m *DBInventory) UpdateBlade(
 	blade *pb.DefinitionBlade,
 	options ...InventoryOption) (int64, error) {
 
-	r := &pb.DefinitionBlade{
-		Details:  blade.Details,
-		Capacity:  blade.Capacity,
-	}
-
-	v, err := store.Encode(r)
-
-	if err != nil {
-		return InvalidRev, err
-	}
-
-	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, index)
+	b, err := inventory.NewBlade(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Update(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid, v)
+	b.SetDetails(ctx, blade.Details)
+	b.SetCapacity(ctx, blade.Capacity)
+	b.SetBootInfo(ctx, blade.BootOnPowerOn, blade.BootInfo)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrBladeNotFound{Zone: zone, Rack: rack, Blade: index}
+	rev, err := b.Update(ctx, true)
+
+	if err != nil {
+		return InvalidRev, err
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // DeleteZone is used to delete the zone record and any
@@ -1206,19 +1159,24 @@ func (m *DBInventory) DeleteZone(
 	name string,
 	options ...InventoryOption) (int64, error) {
 
-	k, err := inventory.GetKeyForZone(inventory.DefinitionTable, inventory.DefaultRegion, name)
+	z, err := inventory.NewZone(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		name)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
+	rev, err := z.Delete(ctx, true)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrZoneNotFound(name)
+	if err != nil {
+		return InvalidRev, err
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // DeleteRack is used to delete the rack record and any
@@ -1231,19 +1189,25 @@ func (m *DBInventory) DeleteRack(
 	name string,
 	options ...InventoryOption) (int64, error) {
 
-	k, err := inventory.GetKeyForRack(inventory.DefinitionTable, inventory.DefaultRegion, zone, name)
+	r, err := inventory.NewRack(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		name)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
+	rev, err := r.Delete(ctx, true)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrRackNotFound{Zone: zone, Rack: name}
+	if err != nil {
+		return InvalidRev, err
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // DeletePdu is used to delete the PDU record from a rack.
@@ -1254,26 +1218,34 @@ func (m *DBInventory) DeleteRack(
 // TODO - should the deletion of the last PDU return a distinct
 //        status to indicate it is the last PDU?
 //
-func (m *DBInventory) DeletePdu(
+func (m *DBInventory) DeletePdu(ctx context.Context, zone string, rack string, pdu int64, options ...InventoryOption) (int64, error) {
 	ctx context.Context,
 	zone string,
 	rack string,
 	pdu int64,
 	options ...InventoryOption) (int64, error) {
 
-	k, err := inventory.GetKeyForPdu(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, pdu)
+	p, err := inventory.NewPdu(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
+	rev, err := p.Delete(ctx, true)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrPduNotFound{Zone: zone, Rack: rack, Pdu: pdu}
+	if err != nil {
+		return InvalidRev, err
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // DeleteTor is used to delete the TOR record from a rack.
@@ -1284,26 +1256,34 @@ func (m *DBInventory) DeletePdu(
 // TODO - should the deletion of the last TOR return a distinct
 //        status to indicate it is the last TOR?
 //
-func (m *DBInventory) DeleteTor(
+func (m *DBInventory) DeleteTor(ctx context.Context, zone string, rack string, tor int64, options ...InventoryOption) (int64, error) {
 	ctx context.Context,
 	zone string,
 	rack string,
 	tor int64,
 	options ...InventoryOption) (int64, error) {
 
-	k, err := inventory.GetKeyForTor(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, tor)
+	t, err := inventory.NewTor(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
+	rev, err := t.Create(ctx)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrTorNotFound{Zone: zone, Rack: rack, Tor: tor}
+	if err != nil {
+		return InvalidRev, err
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
 
 // DeleteBlade is used to delete the blade record from a rack.
@@ -1314,24 +1294,32 @@ func (m *DBInventory) DeleteTor(
 // TODO - should the deletion of the last blade return a distinct
 //        status to indicate it is the last blade?
 //
-func (m *DBInventory) DeleteBlade(
+func (m *DBInventory) DeleteBlade(ctx context.Context, zone string, rack string, blade int64, options ...InventoryOption) (int64, error) {
 	ctx context.Context,
 	zone string,
 	rack string,
 	blade int64,
 	options ...InventoryOption) (int64, error) {
 
-	k, err := inventory.GetKeyForBlade(inventory.DefinitionTable, inventory.DefaultRegion, zone, rack, blade)
+	b, err := inventory.NewBlade(
+		ctx,
+		m.Store,
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		zone,
+		rack,
+		index,
+	)
 
 	if err != nil {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Delete(ctx, store.KeyRootInventoryDefinitions, k, store.RevisionInvalid)
+	rev, err := b.Delete(ctx, true)
 
-	if err == errors.ErrStoreKeyNotFound(k) {
-		return InvalidRev, errors.ErrBladeNotFound{Zone: zone, Rack: rack, Blade: blade}
+	if err != nil {
+		return InvalidRev, err
 	}
-
-	return rev, err
+	
+	return rev, nil
 }
