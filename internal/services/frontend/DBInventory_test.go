@@ -482,6 +482,13 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 			Arch: "vax",
 			Accelerators: nil,
 		},
+		BootOnPowerOn: true,
+		BootInfo: &pb.BladeBootInfo{
+			Source:     pb.BladeBootInfo_local,
+			Image:      "test-image.vhdx",
+			Version:    "20201225-0000",
+			Parameters: "-param1=val1 -param2=val2",	
+		},
 	}
 
 	revCreate, err := ts.db.CreateBlade(ctx, ts.zoneName, ts.rackName, bladeID, blade)
@@ -501,6 +508,13 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	assert.Equal(blade.Capacity.NetworkBandwidthInMbps, b.Capacity.NetworkBandwidthInMbps)
 	assert.Equal(blade.Capacity.Arch,                   b.Capacity.Arch)
 	assert.Equal(blade.Capacity.Accelerators,           b.Capacity.Accelerators)
+
+	assert.Equal(blade.BootOnPowerOn,                   b.BootOnPowerOn)
+
+	assert.Equal(blade.BootInfo.Source,                 b.BootInfo.Source)
+	assert.Equal(blade.BootInfo.Image,                  b.BootInfo.Image)
+	assert.Equal(blade.BootInfo.Version,                b.BootInfo.Version)
+	assert.Equal(blade.BootInfo.Parameters,             b.BootInfo.Parameters)
 }
 
 func TestDBInventoryTestSuite(t *testing.T) {
