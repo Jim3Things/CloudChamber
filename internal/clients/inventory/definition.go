@@ -1909,6 +1909,3 @@ func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
 	return rev, nil
 }
-
-
-

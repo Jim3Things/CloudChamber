@@ -34,6 +34,117 @@ func (ts *testSuiteCore) pduID(ID int64)      int64  { return int64(ID)}
 func (ts *testSuiteCore) torID(ID int64)      int64  { return int64(ID)}
 func (ts *testSuiteCore) bladeID(ID int64)    int64  { return int64(ID)}
 
+
+func (ts *testSuiteCore) stdRootDetails(suffix string) *pb.RootDetails {
+	return &pb.RootDetails{
+		Name: ts.rootName(suffix),
+		Notes: "root for inventory definition test",
+
+	}
+}
+
+func (ts *testSuiteCore) stdRegionDetails(suffix string) *pb.RegionDetails {
+	return &pb.RegionDetails{
+		Name:     ts.regionName(suffix),
+		State:    pb.State_in_service,
+		Location: "Pacific NW",
+		Notes:    "region for inventory definition test",
+	}
+}
+
+func (ts *testSuiteCore) stdZoneDetails(suffix string) *pb.ZoneDetails {
+	return &pb.ZoneDetails{
+		Enabled:  true,
+		State:    pb.State_in_service,
+		Location: "Pacific NW",
+		Notes:    "zone for inventory definition test",
+	}
+}
+
+func (ts *testSuiteCore) stdRackDetails(suffix string) *pb.RackDetails {
+	return &pb.RackDetails{
+		Enabled:   true,
+		Condition: pb.Condition_operational,
+		Location:  "Pacific NW",
+		Notes:     "rack for inventory definition test",
+	}
+}
+
+func (ts *testSuiteCore) stdPduDetails(ID int64) *pb.PduDetails {
+	return &pb.PduDetails{
+		Enabled:   true,
+		Condition: pb.Condition_operational,
+	}
+}
+
+func (ts *testSuiteCore) stdPowerPorts(count int) *map[int64]*pb.PowerPort {
+	ports := make(map[int64]*pb.PowerPort)
+
+	for i := 0; i < count; i++ {
+		ports[int64(i)] = &pb.PowerPort{
+			Wired: true,
+			Item: &pb.Hardware{
+				Type: pb.Hardware_blade,
+				Id: int64(i),
+				Port: int64(i),
+			},
+		}
+	}
+
+	return &ports
+}
+
+func (ts *testSuiteCore) stdTorDetails() *pb.TorDetails {
+	return &pb.TorDetails{
+		Enabled:   true,
+		Condition: pb.Condition_operational,
+	}
+}
+
+func (ts *testSuiteCore) stdNetworkPorts(count int) *map[int64]*pb.NetworkPort {
+	ports := make(map[int64]*pb.NetworkPort)
+
+	for i := 0; i < count; i++ {
+		ports[int64(i)] = &pb.NetworkPort{
+			Wired: true,
+			Item: &pb.Hardware{
+				Type: pb.Hardware_blade,
+				Id: int64(i),
+				Port: int64(1),
+			},
+		}
+	}
+
+	return &ports
+}
+
+func (ts *testSuiteCore) stdBladeDetails() *pb.BladeDetails {
+	return &pb.BladeDetails{
+		Enabled:   true,
+		Condition: pb.Condition_operational,
+	}
+}
+
+func (ts *testSuiteCore) stdBladeCapacity() *pb.BladeCapacity {
+	return &pb.BladeCapacity{
+		Cores:                  16,
+		MemoryInMb:             1024,
+		DiskInGb:               32,
+		NetworkBandwidthInMbps: 1024,
+		Arch:                   "amd64",
+	}
+}
+
+func (ts *testSuiteCore) stdBladeBootInfo() *pb.BladeBootInfo {
+	return &pb.BladeBootInfo{
+		Source:     pb.BladeBootInfo_local,
+		Image:      "test-image.vhdx",
+		Version:    "20201225-0000",
+		Parameters: "-param1=val1 -param2=val2",
+	}
+}
+
+
 func (ts *testSuiteCore) SetupSuite() {
 	require := ts.Require()
 
@@ -71,10 +182,7 @@ func (ts *testSuiteCore) TestNewRoot() {
 	require := ts.Require()
 
 	stdSuffix := "TestNewRoot"
-	stdDetails := &pb.RootDetails{
-		Name: ts.rootName(stdSuffix),
-		Notes: "root for inventory definition test",
-	}
+	stdDetails := ts.stdRootDetails(stdSuffix)
 
 	ctx := context.Background()
 
@@ -143,12 +251,7 @@ func (ts *testSuiteCore) TestNewRegion() {
 	require := ts.Require()
 
 	stdSuffix := "TestNewRegion"
-	stdDetails := &pb.RegionDetails{
-		Name:     ts.regionName(stdSuffix),
-		State:    pb.State_in_service,
-		Location: "Pacific NW",
-		Notes:    "region for inventory definition test",
-	}
+	stdDetails := ts.stdRegionDetails(stdSuffix)
 
 	ctx := context.Background()
 
@@ -233,13 +336,8 @@ func (ts *testSuiteCore) TestNewZone() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewZone"
-	stdDetails := &pb.ZoneDetails{
-		Enabled:  true,
-		State:    pb.State_in_service,
-		Location: "Pacific NW",
-		Notes:    "zone for inventory definition test",
-	}
+	stdSuffix  := "TestNewZone"
+	stdDetails := ts.stdZoneDetails(stdSuffix)
 
 	ctx := context.Background()
 
@@ -324,13 +422,8 @@ func (ts *testSuiteCore) TestNewRack() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewRack"
-	stdDetails := &pb.RackDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-		Location:  "Pacific NW",
-		Notes:     "rack for inventory definition test",
-	}
+	stdSuffix  := "TestNewRack"
+	stdDetails := ts.stdRackDetails(stdSuffix)
 
 	ctx := context.Background()
 
@@ -422,13 +515,9 @@ func (ts *testSuiteCore) TestNewPdu() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewPdu"
-	stdDetails := &pb.PduDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	}
-
-	stdPorts := make(map[int64]*pb.PowerPort)
+	stdSuffix  := "TestNewPdu"
+	stdDetails := ts.stdPduDetails(1)
+	stdPorts   := ts.stdPowerPorts(8)
 
 	ctx := context.Background()
 
@@ -483,7 +572,7 @@ func (ts *testSuiteCore) TestNewPdu() {
 
 	// Also set the ports
 	//
-	pdu.SetPorts(ctx, &stdPorts)
+	pdu.SetPorts(ctx, stdPorts)
 
 	rev, details = pdu.GetDetails(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -493,7 +582,7 @@ func (ts *testSuiteCore) TestNewPdu() {
 	rev, ports = pdu.GetPorts(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
 	require.NotNil(ports)
-	assert.Equal(stdPorts, *ports)
+	assert.Equal(stdPorts, ports)
 
 
 	// Clear just the details
@@ -507,7 +596,7 @@ func (ts *testSuiteCore) TestNewPdu() {
 	rev, ports = pdu.GetPorts(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
 	require.NotNil(ports)
-	assert.Equal(stdPorts, *ports)
+	assert.Equal(stdPorts, ports)
 
 
 	// Now also clear the ports
@@ -526,7 +615,7 @@ func (ts *testSuiteCore) TestNewPdu() {
 	// And then once agains, set both details and ports
 	//
 	pdu.SetDetails(ctx, stdDetails)
-	pdu.SetPorts(ctx, &stdPorts)
+	pdu.SetPorts(ctx, stdPorts)
 
 	rev, details = pdu.GetDetails(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -536,7 +625,7 @@ func (ts *testSuiteCore) TestNewPdu() {
 	rev, ports = pdu.GetPorts(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
 	require.NotNil(ports)
-	assert.Equal(stdPorts, *ports)
+	assert.Equal(stdPorts, ports)
 
 	// This will actually attempt to read the pdu from the store. Since
 	// we have yet to create the pdu, we expect to see a "not found"
@@ -606,12 +695,9 @@ func (ts *testSuiteCore) TestNewTor() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewTor"
-	stdDetails := &pb.TorDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	}
-	stdPorts := make(map[int64]*pb.NetworkPort)
+	stdSuffix  := "TestNewTor"
+	stdDetails := ts.stdTorDetails()
+	stdPorts   := ts.stdNetworkPorts(8)
 
 	ctx := context.Background()
 
@@ -666,7 +752,7 @@ func (ts *testSuiteCore) TestNewTor() {
 
 	// Also set the ports
 	//
-	tor.SetPorts(ctx, &stdPorts)
+	tor.SetPorts(ctx, stdPorts)
 
 	rev, details = tor.GetDetails(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -676,7 +762,7 @@ func (ts *testSuiteCore) TestNewTor() {
 	rev, ports = tor.GetPorts(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
 	require.NotNil(ports)
-	assert.Equal(stdPorts, *ports)
+	assert.Equal(stdPorts, ports)
 
 
 	// Clear just the details
@@ -690,7 +776,7 @@ func (ts *testSuiteCore) TestNewTor() {
 	rev, ports = tor.GetPorts(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
 	require.NotNil(ports)
-	assert.Equal(stdPorts, *ports)
+	assert.Equal(stdPorts, ports)
 
 
 	// Now also clear the ports
@@ -709,7 +795,7 @@ func (ts *testSuiteCore) TestNewTor() {
 	// And then once agains, set both details and ports
 	//
 	tor.SetDetails(ctx, stdDetails)
-	tor.SetPorts(ctx, &stdPorts)
+	tor.SetPorts(ctx, stdPorts)
 
 	rev, details = tor.GetDetails(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -719,7 +805,7 @@ func (ts *testSuiteCore) TestNewTor() {
 	rev, ports = tor.GetPorts(ctx)
 	assert.Equal(store.RevisionInvalid, rev)
 	require.NotNil(ports)
-	assert.Equal(stdPorts, *ports)
+	assert.Equal(stdPorts, ports)
 
 	// This will actually attempt to read the tor from the store. Since
 	// we have yet to create the zone, we expect to see a "not found"
@@ -788,28 +874,11 @@ func (ts *testSuiteCore) TestNewBlade() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewBlade"
-
-	stdDetails := &pb.BladeDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	}
-
-	stdCapacity := &pb.BladeCapacity{
-		Cores:                  16,
-		MemoryInMb:             1024,
-		DiskInGb:               32,
-		NetworkBandwidthInMbps: 1024,
-		Arch:                   "amd64",
-	}
-
-	stdBootInfo := &pb.BladeBootInfo{
-		Source:     pb.BladeBootInfo_local,
-		Image:      "test-image.vhdx",
-		Version:    "20201225-0000",
-		Parameters: "-param1=val1 -param2=val2",
-	}
-
+	stdSuffix   := "TestNewBlade"
+	stdDetails  := ts.stdBladeDetails()
+	stdCapacity := ts.stdBladeCapacity()
+	stdBootInfo := ts.stdBladeBootInfo()
+	
 	stdBootOnPowerOn := true
 
 	ctx := context.Background()
@@ -966,8 +1035,8 @@ func (ts *testSuiteCore) TestNewBlade() {
 	assert.Equal(store.RevisionInvalid, rev)
 
 
-	// This will actually attempt to delete the zone from the store. Since
-	// we have yet to create the zone, we expect to see a "not found"
+	// This will actually attempt to delete the blade from the store. Since
+	// we have yet to create the blade, we expect to see a "not found"
 	// type error.
 	//
 
@@ -979,14 +1048,14 @@ func (ts *testSuiteCore) TestNewBlade() {
 	// response from Etcd is being parsed. May require further
 	// investigation.
 
-	// rev, err = pdu.Delete(ctx, false)
+	// rev, err = blade.Delete(ctx, false)
 	// require.Error(err)
-	// assert.Equal(ErrfPduNotFound(pdu.Region, pdu.Zone, pdu.Rack, pdu.ID), err)
+	// assert.Equal(ErrfBladeNotFound(blade.Region, blade.Zone, blade.Rack, blade.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 
-	// rev, err = pdu.Delete(ctx, true)
+	// rev, err = blade.Delete(ctx, true)
 	// require.Error(err)
-	// assert.Equal(ErrfPduNotFound(pdu.Region, pdu.Zone, pdu.Rack, pdu.ID), err)
+	// assert.Equal(ErrfBladeNotFound(blade.Region, blade.Zone, blade.Rack, blade.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -994,19 +1063,15 @@ func (ts *testSuiteCore) TestNewRegionWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewRegionWithCreate"
+	stdSuffix  := "TestNewRegionWithCreate"
+	stdDetails := ts.stdRegionDetails(stdSuffix)
 
 	ctx := context.Background()
 
 	r, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
 	require.NoError(err)
 
-	r.SetDetails(ctx, &pb.RegionDetails{
-		Name:     ts.regionName(stdSuffix),
-		State:    pb.State_in_service,
-		Location: "Pacific NW",
-		Notes:    "region for inventory definition test",
-	})
+	r.SetDetails(ctx, stdDetails)
 
 	rev, err := r.Create(ctx)
 
@@ -1018,19 +1083,15 @@ func (ts *testSuiteCore) TestNewZoneWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewZoneWithCreate"
+	stdSuffix  := "TestNewZoneWithCreate"
+	stdDedails := ts.stdZoneDetails(stdSuffix)
 
 	ctx := context.Background()
 
 	zone, err := NewZone(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix), ts.zoneName(stdSuffix))
 	require.NoError(err)
 
-	zone.SetDetails(ctx, &pb.ZoneDetails{
-		Enabled:  true,
-		State:    pb.State_in_service,
-		Location: "Pacific NW",
-		Notes:    "zone for inventory definition test",
-	})
+	zone.SetDetails(ctx, stdDedails)
 
 	rev, err := zone.Create(ctx)
 
@@ -1043,6 +1104,7 @@ func (ts *testSuiteCore) TestNewRackWithCreate() {
 	require := ts.Require()
 
 	stdSuffix := "TestNewRackWithCreate"
+	stdDetails := ts.stdRackDetails(stdSuffix)
 
 	ctx := context.Background()
 
@@ -1056,12 +1118,7 @@ func (ts *testSuiteCore) TestNewRackWithCreate() {
 	)
 	require.NoError(err)
 
-	rack.SetDetails(ctx, &pb.RackDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-		Location:  "Pacific NW",
-		Notes:     "rack for inventory definition test",
-	})
+	rack.SetDetails(ctx, stdDetails)
 
 	rev, err := rack.Create(ctx)
 
@@ -1073,8 +1130,9 @@ func (ts *testSuiteCore) TestNewPduWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewPduWithCreate"
-	ports     := make(map[int64]*pb.PowerPort)
+	stdSuffix  := "TestNewPduWithCreate"
+	stdDetails := ts.stdPduDetails(4)
+	stdPorts   := ts.stdPowerPorts(4)
 
 	ctx := context.Background()
 
@@ -1089,12 +1147,8 @@ func (ts *testSuiteCore) TestNewPduWithCreate() {
 	)
 	require.NoError(err)
 
-	pdu.SetDetails(ctx, &pb.PduDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	})
-
-	pdu.SetPorts(ctx, &ports)
+	pdu.SetDetails(ctx, stdDetails)
+	pdu.SetPorts(ctx, stdPorts)
 
 	rev, err := pdu.Create(ctx)
 
@@ -1106,8 +1160,9 @@ func (ts *testSuiteCore) TestNewTorWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewTorWithCreate"
-	ports     := make(map[int64]*pb.NetworkPort)
+	stdSuffix  := "TestNewTorWithCreate"
+	stdDetails := ts.stdTorDetails()
+	stdPorts   := ts.stdNetworkPorts(4)
 
 	ctx := context.Background()
 
@@ -1122,12 +1177,8 @@ func (ts *testSuiteCore) TestNewTorWithCreate() {
 	)
 	require.NoError(err)
 
-	tor.SetDetails(ctx, &pb.TorDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	})
-
-	tor.SetPorts(ctx, &ports)
+	tor.SetDetails(ctx,stdDetails)
+	tor.SetPorts(ctx, stdPorts)
 
 	rev, err := tor.Create(ctx)
 
@@ -1139,27 +1190,11 @@ func (ts *testSuiteCore) TestNewBladeWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestNewBladeWithCreate"
-
-	details := &pb.BladeDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	}
-
-	capacity := &pb.BladeCapacity{
-		Cores:                  16,
-		MemoryInMb:             1024,
-		DiskInGb:               32,
-		NetworkBandwidthInMbps: 1024,
-		Arch:                   "amd64",
-	}
-
-	bootInfo := &pb.BladeBootInfo{
-		Source:     pb.BladeBootInfo_local,
-		Image:      "test-image.vhdx",
-		Version:    "20201225-0000",
-		Parameters: "-param1=val1 -param2=val2",
-	}
+	stdSuffix        := "TestNewBladeWithCreate"
+	stdDetails       := ts.stdBladeDetails()
+	stdCapacity      := ts.stdBladeCapacity()
+	stdBootInfo      := ts.stdBladeBootInfo()
+	stdBootOnPowerOn := true
 
 	ctx := context.Background()
 
@@ -1174,21 +1209,15 @@ func (ts *testSuiteCore) TestNewBladeWithCreate() {
 	)
 	require.NoError(err)
 
-	blade.SetDetails(ctx,details)
-	blade.SetCapacity(ctx, capacity)
-	blade.SetBootInfo(ctx, true, bootInfo)
+	blade.SetDetails(ctx, stdDetails)
+	blade.SetCapacity(ctx, stdCapacity)
+	blade.SetBootInfo(ctx, stdBootOnPowerOn, stdBootInfo)
 
 	rev, err := blade.Create(ctx)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 }
-
-
-
-
-
-
 
 func (ts *testSuiteCore) TestRootNewChild() {
 	assert := ts.Assert()
@@ -1203,20 +1232,12 @@ func (ts *testSuiteCore) TestRootNewChild() {
 	root, err := NewRoot (ctx, ts.store, DefinitionTable)
 	require.NoError(err)
 
-	root.SetDetails(ctx, &pb.RootDetails{
-		Name:  ts.rootName(stdSuffix),
-		Notes: "root for inventory definition test",
-	})
+	root.SetDetails(ctx, ts.stdRootDetails(stdSuffix))
 
 	region, err := root.NewChild(ctx, regionName)
 	require.NoError(err)
 
-	region.SetDetails(ctx, &pb.RegionDetails{
-		Name:     regionName,
-		State:    pb.State_in_service,
-		Location: "Pacific NW",
-		Notes:    "region for inventory definition test (" + stdSuffix + ")",
-	})
+	region.SetDetails(ctx, ts.stdRegionDetails(stdSuffix))
 
 	rev, err := region.Create(ctx)
 	require.NoError(err)
@@ -1243,12 +1264,7 @@ func (ts *testSuiteCore) TestNewChildZone() {
 	zone, err := region.NewChild(ctx, zoneName)
 	require.NoError(err)
 
-	zone.SetDetails(ctx, &pb.ZoneDetails{
-		Enabled:  true,
-		State:    pb.State_in_service,
-		Location: "Pacific NW",
-		Notes:    "zone for inventory definition test (" + stdSuffix + ")",
-	})
+	zone.SetDetails(ctx,ts.stdZoneDetails(stdSuffix))
 
 	rev, err := zone.Create(ctx)
 	require.NoError(err)
@@ -1279,12 +1295,7 @@ func (ts *testSuiteCore) TestNewChildRack() {
 	rack, err := zone.NewChild(ctx, rackName)
 	require.NoError(err)
 
-	rack.SetDetails(ctx, &pb.RackDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-		Location:  "Pacific NW",
-		Notes:     "rack for inventory definition test (" + stdSuffix + ")",
-	})
+	rack.SetDetails(ctx, ts.stdRackDetails(stdSuffix))
 
 	rev, err := rack.Create(ctx)
 	require.NoError(err)
@@ -1301,7 +1312,6 @@ func (ts *testSuiteCore) TestNewChildPdu() {
 	zoneName   := ts.zoneName(stdSuffix)
 	rackName   := ts.rackName(stdSuffix)
 	pduID      := ts.pduID(1)
-	ports      := make(map[int64]*pb.PowerPort)
 
 	ctx := context.Background()
 
@@ -1320,12 +1330,8 @@ func (ts *testSuiteCore) TestNewChildPdu() {
 	pdu, err := rack.NewPdu(ctx, pduID)
 	require.NoError(err)
 
-	pdu.SetDetails(ctx, &pb.PduDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	})
-
-	pdu.SetPorts(ctx, &ports)
+	pdu.SetDetails(ctx, ts.stdPduDetails(pduID))
+	pdu.SetPorts(ctx, ts.stdPowerPorts(8))
 
 	rev, err := pdu.Create(ctx)
 	require.NoError(err)
@@ -1342,7 +1348,6 @@ func (ts *testSuiteCore) TestNewChildTor() {
 	zoneName   := ts.zoneName(stdSuffix)
 	rackName   := ts.rackName(stdSuffix)
 	pduID      := ts.pduID(1)
-	ports      := make(map[int64]*pb.NetworkPort)
 
 	ctx := context.Background()
 
@@ -1361,12 +1366,8 @@ func (ts *testSuiteCore) TestNewChildTor() {
 	tor, err := rack.NewTor(ctx, pduID)
 	require.NoError(err)
 
-	tor.SetDetails(ctx, &pb.TorDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	})
-
-	tor.SetPorts(ctx, &ports)
+	tor.SetDetails(ctx, ts.stdTorDetails())
+	tor.SetPorts(ctx, ts.stdNetworkPorts(8))
 
 	rev, err := tor.Create(ctx)
 	require.NoError(err)
@@ -1384,25 +1385,11 @@ func (ts *testSuiteCore) TestNewChildBlade() {
 	rackName   := ts.rackName(stdSuffix)
 	bladeID    := ts.bladeID(1)
 
-	details := &pb.BladeDetails{
-		Enabled:   true,
-		Condition: pb.Condition_operational,
-	}
-
-	capacity := &pb.BladeCapacity{
-		Cores: 16,
-		MemoryInMb: 1024,
-		DiskInGb: 32,
-		NetworkBandwidthInMbps: 1024,
-		Arch: "amd64",
-	}
-
-	bootInfo := &pb.BladeBootInfo{
-		Source:     pb.BladeBootInfo_local,
-		Image:      "test-image.vhdx",
-		Version:    "20201225-0000",
-		Parameters: "-param1=val1 -param2=val2",
-	}
+	stdDetails  := ts.stdBladeDetails()
+	stdCapacity := ts.stdBladeCapacity()
+	stdBootInfo := ts.stdBladeBootInfo()
+	
+	stdBootOnPowerOn := true
 
 
 	ctx := context.Background()
@@ -1422,9 +1409,9 @@ func (ts *testSuiteCore) TestNewChildBlade() {
 	blade, err := rack.NewBlade(ctx, bladeID)
 	require.NoError(err)
 
-	blade.SetDetails(ctx, details)
-	blade.SetCapacity(ctx, capacity)
-	blade.SetBootInfo(ctx, true, bootInfo)
+	blade.SetDetails(ctx, stdDetails)
+	blade.SetCapacity(ctx, stdCapacity)
+	blade.SetBootInfo(ctx, stdBootOnPowerOn, stdBootInfo)
 
 	rev, err := blade.Create(ctx)
 	require.NoError(err)
@@ -1437,16 +1424,145 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 
 	stdSuffix := "TestRegionReadDetails"
 
-	stdDetails := &pb.RegionDetails{
-		Name:     ts.regionName(stdSuffix),
-		State:    pb.State_in_service,
-		Location: "Pacific NW",
-		Notes:    "region for inventory definition test",
-	}
+	regionName := ts.regionName(stdSuffix)
+
+	stdDetails := ts.stdRegionDetails(stdSuffix)
 
 	ctx := context.Background()
 
-	r, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
+	r, err := NewRegion(ctx, ts.store, DefinitionTable, regionName)
+	require.NoError(err)
+
+	r.SetDetails(ctx, stdDetails)
+
+	rev, err := r.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, rev)
+
+	rev2 := r.GetRevision(ctx)
+	assert.Equal(rev, rev2)
+
+	// Read the region back using the direct constructor
+	//
+	rRead, err := NewRegion(ctx, ts.store, DefinitionTable, regionName)
+	require.NoError(err)
+
+	revRead, err := rRead.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, revRead)
+	assert.Equal(revRead, rRead.GetRevision(ctx))
+
+	revDet, detRead := rRead.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, revDet)
+	assert.Equal(stdDetails, detRead)
+
+
+	// Read the region back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	cr, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	crRev, err := cr.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, crRev)
+	assert.Equal(revRead, cr.GetRevision(ctx))
+
+	crRevDet, crDet := cr.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, crRevDet)
+	assert.Equal(stdDetails, crDet)
+}
+
+func (ts *testSuiteCore) TestZoneReadDetails() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestZoneReadDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+
+	stdDetails := ts.stdZoneDetails(stdSuffix)
+
+	ctx := context.Background()
+
+	z, err := NewZone(ctx, ts.store, DefinitionTable, regionName, zoneName)
+	require.NoError(err)
+
+	z.SetDetails(ctx, stdDetails)
+
+	rev, err := z.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, rev)
+
+	rev2 := z.GetRevision(ctx)
+	assert.Equal(rev, rev2)
+
+
+	// Read the zone back using the direct constructor
+	//
+	rRead, err := NewZone(ctx, ts.store, DefinitionTable, regionName, zoneName)
+	require.NoError(err)
+
+	revRead, err := rRead.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, revRead)
+	assert.Equal(revRead, rRead.GetRevision(ctx))
+
+	revDet, detRead := rRead.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, revDet)
+	assert.Equal(stdDetails, detRead)
+
+
+	// Read the zone back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	zoneRev, err := zone.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, zoneRev)
+	assert.Equal(zoneRev, zone.GetRevision(ctx))
+
+	zoneDetRev, zoneDet := zone.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, zoneDetRev)
+	assert.Equal(stdDetails, zoneDet)
+}
+
+func (ts *testSuiteCore) TestRackReadDetails() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestRackReadDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+	rackName   := ts.rackName(stdSuffix)
+
+	stdDetails := ts.stdRackDetails(stdSuffix)
+
+	ctx := context.Background()
+
+	r, err := NewRack(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+	)
 	require.NoError(err)
 
 	r.SetDetails(ctx, stdDetails)
@@ -1459,7 +1575,16 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	assert.Equal(rev, rev2)
 
 
-	rRead, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
+	// Read the region back using the direct constructor
+	//
+	rRead, err := NewRack(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+	)
 	require.NoError(err)
 
 	revRead, err := rRead.Read(ctx)
@@ -1471,9 +1596,326 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	require.NoError(err)
 	assert.Equal(rev, revDet)
 	assert.Equal(stdDetails, detRead)
+
+
+	// Read the zone back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	rack, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	rackRev, err := rack.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, rackRev)
+	assert.Equal(rackRev, rack.GetRevision(ctx))
+
+	rackDetRev, rackDet := rack.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, rackDetRev)
+	assert.Equal(stdDetails, rackDet)
 }
 
+func (ts *testSuiteCore) TestPduReadDetails() {
+	assert := ts.Assert()
+	require := ts.Require()
 
+	stdSuffix := "TestPduReadDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+	rackName   := ts.rackName(stdSuffix)
+	pduID      := int64(4)
+
+	stdDetails := ts.stdPduDetails(pduID)
+	stdPorts   := ts.stdPowerPorts(4)
+
+	ctx := context.Background()
+
+	p, err := NewPdu(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+		pduID,
+	)
+	require.NoError(err)
+
+	p.SetDetails(ctx, stdDetails)
+	p.SetPorts(ctx, stdPorts)
+
+	rev, err := p.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, rev)
+
+	rev2 := p.GetRevision(ctx)
+	assert.Equal(rev, rev2)
+
+
+	// Read the region back using the direct constructor
+	//
+	p2, err := NewPdu(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+		pduID,
+	)
+	require.NoError(err)
+
+	p2Rev, err := p2.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, p2Rev)
+	assert.Equal(p2Rev, p2.GetRevision(ctx))
+
+	p2DetRev, p2Det := p2.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, p2DetRev)
+	assert.Equal(stdDetails, p2Det)
+
+
+	// Read the zone back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	rack, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	pdu, err := rack.NewPdu(ctx, pduID)
+	require.NoError(err)
+
+	pduRev, err := pdu.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, pduRev)
+	assert.Equal(pduRev, pdu.GetRevision(ctx))
+
+	pduDetRev, pduDet := pdu.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, pduDetRev)
+	assert.Equal(stdDetails, pduDet)
+
+	pduPortsRev, pduPorts := pdu.GetPorts(ctx)
+	require.NoError(err)
+	assert.Equal(rev, pduPortsRev)
+	assert.Equal(stdPorts, pduPorts)
+}
+
+func (ts *testSuiteCore) TestTorReadDetails() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestTorReadDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+	rackName   := ts.rackName(stdSuffix)
+	torID      := int64(1)
+
+	stdDetails := ts.stdTorDetails()
+	stdPorts   := ts.stdNetworkPorts(4)
+
+	ctx := context.Background()
+
+	t, err := NewTor(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+		torID,
+	)
+	require.NoError(err)
+
+	t.SetDetails(ctx, stdDetails)
+	t.SetPorts(ctx, stdPorts)
+
+	rev, err := t.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, rev)
+
+	rev2 := t.GetRevision(ctx)
+	assert.Equal(rev, rev2)
+
+
+	// Read the region back using the direct constructor
+	//
+	t2, err := NewTor(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+		torID,
+	)
+	require.NoError(err)
+
+	t2Rev, err := t2.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, t2Rev)
+	assert.Equal(t2Rev, t2.GetRevision(ctx))
+
+	t2DetRev, p2Det := t2.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, t2DetRev)
+	assert.Equal(stdDetails, p2Det)
+
+
+	// Read the zone back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	rack, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	tor, err := rack.NewTor(ctx, torID)
+	require.NoError(err)
+
+	torRev, err := tor.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, torRev)
+	assert.Equal(torRev, tor.GetRevision(ctx))
+
+	torDetRev, pduDet := tor.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, torDetRev)
+	assert.Equal(stdDetails, pduDet)
+
+	torPortsRev, torPorts := tor.GetPorts(ctx)
+	require.NoError(err)
+	assert.Equal(rev, torPortsRev)
+	assert.Equal(stdPorts, torPorts)
+}
+
+func (ts *testSuiteCore) TestBladeReadDetails() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix        := "TestBladeReadDetails"
+
+	regionName       := ts.regionName(stdSuffix)
+	zoneName         := ts.zoneName(stdSuffix)
+	rackName         := ts.rackName(stdSuffix)
+	bladeID          := int64(5)
+
+	stdDetails       := ts.stdBladeDetails()
+	stdCapacity      := ts.stdBladeCapacity()
+	stdBootInfo      := ts.stdBladeBootInfo()
+	stdBootOnPowerOn := true
+
+	ctx := context.Background()
+
+	b, err := NewBlade(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+		bladeID,
+	)
+	require.NoError(err)
+
+	b.SetDetails(ctx, stdDetails)
+	b.SetCapacity(ctx, stdCapacity)
+	b.SetBootInfo(ctx, stdBootOnPowerOn, stdBootInfo)
+
+	rev, err := b.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, rev)
+
+	rev2 := b.GetRevision(ctx)
+	assert.Equal(rev, rev2)
+
+
+	// Read the region back using the direct constructor
+	//
+	b2, err := NewBlade(
+		ctx,
+		ts.store,
+		DefinitionTable,
+		regionName,
+		zoneName,
+		rackName,
+		bladeID,
+	)
+	require.NoError(err)
+
+	t2Rev, err := b2.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, t2Rev)
+	assert.Equal(t2Rev, b2.GetRevision(ctx))
+
+	t2DetRev, p2Det := b2.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, t2DetRev)
+	assert.Equal(stdDetails, p2Det)
+
+
+	// Read the zone back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	rack, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	blade, err := rack.NewBlade(ctx, bladeID)
+	require.NoError(err)
+
+	bladeRev, err := blade.Read(ctx)
+	require.NoError(err)
+	assert.Equal(rev, bladeRev)
+	assert.Equal(bladeRev, blade.GetRevision(ctx))
+
+	bladeDetRev, bladeDet := blade.GetDetails(ctx)
+	require.NoError(err)
+	assert.Equal(rev, bladeDetRev)
+	assert.Equal(stdDetails, bladeDet)
+
+	bladeCapacityRev, bladeCapacity := blade.GetCapacity(ctx)
+	require.NoError(err)
+	assert.Equal(rev, bladeCapacityRev)
+	assert.Equal(stdCapacity, bladeCapacity)
+
+	bladeBootinfoRev, bladeBootOnPowerOn, bladeBootInfo := blade.GetBootInfo(ctx)
+	require.NoError(err)
+	assert.Equal(rev, bladeBootinfoRev)
+	assert.Equal(stdBootOnPowerOn, bladeBootOnPowerOn)
+	assert.Equal(stdBootInfo, bladeBootInfo)
+}
 
 func TestInventoryTestSuite(t *testing.T) {
 	suite.Run(t, new(testSuiteCore))
