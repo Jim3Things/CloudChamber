@@ -14,6 +14,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/stepper/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 const (
@@ -196,7 +197,7 @@ func (s *stepper) start(ctx context.Context) error {
 		}
 	}
 
-	return errAlreadyStarted
+	return errors.ErrAlreadyStarted
 }
 
 // simulate is the main function for the state machine operation
@@ -228,7 +229,7 @@ func invalidStateEnter(ctx context.Context, machine *sm.SM) error {
 
 	for k, v := s.waiters.Min(); k != nil; k, v = s.waiters.Min() {
 		for _, c := range v.([]chan *sm.Response) {
-			c <- sm.FailedResponse(s.latest, errDelayCanceled)
+			c <- sm.FailedResponse(s.latest, errors.ErrDelayCanceled)
 			close(c)
 			canceled++
 		}
@@ -336,7 +337,7 @@ func doStart(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 		err = machine.ChangeState(ctx, noWaitState)
 
 	default:
-		err = &errInvalidPolicy{policy: s.firstPolicy}
+		err = &errors.ErrInvalidPolicy{Policy: s.firstPolicy}
 	}
 
 	ch := msg.Ch()
@@ -364,9 +365,9 @@ func policy(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	defer close(ch)
 
 	if guard >= 0 && guard < s.epoch {
-		ch <- sm.FailedResponse(s.latest, &errPolicyTooLate{
-			guard:   guard,
-			current: s.epoch,
+		ch <- sm.FailedResponse(s.latest, &errors.ErrPolicyTooLate{
+			Guard:   guard,
+			Current: s.epoch,
 		})
 		return false
 	}
@@ -393,9 +394,9 @@ func measuredPolicy(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	defer close(ch)
 
 	if guard >= 0 && guard < s.epoch {
-		ch <- sm.FailedResponse(s.latest, &errPolicyTooLate{
-			guard:   guard,
-			current: s.epoch,
+		ch <- sm.FailedResponse(s.latest, &errors.ErrPolicyTooLate{
+			Guard:   guard,
+			Current: s.epoch,
 		})
 		return false
 	}

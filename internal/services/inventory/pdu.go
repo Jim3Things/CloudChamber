@@ -7,6 +7,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -279,11 +280,11 @@ func setPowerForBlade(
 				msg.Target.Describe(),
 				common.AOrB(c.on, "on", "off"))
 
-			ch <- sm.FailedResponse(occursAt, ErrNoOperation)
+			ch <- sm.FailedResponse(occursAt, errors.ErrNoOperation)
 		}
 		break
 
-	case ErrCableStuck:
+	case errors.ErrCableStuck:
 		tracing.Warn(
 			ctx,
 			"Power connection to %s is stuck.  Unsure if it has been powered %s.",
@@ -293,7 +294,7 @@ func setPowerForBlade(
 		ch <- sm.FailedResponse(occursAt, err)
 		break
 
-	case ErrTooLate:
+	case errors.ErrInventoryChangeTooLate(msg.Guard):
 		tracing.Info(
 			ctx,
 			"Power connection to %s has not changed, as this request arrived "+

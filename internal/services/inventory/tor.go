@@ -7,6 +7,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -249,11 +250,11 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 				msg.Target.Describe(),
 				common.AOrB(c.on, "enabled", "disabled"))
 
-			ch <- sm.FailedResponse(occursAt, ErrNoOperation)
+			ch <- sm.FailedResponse(occursAt, errors.ErrNoOperation)
 		}
 		break
 
-	case ErrCableStuck:
+	case errors.ErrCableStuck:
 		tracing.Warn(
 			ctx,
 			"Network connection for %s is stuck.  Unsure if it has been %s.",
@@ -263,7 +264,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 		ch <- sm.FailedResponse(occursAt, err)
 		break
 
-	case ErrTooLate:
+	case errors.ErrInventoryChangeTooLate(msg.Guard):
 		tracing.Info(
 			ctx,
 			"Network connection for %s has not changed, as this request arrived "+

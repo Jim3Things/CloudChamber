@@ -12,7 +12,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/test/utilities"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
+    "github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 type RackTestSuite struct {
@@ -105,7 +106,7 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 
 	err = r.start(ctx)
 	assert.Error(err)
-	assert.Equal(ErrAlreadyStarted, err)
+	assert.Equal(errors.ErrAlreadyStarted, err)
 
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 

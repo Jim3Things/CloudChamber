@@ -3,6 +3,7 @@ package errors
 import (
 	"errors"
 	"fmt"
+	"time"
 )
 
 var (
@@ -17,7 +18,46 @@ var (
 	// to create a client.
 	//
 	ErrStoreUnableToCreateClient = errors.New("CloudChamber: unable to create a new client")
+
+	// ErrUserUnableToCreate indicates the specified user account cannot be
+	// created at this time
+	ErrUserUnableToCreate = errors.New("CloudChamber: unable to create a user account at this time")
+
+	// ErrUserAlreadyLoggedIn indicates that the session is currently logged in
+	// and a new log in cannot be processed
+	ErrUserAlreadyLoggedIn = errors.New("CloudChamber: session already has a logged in user")
+
+	// ErrUserAuthFailed indicates the supplied username and password combination
+	// is not valid.
+	ErrUserAuthFailed = errors.New("CloudChamber: authentication failed, invalid user name or password")
+
+	// ErrCableStuck indicates that an attempt to control a cable connection
+	// has failed because the cable control is faulty.
+	ErrCableStuck = errors.New("cable is faulted")
+
+	// ErrNoOperation indicates that the request is superfluous - the element
+	// is already in the target state.
+	ErrNoOperation = errors.New("repair operation specified the current state, no change occurred")
+
+	// ErrAlreadyStarted indicates that the start machine is already
+	// executing, and the start request is in error.
+	ErrAlreadyStarted = errors.New("the state machine has already started")
+
+	ErrInvalidMessage = errors.New("invalid message encountered")
+
+	ErrDelayCanceled = errors.New("the delay operation was canceled")
 )
+
+// ErrInventoryChangeTooLate indicates that an attempt to modify an inventory
+// element failed because the element had changed since the guard time passed
+// in to the modification request.
+type ErrInventoryChangeTooLate int64
+
+func (e ErrInventoryChangeTooLate) Error() string {
+	return fmt.Sprintf(
+		"inventory element has been modified later than the check condition time (tick %d)",
+		int64(e))
+}
 
 // ErrClientAlreadyInitialized indicates that the attempt to initialize the
 // specified internal client library used to mediate access to a microservice
@@ -253,20 +293,6 @@ func (evf ErrRackValidationFailure) Error() string {
 	return fmt.Sprintf("In rack %q: %v", evf.Rack, evf.Err)
 }
 
-var (
-	// ErrUserUnableToCreate indicates the specified user account cannot be
-	// created at this time
-	ErrUserUnableToCreate = errors.New("CloudChamber: unable to create a user account at this time")
-
-	// ErrUserAlreadyLoggedIn indicates that the session is currently logged in
-	// and a new log in cannot be processed
-	ErrUserAlreadyLoggedIn = errors.New("CloudChamber: session already has a logged in user")
-
-	// ErrUserAuthFailed indicates the supplied username and password combination
-	// is not valid.
-	ErrUserAuthFailed = errors.New("CloudChamber: authentication failed, invalid user name or password")
-)
-
 // ErrUserAlreadyExists indicates the attempt to create a new user account
 // failed as that user already exists.
 //
@@ -471,4 +497,41 @@ func (ebnf ErrBladeNotFound) Error() string {
 	return fmt.Sprintf(
 		"CloudChamber: %s was not found",
 		bladeAddress(ebnf.Zone, ebnf.Rack, ebnf.Blade))
+}
+
+type ErrDelayMustBeZero struct {
+	Actual time.Duration
+}
+
+func (e *ErrDelayMustBeZero) Error() string {
+	return fmt.Sprintf("the MeasuredDelay must be zero for this policy.  It is %v", e.Actual)
+}
+
+type ErrDelayMustBePositive struct {
+	Actual time.Duration
+}
+
+func (e *ErrDelayMustBePositive) Error() string {
+	return fmt.Sprintf("the MeasuredDelay must be positive for this policy.  It is %v", e.Actual)
+}
+
+type ErrInvalidPolicy struct {
+	Policy int
+}
+
+func (e *ErrInvalidPolicy) Error() string {
+	return fmt.Sprintf("an invalid policy (%d) encountered", e.Policy)
+}
+
+type ErrPolicyTooLate struct {
+	Guard   int64
+	Current int64
+}
+
+func (e *ErrPolicyTooLate) Error() string {
+	return fmt.Sprintf(
+		"the SetPolicy operation expects to replace policy version %d, "+
+			"but the current policy version is %d",
+		e.Guard,
+		e.Current)
 }

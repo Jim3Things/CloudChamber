@@ -12,6 +12,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
@@ -361,7 +362,7 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 
 	res := ts.issueSetPower(ctx, r, 0, false)
 	require.NotNil(res)
-	require.Equal(ErrNoOperation, res.Err)
+	require.Equal(errors.ErrNoOperation, res.Err)
 
 	ok := utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
@@ -371,7 +372,7 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 
 	res = ts.issueSetConnection(ctx, r, 0, false)
 	require.NotNil(res)
-	require.Equal(ErrNoOperation, res.Err)
+	require.Equal(errors.ErrNoOperation, res.Err)
 
 	ok = utilities.WaitForStateChange(1, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon

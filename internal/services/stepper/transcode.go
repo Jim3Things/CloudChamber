@@ -13,6 +13,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/services/stepper/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -50,7 +51,7 @@ func toInternal(
 		return messages.NewGetStatus(ctx, ch), nil
 	}
 
-	return nil, errInvalidMessage
+	return nil, errors.ErrInvalidMessage
 }
 
 // +++ Return type conversions
@@ -74,7 +75,7 @@ func toExternalStatusResponse(rsp *sm.Response) (*pb.StatusResponse, error) {
 
 	body, ok := rsp.Msg.(*messages.StatusResponseBody)
 	if !ok {
-		return nil, errInvalidMessage
+		return nil, errors.ErrInvalidMessage
 	}
 
 	return &pb.StatusResponse{
@@ -117,27 +118,27 @@ func convertToInternalPolicyRequest(
 	switch m.Policy {
 	case pb.StepperPolicy_NoWait:
 		if interval != 0 {
-			return nil, &errDelayMustBeZero{actual: interval}
+			return nil, &errors.ErrDelayMustBeZero{Actual: interval}
 		}
 
 		return messages.NewNoWaitPolicy(ctx, m.MatchEpoch, ch), nil
 
 	case pb.StepperPolicy_Measured:
 		if interval <= 0 {
-			return nil, &errDelayMustBePositive{actual: interval}
+			return nil, &errors.ErrDelayMustBePositive{Actual: interval}
 		}
 
 		return messages.NewMeasuredPolicy(ctx, m.MatchEpoch, interval, ch), nil
 
 	case pb.StepperPolicy_Manual:
 		if interval != 0 {
-			return nil, &errDelayMustBeZero{actual: interval}
+			return nil, &errors.ErrDelayMustBeZero{Actual: interval}
 		}
 
 		return messages.NewManualPolicy(ctx, m.MatchEpoch, ch), nil
 	}
 
-	return nil, errInvalidMessage
+	return nil, errors.ErrInvalidMessage
 }
 
 // calculateDueTime constructs the due time for a delay request, accounting for
