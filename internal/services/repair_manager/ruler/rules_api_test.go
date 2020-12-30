@@ -1,11 +1,15 @@
 package ruler
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
@@ -50,6 +54,21 @@ func (mt *MockTables) GetTable(key *Key) (Table, error) {
 
 type RulesApiTestSuite struct {
 	suite.Suite
+
+	utf *exporters.Exporter
+}
+
+func (ts *RulesApiTestSuite) SetupSuite() {
+	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
+	exporters.ConnectToProvider(ts.utf)
+}
+
+func (ts *RulesApiTestSuite) SetupTest() {
+	_ = ts.utf.Open(ts.T())
+}
+
+func (ts *RulesApiTestSuite) TearDownTest() {
+	ts.utf.Close()
 }
 
 func (ts *RulesApiTestSuite) testLeaf(l Term, vt ValueType) {
@@ -64,10 +83,11 @@ func (ts *RulesApiTestSuite) buildMockTable(rowCount int) *MockTable {
 	rows := make(map[string]map[string]interface{})
 
 	for i := 0; i < rowCount; i++ {
-		kv := make(map[string]interface{})
-		kv["f1"] = i
-		kv["s2"] = fmt.Sprintf("test%d", i)
-		kv["b3"] = i/2 * 2 == i
+		kv := map[string]interface{}{
+			"f1": i,
+			"s2": fmt.Sprintf("test%d", i),
+			"b3": i/2*2 == i,
+		}
 		rows[fmt.Sprintf("row%d", i)] = kv
 	}
 
@@ -88,8 +108,13 @@ func (ts *RulesApiTestSuite) TestSimple() {
 
 	tables := ts.buildMockTables(2, 2)
 
-	vars := make(map[string]string)
-	vars["%table%"] = "table1"
+	vars := map[string]string{
+		"%table%": "table1",
+	}
+
+	args := map[string]Term{
+		"target": N("%table%/row1.s2"),
+	}
 
 	r := []Rule{
 		{
@@ -97,11 +122,27 @@ func (ts *RulesApiTestSuite) TestSimple() {
 			Reason: "f1 matched expectations",
 			Choices: []RuleChoice{
 				{
-					Assuming: V(true),
-					Chosen:   "always chosen",
-					Rejected: "never fails",
+					Assuming: Match(N("%table%/row1.b3"), V(true)),
+					Chosen:   "should not be chosen",
+					Rejected: "b3 is not true",
 					With:     nil,
-					Call: func(args []Arg) (*Proposal, error) {
+					Call: func(ctx context.Context, args map[string]Term, ec *EvalContext) (*Proposal, error) {
+						require.Fail("should not get here")
+						return &Proposal{}, nil
+					},
+				},
+				{
+					Assuming: V(true),
+					Chosen:   "this option is always chosen",
+					Rejected: "never fails",
+					With:     args,
+					Call: func(ctx context.Context, args map[string]Term, ec *EvalContext) (*Proposal, error) {
+						val, err := args["target"].Evaluate(ec)
+						require.NoError(err)
+						s, err := val.AsString()
+						require.NoError(err)
+
+						tracing.Info(ctx, "Processing with %q: %q", "target", s)
 						return &Proposal{}, nil
 					},
 				},
@@ -110,7 +151,7 @@ func (ts *RulesApiTestSuite) TestSimple() {
 					Chosen:   "should not be chosen",
 					Rejected: "should not get here",
 					With:     nil,
-					Call: func(args []Arg) (*Proposal, error) {
+					Call: func(ctx context.Context, args map[string]Term, ec *EvalContext) (*Proposal, error) {
 						require.Fail("should not get here")
 						return &Proposal{}, nil
 					},
@@ -119,7 +160,8 @@ func (ts *RulesApiTestSuite) TestSimple() {
 		},
 	}
 
-	props, err := Process(r, tables, vars)
+	ctx := common.ContextWithTick(context.Background(), -1)
+	props, err := Process(ctx, r, tables, vars)
 	require.NoError(err)
 	require.NotNil(props)
 }
