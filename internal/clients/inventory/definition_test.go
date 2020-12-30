@@ -1917,6 +1917,459 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	assert.Equal(stdBootInfo, bladeBootInfo)
 }
 
+func (ts *testSuiteCore) TestRegionUpdateDetails() {
+
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestRegionUpdateDetails"
+
+	regionName := ts.regionName(stdSuffix)
+
+	stdDetails := ts.stdRegionDetails(stdSuffix)
+
+	ctx := context.Background()
+
+	r, err := NewRegion(ctx, ts.store, DefinitionTable, regionName)
+	require.NoError(err)
+
+	r.SetDetails(ctx, stdDetails)
+
+	revCreate, err := r.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, revCreate)
+
+	// Read the region back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	cr, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	revRead, err := cr.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+
+	_, details := cr.GetDetails(ctx)
+	require.NotNil(details)
+
+	details.State = pb.State_out_of_service
+	details.Notes += " (out of service)"
+
+	// Update the region using the direct constructor, conditional on revision
+	//
+	r.SetDetails(ctx, details)
+
+	revUpdate, err := r.Update(ctx, false)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
+
+
+	// Verify update using relative constructor
+	//
+	revVerify, err := cr.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revUpdate, revVerify)
+
+	_, detailsVerify := cr.GetDetails(ctx)
+	require.NotNil(detailsVerify)
+
+	// Compare new details with original + deltas
+	//
+	assert.Equal(details, detailsVerify)
+}
+
+func (ts *testSuiteCore) TestZoneUpdateDetails() {
+
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestZoneUpdateDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+
+	stdDetails := ts.stdZoneDetails(stdSuffix)
+
+	ctx := context.Background()
+
+	z, err := NewZone(ctx, ts.store, DefinitionTable, regionName, zoneName)
+	require.NoError(err)
+
+	z.SetDetails(ctx, stdDetails)
+
+	revCreate, err := z.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, revCreate)
+
+	// Read the zone back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	cz, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	revRead, err := cz.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+
+	_, details := cz.GetDetails(ctx)
+	require.NotNil(details)
+
+	details.State = pb.State_out_of_service
+	details.Notes += " (out of service)"
+
+	// Update the record using the direct constructor, conditional on revision
+	//
+	z.SetDetails(ctx, details)
+
+	revUpdate, err := z.Update(ctx, false)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
+
+
+	// Verify update using relative constructor
+	//
+	revVerify, err := cz.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revUpdate, revVerify)
+
+	_, detailsVerify := cz.GetDetails(ctx)
+	require.NotNil(detailsVerify)
+
+	// Compare new details with original + deltas
+	//
+	assert.Equal(details, detailsVerify)
+}
+
+func (ts *testSuiteCore) TestRackUpdateDetails() {
+
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestRackUpdateDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+	rackName   := ts.rackName(stdSuffix)
+
+	stdDetails := ts.stdRackDetails(stdSuffix)
+
+	ctx := context.Background()
+
+	r, err := NewRack(ctx, ts.store, DefinitionTable, regionName, zoneName, rackName)
+	require.NoError(err)
+
+	r.SetDetails(ctx, stdDetails)
+
+	revCreate, err := r.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, revCreate)
+
+	// Read the rack back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	cr, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	revRead, err := cr.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+
+	_, details := cr.GetDetails(ctx)
+	require.NotNil(details)
+
+	details.Enabled   = false
+	details.Condition = pb.Condition_not_in_service
+	details.Notes += " (out of service)"
+
+	// Update the record using the direct constructor, conditional on revision
+	//
+	r.SetDetails(ctx, details)
+
+	revUpdate, err := r.Update(ctx, false)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
+
+
+	// Verify update using relative constructor
+	//
+	revVerify, err := cr.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revUpdate, revVerify)
+
+	_, detailsVerify := cr.GetDetails(ctx)
+	require.NotNil(detailsVerify)
+
+	// Compare new details with original + deltas
+	//
+	assert.Equal(details, detailsVerify)
+}
+
+func (ts *testSuiteCore) TestPduUpdateDetails() {
+
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestPduUpdateDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+	rackName   := ts.rackName(stdSuffix)
+	pduID      := ts.pduID(1)
+
+	stdDetails := ts.stdPduDetails(pduID)
+	stdPorts   := ts.stdPowerPorts(4)
+
+	ctx := context.Background()
+
+	p, err := NewPdu(ctx, ts.store, DefinitionTable, regionName, zoneName, rackName, pduID)
+	require.NoError(err)
+
+	p.SetDetails(ctx, stdDetails)
+	p.SetPorts(ctx, stdPorts)
+
+	revCreate, err := p.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, revCreate)
+
+	// Read the rack back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	rack, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	cp, err := rack.NewPdu(ctx, pduID)
+	require.NoError(err)
+
+	revRead, err := cp.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+
+	_, details := cp.GetDetails(ctx)
+	require.NotNil(details)
+
+	details.Enabled   = false
+	details.Condition = pb.Condition_not_in_service
+
+	// Update the record using the direct constructor, conditional on revision
+	//
+	p.SetDetails(ctx, details)
+
+	revUpdate, err := p.Update(ctx, false)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
+
+
+	// Verify update using relative constructor
+	//
+	revVerify, err := cp.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revUpdate, revVerify)
+
+	_, detailsVerify := cp.GetDetails(ctx)
+	require.NotNil(detailsVerify)
+
+	_, portsVerify := cp.GetPorts(ctx)
+	require.NotNil(portsVerify)
+
+	// Compare new details with original + deltas
+	//
+	assert.Equal(details, detailsVerify)
+	assert.Equal(stdPorts, portsVerify)
+}
+
+func (ts *testSuiteCore) TestTorUpdateDetails() {
+
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestTorUpdateDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName   := ts.zoneName(stdSuffix)
+	rackName   := ts.rackName(stdSuffix)
+	torID      := ts.torID(1)
+
+	stdDetails := ts.stdTorDetails()
+	stdPorts   := ts.stdNetworkPorts(4)
+
+	ctx := context.Background()
+
+	t, err := NewTor(ctx, ts.store, DefinitionTable, regionName, zoneName, rackName, torID)
+	require.NoError(err)
+
+	t.SetDetails(ctx, stdDetails)
+	t.SetPorts(ctx, stdPorts)
+
+	revCreate, err := t.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, revCreate)
+
+	// Read the rack back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	rack, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	ct, err := rack.NewTor(ctx, torID)
+	require.NoError(err)
+
+	revRead, err := ct.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+
+	_, details := ct.GetDetails(ctx)
+	require.NotNil(details)
+
+	details.Enabled   = false
+	details.Condition = pb.Condition_not_in_service
+
+	// Update the record using the direct constructor, conditional on revision
+	//
+	t.SetDetails(ctx, details)
+
+	revUpdate, err := t.Update(ctx, false)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
+
+
+	// Verify update using relative constructor
+	//
+	revVerify, err := ct.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revUpdate, revVerify)
+
+	_, detailsVerify := ct.GetDetails(ctx)
+	require.NotNil(detailsVerify)
+
+	_, portsVerify := ct.GetPorts(ctx)
+	require.NotNil(portsVerify)
+
+	// Compare new details with original + deltas
+	//
+	assert.Equal(details, detailsVerify)
+	assert.Equal(stdPorts, portsVerify)
+}
+
+func (ts *testSuiteCore) TestBladeUpdateDetails() {
+
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestBladeUpdateDetails"
+
+	regionName       := ts.regionName(stdSuffix)
+	zoneName         := ts.zoneName(stdSuffix)
+	rackName         := ts.rackName(stdSuffix)
+	bladeID          := ts.bladeID(1)
+
+	stdDetails       := ts.stdBladeDetails()
+	stdCapacity      := ts.stdBladeCapacity()
+	stdBootInfo      := ts.stdBladeBootInfo()
+	stdBootOnPowerOn := true
+
+	ctx := context.Background()
+
+	b, err := NewBlade(ctx, ts.store, DefinitionTable, regionName, zoneName, rackName, bladeID)
+	require.NoError(err)
+
+	b.SetDetails(ctx, stdDetails)
+	b.SetCapacity(ctx, stdCapacity)
+	b.SetBootInfo(ctx, stdBootOnPowerOn, stdBootInfo)
+
+	revCreate, err := b.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, revCreate)
+
+	// Read the rack back using the relative constructor
+	//
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	region, err := root.NewChild(ctx, regionName)
+	require.NoError(err)
+
+	zone, err := region.NewChild(ctx, zoneName)
+	require.NoError(err)
+
+	rack, err := zone.NewChild(ctx, rackName)
+	require.NoError(err)
+
+	cb, err := rack.NewBlade(ctx, bladeID)
+	require.NoError(err)
+
+	revRead, err := cb.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+
+	_, details := cb.GetDetails(ctx)
+	require.NotNil(details)
+
+	details.Enabled   = false
+	details.Condition = pb.Condition_not_in_service
+
+	// Update the record using the direct constructor, conditional on revision
+	//
+	b.SetDetails(ctx, details)
+
+	revUpdate, err := b.Update(ctx, false)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
+
+
+	// Verify update using relative constructor
+	//
+	revVerify, err := cb.Read(ctx)
+	require.NoError(err)
+	assert.Equal(revUpdate, revVerify)
+
+	_, detailsVerify := cb.GetDetails(ctx)
+	require.NotNil(detailsVerify)
+
+	_, capacityVerify := cb.GetCapacity(ctx)
+	require.NotNil(detailsVerify)
+
+	_, bootOnPowerOnVerify, bootInfoVerify := cb.GetBootInfo(ctx)
+	require.NotNil(detailsVerify)
+
+	// Compare new details with original + deltas
+	//
+	assert.Equal(details, detailsVerify)
+	assert.Equal(stdCapacity, capacityVerify)
+	assert.Equal(stdBootInfo, bootInfoVerify)
+	assert.Equal(stdBootOnPowerOn, bootOnPowerOnVerify)
+}
+
 func TestInventoryTestSuite(t *testing.T) {
 	suite.Run(t, new(testSuiteCore))
 }
