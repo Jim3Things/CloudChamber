@@ -8,12 +8,13 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // InvalidTargetResponse constructs a failure response message with an invalid
 // target error code.
 func InvalidTargetResponse(occursAt int64) *sm.Response {
-	return sm.FailedResponse(occursAt, ErrInvalidTarget)
+	return sm.FailedResponse(occursAt, errors.ErrInvalidTarget)
 }
 
 // DropMessage is an action state processor that closes the channel without

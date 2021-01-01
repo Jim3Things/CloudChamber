@@ -69,7 +69,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(messages.ErrInvalidTarget, res.Err)
+	assert.Equal(errors.ErrInvalidTarget, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 

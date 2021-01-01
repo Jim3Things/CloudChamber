@@ -3,7 +3,6 @@ package errors
 import (
 	"errors"
 	"fmt"
-	"time"
 )
 
 var (
@@ -43,9 +42,26 @@ var (
 	// executing, and the start request is in error.
 	ErrAlreadyStarted = errors.New("the state machine has already started")
 
+	// ErrInvalidTarget is an error used to indicate that the incoming message had
+	// a target element that either was not valid for the message, or an element
+	// that could not be found.
+	ErrInvalidTarget = errors.New("invalid target specified, request ignored")
+
+	// ErrInvalidMessage indicates that an attempt to process an unexpected
+	// message type occurred when receiving a grpc message.
 	ErrInvalidMessage = errors.New("invalid message encountered")
 
+	// ErrDelayCanceled indicates to the original waiter that their outstanding
+	// stepper delay operation has been canceled.
 	ErrDelayCanceled = errors.New("the delay operation was canceled")
+
+	// ErrAlreadyOpen indicates that an attempt was made to open an exporter
+	// while it was open and active.
+	ErrAlreadyOpen = errors.New("CloudChamber: exporter is already open")
+
+	// ErrOpenAttrsNil indicates that an Open exporter operation was passed no
+	// arguments, but argument values were required.
+	ErrOpenAttrsNil = errors.New("CloudChamber: Exporter.Open attributes must not be nil")
 )
 
 // ErrInventoryChangeTooLate indicates that an attempt to modify an inventory
@@ -499,30 +515,9 @@ func (ebnf ErrBladeNotFound) Error() string {
 		bladeAddress(ebnf.Zone, ebnf.Rack, ebnf.Blade))
 }
 
-type ErrDelayMustBeZero struct {
-	Actual time.Duration
-}
-
-func (e *ErrDelayMustBeZero) Error() string {
-	return fmt.Sprintf("the MeasuredDelay must be zero for this policy.  It is %v", e.Actual)
-}
-
-type ErrDelayMustBePositive struct {
-	Actual time.Duration
-}
-
-func (e *ErrDelayMustBePositive) Error() string {
-	return fmt.Sprintf("the MeasuredDelay must be positive for this policy.  It is %v", e.Actual)
-}
-
-type ErrInvalidPolicy struct {
-	Policy int
-}
-
-func (e *ErrInvalidPolicy) Error() string {
-	return fmt.Sprintf("an invalid policy (%d) encountered", e.Policy)
-}
-
+// ErrPolicyTooLate indicates that the attempt to change the stepper policy
+// failed because the policy had changed since the comparison version.  This
+// is a protection against racing messages causing odd overwrites.
 type ErrPolicyTooLate struct {
 	Guard   int64
 	Current int64
@@ -534,4 +529,220 @@ func (e *ErrPolicyTooLate) Error() string {
 			"but the current policy version is %d",
 		e.Guard,
 		e.Current)
+}
+
+// ErrMustBeEQ signals that the specified field must be equal to a
+// designated value.
+type ErrMustBeEQ struct {
+	Field    string
+	Actual   int64
+	Required int64
+}
+
+func (e ErrMustBeEQ) Error() string {
+	return fmt.Sprintf(
+		"the field %q must be equal to %d.  It is %d, which is invalid",
+		e.Field,
+		e.Required,
+		e.Actual)
+}
+
+// ErrMustBeGTE signals that the specified field must be greater than or equal
+// to a designated value.
+type ErrMustBeGTE struct {
+	Field    string
+	Actual   int64
+	Required int64
+}
+
+func (e ErrMustBeGTE) Error() string {
+	return fmt.Sprintf(
+		"the field %q must be greater than or equal to %d.  It is %d, which is invalid",
+		e.Field,
+		e.Required,
+		e.Actual)
+}
+
+// ErrInvalidEnum signals that the specified field does not contain a valid
+// enum value.
+type ErrInvalidEnum struct {
+	Field  string
+	Actual int64
+}
+
+func (e ErrInvalidEnum) Error() string {
+	return fmt.Sprintf(
+		"the field %q does not contain a known value.  It is %d, which is invalid",
+		e.Field,
+		e.Actual)
+}
+
+// ErrMinLenMap signals that the specified map field does not contain at least
+// the minimum required number of entries.
+type ErrMinLenMap struct {
+	Field    string
+	Actual   int64
+	Required int64
+}
+
+func (e ErrMinLenMap) Error() string {
+	suffix := "s"
+	if e.Required == 1 {
+		suffix = ""
+	}
+
+	return fmt.Sprintf(
+		"the field %q must contain at least %d element%s.  It contains %d, which is invalid",
+		e.Field,
+		e.Required,
+		suffix,
+		e.Actual)
+}
+
+// ErrMaxLenMap signals that the specified map field does not contain at least
+// the minimum required number of entries.
+type ErrMaxLenMap struct {
+	Field  string
+	Actual int64
+	Limit  int64
+}
+
+func (e ErrMaxLenMap) Error() string {
+	suffix := "s"
+	if e.Limit == 1 {
+		suffix = ""
+	}
+
+	return fmt.Sprintf(
+		"the field %q must contain no more then %d element%s.  It contains %d, which is invalid",
+		e.Field,
+		e.Limit,
+		suffix,
+		e.Actual)
+}
+
+// ErrInvalidID signals that the specified tracing ID does not contain a valid
+// value.
+type ErrInvalidID struct {
+	Field string
+	Type  string
+	ID    string
+}
+
+func (e ErrInvalidID) Error() string {
+	return fmt.Sprintf("the field %q must be a valid %s ID.  It contains %q, which is invalid",
+		e.Field,
+		e.Type,
+		e.ID)
+}
+
+// ErrIDMustBeEmpty signals that the specified ID contains a value when it must
+// not (due to consistency rules involving other fields).
+type ErrIDMustBeEmpty struct {
+	Field  string
+	Actual string
+}
+
+func (e ErrIDMustBeEmpty) Error() string {
+	return fmt.Sprintf("the field %q must be emtpy.  It contains %q, which is invalid",
+		e.Field,
+		e.Actual)
+}
+
+// ErrMinLenString signals that the specified string does not meet a minimum lenth criteria.
+//
+type ErrMinLenString struct {
+	Field    string
+	Actual   int64
+	Required int64
+}
+
+func (e ErrMinLenString) Error() string {
+	suffix := "s"
+	if e.Required == 1 {
+		suffix = ""
+	}
+
+	return fmt.Sprintf(
+		"the field %q must contain at least %d character%s.  It contains %d, which is invalid",
+		e.Field,
+		e.Required,
+		suffix,
+		e.Actual)
+}
+
+// ErrItemMustBeEmpty signals that the specified Item's port contains a value when it must
+// not (due to consistency rules involving other fields).
+//
+type ErrItemMustBeEmpty struct {
+	Field  string
+	Item   string
+	Port   int64
+	Actual string
+}
+
+func (e ErrItemMustBeEmpty) Error() string {
+	return fmt.Sprintf("the field %q for %q port %q must be emtpy.  It contains %q, which is invalid",
+		e.Field,
+		e.Item,
+		e.Port,
+		e.Actual)
+}
+
+// ErrItemMissingValue signals that the specified tracing ID does not contain any value.
+//
+type ErrItemMissingValue struct {
+	Field string
+	Item  string
+	Port  int64
+}
+
+func (e ErrItemMissingValue) Error() string {
+	return fmt.Sprintf("the field %q for %q port %q must have a value.",
+		e.Field,
+		e.Item,
+		e.Port)
+}
+
+// ErrInvalidItemSelf signals that the specified item has wired a port to itself.
+//
+type ErrInvalidItemSelf struct {
+	Field  string
+	Item   string
+	Port   int64
+	Actual string
+}
+
+func (e ErrInvalidItemSelf) Error() string {
+	return fmt.Sprintf(
+		"the field %q for %q port %q must be a valid type.  It contains %q, which connects to itself",
+		e.Field,
+		e.Item,
+		e.Port,
+		e.Actual)
+}
+
+// ErrUnexpectedMessage is the standard error when an incoming request arrives in
+// a state that is not expecting it.
+type ErrUnexpectedMessage struct {
+	Msg   string
+	State string
+}
+
+func (um *ErrUnexpectedMessage) Error() string {
+	return fmt.Sprintf("unexpected message %q while in state %q", um.Msg, um.State)
+}
+
+// ErrInvalidOpenAttrsType indicates that the argument passed to the
+// Exporter.Open call used a type that was not expected or supported.
+type ErrInvalidOpenAttrsType struct {
+	Expected string
+	Actual   string
+}
+
+func (e ErrInvalidOpenAttrsType) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: exporter open expected type %q, received type %q",
+		e.Expected,
+		e.Actual)
 }

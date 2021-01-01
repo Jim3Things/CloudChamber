@@ -337,7 +337,10 @@ func doStart(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 		err = machine.ChangeState(ctx, noWaitState)
 
 	default:
-		err = &errors.ErrInvalidPolicy{Policy: s.firstPolicy}
+		err = &errors.ErrInvalidEnum{
+			Field:  "StepperPolicy",
+			Actual: int64(s.firstPolicy),
+		}
 	}
 
 	ch := msg.Ch()
