@@ -50,19 +50,26 @@ const (
 	prefixPdu    = "pdu"
 	prefixTor    = "tor"
 
-	keyFormatIndexRegions  = "%s/" + prefixRegion + "s"
-	keyFormatIndexZones    = "%s/" + prefixRegion + "/%s/" + prefixZone + "s"
-	keyFormatIndexRacks    = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "s"
-	keyFormatIndexPdus     = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "s"
-	keyFormatIndexTors     = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "s"
-	keyFormatIndexBlades   = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "s"
+	keyFormatIndexRegions  = "%s/index/" + prefixRegion + "s"
+	keyFormatIndexZones    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "s"
+	keyFormatIndexRacks    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "s"
+	keyFormatIndexPdus     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "s"
+	keyFormatIndexTors     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "s"
+	keyFormatIndexBlades   = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "s"
 
-	keyFormatRegion = "%s/" + prefixRegion + "/%s"
-	keyFormatZone   = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s"
-	keyFormatRack   = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s"
-	keyFormatPdu    = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "/%v"
-	keyFormatTor    = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "/%v"
-	keyFormatBlade  = "%s/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%v"
+	keyFormatIndexEntryRegion  = keyFormatIndexRegions + "/%s"
+	keyFormatIndexEntryZone    = keyFormatIndexZones   + "/%s"
+	keyFormatIndexEntryRack    = keyFormatIndexRacks   + "/%s"
+	keyFormatIndexEntryPdu     = keyFormatIndexPdus    + "/%d"
+	keyFormatIndexEntryTor     = keyFormatIndexTors    + "/%d"
+	keyFormatIndexEntryBlade   = keyFormatIndexBlades  + "/%d"
+
+	keyFormatRegion = "%s/data/" + prefixRegion + "/%s"
+	keyFormatZone   = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s"
+	keyFormatRack   = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s"
+	keyFormatPdu    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "/%v"
+	keyFormatTor    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "/%v"
+	keyFormatBlade  = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%v"
 
 	maxBladeID = int64(10 * 1000 * 1000)
 	maxPduID   = int64(2)
@@ -112,15 +119,6 @@ func verifyRack(val string) error {
 	return nil
 }
 
-func verifyBlade(val int64) error {
-
-	if val < 0 || val > maxBladeID {
-		return ErrBladeIDInvalid(val)
-	}
-
-	return nil
-}
-
 func verifyPdu(val int64) error {
 
 	if val < 0 || val > maxPduID {
@@ -139,6 +137,92 @@ func verifyTor(val int64) error {
 	return nil
 }
 
+func verifyBlade(val int64) error {
+
+	if val < 0 || val > maxBladeID {
+		return ErrBladeIDInvalid(val)
+	}
+
+	return nil
+}
+
+
+func verifyNamesRegion(table string, region string) error {
+
+	if err := verifyTable(table); err != nil {
+		return err
+	}
+
+	if err := verifyRegion(region); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func verifyNamesZone(table string, region string, zone string) error {
+
+	if err := verifyNamesRegion(table, region); err != nil {
+		return err
+	}
+
+	if err := verifyZone(zone); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func verifyNamesRack(table string, region string, zone string, rack string) error {
+
+	if err := verifyNamesZone(table, region, zone); err != nil {
+		return err
+	}
+
+	if err := verifyRack(rack); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func verifyNamesPdu(table string, region string, zone string, rack string, index int64) error {
+
+	if err := verifyNamesRack(table, region, zone, rack); err != nil {
+		return err
+	}
+
+	if err := verifyPdu(index); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func verifyNamesTor(table string, region string, zone string, rack string, index int64) error {
+
+	if err := verifyNamesRack(table, region, zone, rack); err != nil {
+		return err
+	}
+
+	if err := verifyTor(index); err != nil {
+		return err
+	}
+
+	return nil
+}
+func verifyNamesBlade(table string, region string, zone string, rack string, index int64) error {
+
+	if err := verifyNamesRack(table, region, zone, rack); err != nil {
+		return err
+	}
+
+	if err := verifyBlade(index); err != nil {
+		return err
+	}
+
+	return nil
+}
 
 // GetKeyForIndexRegion generates the key to discover the list of regions within a
 // specific table (definition, actual, observed, target)
@@ -158,11 +242,7 @@ func GetKeyForIndexRegion(table string) (key string, err error) {
 // 
 func GetKeyForIndexZone(table string, region string) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
+	if err = verifyNamesRegion(table, region); err != nil {
 		return key, err
 	}
 
@@ -174,15 +254,7 @@ func GetKeyForIndexZone(table string, region string) (key string, err error) {
 // 
 func GetKeyForIndexRack(table string, region string, zone string) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err := verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err := verifyZone(zone); err != nil {
+	if err = verifyNamesZone(table, region, zone); err != nil {
 		return key, err
 	}
 
@@ -193,20 +265,8 @@ func GetKeyForIndexRack(table string, region string, zone string) (key string, e
 // specific table (definition, actual, observed, target)
 // 
 func GetKeyForIndexPdu(table string, region string, zone string, rack string) (key string, err error) {
-	
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
 
-	if err = verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
-		return key, err
-	}
-
-	if err = verifyRack(rack); err != nil {
+	if err = verifyNamesRack(table, region, zone, rack); err != nil {
 		return key, err
 	}
 
@@ -218,19 +278,7 @@ func GetKeyForIndexPdu(table string, region string, zone string, rack string) (k
 // 
 func GetKeyForIndexTor(table string, region string, zone string, rack string) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err:= verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
-		return key, err
-	}
-
-	if err = verifyRack(rack); err != nil {
+	if err = verifyNamesRack(table, region, zone, rack); err != nil {
 		return key, err
 	}
 
@@ -242,23 +290,84 @@ func GetKeyForIndexTor(table string, region string, zone string, rack string) (k
 // 
 func GetKeyForIndexBlade(table string, region string, zone string, rack string) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
-		return key, err
-	}
-
-	if err = verifyRack(rack); err != nil {
+	if err = verifyNamesRack(table, region, zone, rack); err != nil {
 		return key, err
 	}
 
 	return fmt.Sprintf(keyFormatIndexBlades, table, region, zone, rack), nil
+}
+
+
+// GetKeyForIndexEntryRegion generates the key to create an index entry for a region within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexEntryRegion(table string, region string) (key string, err error) {
+
+	if err = verifyNamesRegion(table, region); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexEntryRegion, table, region), nil
+}
+
+// GetKeyForIndexEntryZone generates the key to create an index entry for a zone within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexEntryZone(table string, region string, zone string) (key string, err error) {
+
+	if err = verifyNamesZone(table, region, zone); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexEntryZone, table, region, zone), nil
+}
+
+// GetKeyForIndexEntryRack generates the key to create an index entry for a rack within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexEntryRack(table string, region string, zone string, rack string) (key string, err error) {
+
+	if err = verifyNamesRack(table, region, zone, rack); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexEntryRack, table, region, zone, rack), nil
+}
+
+// GetKeyForIndexEntryPdu generates the key to create an index entry for a pdu within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexEntryPdu(table string, region string, zone string, rack string, pdu int64) (key string, err error) {
+	
+	if err = verifyNamesPdu(table, region, zone, rack, pdu); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexEntryPdu, table, region, zone, rack, pdu), nil
+}
+
+// GetKeyForIndexEntryTor generates the key to create an index entry for a tor within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexEntryTor(table string, region string, zone string, rack string, tor int64) (key string, err error) {
+
+	if err = verifyNamesTor(table, region, zone, rack, tor); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexEntryTor, table, region, zone, rack, tor), nil
+}
+
+// GetKeyForIndexEntryBlade generates the key to create an index entry for a blade within a
+// specific table (definition, actual, observed, target)
+// 
+func GetKeyForIndexEntryBlade(table string, region string, zone string, rack string, blade int64) (key string, err error) {
+
+	if err = verifyNamesBlade(table, region, zone, rack, blade); err != nil {
+		return key, err
+	}
+
+	return fmt.Sprintf(keyFormatIndexEntryBlade, table, region, zone, rack, blade), nil
 }
 
 
@@ -267,11 +376,7 @@ func GetKeyForIndexBlade(table string, region string, zone string, rack string) 
 // 
 func GetKeyForRegion(table string, region string) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
+	if err = verifyNamesRegion(table, region); err != nil {
 		return key, err
 	}
 
@@ -283,15 +388,7 @@ func GetKeyForRegion(table string, region string) (key string, err error) {
 // 
 func GetKeyForZone(table string, region string, zone string) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
+	if err = verifyNamesZone(table, region, zone); err != nil {
 		return key, err
 	}
 
@@ -303,19 +400,7 @@ func GetKeyForZone(table string, region string, zone string) (key string, err er
 // 
 func GetKeyForRack(table string, region string, zone string, rack string) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
-		return key, err
-	}
-
-	if err = verifyRack(rack); err != nil {
+	if err = verifyNamesRack(table, region, zone, rack); err != nil {
 		return key, err
 	}
 
@@ -327,23 +412,7 @@ func GetKeyForRack(table string, region string, zone string, rack string) (key s
 // 
 func GetKeyForPdu(table string, region string, zone string, rack string, pdu int64) (key string, err error) {
 	
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
-		return key, err
-	}
-
-	if err = verifyRack(rack); err != nil {
-		return key, err
-	}
-
-	if err = verifyBlade(pdu); err != nil {
+	if err = verifyNamesPdu(table, region, zone, rack, pdu); err != nil {
 		return key, err
 	}
 
@@ -355,23 +424,7 @@ func GetKeyForPdu(table string, region string, zone string, rack string, pdu int
 // 
 func GetKeyForTor(table string, region string, zone string, rack string, tor int64) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
-		return key, err
-	}
-
-	if err = verifyRack(rack); err != nil {
-		return key, err
-	}
-
-	if err:= verifyTor(tor); err != nil {
+	if err = verifyNamesTor(table, region, zone, rack, tor); err != nil {
 		return key, err
 	}
 
@@ -383,23 +436,7 @@ func GetKeyForTor(table string, region string, zone string, rack string, tor int
 // 
 func GetKeyForBlade(table string, region string, zone string, rack string, blade int64) (key string, err error) {
 
-	if err = verifyTable(table); err != nil {
-		return key, err
-	}
-
-	if err = verifyRegion(region); err != nil {
-		return key, err
-	}
-
-	if err = verifyZone(zone); err != nil {
-		return key, err
-	}
-
-	if err = verifyRack(rack); err != nil {
-		return key, err
-	}
-
-	if err = verifyBlade(blade); err != nil {
+	if err = verifyNamesBlade(table, region, zone, rack, blade); err != nil {
 		return key, err
 	}
 
@@ -428,7 +465,9 @@ type inventoryItemNode interface {
 	SetName(ctx context.Context, name string) error
 
 	NewChild(ctx context.Context, name string) (*interface{}, error)
-	ListChildren(ctx context.Context) (*map[string]interface{}, error)
+
+	ListChildren(ctx context.Context) (*[]string, error)
+	FetchChildren(ctx context.Context) (*map[string]interface{}, error)
 }
 
 type inventoryItemRack interface {
