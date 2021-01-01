@@ -644,12 +644,12 @@ type ErrIDMustBeEmpty struct {
 }
 
 func (e ErrIDMustBeEmpty) Error() string {
-	return fmt.Sprintf("the field %q must be emtpy.  It contains %q, which is invalid",
+	return fmt.Sprintf("the field %q must be empty.  It contains %q, which is invalid",
 		e.Field,
 		e.Actual)
 }
 
-// ErrMinLenString signals that the specified string does not meet a minimum lenth criteria.
+// ErrMinLenString signals that the specified string does not meet a minimum length criteria.
 //
 type ErrMinLenString struct {
 	Field    string
@@ -682,7 +682,7 @@ type ErrItemMustBeEmpty struct {
 }
 
 func (e ErrItemMustBeEmpty) Error() string {
-	return fmt.Sprintf("the field %q for %q port %q must be emtpy.  It contains %q, which is invalid",
+	return fmt.Sprintf("the field %q for %q port %q must be empty.  It contains %q, which is invalid",
 		e.Field,
 		e.Item,
 		e.Port,

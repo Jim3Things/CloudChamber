@@ -44,17 +44,17 @@ const (
 	namespaceRootInventory = "inventory"
 	namespaceRootWorkloads = "workload"
 
-	namespaceRootInventoryDefinition     = namespaceRootInventory + "/" + "definition"
-	namespaceRootInventoryTargetState    = namespaceRootInventory + "/" + "target"
-	namespaceRootInventoryActualState    = namespaceRootInventory + "/" + "actual"
-	namespaceRootInventoryObservedeState = namespaceRootInventory + "/" + "observed"
-	namespaceRootInventoryRepairActions  = namespaceRootInventory + "/" + "repair"
+	namespaceRootInventoryDefinition    = namespaceRootInventory + "/" + "definition"
+	namespaceRootInventoryTargetState   = namespaceRootInventory + "/" + "target"
+	namespaceRootInventoryActualState   = namespaceRootInventory + "/" + "actual"
+	namespaceRootInventoryObservedState = namespaceRootInventory + "/" + "observed"
+	namespaceRootInventoryRepairActions = namespaceRootInventory + "/" + "repair"
 
-	namespaceRootWorkloadDefinition     = namespaceRootWorkloads + "/" + "definition"
-	namespaceRootWorkloadTargetState    = namespaceRootWorkloads + "/" + "target"
-	namespaceRootWorkloadActualState    = namespaceRootWorkloads + "/" + "actual"
-	namespaceRootWorkloadObservedeState = namespaceRootWorkloads + "/" + "observed"
-	namespaceRootWorkloadRepairActions  = namespaceRootWorkloads + "/" + "repair"
+	namespaceRootWorkloadDefinition    = namespaceRootWorkloads + "/" + "definition"
+	namespaceRootWorkloadTargetState   = namespaceRootWorkloads + "/" + "target"
+	namespaceRootWorkloadActualState   = namespaceRootWorkloads + "/" + "actual"
+	namespaceRootWorkloadObservedState = namespaceRootWorkloads + "/" + "observed"
+	namespaceRootWorkloadRepairActions = namespaceRootWorkloads + "/" + "repair"
 )
 
 var namespaceRoots = map[KeyRoot]string{
@@ -63,12 +63,12 @@ var namespaceRoots = map[KeyRoot]string{
 	KeyRootInventoryDefinitions:   namespaceRootInventoryDefinition,
 	KeyRootInventoryTargetState:   namespaceRootInventoryTargetState,
 	KeyRootInventoryActualState:   namespaceRootInventoryActualState,
-	KeyRootInventoryObservedState: namespaceRootInventoryObservedeState,
+	KeyRootInventoryObservedState: namespaceRootInventoryObservedState,
 	KeyRootInventoryRepairActions: namespaceRootInventoryRepairActions,
 	KeyRootWorkloadDefinitions:    namespaceRootWorkloadDefinition,
 	KeyRootWorkloadTargetState:    namespaceRootWorkloadTargetState,
 	KeyRootWorkloadActualState:    namespaceRootWorkloadTargetState,
-	KeyRootWorkloadObservedState:  namespaceRootWorkloadObservedeState,
+	KeyRootWorkloadObservedState:  namespaceRootWorkloadObservedState,
 	KeyRootWorkloadRepairActions:  namespaceRootWorkloadRepairActions,
 }
 
@@ -105,12 +105,12 @@ func WithRevision(rev int64) Option {
 	return func(options *Options) { options.revision = rev }
 }
 
-// WithPrefix is an option used to indicate the supplied name whoult be used
+// WithPrefix is an option used to indicate the supplied name should be used
 // as a prefix for the request. This is primarily useful for Read() and Delete()
 // calls to indicate the supplied name is the root for a wildcard operation.
 //
 // Care should be used when applying this option on a Delete() call as a small
-// error could easily lead to an entire namespace being inadvertantly deleted.
+// error could easily lead to an entire namespace being inadvertently deleted.
 //
 func WithPrefix() Option {
 	return func(options *Options) { options.useAsPrefix = true }
@@ -437,7 +437,7 @@ func (store *Store) ReadWithDecode(
 
 	switch recordCount {
 	default:
-		return RevisionInvalid, errors.ErrStoreBadRecordCount{n, 1, recordCount}
+		return RevisionInvalid, errors.ErrStoreBadRecordCount{Key: n, Expected: 1, Actual: recordCount}
 
 	case 0:
 		return RevisionInvalid, errors.ErrStoreKeyNotFound(n)
@@ -506,7 +506,7 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 
 	switch recordCount {
 	default:
-		return nil, RevisionInvalid, errors.ErrStoreBadRecordCount{n, 1, recordCount}
+		return nil, RevisionInvalid, errors.ErrStoreBadRecordCount{Key: n, Expected: 1, Actual: recordCount}
 
 	case 0:
 		return nil, RevisionInvalid, errors.ErrStoreKeyNotFound(n)

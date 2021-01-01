@@ -16,7 +16,6 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
@@ -40,9 +39,6 @@ type testSuiteCore struct {
 	baseURI string
 
 	utf *exporters.Exporter
-
-	ep       string
-	dialOpts []grpc.DialOption
 
 	cfg *config.GlobalConfig
 }
