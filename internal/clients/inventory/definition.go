@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
@@ -44,7 +45,13 @@ func NewRegion(ctx context.Context, store *store.Store, table string, region str
 		return nil, err
 	}
 
-	key, err := GetKeyForRegion(DefinitionTable, region)
+	keyIndexEntry, err := GetKeyForIndexEntryRegion(table, region)
+
+	if nil != err {
+		return nil, err
+	}
+
+	key, err := GetKeyForRegion(table, region)
 
 	if nil != err {
 		return nil, err
@@ -53,6 +60,7 @@ func NewRegion(ctx context.Context, store *store.Store, table string, region str
 	r := &Region{
 		Store:         store,
 		KeyChildIndex: keyIndex,
+		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
 		Region:        region,
 	}
@@ -71,7 +79,13 @@ func NewZone(ctx context.Context, store *store.Store, table string, region strin
 		return nil, err
 	}
 
-	key, err := GetKeyForZone(DefinitionTable, region, zone)
+	keyIndexEntry, err := GetKeyForIndexEntryZone(table, region, zone)
+
+	if nil != err {
+		return nil, err
+	}
+
+	key, err := GetKeyForZone(table, region, zone)
 
 	if nil != err {
 		return nil, err
@@ -80,6 +94,7 @@ func NewZone(ctx context.Context, store *store.Store, table string, region strin
 	z := &Zone{
 		Store:         store,
 		KeyChildIndex: keyIndex,
+		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
 		Region:        region,
 		Zone:          zone,
@@ -111,6 +126,12 @@ func NewRack(ctx context.Context, store *store.Store, table string, region strin
 		return nil, err
 	}
 
+	keyIndexEntry, err := GetKeyForIndexEntryRack(DefinitionTable, region, zone, rack)
+
+	if nil != err {
+		return nil, err
+	}
+
 	key, err := GetKeyForRack(DefinitionTable, region, zone, rack)
 
 	if nil != err {
@@ -122,6 +143,7 @@ func NewRack(ctx context.Context, store *store.Store, table string, region strin
 		KeyIndexPdu:   keyIndexPdu,
 		KeyIndexTor:   keyIndexTor,
 		KeyIndexBlade: keyIndexBlade,
+		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
 		Region:        region,
 		Zone:          zone,
@@ -136,6 +158,12 @@ func NewRack(ctx context.Context, store *store.Store, table string, region strin
 //
 func NewPdu(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Pdu, error) {
 
+	keyIndexEntry, err := GetKeyForIndexEntryPdu(table, region, zone, rack, id)
+
+	if nil != err {
+		return nil, err
+	}
+
 	key, err := GetKeyForPdu(DefinitionTable, region, zone, rack, id)
 
 	if nil != err {
@@ -143,12 +171,13 @@ func NewPdu(ctx context.Context, store *store.Store, table string, region string
 	}
 
 	p := &Pdu{
-		Store:  store,
-		Key:    key,
-		Region: region,
-		Zone:   zone,
-		Rack:   rack,
-		ID:     id,
+		Store:         store,
+		KeyIndexEntry: keyIndexEntry,
+		Key:           key,
+		Region:        region,
+		Zone:          zone,
+		Rack:          rack,
+		ID:            id,
 	}
 
 	return p, nil
@@ -159,6 +188,12 @@ func NewPdu(ctx context.Context, store *store.Store, table string, region string
 //
 func NewTor(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Tor, error) {
 
+	keyIndexEntry, err := GetKeyForIndexEntryTor(table, region, zone, rack, id)
+
+	if nil != err {
+		return nil, err
+	}
+
 	key, err := GetKeyForTor(DefinitionTable, region, zone, rack, id)
 
 	if nil != err {
@@ -166,12 +201,13 @@ func NewTor(ctx context.Context, store *store.Store, table string, region string
 	}
 
 	t := &Tor{
-		Store:  store,
-		Key:    key,
-		Region: region,
-		Zone:   zone,
-		Rack:   rack,
-		ID:     id,
+		Store:         store,
+		KeyIndexEntry: keyIndexEntry,
+		Key:           key,
+		Region:        region,
+		Zone:          zone,
+		Rack:          rack,
+		ID:            id,
 	}
 
 	return t, nil
@@ -182,6 +218,12 @@ func NewTor(ctx context.Context, store *store.Store, table string, region string
 //
 func NewBlade(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Blade, error) {
 
+	keyIndexEntry, err := GetKeyForIndexEntryBlade(table, region, zone, rack, id)
+
+	if nil != err {
+		return nil, err
+	}
+
 	key, err := GetKeyForBlade(DefinitionTable, region, zone, rack, id)
 
 	if nil != err {
@@ -189,12 +231,13 @@ func NewBlade(ctx context.Context, store *store.Store, table string, region stri
 	}
 
 	b := &Blade{
-		Store:  store,
-		Key:    key,
-		Region: region,
-		Zone:   zone,
-		Rack:   rack,
-		ID:     id,
+		Store:         store,
+		KeyIndexEntry: keyIndexEntry,
+		Key:           key,
+		Region:        region,
+		Zone:          zone,
+		Rack:          rack,
+		ID:            id,
 	}
 
 	return b, nil
@@ -299,45 +342,105 @@ func (r *Root) NewChild(ctx context.Context, name string) (*Region, error) {
 
 // ListChildren is a
 //
-func (r *Root) ListChildren(ctx context.Context) (*map[string]Region, error) {
-
+func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {
+	
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
 
 	if err == store.ErrStoreKeyNotFound(r.KeyChildIndex) {
-		return nil, ErrRootNotFound{DefinitionTable}
+		return store.RevisionInvalid, nil, ErrRootNotFound{DefinitionTable}
 	}
+
+	if err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	names := make([]string, len(*records))
+
+	i := 0
+
+	for k := range *records {
+	
+		names[i] = k
+
+		i++
+	}
+
+	return rev, names, nil
+}
+
+// FetchChildren is a
+//
+func (r *Root) FetchChildren(ctx context.Context) (*map[string]Region, error) {
+
+	_, names, err := r.ListChildren(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	regions := make(map[string]Region, len(*records))
+	children := make(map[string]Region, len(names))
 
-	for k, v := range *records {
+	for _, v := range names {
 
-		record := &pb.StoreRecordDefinitionRegion{}
+		child, err := r.NewChild(ctx, v)
 
-		if err = store.Decode(v.Value, record); err != nil {
+		if err != nil {
 			return nil, err
 		}
-
-		region, err := r.NewChild(ctx, k)
+	
+		_, err = child.Read(ctx)
 
 		if err != nil {
 			return nil, err
 		}
 
-		region.details        = record.Details
-		region.record         = record
-		region.revision       = v.Revision
-		region.revisionRecord = v.Revision
-		region.revisionStore  = rev
-	
-		regions[k] = *region
+		children[v] = *child
 	}
 
-	return &regions, nil
+	return &children, nil
 }
+
+// FetchChildren is a
+//
+// func (r *Root) FetchChildrenOrig(ctx context.Context) (*map[string]Region, error) {
+
+// 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
+
+// 	if err == store.ErrStoreKeyNotFound(r.KeyChildIndex) {
+// 		return nil, ErrRootNotFound{DefinitionTable}
+// 	}
+
+// 	if err != nil {
+// 		return nil, err
+// 	}
+
+// 	regions := make(map[string]Region, len(*records))
+
+// 	for k, v := range *records {
+
+// 		record := &pb.StoreRecordDefinitionRegion{}
+
+// 		if err = store.Decode(v.Value, record); err != nil {
+// 			return nil, err
+// 		}
+
+// 		region, err := r.NewChild(ctx, k)
+
+// 		if err != nil {
+// 			return nil, err
+// 		}
+
+// 		region.details        = record.Details
+// 		region.record         = record
+// 		region.revision       = v.Revision
+// 		region.revisionRecord = v.Revision
+// 		region.revisionStore  = rev
+	
+// 		regions[k] = *region
+// 	}
+
+// 	return &regions, nil
+// }
 
 
 
@@ -350,6 +453,7 @@ type Region struct {
 
 	Store          *store.Store
 	KeyChildIndex  string
+	KeyIndexEntry  string
 	Key            string
 	Region         string
 
@@ -420,6 +524,12 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 
 	if err != nil {
 		return store.RevisionInvalid, err
+	}
+
+	_, err = r.Store.Create(ctx, store.KeyRootInventory, r.KeyIndexEntry, r.Region)
+
+	if err == store.ErrStoreAlreadyExists(r.KeyIndexEntry) {
+		return store.RevisionInvalid, ErrfRegionAlreadyExists(r.Region)
 	}
 
 	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
@@ -545,9 +655,9 @@ func (r *Region) NewChild(ctx context.Context, name string) (*Zone, error) {
 }
 
 
-// ListChildren is a
+// FetchChildren is a
 //
-func (r *Region) ListChildren(ctx context.Context) (*map[string]Zone, error) {
+func (r *Region) FetchChildren(ctx context.Context) (*map[string]Zone, error) {
 
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
 
@@ -597,6 +707,7 @@ type Zone struct {
 
 	Store          *store.Store
 	KeyChildIndex  string
+	KeyIndexEntry  string
 	Key            string
 	Region         string
 	Zone           string
@@ -665,6 +776,12 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 
 	if err != nil {
 		return store.RevisionInvalid, err
+	}
+
+	_, err = z.Store.Create(ctx, store.KeyRootInventory, z.KeyIndexEntry, z.Zone)
+
+	if err == store.ErrStoreAlreadyExists(z.KeyIndexEntry) {
+		return store.RevisionInvalid, ErrfZoneAlreadyExists(z.Region, z.Zone)
 	}
 
 	rev, err := z.Store.Create(ctx, store.KeyRootInventory, z.Key, v)
@@ -790,9 +907,9 @@ func (z *Zone) NewChild(ctx context.Context, name string) (*Rack, error) {
 }
 
 
-// ListChildren is a
+// FetchChildren is a
 //
-func (z *Zone) ListChildren(ctx context.Context) (*map[string]Rack, error) {
+func (z *Zone) FetchChildren(ctx context.Context) (*map[string]Rack, error) {
 
 	records, rev, err := z.Store.List(ctx, store.KeyRootInventory, z.KeyChildIndex)
 
@@ -843,6 +960,7 @@ type Rack struct {
 	KeyIndexPdu    string
 	KeyIndexTor    string
 	KeyIndexBlade  string
+	KeyIndexEntry  string
 	Key            string
 	Region         string
 	Zone           string
@@ -916,6 +1034,12 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 
 	if err != nil {
 		return store.RevisionInvalid, err
+	}
+
+	_, err = r.Store.Create(ctx, store.KeyRootInventory, r.KeyIndexEntry, r.Rack)
+
+	if err == store.ErrStoreAlreadyExists(r.KeyIndexEntry) {
+		return store.RevisionInvalid, ErrfRackAlreadyExists(r.Region, r.Zone, r.Rack)
 	}
 
 	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
@@ -1072,9 +1196,9 @@ func (r *Rack) NewBlade(ctx context.Context, ID int64) (*Blade, error) {
 	return b, err
 }
 
-// ListChildren is a
+// FetchChildren is a
 //
-func (r *Rack) ListChildren(ctx context.Context) (*map[string]Zone, error) {
+func (r *Rack) FetchChildren(ctx context.Context) (*map[string]Zone, error) {
 	return nil, ErrFunctionNotAvailable
 }
 
@@ -1240,6 +1364,7 @@ type Pdu struct {
 
 	Store          *store.Store
 	Key            string
+	KeyIndexEntry  string
 	Region         string
 	Zone           string
 	Rack           string
@@ -1326,6 +1451,12 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 
 	if err != nil {
 		return store.RevisionInvalid, err
+	}
+
+	_, err = p.Store.Create(ctx, store.KeyRootInventory, p.KeyIndexEntry, fmt.Sprintf("%d", p.ID))
+
+	if err == store.ErrStoreAlreadyExists(p.KeyIndexEntry) {
+		return store.RevisionInvalid, ErrfPduAlreadyExists(p.Region, p.Zone, p.Rack, p.ID)
 	}
 
 	rev, err := p.Store.Create(ctx, store.KeyRootInventory, p.Key, v)
@@ -1455,6 +1586,7 @@ type Tor struct {
 
 	Store          *store.Store
 	Key            string
+	KeyIndexEntry  string
 	Region         string
 	Zone           string
 	Rack           string
@@ -1542,6 +1674,12 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 
 	if err != nil {
 		return store.RevisionInvalid, err
+	}
+
+	_, err = t.Store.Create(ctx, store.KeyRootInventory, t.KeyIndexEntry, fmt.Sprintf("%d", t.ID))
+
+	if err == store.ErrStoreAlreadyExists(t.KeyIndexEntry) {
+		return store.RevisionInvalid, ErrfTorAlreadyExists(t.Region, t.Zone, t.Rack, t.ID)
 	}
 
 	rev, err := t.Store.Create(ctx, store.KeyRootInventory, t.Key, v)
@@ -1671,6 +1809,7 @@ type Blade struct {
 
 	Store          *store.Store
 	Key            string
+	KeyIndexEntry  string
 	Region         string
 	Zone           string
 	Rack           string
@@ -1786,6 +1925,12 @@ func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 
 	if err != nil {
 		return store.RevisionInvalid, err
+	}
+
+	_, err = b.Store.Create(ctx, store.KeyRootInventory, b.KeyIndexEntry, fmt.Sprintf("%d", b.ID))
+
+	if err == store.ErrStoreAlreadyExists(b.KeyIndexEntry) {
+		return store.RevisionInvalid, ErrfBladeAlreadyExists(b.Region, b.Zone, b.Rack, b.ID)
 	}
 
 	rev, err := b.Store.Create(ctx, store.KeyRootInventory, b.Key, v)

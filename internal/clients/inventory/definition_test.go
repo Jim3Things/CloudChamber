@@ -2522,7 +2522,7 @@ func (ts *testSuiteCore) TestBladeUpdateDetails() {
 	assert.Equal(stdBootOnPowerOn, bootOnPowerOnVerify)
 }
 
-func (ts *testSuiteCore) TestRegionList() {
+func (ts *testSuiteCore) TestRootListChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2537,10 +2537,10 @@ func (ts *testSuiteCore) TestRegionList() {
 	root, err := NewRoot (ctx, ts.store, DefinitionTable)
 	require.NoError(err)
 
-	regions, err := root.ListChildren(ctx)
+	_, regions, err := root.ListChildren(ctx)
 	require.NoError(err)
 
-	assert.Equal(ts.regionCount, len(*regions))
+	assert.Equal(ts.regionCount, len(regions))
 }
 
 func TestInventoryTestSuite(t *testing.T) {

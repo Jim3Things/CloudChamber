@@ -24,21 +24,8 @@ type KeyRoot int
 const (
 	KeyRootStoreTest KeyRoot = iota
 	KeyRootUsers
-
 	KeyRootInventory
 	KeyRootWorkloads
-
-	KeyRootInventoryDefinitions
-	KeyRootInventoryTargetState
-	KeyRootInventoryActualState
-	KeyRootInventoryObservedState
-	KeyRootInventoryRepairActions
-
-	KeyRootWorkloadDefinitions
-	KeyRootWorkloadTargetState
-	KeyRootWorkloadActualState
-	KeyRootWorkloadObservedState
-	KeyRootWorkloadRepairActions
 )
 
 const (
@@ -46,35 +33,13 @@ const (
 	namespaceRootUsers     = "users"
 	namespaceRootInventory = "inventory"
 	namespaceRootWorkloads = "workload"
-
-	namespaceRootInventoryDefinition    = namespaceRootInventory + "/" + "definition"
-	namespaceRootInventoryTargetState   = namespaceRootInventory + "/" + "target"
-	namespaceRootInventoryActualState   = namespaceRootInventory + "/" + "actual"
-	namespaceRootInventoryObservedState = namespaceRootInventory + "/" + "observed"
-	namespaceRootInventoryRepairActions = namespaceRootInventory + "/" + "repair"
-
-	namespaceRootWorkloadDefinition    = namespaceRootWorkloads + "/" + "definition"
-	namespaceRootWorkloadTargetState   = namespaceRootWorkloads + "/" + "target"
-	namespaceRootWorkloadActualState   = namespaceRootWorkloads + "/" + "actual"
-	namespaceRootWorkloadObservedState = namespaceRootWorkloads + "/" + "observed"
-	namespaceRootWorkloadRepairActions = namespaceRootWorkloads + "/" + "repair"
 )
 
 var namespaceRoots = map[KeyRoot]string{
-	KeyRootStoreTest:              namespaceRootStoreTest,
-	KeyRootUsers:                  namespaceRootUsers,
-	KeyRootInventory:              namespaceRootInventory,
-	KeyRootWorkloads:              namespaceRootWorkloads,
-	KeyRootInventoryDefinitions:   namespaceRootInventoryDefinition,
-	KeyRootInventoryTargetState:   namespaceRootInventoryTargetState,
-	KeyRootInventoryActualState:   namespaceRootInventoryActualState,
-	KeyRootInventoryObservedState: namespaceRootInventoryObservedState,
-	KeyRootInventoryRepairActions: namespaceRootInventoryRepairActions,
-	KeyRootWorkloadDefinitions:    namespaceRootWorkloadDefinition,
-	KeyRootWorkloadTargetState:    namespaceRootWorkloadTargetState,
-	KeyRootWorkloadActualState:    namespaceRootWorkloadTargetState,
-	KeyRootWorkloadObservedState:  namespaceRootWorkloadObservedState,
-	KeyRootWorkloadRepairActions:  namespaceRootWorkloadRepairActions,
+	KeyRootStoreTest: namespaceRootStoreTest,
+	KeyRootUsers:     namespaceRootUsers,
+	KeyRootInventory: namespaceRootInventory,
+	KeyRootWorkloads: namespaceRootWorkloads,
 }
 
 // Action defines the signature for a function to be invoked when the
