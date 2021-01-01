@@ -50,19 +50,19 @@ const (
 	prefixPdu    = "pdu"
 	prefixTor    = "tor"
 
-	keyFormatIndexRegions  = "%s/index/" + prefixRegion + "s"
-	keyFormatIndexZones    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "s"
-	keyFormatIndexRacks    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "s"
-	keyFormatIndexPdus     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "s"
-	keyFormatIndexTors     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "s"
-	keyFormatIndexBlades   = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "s"
+	keyFormatIndexRegions  = "%s/index/" + prefixRegion + "s/"
+	keyFormatIndexZones    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "s/"
+	keyFormatIndexRacks    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "s/"
+	keyFormatIndexPdus     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "s/"
+	keyFormatIndexTors     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "s/"
+	keyFormatIndexBlades   = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "s/"
 
-	keyFormatIndexEntryRegion  = keyFormatIndexRegions + "/%s"
-	keyFormatIndexEntryZone    = keyFormatIndexZones   + "/%s"
-	keyFormatIndexEntryRack    = keyFormatIndexRacks   + "/%s"
-	keyFormatIndexEntryPdu     = keyFormatIndexPdus    + "/%d"
-	keyFormatIndexEntryTor     = keyFormatIndexTors    + "/%d"
-	keyFormatIndexEntryBlade   = keyFormatIndexBlades  + "/%d"
+	keyFormatIndexEntryRegion  = keyFormatIndexRegions + "%s"
+	keyFormatIndexEntryZone    = keyFormatIndexZones   + "%s"
+	keyFormatIndexEntryRack    = keyFormatIndexRacks   + "%s"
+	keyFormatIndexEntryPdu     = keyFormatIndexPdus    + "%d"
+	keyFormatIndexEntryTor     = keyFormatIndexTors    + "%d"
+	keyFormatIndexEntryBlade   = keyFormatIndexBlades  + "%d"
 
 	keyFormatRegion = "%s/data/" + prefixRegion + "/%s"
 	keyFormatZone   = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s"
@@ -233,7 +233,11 @@ func GetKeyForIndexRegion(table string) (key string, err error) {
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexRegions, table), nil
+	key = fmt.Sprintf(
+		keyFormatIndexRegions,
+		store.GetNormalizedName(table))
+
+	return key, nil
 }
 
 
@@ -246,7 +250,12 @@ func GetKeyForIndexZone(table string, region string) (key string, err error) {
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexZones, table, region), nil
+	key = fmt.Sprintf(
+		keyFormatIndexZones,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region))
+
+	return key, nil
 }
 
 // GetKeyForIndexRack generates the key to discover the list of reracksgions within a
@@ -258,7 +267,13 @@ func GetKeyForIndexRack(table string, region string, zone string) (key string, e
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexRacks, table, region, zone), nil
+	key = fmt.Sprintf(
+		keyFormatIndexRacks,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone))
+
+	return key, nil
 }
 
 // GetKeyForIndexPdu generates the key to discover the list of pdus within a
@@ -270,7 +285,14 @@ func GetKeyForIndexPdu(table string, region string, zone string, rack string) (k
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexPdus, table, region, zone, rack), nil
+	key = fmt.Sprintf(
+		keyFormatIndexPdus,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack))
+
+	return key, nil
 }
 
 // GetKeyForIndexTor generates the key to discover the list of tors within a
@@ -282,7 +304,14 @@ func GetKeyForIndexTor(table string, region string, zone string, rack string) (k
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexTors, table, region, zone, rack), nil
+	key = fmt.Sprintf(
+		keyFormatIndexTors,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack))
+
+	return key, nil
 }
 
 // GetKeyForIndexBlade generates the key to discover the list of blades within a
@@ -294,7 +323,14 @@ func GetKeyForIndexBlade(table string, region string, zone string, rack string) 
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexBlades, table, region, zone, rack), nil
+	key = fmt.Sprintf(
+		keyFormatIndexBlades,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack))
+
+		return key, nil
 }
 
 
@@ -307,7 +343,12 @@ func GetKeyForIndexEntryRegion(table string, region string) (key string, err err
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexEntryRegion, table, region), nil
+	key = fmt.Sprintf(
+		keyFormatIndexEntryRegion,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region))
+
+	return key, nil
 }
 
 // GetKeyForIndexEntryZone generates the key to create an index entry for a zone within a
@@ -319,7 +360,13 @@ func GetKeyForIndexEntryZone(table string, region string, zone string) (key stri
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexEntryZone, table, region, zone), nil
+	key = fmt.Sprintf(
+		keyFormatIndexEntryZone,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone))
+
+	return key, nil
 }
 
 // GetKeyForIndexEntryRack generates the key to create an index entry for a rack within a
@@ -331,7 +378,14 @@ func GetKeyForIndexEntryRack(table string, region string, zone string, rack stri
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexEntryRack, table, region, zone, rack), nil
+	key = fmt.Sprintf(
+		keyFormatIndexEntryRack,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack))
+
+	return key, nil
 }
 
 // GetKeyForIndexEntryPdu generates the key to create an index entry for a pdu within a
@@ -343,7 +397,15 @@ func GetKeyForIndexEntryPdu(table string, region string, zone string, rack strin
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexEntryPdu, table, region, zone, rack, pdu), nil
+	key = fmt.Sprintf(
+		keyFormatIndexEntryPdu,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack),
+		pdu)
+
+	return key, nil
 }
 
 // GetKeyForIndexEntryTor generates the key to create an index entry for a tor within a
@@ -355,7 +417,15 @@ func GetKeyForIndexEntryTor(table string, region string, zone string, rack strin
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexEntryTor, table, region, zone, rack, tor), nil
+	key = fmt.Sprintf(
+		keyFormatIndexEntryTor,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack),
+		tor)
+
+	return key, nil
 }
 
 // GetKeyForIndexEntryBlade generates the key to create an index entry for a blade within a
@@ -367,7 +437,15 @@ func GetKeyForIndexEntryBlade(table string, region string, zone string, rack str
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatIndexEntryBlade, table, region, zone, rack, blade), nil
+	key = fmt.Sprintf(
+		keyFormatIndexEntryBlade,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack),
+		blade)
+
+	return key, nil
 }
 
 
@@ -380,7 +458,12 @@ func GetKeyForRegion(table string, region string) (key string, err error) {
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatRegion, table, region), nil
+	key = fmt.Sprintf(
+		keyFormatRegion,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region))
+
+	return key, nil
 }
 
 // GetKeyForZone generates the key to operate on the record for a zone within a
@@ -392,7 +475,13 @@ func GetKeyForZone(table string, region string, zone string) (key string, err er
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatZone, table, region, zone), nil
+	key = fmt.Sprintf(
+		keyFormatZone,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone))
+
+	return key, nil
 }
 
 // GetKeyForRack generates the key to operate on the record for a rack within a
@@ -404,7 +493,14 @@ func GetKeyForRack(table string, region string, zone string, rack string) (key s
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatRack, table, region, zone, rack), nil
+	key = fmt.Sprintf(
+		keyFormatRack,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack))
+
+	return key, nil
 }
 
 // GetKeyForPdu generates the key to operate on the record for a pdu within a
@@ -416,7 +512,15 @@ func GetKeyForPdu(table string, region string, zone string, rack string, pdu int
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatPdu, table, region, zone, rack, pdu), nil
+	key = fmt.Sprintf(
+		keyFormatPdu,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack),
+		pdu)
+
+	return key, nil
 }
 
 // GetKeyForTor generates the key to operate on the record for a tor within a
@@ -428,7 +532,15 @@ func GetKeyForTor(table string, region string, zone string, rack string, tor int
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatTor, table, region, zone, rack, tor), nil
+	key = fmt.Sprintf(
+		keyFormatTor,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack),
+		tor)
+
+	return key, nil
 }
 
 // GetKeyForBlade generates the key to operate on the record for a blade within a
@@ -440,7 +552,15 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 		return key, err
 	}
 
-	return fmt.Sprintf(keyFormatBlade, table, region, zone, rack, blade), nil
+	key = fmt.Sprintf(
+		keyFormatBlade,
+		store.GetNormalizedName(table),
+		store.GetNormalizedName(region),
+		store.GetNormalizedName(zone),
+		store.GetNormalizedName(rack),
+		blade)
+
+	return key, nil
 }
 
 

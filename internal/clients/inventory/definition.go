@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
@@ -346,23 +347,25 @@ func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {
 	
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
 
-	if err == store.ErrStoreKeyNotFound(r.KeyChildIndex) {
-		return store.RevisionInvalid, nil, ErrRootNotFound{DefinitionTable}
+	if err == store.ErrStoreIndexNotFound(r.KeyChildIndex) {
+		return store.RevisionInvalid, nil, ErrIndexNotFound(r.KeyChildIndex)
 	}
 
 	if err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
-	names := make([]string, len(*records))
+	names := make([]string, 0, len(*records))
 
-	i := 0
-
-	for k := range *records {
+	for k, v := range *records {
 	
-		names[i] = k
+		name := strings.TrimPrefix(k, r.KeyChildIndex)
 
-		i++
+		if name != store.GetNormalizedName(v.Value) {
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(DefinitionTable, name, v.Value)
+		}
+
+		names = append(names, v.Value)
 	}
 
 	return rev, names, nil
@@ -399,50 +402,6 @@ func (r *Root) FetchChildren(ctx context.Context) (*map[string]Region, error) {
 
 	return &children, nil
 }
-
-// FetchChildren is a
-//
-// func (r *Root) FetchChildrenOrig(ctx context.Context) (*map[string]Region, error) {
-
-// 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
-
-// 	if err == store.ErrStoreKeyNotFound(r.KeyChildIndex) {
-// 		return nil, ErrRootNotFound{DefinitionTable}
-// 	}
-
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	regions := make(map[string]Region, len(*records))
-
-// 	for k, v := range *records {
-
-// 		record := &pb.StoreRecordDefinitionRegion{}
-
-// 		if err = store.Decode(v.Value, record); err != nil {
-// 			return nil, err
-// 		}
-
-// 		region, err := r.NewChild(ctx, k)
-
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		region.details        = record.Details
-// 		region.record         = record
-// 		region.revision       = v.Revision
-// 		region.revisionRecord = v.Revision
-// 		region.revisionStore  = rev
-	
-// 		regions[k] = *region
-// 	}
-
-// 	return &regions, nil
-// }
-
-
 
 
 
@@ -654,49 +613,67 @@ func (r *Region) NewChild(ctx context.Context, name string) (*Zone, error) {
 	return z, err
 }
 
+// ListChildren is a
+//
+func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
+	
+	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
+
+	if err == store.ErrStoreIndexNotFound(r.KeyChildIndex) {
+		return store.RevisionInvalid, nil, ErrIndexNotFound(r.KeyChildIndex)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	names := make([]string, 0, len(*records))
+
+	for k, v := range *records {
+	
+		name := strings.TrimPrefix(k, r.KeyChildIndex)
+
+		if name != store.GetNormalizedName(v.Value) {
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(DefinitionTable, name, v.Value)
+		}
+
+		names = append(names, v.Value)
+	}
+
+	return rev, names, nil
+}
 
 // FetchChildren is a
 //
 func (r *Region) FetchChildren(ctx context.Context) (*map[string]Zone, error) {
 
-	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
-
-	if err == store.ErrStoreIndexNotFound(r.KeyChildIndex) {
-		return nil, ErrIndexNotFound(r.KeyChildIndex)
-	}
+	_, names, err := r.ListChildren(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	zones := make(map[string]Zone, len(*records))
+	children := make(map[string]Zone, len(names))
 
-	for k, v := range *records {
+	for _, v := range names {
 
-		record := &pb.StoreRecordDefinitionZone{}
-
-		if err = store.Decode(v.Value, record); err != nil {
-			return nil, err
-		}
-
-		zone, err := r.NewChild(ctx, k)
+		child, err := r.NewChild(ctx, v)
 
 		if err != nil {
 			return nil, err
 		}
 	
-		zone.details        = record.Details
-		zone.record         = record
-		zone.revision       = v.Revision
-		zone.revisionRecord = v.Revision
-		zone.revisionStore  = rev
-			
-		zones[k] = *zone
+		_, err = child.Read(ctx)
+
+		if err != nil {
+			return nil, err
+		}
+
+		children[v] = *child
 	}
 
-	return &zones, nil
+	return &children, nil
 }
-
 
 
 
@@ -906,47 +883,66 @@ func (z *Zone) NewChild(ctx context.Context, name string) (*Rack, error) {
 	return r, err
 }
 
+// ListChildren is a
+//
+func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
+	
+	records, rev, err := z.Store.List(ctx, store.KeyRootInventory, z.KeyChildIndex)
+
+	if err == store.ErrStoreIndexNotFound(z.KeyChildIndex) {
+		return store.RevisionInvalid, nil, ErrIndexNotFound(z.KeyChildIndex)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	names := make([]string, 0, len(*records))
+
+	for k, v := range *records {
+	
+		name := strings.TrimPrefix(k, z.KeyChildIndex)
+
+		if name != store.GetNormalizedName(v.Value) {
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(DefinitionTable, name, v.Value)
+		}
+
+		names = append(names, v.Value)
+	}
+
+	return rev, names, nil
+}
 
 // FetchChildren is a
 //
 func (z *Zone) FetchChildren(ctx context.Context) (*map[string]Rack, error) {
 
-	records, rev, err := z.Store.List(ctx, store.KeyRootInventory, z.KeyChildIndex)
-
-	if err == store.ErrStoreIndexNotFound(z.KeyChildIndex) {
-		return nil, ErrIndexNotFound(z.KeyChildIndex)
-	}
+	_, names, err := z.ListChildren(ctx)
 
 	if err != nil {
 		return nil, err
 	}
 
-	racks := make(map[string]Rack, len(*records))
+	children := make(map[string]Rack, len(names))
 
-	for k, v := range *records {
+	for _, v := range names {
 
-		record := &pb.StoreRecordDefinitionRack{}
-
-		if err = store.Decode(v.Value, record); err != nil {
-			return nil, err
-		}
-
-		rack, err := z.NewChild(ctx, k)
+		child, err := z.NewChild(ctx, v)
 
 		if err != nil {
 			return nil, err
 		}
 	
-		rack.details         = record.Details
-		rack.record          = record
-		rack.revision        = v.Revision
-		rack.revisionRecord  = v.Revision
-		rack.revisionStore   = rev
-		
-		racks[k] = *rack
+		_, err = child.Read(ctx)
+
+		if err != nil {
+			return nil, err
+		}
+
+		children[v] = *child
 	}
 
-	return &racks, nil
+	return &children, nil
 }
 
 
@@ -1355,9 +1351,6 @@ func (r *Rack) ListBlades(ctx context.Context) (*map[int64]Blade, error) {
 
 
 
-
-
-
 // Pdu is a
 //
 type Pdu struct {
@@ -1573,9 +1566,6 @@ func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
 	return rev, nil
 }
-
-
-
 
 
 
@@ -1796,9 +1786,6 @@ func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
 	return rev, nil
 }
-
-
-
 
 
 

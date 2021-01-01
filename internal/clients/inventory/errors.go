@@ -323,6 +323,20 @@ func (ebina ErrBootInfoNotAvailable) Error() string {
 	return fmt.Sprintf("CloudChamber: %q boot information not available", string(ebina))
 }
 
+// ErrIndexKeyValueMismatch indicates the requested boot information for the item
+// have not yet been establiehed.
+//
+type ErrIndexKeyValueMismatch struct {
+	Namespace string
+	Key       string
+	Value     string
+}
+
+func (ekvm ErrIndexKeyValueMismatch) Error() string {
+	return fmt.Sprintf("CloudChamber: mismatch in index key %q for returned value %q in the %q namespace", ekvm.Key, ekvm.Value, ekvm.Namespace)
+}
+
+
 // ErrfRegionNotFound is a wrapper around the composite literal based error of the related name
 //
 func ErrfRegionNotFound(region string) error {return ErrRegionNotFound(region)}
@@ -371,3 +385,6 @@ func ErrfBladeNotFound(region string, zone string, rack string, blade int64) err
 //
 func ErrfBladeAlreadyExists(region string, zone string, rack string, blade int64) error {return ErrBladeAlreadyExists{region, zone, rack, blade}}
 
+// ErrfIndexKeyValueMismatch is a wrapper around the composite literal based error of the related name
+//
+func ErrfIndexKeyValueMismatch(namespace string, key string, value string) error {return ErrIndexKeyValueMismatch{namespace, key, value}}

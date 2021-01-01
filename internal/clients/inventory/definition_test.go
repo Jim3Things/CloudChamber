@@ -152,13 +152,10 @@ func (ts *testSuiteCore) stdBladeBootInfo() *pb.BladeBootInfo {
 	}
 }
 
-func (ts *testSuiteCore)createStandardInventory(
-	ctx context.Context,
-	suffix string) error {
+func (ts *testSuiteCore)createStandardInventory(ctx context.Context) error {
 
 	err := ts.createInventory(
 		ctx,
-		suffix,
 		ts.regionCount,
 		ts.zonesPerRegion,
 		ts.racksPerZone,
@@ -171,7 +168,6 @@ func (ts *testSuiteCore)createStandardInventory(
 
 func (ts *testSuiteCore)createInventory(
 	ctx context.Context,
-	suffix string,
 	regions int,
 	zonesPerRegion int,
 	racksPerZone int,
@@ -185,7 +181,7 @@ func (ts *testSuiteCore)createInventory(
 	}
 
 	for i := 1; i <= regions; i++ {
-		regionName := fmt.Sprintf("Region-%s-%d", suffix, i)
+		regionName := fmt.Sprintf("Region-%d", i)
 
 		region, err := root.NewChild(ctx, regionName)
 
@@ -202,7 +198,7 @@ func (ts *testSuiteCore)createInventory(
 		}
 	
 		for j := 1; j <= zonesPerRegion; j++ {
-			zoneName := fmt.Sprintf("Zone-%s-%d-%d", suffix, i, j)
+			zoneName := fmt.Sprintf("Zone-%d-%d", i, j)
 
 			zone, err := region.NewChild(ctx, zoneName)
 	
@@ -219,7 +215,7 @@ func (ts *testSuiteCore)createInventory(
 			}
 
 			for k := 1; k <= racksPerZone; k++ {
-				rackName := fmt.Sprintf("Rack-%s-%d-%d-%d", suffix, i, j, k)
+				rackName := fmt.Sprintf("Rack-%d-%d-%d", i, j, k)
 
 				rack, err := zone.NewChild(ctx, rackName)
 		
@@ -293,6 +289,8 @@ func (ts *testSuiteCore)createInventory(
 func (ts *testSuiteCore) SetupSuite() {
 	require := ts.Require()
 
+	ctx := context.Background()
+
 	configPath := flag.String("config", "./testdata", "path to the configuration file")
 	flag.Parse()
 
@@ -313,7 +311,18 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.pdusPerRack    = 1
 	ts.torsPerRack    = 1
 	ts.bladesPerRack  = 8
-	}	
+
+	_ = ts.utf.Open(ts.T())
+
+	err = ts.store.Connect()
+	require.NoError(err)
+
+	err = ts.createStandardInventory(ctx)
+	require.NoError(err, "failed to create standard inventory")
+
+	ts.store.Disconnect()
+	ts.utf.Close()
+}
 
 func (ts *testSuiteCore) SetupTest() {
 	require := ts.Require()
@@ -1784,7 +1793,7 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	regionName := ts.regionName(stdSuffix)
 	zoneName   := ts.zoneName(stdSuffix)
 	rackName   := ts.rackName(stdSuffix)
-	pduID      := int64(4)
+	pduID      := int64(2)
 
 	stdDetails := ts.stdPduDetails(pduID)
 	stdPorts   := ts.stdPowerPorts(4)
@@ -2526,21 +2535,67 @@ func (ts *testSuiteCore) TestRootListChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestRegionList"
-
 	ctx := context.Background()
-
-	err := ts.createStandardInventory(ctx, stdSuffix)
-
-	require.NoError(err)
 
 	root, err := NewRoot (ctx, ts.store, DefinitionTable)
 	require.NoError(err)
 
 	_, regions, err := root.ListChildren(ctx)
 	require.NoError(err)
-
 	assert.Equal(ts.regionCount, len(regions))
+}
+
+func (ts *testSuiteCore) TestRegionListChildren() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	_, regions, err := root.ListChildren(ctx)
+	require.NoError(err)
+	assert.Equal(ts.regionCount, len(regions))
+
+	for _, v := range regions {
+		region, err := root.NewChild(ctx, v)
+
+		_, zones, err := region.ListChildren(ctx)
+		require.NoError(err)
+		assert.Equal(ts.zonesPerRegion, len(zones))
+	}
+
+}
+
+func (ts *testSuiteCore) TestZoneListChildren() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	_, regions, err := root.ListChildren(ctx)
+	require.NoError(err)
+	assert.Equal(ts.regionCount, len(regions))
+
+	for _, v := range regions {
+		region, err := root.NewChild(ctx, v)
+
+		_, zones, err := region.ListChildren(ctx)
+		require.NoError(err)
+		assert.Equal(ts.zonesPerRegion, len(zones))
+
+		for _, v := range zones {
+			zone, err := region.NewChild(ctx, v)
+	
+			_, racks, err := zone.ListChildren(ctx)
+			require.NoError(err)
+			assert.Equal(ts.racksPerZone, len(racks))
+		}
+	}
 }
 
 func TestInventoryTestSuite(t *testing.T) {
