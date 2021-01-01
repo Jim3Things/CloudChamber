@@ -118,6 +118,7 @@ func (ts *RulesApiTestSuite) TestSimple() {
 
 	r := []Rule{
 		{
+			Name:   "test rule",
 			Where:  Match(N("%table%/row1.f1"), V(1)),
 			Reason: "f1 matched expectations",
 			Choices: []RuleChoice{
@@ -143,7 +144,10 @@ func (ts *RulesApiTestSuite) TestSimple() {
 						require.NoError(err)
 
 						tracing.Info(ctx, "Processing with %q: %q", "target", s)
-						return &Proposal{}, nil
+						return &Proposal{
+							Path:  "target",
+							Value: s,
+						}, nil
 					},
 				},
 				{
@@ -164,6 +168,9 @@ func (ts *RulesApiTestSuite) TestSimple() {
 	props, err := Process(ctx, r, tables, vars)
 	require.NoError(err)
 	require.NotNil(props)
+	require.Equal(1, len(props))
+	require.Equal("target", props[0].Path)
+	require.Equal("test1", props[0].Value)
 }
 
 func (ts *RulesApiTestSuite) TestV() {
