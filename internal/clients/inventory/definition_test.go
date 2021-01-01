@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 	"flag"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -24,6 +25,13 @@ type testSuiteCore struct {
 	cfg *config.GlobalConfig
 
 	store *store.Store
+
+	regionCount    int
+	zonesPerRegion int
+	racksPerZone   int
+	pdusPerRack    int
+	torsPerRack    int
+	bladesPerRack  int
 }
 
 func (ts *testSuiteCore) rootName(suffix string)   string { return "StandardRoot-" + suffix }
@@ -144,6 +152,143 @@ func (ts *testSuiteCore) stdBladeBootInfo() *pb.BladeBootInfo {
 	}
 }
 
+func (ts *testSuiteCore)createStandardInventory(
+	ctx context.Context,
+	suffix string) error {
+
+	err := ts.createInventory(
+		ctx,
+		suffix,
+		ts.regionCount,
+		ts.zonesPerRegion,
+		ts.racksPerZone,
+		ts.pdusPerRack,
+		ts.torsPerRack,
+		ts.bladesPerRack)
+
+	return err
+}
+
+func (ts *testSuiteCore)createInventory(
+	ctx context.Context,
+	suffix string,
+	regions int,
+	zonesPerRegion int,
+	racksPerZone int,
+	pdusPerRack int,
+	torsPerRack int,
+	bladesPerRack int) error {
+
+	root, err := NewRoot(ctx, ts.store, DefinitionTable)
+	if err != nil {
+		return err
+	}
+
+	for i := 1; i <= regions; i++ {
+		regionName := fmt.Sprintf("Region-%s-%d", suffix, i)
+
+		region, err := root.NewChild(ctx, regionName)
+
+		region.SetDetails(ctx, &pb.RegionDetails{
+			Name: regionName,
+			State: pb.State_in_service,
+			Location: fmt.Sprintf("DC-PNW-%s", regionName),
+			Notes: "Standard Region",
+		})
+
+		_, err = region.Create(ctx)
+		if err != nil {
+			return err
+		}
+	
+		for j := 1; j <= zonesPerRegion; j++ {
+			zoneName := fmt.Sprintf("Zone-%s-%d-%d", suffix, i, j)
+
+			zone, err := region.NewChild(ctx, zoneName)
+	
+			zone.SetDetails(ctx, &pb.ZoneDetails{
+				Enabled: true,
+				State: pb.State_in_service,
+				Location: fmt.Sprintf("DC-PNW-%s", zoneName),
+				Notes: "Standard Zone",
+			})
+	
+			_, err = zone.Create(ctx)
+			if err != nil {
+				return err
+			}
+
+			for k := 1; k <= racksPerZone; k++ {
+				rackName := fmt.Sprintf("Rack-%s-%d-%d-%d", suffix, i, j, k)
+
+				rack, err := zone.NewChild(ctx, rackName)
+		
+				rack.SetDetails(ctx, &pb.RackDetails{
+					Enabled: true,
+					Condition: pb.Condition_operational,
+					Location: fmt.Sprintf("DC-PNW-%s", rackName),
+					Notes: "Standard Rack",
+				})
+		
+				_, err = rack.Create(ctx)
+				if err != nil {
+					return err
+				}
+
+				for p := 0; p < pdusPerRack; p++ {
+					pdu, err := rack.NewPdu(ctx, int64(p))
+					if err != nil {
+						return err
+					}
+
+					pdu.SetDetails(ctx, ts.stdPduDetails(1))
+					pdu.SetPorts(ctx, ts.stdPowerPorts(torsPerRack + bladesPerRack))
+	
+					_, err = pdu.Create(ctx)
+					if err != nil {
+						return err
+					}
+				}
+
+				for t := 0; t < torsPerRack; t++ {
+					tor, err := rack.NewTor(ctx, int64(t))
+					if err != nil {
+						return err
+					}
+
+					tor.SetDetails(ctx, ts.stdTorDetails())
+					tor.SetPorts(ctx, ts.stdNetworkPorts(pdusPerRack + torsPerRack + bladesPerRack))
+	
+					_, err = tor.Create(ctx)
+					if err != nil {
+						return err
+					}
+				}
+
+
+				for b := 0; b < torsPerRack; b++ {
+					blade, err := rack.NewBlade(ctx, int64(b))
+					if err != nil {
+						return err
+					}
+
+					blade.SetDetails(ctx, ts.stdBladeDetails())
+					blade.SetCapacity(ctx, ts.stdBladeCapacity())
+					blade.SetBootInfo(ctx, true, ts.stdBladeBootInfo())
+	
+					_, err = blade.Create(ctx)
+					if err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+
+	return nil
+}
+
 
 func (ts *testSuiteCore) SetupSuite() {
 	require := ts.Require()
@@ -161,6 +306,13 @@ func (ts *testSuiteCore) SetupSuite() {
 
 	ts.cfg   = cfg
 	ts.store = store.NewStore()
+
+	ts.regionCount    = 4
+	ts.zonesPerRegion = 3
+	ts.racksPerZone   = 8
+	ts.pdusPerRack    = 1
+	ts.torsPerRack    = 1
+	ts.bladesPerRack  = 8
 	}	
 
 func (ts *testSuiteCore) SetupTest() {
@@ -2368,6 +2520,27 @@ func (ts *testSuiteCore) TestBladeUpdateDetails() {
 	assert.Equal(stdCapacity, capacityVerify)
 	assert.Equal(stdBootInfo, bootInfoVerify)
 	assert.Equal(stdBootOnPowerOn, bootOnPowerOnVerify)
+}
+
+func (ts *testSuiteCore) TestRegionList() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestRegionList"
+
+	ctx := context.Background()
+
+	err := ts.createStandardInventory(ctx, stdSuffix)
+
+	require.NoError(err)
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	require.NoError(err)
+
+	regions, err := root.ListChildren(ctx)
+	require.NoError(err)
+
+	assert.Equal(ts.regionCount, len(*regions))
 }
 
 func TestInventoryTestSuite(t *testing.T) {
