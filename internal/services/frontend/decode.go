@@ -5,8 +5,10 @@ import (
 	"strings"
 )
 
-var keywords []string = []string  {"Defined", "Actual", "Target", "Observed"}
+// ErrInMatch is a new error declaration for the instance if a bad view is found
+var errInMatch  = errors.New("decode: Bad view found")
 
+// function to decode the input array in comparison to the source array
 func decode(keywords []string, source string) ([]bool, error){
 	
 	var test []string = strings.Split(source, ",")
@@ -26,10 +28,9 @@ func decode(keywords []string, source string) ([]bool, error){
 		}
 		
 		if found == false {
-			return nil, errors.New("Bad view found")
+			return nil, errInMatch
 		}
 	}
 
 return outputkeywords, nil
 }
-
