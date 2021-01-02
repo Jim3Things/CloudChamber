@@ -4,6 +4,8 @@ package common
 
 import (
 	"fmt"
+
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Validate is a function to ensure that the blade capacity values are legal.
@@ -13,7 +15,7 @@ import (
 func (x *BladeCapacity) Validate(prefix string) error {
 	// A blade must have at least one core
 	if x.Cores < 1 {
-		return ErrMustBeGTE{
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sCores", prefix),
 			Actual:   x.Cores,
 			Required: 1,
@@ -22,7 +24,7 @@ func (x *BladeCapacity) Validate(prefix string) error {
 
 	// .. and it must have some memory
 	if x.MemoryInMb < 1 {
-		return ErrMustBeGTE{
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sMemoryInMb", prefix),
 			Actual:   x.MemoryInMb,
 			Required: 1,
@@ -31,7 +33,7 @@ func (x *BladeCapacity) Validate(prefix string) error {
 
 	// .. and some disk space
 	if x.DiskInGb < 1 {
-		return ErrMustBeGTE{
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sDiskInGb", prefix),
 			Actual:   x.DiskInGb,
 			Required: 1,
@@ -40,7 +42,7 @@ func (x *BladeCapacity) Validate(prefix string) error {
 
 	// .. and a network bandwidth allowance
 	if x.NetworkBandwidthInMbps < 1 {
-		return ErrMustBeGTE{
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sNetworkBandwidthInMbps", prefix),
 			Actual:   x.NetworkBandwidthInMbps,
 			Required: 1,

@@ -4,6 +4,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pbl "github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
@@ -22,15 +23,15 @@ func NewUTForwarder() *UTForwarder {
 // Open establishes a connection to active test context
 func (utf *UTForwarder) Open(attrs interface{}) error {
 	if attrs == nil {
-		return ErrOpenAttrsNil
+		return errors.ErrOpenAttrsNil
 	}
 
 	tc, ok := attrs.(*testing.T)
 
 	if !ok {
-		return ErrInvalidOpenAttrsType{
-			expected: reflect.TypeOf(utf.t).String(),
-			actual:   reflect.TypeOf(attrs).String(),
+		return errors.ErrInvalidOpenAttrsType{
+			Expected: reflect.TypeOf(utf.t).String(),
+			Actual:   reflect.TypeOf(attrs).String(),
 		}
 	}
 

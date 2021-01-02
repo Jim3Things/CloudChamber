@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"go.opentelemetry.io/otel/api/trace"
+
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Envelope is the standard header interface to messages to a state machine.
@@ -46,22 +48,11 @@ type Response struct {
 	Msg interface{}
 }
 
-// ErrUnexpectedMessage is the standard error when an incoming request arrives in
-// a state that is not expecting it.
-type ErrUnexpectedMessage struct {
-	Msg   string
-	State string
-}
-
-func (um *ErrUnexpectedMessage) Error() string {
-	return fmt.Sprintf("unexpected message %q while in state %q", um.Msg, um.State)
-}
-
 // UnexpectedMessageResponse constructs a failure response for the case where
 // the incoming request arrives when it is unexpected by the state machine.
 func UnexpectedMessageResponse(machine *SM, occursAt int64, body interface{}) *Response {
 	return &Response{
-		Err: &ErrUnexpectedMessage{
+		Err: &errors.ErrUnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", body),
 			State: machine.CurrentIndex,
 		},

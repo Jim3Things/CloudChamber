@@ -3,9 +3,9 @@
 package inventory
 
 import (
-	"fmt"
+    "fmt"
 
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 const minPorts = int64(0)
@@ -19,7 +19,7 @@ func(x *DefinitionPdu) Validate(prefix string, ports int64) error {
 	actual := int64(len(x.Ports))
 
 	if actual != ports {
-		return common.ErrMustBeEQ{
+		return errors.ErrMustBeEQ{
 			Field:    fmt.Sprintf("%sPorts", prefix),
 			Actual:   actual,
 			Required: 1,
@@ -54,7 +54,7 @@ func(x *DefinitionPdu) check(prefix string) error {
 	portCount := int64(len(x.Ports))
 
 	if portCount < minPorts {
-		return common.ErrMinLenMap{
+		return errors.ErrMinLenMap{
 			Field:    prefixedPorts,
 			Actual:   portCount,
 			Required: minPorts,
@@ -62,7 +62,7 @@ func(x *DefinitionPdu) check(prefix string) error {
 	}
 
 	if portCount > maxPorts {
-		return common.ErrMaxLenMap{
+		return errors.ErrMaxLenMap{
 			Field:  prefixedPorts,
 			Actual: portCount,
 			Limit:  maxPorts,
@@ -72,9 +72,9 @@ func(x *DefinitionPdu) check(prefix string) error {
 	for i, p := range x.Ports {
 		if !p.Wired {
 			if p.Item != nil {
-				// port not wired but has an (unexpected) associated item 
+				// port not wired but has an (unexpected) associated item
 				//
-				return common.ErrItemMustBeEmpty{
+				return errors.ErrItemMustBeEmpty{
 					Field:  prefixedItem,
 					Item:   "PDU",
 					Port:   i,
@@ -87,7 +87,7 @@ func(x *DefinitionPdu) check(prefix string) error {
 			if p.Item == nil {
 				// port is wired but is missing an (expected) associated item
 				//
-				return common.ErrItemMissingValue{
+				return errors.ErrItemMissingValue{
 					Field: prefixedItem,
 					Item:  "PDU",
 					Port:  i,
@@ -100,7 +100,7 @@ func(x *DefinitionPdu) check(prefix string) error {
 			// Pdus, it also prevents wiring a Pdu to itself.
 			//
 			if p.Item.Type == DefinitionItem_pdu {
-				return common.ErrInvalidItemSelf{
+				return errors.ErrInvalidItemSelf{
 					Field:  prefixedItem,
 					Item:   "PDU",
 					Port:   i,
@@ -121,7 +121,7 @@ func(x *DefinitionTor) Validate(prefix string, ports int64) error {
 	actual := int64(len(x.Ports))
 
 	if actual != ports {
-		return common.ErrMustBeEQ{
+		return errors.ErrMustBeEQ{
 			Field:    fmt.Sprintf("%sPorts", prefix),
 			Actual:   actual,
 			Required: 1,
@@ -156,7 +156,7 @@ func(x *DefinitionTor) check(prefix string) error {
 	portCount := int64(len(x.Ports))
 
 	if portCount < minPorts {
-		return common.ErrMinLenMap{
+		return errors.ErrMinLenMap{
 			Field:    prefixedPorts,
 			Actual:   portCount,
 			Required: minPorts,
@@ -164,7 +164,7 @@ func(x *DefinitionTor) check(prefix string) error {
 	}
 
 	if portCount > maxPorts {
-		return common.ErrMaxLenMap{
+		return errors.ErrMaxLenMap{
 			Field:  prefixedPorts,
 			Actual: portCount,
 			Limit:  maxPorts,
@@ -174,9 +174,9 @@ func(x *DefinitionTor) check(prefix string) error {
 	for i, p := range x.Ports {
 		if !p.Wired {
 			if p.Item != nil {
-				// port not wired but has an (unexpected) associated item 
+				// port not wired but has an (unexpected) associated item
 				//
-				return common.ErrItemMustBeEmpty{
+				return errors.ErrItemMustBeEmpty{
 					Field:  prefixedItem,
 					Item:   "TOR",
 					Port:   i,
@@ -189,7 +189,7 @@ func(x *DefinitionTor) check(prefix string) error {
 			if p.Item == nil {
 				// port is wired but is missing an (expected) associated item
 				//
-				return common.ErrItemMissingValue{
+				return errors.ErrItemMissingValue{
 					Field: prefixedItem,
 					Item:  "TOR",
 					Port:  i,
@@ -202,7 +202,7 @@ func(x *DefinitionTor) check(prefix string) error {
 			// Pdus, it also prevents wiring a Pdu to itself.
 			//
 			if p.Item.Type == DefinitionItem_tor {
-				return common.ErrInvalidItemSelf{
+				return errors.ErrInvalidItemSelf{
 					Field:  prefixedItem,
 					Item:   "TOR",
 					Port:   i,
@@ -225,7 +225,7 @@ func (x *DefinitionRackInternal) Validate(prefix string) error {
 	//
 	countPdus := int64(len(x.Pdus))
 	if countPdus != 1 {
-		return common.ErrMustBeEQ{
+		return errors.ErrMustBeEQ{
 			Field:    fmt.Sprintf("%sPdus", prefix),
 			Actual:   countPdus,
 			Required: 1,
@@ -238,7 +238,7 @@ func (x *DefinitionRackInternal) Validate(prefix string) error {
 	//
 	countTors := int64(len(x.Tors))
 	if countTors != 1 {
-		return common.ErrMustBeEQ{
+		return errors.ErrMustBeEQ{
 			Field:    fmt.Sprintf("%sTors", prefix),
 			Actual:   countTors,
 			Required: 1,
@@ -249,7 +249,7 @@ func (x *DefinitionRackInternal) Validate(prefix string) error {
 	//
 	countBlades := int64(len(x.Blades))
 	if countBlades < 1 {
-		return common.ErrMinLenMap{
+		return errors.ErrMinLenMap{
 			Field:    fmt.Sprintf("%sBlades", prefix),
 			Actual:   countBlades,
 			Required: 1,
@@ -270,7 +270,7 @@ func (x *DefinitionRackInternal) Validate(prefix string) error {
 		if err := v.Validate(fmt.Sprintf("%sTor[%d].", prefix, k), countBlades); err != nil {
 			return err
 		}
-	}	
+	}
 
 	// .. And then validate that each blade is valid
 	//
@@ -293,7 +293,7 @@ func (x *DefinitionZoneInternal) Validate() error {
 	//
 	actual := int64(len(x.Racks))
 	if actual < 1 {
-		return common.ErrMinLenMap{
+		return errors.ErrMinLenMap{
 			Field:    "Racks",
 			Actual:   actual,
 			Required: 1,

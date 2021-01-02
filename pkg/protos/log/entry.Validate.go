@@ -1,19 +1,19 @@
 package log
 
 import (
-	"errors"
-	"fmt"
+    "errors"
+    "fmt"
 
-	"go.opentelemetry.io/otel/api/trace"
+    "go.opentelemetry.io/otel/api/trace"
 
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    errors2 "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Validate verifies that the various IDs are correctly structured.
 func (x *Entry) Validate(prefix string) error {
 	// Span ID must be legal
 	if spanID, err := trace.SpanIDFromHex(x.SpanID); err != nil || !spanID.IsValid() {
-		return common.ErrInvalidID{
+		return errors2.ErrInvalidID{
 			Field: fmt.Sprintf("%sSpanID", prefix),
 			Type:  "span",
 			ID:    x.SpanID,
@@ -23,7 +23,7 @@ func (x *Entry) Validate(prefix string) error {
 	// Parent ID must be legal (it can be all zeroes, though)
 	if _, err := trace.SpanIDFromHex(x.ParentID);
 		err != nil && !errors.Is(err, trace.ErrNilSpanID) {
-		return common.ErrInvalidID{
+		return errors2.ErrInvalidID{
 			Field: fmt.Sprintf("%sParentID", prefix),
 			Type:  "parent",
 			ID:    x.ParentID,
@@ -32,7 +32,7 @@ func (x *Entry) Validate(prefix string) error {
 
 	// Trace ID must be legal
 	if traceID, err := trace.IDFromHex(x.TraceID); err != nil || !traceID.IsValid() {
-		return common.ErrInvalidID{
+		return errors2.ErrInvalidID{
 			Field: fmt.Sprintf("%sTraceID", prefix),
 			Type:  "trace",
 			ID:    x.TraceID,
@@ -41,7 +41,7 @@ func (x *Entry) Validate(prefix string) error {
 
 	if len(x.StartingLink) != 0 {
 		if linkSpanID, err := trace.SpanIDFromHex(x.LinkSpanID); err != nil || !linkSpanID.IsValid() {
-			return common.ErrInvalidID{
+			return errors2.ErrInvalidID{
 				Field: fmt.Sprintf("%sLinkSpanID", prefix),
 				Type:  "span",
 				ID:    x.SpanID,
@@ -49,7 +49,7 @@ func (x *Entry) Validate(prefix string) error {
 		}
 
 		if  linkTraceID, err := trace.IDFromHex(x.LinkTraceID); err != nil || !linkTraceID.IsValid() {
-			return common.ErrInvalidID{
+			return errors2.ErrInvalidID{
 				Field: fmt.Sprintf("%sLinkTraceID", prefix),
 				Type:  "span",
 				ID:    x.SpanID,
@@ -81,7 +81,7 @@ func (x *Event) Validate(prefix string) error {
 		break
 
 	default:
-		return &common.ErrInvalidEnum{
+		return &errors2.ErrInvalidEnum{
 			Field:  fmt.Sprintf("%sSeverity", prefix),
 			Actual: int64(x.Severity),
 		}
@@ -91,7 +91,7 @@ func (x *Event) Validate(prefix string) error {
 	case Action_Trace, Action_UpdateSpanName, Action_UpdateReason:
 		textLen := int64(len(x.Text))
 		if textLen == 0 {
-			return &common.ErrMinLenString{
+			return &errors2.ErrMinLenString{
 				Field:    fmt.Sprintf("%sText", prefix),
 				Actual:   textLen,
 				Required: 1,
@@ -108,7 +108,7 @@ func (x *Event) Validate(prefix string) error {
 
 	case Action_SpanStart:
 		if spanId, err := trace.SpanIDFromHex(x.SpanId); err != nil || !spanId.IsValid() {
-			return common.ErrInvalidID{
+			return errors2.ErrInvalidID{
 				Field: fmt.Sprintf("%sSpanID", prefix),
 				Type:  "span",
 				ID:    x.SpanId,
@@ -125,7 +125,7 @@ func (x *Event) Validate(prefix string) error {
 		}
 
 		if len(x.LinkId) == 0 {
-			return common.ErrMinLenString{
+			return errors2.ErrMinLenString{
 				Field: fmt.Sprintf("%sLinkID", prefix),
 				Required: 1,
 				Actual:   int64(len(x.LinkId)),
@@ -133,7 +133,7 @@ func (x *Event) Validate(prefix string) error {
 		}
 
 	default:
-		return &common.ErrInvalidEnum{
+		return &errors2.ErrInvalidEnum{
 			Field:  fmt.Sprintf("%sEventAction", prefix),
 			Actual: int64(x.Severity),
 		}
@@ -144,7 +144,7 @@ func (x *Event) Validate(prefix string) error {
 
 func (x *Event) ensureLinkIdEmpty(prefix string) error {
 	if len(x.LinkId) != 0 {
-		return &common.ErrIDMustBeEmpty{
+		return &errors2.ErrIDMustBeEmpty{
 			Field:  fmt.Sprintf("%sLinkId", prefix),
 			Actual: x.LinkId,
 		}
@@ -155,7 +155,7 @@ func (x *Event) ensureLinkIdEmpty(prefix string) error {
 
 func (x *Event) ensureSpanIdEmpty(prefix string) error {
 	if len(x.SpanId) != 0 {
-		return &common.ErrIDMustBeEmpty{
+		return &errors2.ErrIDMustBeEmpty{
 			Field:  fmt.Sprintf("%sSpanId", prefix),
 			Actual: x.SpanId,
 		}

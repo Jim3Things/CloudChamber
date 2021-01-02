@@ -1,7 +1,7 @@
 package services
 
 import (
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 func (x *AppendRequest) Validate() error {
@@ -10,7 +10,7 @@ func (x *AppendRequest) Validate() error {
 
 func (x *GetAfterRequest) Validate() error {
 	if x.Id < -1 {
-		return common.ErrMustBeGTE{
+		return errors.ErrMustBeGTE{
 			Field:    "Id",
 			Actual:   x.Id,
 			Required: -1,
@@ -23,7 +23,7 @@ func (x *GetAfterRequest) Validate() error {
 	// GetAfter call is returned as well.
 
 	if x.MaxEntries < 10 {
-		return common.ErrMustBeGTE{
+		return errors.ErrMustBeGTE{
 			Field:    "MaxEntries",
 			Actual:   x.MaxEntries,
 			Required: 10,

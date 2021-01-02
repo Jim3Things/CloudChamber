@@ -2,7 +2,7 @@
 package services
 
 import (
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Validate is a function to ensure that the policy request values are
@@ -17,7 +17,7 @@ func (x *PolicyRequest) Validate() error {
 
 	default:
 		// Not a valid policy choice
-		return common.ErrInvalidEnum{
+		return errors.ErrInvalidEnum{
 			Field:  "Policy",
 			Actual: int64(x.Policy),
 		}
@@ -46,7 +46,7 @@ func (x *DelayRequest) Validate() error {
 
 	// .. and the jitter allowance cannot be negative
 	if x.Jitter < 0 {
-		return common.ErrMustBeGTE{
+		return errors.ErrMustBeGTE{
 			Field:    "Jitter",
 			Actual:   x.Jitter,
 			Required: 0,

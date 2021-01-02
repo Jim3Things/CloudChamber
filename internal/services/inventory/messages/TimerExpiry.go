@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/internal/sm"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // TimerExpiry is the message used to notify a simulated inventory element that
@@ -50,7 +51,7 @@ func (m *TimerExpiry) SendVia(ctx context.Context, r viaSender) error {
 
 	id, ok := m.Target.BladeID()
 	if !ok {
-		return ErrInvalidTarget
+		return errors.ErrInvalidTarget
 	}
 
 	return r.ViaBlade(ctx, id, m)

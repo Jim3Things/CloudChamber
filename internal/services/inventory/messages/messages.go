@@ -2,15 +2,9 @@ package messages
 
 import (
 	"context"
-	"errors"
 
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 )
-
-// ErrInvalidTarget is an error used to indicate that the incoming message had
-// a target element that either was not valid for the message, or an element
-// that could not be found.
-var ErrInvalidTarget = errors.New("invalid target specified, request ignored")
 
 // Define the unique values used to identify the message type during processing.
 const (

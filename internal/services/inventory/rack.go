@@ -10,8 +10,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-    "github.com/Jim3Things/CloudChamber/pkg/errors"
-    pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 // Rack holds a simulated Rack, consisting of a TOR (top of Rack switch), a
@@ -155,7 +155,7 @@ func (r *Rack) ViaBlade(ctx context.Context, id int64, msg sm.Envelope) error {
 		return nil
 	}
 
-	return messages.ErrInvalidTarget
+	return errors.ErrInvalidTarget
 }
 
 // forwardToBlade is a helper function that forwards a message to the target

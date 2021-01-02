@@ -118,21 +118,33 @@ func convertToInternalPolicyRequest(
 	switch m.Policy {
 	case pb.StepperPolicy_NoWait:
 		if interval != 0 {
-			return nil, &errors.ErrDelayMustBeZero{Actual: interval}
+			return nil, &errors.ErrMustBeEQ{
+				Field:    "MeasuredDelay",
+				Actual:   int64(interval),
+				Required: 0,
+			}
 		}
 
 		return messages.NewNoWaitPolicy(ctx, m.MatchEpoch, ch), nil
 
 	case pb.StepperPolicy_Measured:
 		if interval <= 0 {
-			return nil, &errors.ErrDelayMustBePositive{Actual: interval}
+			return nil, &errors.ErrMustBeEQ{
+				Field:    "MeasuredDelay",
+				Actual:   int64(interval),
+				Required: 1,
+			}
 		}
 
 		return messages.NewMeasuredPolicy(ctx, m.MatchEpoch, interval, ch), nil
 
 	case pb.StepperPolicy_Manual:
 		if interval != 0 {
-			return nil, &errors.ErrDelayMustBeZero{Actual: interval}
+			return nil, &errors.ErrMustBeEQ{
+				Field:    "MeasuredDelay",
+				Actual:   int64(interval),
+				Required: 0,
+			}
 		}
 
 		return messages.NewManualPolicy(ctx, m.MatchEpoch, ch), nil
