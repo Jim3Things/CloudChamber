@@ -3,6 +3,7 @@ package ruler
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
@@ -63,6 +64,8 @@ func (e ErrMissingPath) Error() string {
 // Proposal is the placeholder structure for the result from calling the
 // output function
 type Proposal struct {
+	Path  string
+	Value interface{}
 }
 
 // OutputFunc is the signature for a function that generates the result of a
@@ -71,6 +74,9 @@ type OutputFunc func(ctx context.Context, args map[string]Term, ec *EvalContext)
 
 // Rule defines a matching rule to evaluate and, if matched, execute.
 type Rule struct {
+	// Name is a friendly string name used in the construction of the span name
+	Name string
+
 	// Where is the initial trigger test. If this evaluates to true, then the
 	// various choices are evaluated until one matches.
 	Where Term
@@ -144,6 +150,18 @@ func V(value interface{}) Term {
 	return NewLeaf(value)
 }
 
+// IsFalse creates the Terms to fetch the data associated with the string, and
+// test that its value is false.
+func IsFalse(s string) Term {
+	return NewNodeMatch(N(s), NewLeafBool(false))
+}
+
+// IsTrue creates the Terms to fetch the data associated with the string, and
+// test that its value is true.
+func IsTrue(s string) Term {
+	return NewNodeMatch(N(s), NewLeafBool(true))
+}
+
 // Match creates the Terms to hold a Match test
 func Match(l Term, r Term) Term {
 	return NewNodeMatch(l, r)
@@ -179,6 +197,8 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 		Tables:       tables,
 	}
 
+	r := strings.NewReplacer(ec.Replacements...)
+
 	var proposals []*Proposal
 
 	for _, rule := range rules {
@@ -189,9 +209,12 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 			return nil, err
 		}
 
-		but := " but"
+		but := "\nbut "
+		so := "\nso "
 		if v {
-			reason = rule.Reason
+			reason = r.Replace(rule.Reason)
+			anyChosen := false
+
 			for _, choice := range rule.Choices {
 				chosen, err := processTerm(choice.Assuming, ec)
 				if err != nil {
@@ -199,10 +222,11 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 				}
 
 				if chosen {
-					reason = fmt.Sprintf("%s and %s", reason, choice.Chosen)
+					anyChosen = true
+					reason = fmt.Sprintf("%s%s%s", reason, so, r.Replace(choice.Chosen))
 					ctx, span := tracing.StartSpan(
 						ctx,
-						tracing.WithName("Executing rule"),
+						tracing.WithName(fmt.Sprintf("Executing %q rule", rule.Name)),
 						tracing.WithReason(reason),
 						tracing.WithContextValue(timestamp.EnsureTickInContext))
 
@@ -216,9 +240,20 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 					break
 				} else {
 
-					reason = fmt.Sprintf("%s%s %s", reason, but, choice.Rejected)
-					but = ", "
+					reason = fmt.Sprintf("%s%s%s", reason, but, r.Replace(choice.Rejected))
+					but = ",\nand "
+					so = ",\nso therefore "
 				}
+			}
+
+			if !anyChosen {
+				ctx, span := tracing.StartSpan(
+					ctx,
+					tracing.WithName(fmt.Sprintf("Executing %q rule", rule.Name)),
+					tracing.WithReason(reason),
+					tracing.WithContextValue(timestamp.EnsureTickInContext))
+				tracing.Info(ctx, "No choice found to execute")
+				span.End()
 			}
 		}
 	}
