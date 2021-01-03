@@ -264,7 +264,7 @@ func (ts *testSuiteCore)createInventory(
 				}
 
 
-				for b := 0; b < torsPerRack; b++ {
+				for b := 0; b < bladesPerRack; b++ {
 					blade, err := rack.NewBlade(ctx, int64(b))
 					if err != nil {
 						return err
@@ -366,21 +366,18 @@ func (ts *testSuiteCore) TestNewRoot() {
 
 	// Now try the various combinations of setting and clearing details.
 	//
-	rev, details := root.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details := root.GetDetails(ctx)
 	assert.Nil(details)
 
 	root.SetDetails(ctx, stdDetails)
 
-	rev, details = root.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = root.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
 	root.SetDetails(ctx, nil)
 
-	rev, details = root.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = root.GetDetails(ctx)
 	require.Nil(details)
 
 	rev, err = root.Read(ctx)
@@ -435,21 +432,18 @@ func (ts *testSuiteCore) TestNewRegion() {
 
 	// Now try the various combinations of setting and clearing details.
 	//
-	rev, details := region.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details := region.GetDetails(ctx)
 	assert.Nil(details)
 
 	region.SetDetails(ctx, stdDetails)
 
-	rev, details = region.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = region.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
 	region.SetDetails(ctx, nil)
 
-	rev, details = region.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = region.GetDetails(ctx)
 	require.Nil(details)
 
 	// This will actually attempt to read the region from the store. Since
@@ -521,21 +515,18 @@ func (ts *testSuiteCore) TestNewZone() {
 
 	// Now try the various combinations of setting and clearing details.
 	//
-	rev, details := zone.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details := zone.GetDetails(ctx)
 	assert.Nil(details)
 
 	zone.SetDetails(ctx, stdDetails)
 
-	rev, details = zone.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = zone.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
 	zone.SetDetails(ctx, nil)
 
-	rev, details = zone.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = zone.GetDetails(ctx)
 	require.Nil(details)
 
 	// This will actually attempt to read the zone from the store. Since
@@ -614,21 +605,18 @@ func (ts *testSuiteCore) TestNewRack() {
 
 	// Now try the various combinations of setting and clearing details.
 	//
-	rev, details := rack.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details := rack.GetDetails(ctx)
 	assert.Nil(details)
 
 	rack.SetDetails(ctx, stdDetails)
 
-	rev, details = rack.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = rack.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
 	rack.SetDetails(ctx, nil)
 
-	rev, details = rack.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = rack.GetDetails(ctx)
 	require.Nil(details)
 
 	// This will actually attempt to read the rack from the store. Since
@@ -710,12 +698,10 @@ func (ts *testSuiteCore) TestNewPdu() {
 	// Now try the various combinations of setting and clearing
 	// details and ports.
 	//
-	rev, details := pdu.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details := pdu.GetDetails(ctx)
 	assert.Nil(details)
 
-	rev, ports := pdu.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports := pdu.GetPorts(ctx)
 	require.Nil(ports)
 
 
@@ -723,13 +709,11 @@ func (ts *testSuiteCore) TestNewPdu() {
 	//
 	pdu.SetDetails(ctx, stdDetails)
 
-	rev, details = pdu.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = pdu.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, ports = pdu.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = pdu.GetPorts(ctx)
 	require.Nil(ports)
 
 
@@ -737,13 +721,11 @@ func (ts *testSuiteCore) TestNewPdu() {
 	//
 	pdu.SetPorts(ctx, stdPorts)
 
-	rev, details = pdu.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = pdu.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, ports = pdu.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = pdu.GetPorts(ctx)
 	require.NotNil(ports)
 	assert.Equal(stdPorts, ports)
 
@@ -752,12 +734,10 @@ func (ts *testSuiteCore) TestNewPdu() {
 	//
 	pdu.SetDetails(ctx, nil)
 
-	rev, details = pdu.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = pdu.GetDetails(ctx)
 	assert.Nil(details)
 
-	rev, ports = pdu.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = pdu.GetPorts(ctx)
 	require.NotNil(ports)
 	assert.Equal(stdPorts, ports)
 
@@ -766,12 +746,10 @@ func (ts *testSuiteCore) TestNewPdu() {
 	//
 	pdu.SetPorts(ctx, nil)
 
-	rev, details = pdu.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = pdu.GetDetails(ctx)
 	assert.Nil(details)
 
-	rev, ports = pdu.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = pdu.GetPorts(ctx)
 	require.Nil(ports)
 
 
@@ -780,13 +758,11 @@ func (ts *testSuiteCore) TestNewPdu() {
 	pdu.SetDetails(ctx, stdDetails)
 	pdu.SetPorts(ctx, stdPorts)
 
-	rev, details = pdu.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = pdu.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, ports = pdu.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = pdu.GetPorts(ctx)
 	require.NotNil(ports)
 	assert.Equal(stdPorts, ports)
 
@@ -890,12 +866,10 @@ func (ts *testSuiteCore) TestNewTor() {
 	// Now try the various combinations of setting and clearing
 	// details and ports.
 	//
-	rev, details := tor.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details := tor.GetDetails(ctx)
 	assert.Nil(details)
 
-	rev, ports := tor.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports := tor.GetPorts(ctx)
 	require.Nil(ports)
 
 
@@ -903,13 +877,11 @@ func (ts *testSuiteCore) TestNewTor() {
 	//
 	tor.SetDetails(ctx, stdDetails)
 
-	rev, details = tor.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = tor.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, ports = tor.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = tor.GetPorts(ctx)
 	require.Nil(ports)
 
 
@@ -917,13 +889,11 @@ func (ts *testSuiteCore) TestNewTor() {
 	//
 	tor.SetPorts(ctx, stdPorts)
 
-	rev, details = tor.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = tor.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, ports = tor.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = tor.GetPorts(ctx)
 	require.NotNil(ports)
 	assert.Equal(stdPorts, ports)
 
@@ -932,12 +902,10 @@ func (ts *testSuiteCore) TestNewTor() {
 	//
 	tor.SetDetails(ctx, nil)
 
-	rev, details = tor.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = tor.GetDetails(ctx)
 	assert.Nil(details)
 
-	rev, ports = tor.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = tor.GetPorts(ctx)
 	require.NotNil(ports)
 	assert.Equal(stdPorts, ports)
 
@@ -946,12 +914,10 @@ func (ts *testSuiteCore) TestNewTor() {
 	//
 	tor.SetPorts(ctx, nil)
 
-	rev, details = tor.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = tor.GetDetails(ctx)
 	assert.Nil(details)
 
-	rev, ports = tor.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = tor.GetPorts(ctx)
 	require.Nil(ports)
 
 
@@ -960,13 +926,11 @@ func (ts *testSuiteCore) TestNewTor() {
 	tor.SetDetails(ctx, stdDetails)
 	tor.SetPorts(ctx, stdPorts)
 
-	rev, details = tor.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = tor.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, ports = tor.GetPorts(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	ports = tor.GetPorts(ctx)
 	require.NotNil(ports)
 	assert.Equal(stdPorts, ports)
 
@@ -1072,16 +1036,13 @@ func (ts *testSuiteCore) TestNewBlade() {
 	// Now try the various combinations of setting and clearing
 	// details and ports.
 	//
-	rev, details := blade.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details := blade.GetDetails(ctx)
 	require.Nil(details)
 
-	rev, capacity := blade.GetCapacity(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	capacity := blade.GetCapacity(ctx)
 	require.Nil(capacity)
 
-	rev, bootOnPowerOn, bootInfo := blade.GetBootInfo(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	bootOnPowerOn, bootInfo := blade.GetBootInfo(ctx)
 	assert.False(bootOnPowerOn)
 	require.Nil(bootInfo)
 
@@ -1090,17 +1051,14 @@ func (ts *testSuiteCore) TestNewBlade() {
 	//
 	blade.SetDetails(ctx, stdDetails)
 
-	rev, details = blade.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = blade.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, capacity = blade.GetCapacity(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	capacity = blade.GetCapacity(ctx)
 	require.Nil(capacity)
 
-	rev, bootOnPowerOn, bootInfo = blade.GetBootInfo(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	bootOnPowerOn, bootInfo = blade.GetBootInfo(ctx)
 	require.Nil(bootInfo)
 	assert.False(bootOnPowerOn)
 
@@ -1109,18 +1067,15 @@ func (ts *testSuiteCore) TestNewBlade() {
 	//
 	blade.SetCapacity(ctx, stdCapacity)
 
-	rev, details = blade.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = blade.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, capacity = blade.GetCapacity(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	capacity = blade.GetCapacity(ctx)
 	require.NotNil(capacity)
 	assert.Equal(stdCapacity, capacity)
 
-	rev, bootOnPowerOn, bootInfo = blade.GetBootInfo(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	bootOnPowerOn, bootInfo = blade.GetBootInfo(ctx)
 	require.Nil(bootInfo)
 	assert.False(bootOnPowerOn)
 
@@ -1129,18 +1084,15 @@ func (ts *testSuiteCore) TestNewBlade() {
 	//
 	blade.SetBootInfo(ctx, stdBootOnPowerOn, stdBootInfo)
 
-	rev, details = blade.GetDetails(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	details = blade.GetDetails(ctx)
 	require.NotNil(details)
 	assert.Equal(stdDetails, details)
 
-	rev, capacity = blade.GetCapacity(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	capacity = blade.GetCapacity(ctx)
 	require.NotNil(capacity)
 	assert.Equal(stdCapacity, capacity)
 
-	rev, bootOnPowerOn, bootInfo = blade.GetBootInfo(ctx)
-	assert.Equal(store.RevisionInvalid, rev)
+	bootOnPowerOn, bootInfo = blade.GetBootInfo(ctx)
 	require.NotNil(bootInfo)
 	assert.Equal(stdBootOnPowerOn, bootOnPowerOn)
 	assert.Equal(stdBootInfo, bootInfo)
@@ -1615,9 +1567,8 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	assert.Equal(rev, revRead)
 	assert.Equal(revRead, rRead.GetRevision(ctx))
 
-	revDet, detRead := rRead.GetDetails(ctx)
+	detRead := rRead.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, revDet)
 	assert.Equal(stdDetails, detRead)
 
 
@@ -1634,9 +1585,8 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	assert.Equal(rev, crRev)
 	assert.Equal(revRead, cr.GetRevision(ctx))
 
-	crRevDet, crDet := cr.GetDetails(ctx)
+	crDet := cr.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, crRevDet)
 	assert.Equal(stdDetails, crDet)
 }
 
@@ -1676,9 +1626,8 @@ func (ts *testSuiteCore) TestZoneReadDetails() {
 	assert.Equal(rev, revRead)
 	assert.Equal(revRead, rRead.GetRevision(ctx))
 
-	revDet, detRead := rRead.GetDetails(ctx)
+	detRead := rRead.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, revDet)
 	assert.Equal(stdDetails, detRead)
 
 
@@ -1698,9 +1647,8 @@ func (ts *testSuiteCore) TestZoneReadDetails() {
 	assert.Equal(rev, zoneRev)
 	assert.Equal(zoneRev, zone.GetRevision(ctx))
 
-	zoneDetRev, zoneDet := zone.GetDetails(ctx)
+	zoneDet := zone.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, zoneDetRev)
 	assert.Equal(stdDetails, zoneDet)
 }
 
@@ -1755,9 +1703,8 @@ func (ts *testSuiteCore) TestRackReadDetails() {
 	assert.Equal(rev, revRead)
 	assert.Equal(revRead, rRead.GetRevision(ctx))
 
-	revDet, detRead := rRead.GetDetails(ctx)
+	detRead := rRead.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, revDet)
 	assert.Equal(stdDetails, detRead)
 
 
@@ -1780,9 +1727,8 @@ func (ts *testSuiteCore) TestRackReadDetails() {
 	assert.Equal(rev, rackRev)
 	assert.Equal(rackRev, rack.GetRevision(ctx))
 
-	rackDetRev, rackDet := rack.GetDetails(ctx)
+	rackDet := rack.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, rackDetRev)
 	assert.Equal(stdDetails, rackDet)
 }
 
@@ -1842,9 +1788,8 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	assert.Equal(rev, p2Rev)
 	assert.Equal(p2Rev, p2.GetRevision(ctx))
 
-	p2DetRev, p2Det := p2.GetDetails(ctx)
+	p2Det := p2.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, p2DetRev)
 	assert.Equal(stdDetails, p2Det)
 
 
@@ -1870,14 +1815,12 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	assert.Equal(rev, pduRev)
 	assert.Equal(pduRev, pdu.GetRevision(ctx))
 
-	pduDetRev, pduDet := pdu.GetDetails(ctx)
+	pduDet := pdu.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, pduDetRev)
 	assert.Equal(stdDetails, pduDet)
 
-	pduPortsRev, pduPorts := pdu.GetPorts(ctx)
+	pduPorts := pdu.GetPorts(ctx)
 	require.NoError(err)
-	assert.Equal(rev, pduPortsRev)
 	assert.Equal(stdPorts, pduPorts)
 }
 
@@ -1937,9 +1880,8 @@ func (ts *testSuiteCore) TestTorReadDetails() {
 	assert.Equal(rev, t2Rev)
 	assert.Equal(t2Rev, t2.GetRevision(ctx))
 
-	t2DetRev, p2Det := t2.GetDetails(ctx)
+	p2Det := t2.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, t2DetRev)
 	assert.Equal(stdDetails, p2Det)
 
 
@@ -1965,14 +1907,12 @@ func (ts *testSuiteCore) TestTorReadDetails() {
 	assert.Equal(rev, torRev)
 	assert.Equal(torRev, tor.GetRevision(ctx))
 
-	torDetRev, pduDet := tor.GetDetails(ctx)
+	pduDet := tor.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, torDetRev)
 	assert.Equal(stdDetails, pduDet)
 
-	torPortsRev, torPorts := tor.GetPorts(ctx)
+	torPorts := tor.GetPorts(ctx)
 	require.NoError(err)
-	assert.Equal(rev, torPortsRev)
 	assert.Equal(stdPorts, torPorts)
 }
 
@@ -2035,9 +1975,8 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	assert.Equal(rev, t2Rev)
 	assert.Equal(t2Rev, b2.GetRevision(ctx))
 
-	t2DetRev, p2Det := b2.GetDetails(ctx)
+	p2Det := b2.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, t2DetRev)
 	assert.Equal(stdDetails, p2Det)
 
 
@@ -2063,19 +2002,16 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	assert.Equal(rev, bladeRev)
 	assert.Equal(bladeRev, blade.GetRevision(ctx))
 
-	bladeDetRev, bladeDet := blade.GetDetails(ctx)
+	bladeDet := blade.GetDetails(ctx)
 	require.NoError(err)
-	assert.Equal(rev, bladeDetRev)
 	assert.Equal(stdDetails, bladeDet)
 
-	bladeCapacityRev, bladeCapacity := blade.GetCapacity(ctx)
+	bladeCapacity := blade.GetCapacity(ctx)
 	require.NoError(err)
-	assert.Equal(rev, bladeCapacityRev)
 	assert.Equal(stdCapacity, bladeCapacity)
 
-	bladeBootinfoRev, bladeBootOnPowerOn, bladeBootInfo := blade.GetBootInfo(ctx)
+	bladeBootOnPowerOn, bladeBootInfo := blade.GetBootInfo(ctx)
 	require.NoError(err)
-	assert.Equal(rev, bladeBootinfoRev)
 	assert.Equal(stdBootOnPowerOn, bladeBootOnPowerOn)
 	assert.Equal(stdBootInfo, bladeBootInfo)
 }
@@ -2114,7 +2050,7 @@ func (ts *testSuiteCore) TestRegionUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
-	_, details := cr.GetDetails(ctx)
+	details := cr.GetDetails(ctx)
 	require.NotNil(details)
 
 	details.State = pb.State_out_of_service
@@ -2135,7 +2071,7 @@ func (ts *testSuiteCore) TestRegionUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
-	_, detailsVerify := cr.GetDetails(ctx)
+	detailsVerify := cr.GetDetails(ctx)
 	require.NotNil(detailsVerify)
 
 	// Compare new details with original + deltas
@@ -2181,7 +2117,7 @@ func (ts *testSuiteCore) TestZoneUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
-	_, details := cz.GetDetails(ctx)
+	details := cz.GetDetails(ctx)
 	require.NotNil(details)
 
 	details.State = pb.State_out_of_service
@@ -2202,7 +2138,7 @@ func (ts *testSuiteCore) TestZoneUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
-	_, detailsVerify := cz.GetDetails(ctx)
+	detailsVerify := cz.GetDetails(ctx)
 	require.NotNil(detailsVerify)
 
 	// Compare new details with original + deltas
@@ -2252,7 +2188,7 @@ func (ts *testSuiteCore) TestRackUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
-	_, details := cr.GetDetails(ctx)
+	details := cr.GetDetails(ctx)
 	require.NotNil(details)
 
 	details.Enabled   = false
@@ -2274,7 +2210,7 @@ func (ts *testSuiteCore) TestRackUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
-	_, detailsVerify := cr.GetDetails(ctx)
+	detailsVerify := cr.GetDetails(ctx)
 	require.NotNil(detailsVerify)
 
 	// Compare new details with original + deltas
@@ -2330,7 +2266,7 @@ func (ts *testSuiteCore) TestPduUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
-	_, details := cp.GetDetails(ctx)
+	details := cp.GetDetails(ctx)
 	require.NotNil(details)
 
 	details.Enabled   = false
@@ -2351,10 +2287,10 @@ func (ts *testSuiteCore) TestPduUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
-	_, detailsVerify := cp.GetDetails(ctx)
+	detailsVerify := cp.GetDetails(ctx)
 	require.NotNil(detailsVerify)
 
-	_, portsVerify := cp.GetPorts(ctx)
+	portsVerify := cp.GetPorts(ctx)
 	require.NotNil(portsVerify)
 
 	// Compare new details with original + deltas
@@ -2411,7 +2347,7 @@ func (ts *testSuiteCore) TestTorUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
-	_, details := ct.GetDetails(ctx)
+	details := ct.GetDetails(ctx)
 	require.NotNil(details)
 
 	details.Enabled   = false
@@ -2432,10 +2368,10 @@ func (ts *testSuiteCore) TestTorUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
-	_, detailsVerify := ct.GetDetails(ctx)
+	detailsVerify := ct.GetDetails(ctx)
 	require.NotNil(detailsVerify)
 
-	_, portsVerify := ct.GetPorts(ctx)
+	portsVerify := ct.GetPorts(ctx)
 	require.NotNil(portsVerify)
 
 	// Compare new details with original + deltas
@@ -2495,7 +2431,7 @@ func (ts *testSuiteCore) TestBladeUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
-	_, details := cb.GetDetails(ctx)
+	details := cb.GetDetails(ctx)
 	require.NotNil(details)
 
 	details.Enabled   = false
@@ -2516,13 +2452,13 @@ func (ts *testSuiteCore) TestBladeUpdateDetails() {
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
-	_, detailsVerify := cb.GetDetails(ctx)
+	detailsVerify := cb.GetDetails(ctx)
 	require.NotNil(detailsVerify)
 
-	_, capacityVerify := cb.GetCapacity(ctx)
+	capacityVerify := cb.GetCapacity(ctx)
 	require.NotNil(detailsVerify)
 
-	_, bootOnPowerOnVerify, bootInfoVerify := cb.GetBootInfo(ctx)
+	bootOnPowerOnVerify, bootInfoVerify := cb.GetBootInfo(ctx)
 	require.NotNil(detailsVerify)
 
 	// Compare new details with original + deltas
@@ -2596,6 +2532,52 @@ func (ts *testSuiteCore) TestZoneListChildren() {
 			_, racks, err := zone.ListChildren(ctx)
 			require.NoError(err)
 			assert.Equal(ts.racksPerZone, len(racks))
+		}
+	}
+}
+
+func (ts *testSuiteCore) TestRackListChildren() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
+	require.NoError(err)
+
+	_, regions, err := root.ListChildren(ctx)
+	require.NoError(err)
+	assert.Equal(ts.regionCount, len(regions))
+
+	for _, v := range regions {
+		region, err := root.NewChild(ctx, v)
+
+		_, zones, err := region.ListChildren(ctx)
+		require.NoError(err)
+		assert.Equal(ts.zonesPerRegion, len(zones))
+
+		for _, v := range zones {
+			zone, err := region.NewChild(ctx, v)
+	
+			_, racks, err := zone.ListChildren(ctx)
+			require.NoError(err)
+			assert.Equal(ts.racksPerZone, len(racks))
+
+			for _, v := range racks {
+				rack, err := zone.NewChild(ctx, v)
+
+				_, pdus, err := rack.ListPdus(ctx)
+				require.NoError(err)
+				assert.Equal(ts.pdusPerRack, len(pdus))
+
+				_, tors, err := rack.ListTors(ctx)
+				require.NoError(err)
+				assert.Equal(ts.torsPerRack, len(tors))
+
+				_, blades, err := rack.ListBlades(ctx)
+				require.NoError(err)
+				assert.Equal(ts.bladesPerRack, len(blades))
+			}
 		}
 	}
 }

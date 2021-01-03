@@ -269,48 +269,37 @@ type Root struct {
 }
 
 
-// SetName is a
-//
-func (r *Root) SetName(ctx context.Context, name string) error {
-	
-	keyIndex , err := GetKeyForIndexZone(r.Table, name)
-
-	if err != nil {
-		return err
-	}
-
-	r.KeyChildIndex = keyIndex
-
-	return nil
-}
-
 // SetDetails is a
 //
 func (r *Root) SetDetails(ctx context.Context, details *pb.RootDetails) {
 
 	r.details  = details
 	r.revision = store.RevisionInvalid
-
-	return
 }
 
 // GetDetails is a
 //
-func (r *Root) GetDetails(ctx context.Context) (int64, *pb.RootDetails) {
-	return 	r.revision, r.details
+func (r *Root) GetDetails(ctx context.Context) *pb.RootDetails {
+	return 	r.details
 }
 
 // GetRevision is a
 //
-func (r *Root) GetRevision(ctx context.Context) (int64) {return r.revision}
+func (r *Root) GetRevision(ctx context.Context) int64 {
+	return r.revision
+}
 
 // GetRevisionRecord is a
 //
-func (r *Root) GetRevisionRecord(ctx context.Context) (int64) {return r.revisionRecord}
+func (r *Root) GetRevisionRecord(ctx context.Context) int64 {
+	return r.revisionRecord
+}
 
 // GetRevisionStore is a
 //
-func (r *Root) GetRevisionStore(ctx context.Context) (int64) {return r.revisionStore}
+func (r *Root) GetRevisionStore(ctx context.Context) int64 {
+	return r.revisionStore
+}
 
 // Create is a
 //
@@ -381,12 +370,12 @@ func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {
 
 // FetchChildren is a
 //
-func (r *Root) FetchChildren(ctx context.Context) (*map[string]Region, error) {
+func (r *Root) FetchChildren(ctx context.Context) (int64, *map[string]Region, error) {
 
-	_, names, err := r.ListChildren(ctx)
+	rev, names, err := r.ListChildren(ctx)
 
 	if err != nil {
-		return nil, err
+		return store.RevisionInvalid, nil, err
 	}
 
 	children := make(map[string]Region, len(names))
@@ -396,19 +385,19 @@ func (r *Root) FetchChildren(ctx context.Context) (*map[string]Region, error) {
 		child, err := r.NewChild(ctx, v)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, err
 		}
 	
 		_, err = child.Read(ctx)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, err
 		}
 
 		children[v] = *child
 	}
 
-	return &children, nil
+	return rev, &children, nil
 }
 
 
@@ -433,48 +422,37 @@ type Region struct {
 	record        *pb.StoreRecordDefinitionRegion
 }
 
-// SetName is a 
-//
-func (r *Region) SetName(ctx context.Context, name string) error {
-
-	key, err := GetKeyForRegion(r.Table, name)
-
-	if nil != err {
-		return err
-	}
-
-	r.Key = key
-
-	return nil
-}
-
 // SetDetails is a
 //
 func (r *Region) SetDetails(ctx context.Context, details *pb.RegionDetails) {
 
 	r.details  = details
 	r.revision = store.RevisionInvalid
-
-	return
 }
 
 // GetDetails is a
 //
-func (r *Region) GetDetails(ctx context.Context) (int64, *pb.RegionDetails) {
-	return 	r.revision, r.details
+func (r *Region) GetDetails(ctx context.Context) *pb.RegionDetails {
+	return r.details
 }
 
 // GetRevision is a
 //
-func (r *Region) GetRevision(ctx context.Context) (int64) {return r.revision}
+func (r *Region) GetRevision(ctx context.Context) int64 {
+	return r.revision
+}
 
 // GetRevisionRecord is a
 //
-func (r *Region) GetRevisionRecord(ctx context.Context) (int64) {return r.revisionRecord}
+func (r *Region) GetRevisionRecord(ctx context.Context) int64 {
+	return r.revisionRecord
+}
 
 // GetRevisionStore is a
 //
-func (r *Region) GetRevisionStore(ctx context.Context) (int64) {return r.revisionStore}
+func (r *Region) GetRevisionStore(ctx context.Context) int64 {
+	return r.revisionStore
+}
 
 // Create is
 //
@@ -595,6 +573,8 @@ func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) 
 		revDelete = store.RevisionInvalid
 	}
 
+	// TODO - use delete multiple to remove object and index?
+	//
 	rev, err := r.Store.Delete(ctx, store.KeyRootInventory, r.Key, revDelete)
 
 	if err == store.ErrStoreKeyNotFound(r.Key) {
@@ -658,34 +638,36 @@ func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 
 // FetchChildren is a
 //
-func (r *Region) FetchChildren(ctx context.Context) (*map[string]Zone, error) {
+func (r *Region) FetchChildren(ctx context.Context) (int64, *map[string]Zone, error) {
 
-	_, names, err := r.ListChildren(ctx)
+	rev, names, err := r.ListChildren(ctx)
 
 	if err != nil {
-		return nil, err
+		return store.RevisionInvalid, nil, err
 	}
 
 	children := make(map[string]Zone, len(names))
 
+	// TODO - use read multiple? If broken out into "groups", returned rev is the highest found 
+	//
 	for _, v := range names {
 
 		child, err := r.NewChild(ctx, v)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, err
 		}
 	
-		_, err = child.Read(ctx)
+		rev, err = child.Read(ctx)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, err
 		}
 
 		children[v] = *child
 	}
 
-	return &children, nil
+	return rev, &children, nil
 }
 
 
@@ -710,21 +692,6 @@ type Zone struct {
 	record         *pb.StoreRecordDefinitionZone
 }
 
-// SetName is a 
-//
-func (z *Zone) SetName(ctx context.Context, name string) error {
-
-	key, err := GetKeyForZone(z.Table, z.Region, name)
-
-	if nil != err {
-		return err
-	}
-
-	z.Key = key
-
-	return nil
-}
-
 // SetDetails is a
 //
 func (z *Zone) SetDetails(ctx context.Context, details *pb.ZoneDetails) {
@@ -735,21 +702,27 @@ func (z *Zone) SetDetails(ctx context.Context, details *pb.ZoneDetails) {
 
 // GetDetails is a
 //
-func (z *Zone) GetDetails(ctx context.Context) (int64, *pb.ZoneDetails) {
-	return 	z.revision, z.details
+func (z *Zone) GetDetails(ctx context.Context) *pb.ZoneDetails {
+	return z.details
 }
 
 // GetRevision is a
 //
-func (z *Zone) GetRevision(ctx context.Context) (int64) {return z.revision}
+func (z *Zone) GetRevision(ctx context.Context) (int64) {
+	return z.revision
+}
 
 // GetRevisionRecord is a
 //
-func (z *Zone) GetRevisionRecord(ctx context.Context) (int64) {return z.revisionRecord}
+func (z *Zone) GetRevisionRecord(ctx context.Context) (int64) {
+	return z.revisionRecord
+}
 
 // GetRevisionStore is a
 //
-func (z *Zone) GetRevisionStore(ctx context.Context) (int64) {return z.revisionStore}
+func (z *Zone) GetRevisionStore(ctx context.Context) (int64) {
+	return z.revisionStore
+}
 
 // Create is
 //
@@ -933,12 +906,12 @@ func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 
 // FetchChildren is a
 //
-func (z *Zone) FetchChildren(ctx context.Context) (*map[string]Rack, error) {
+func (z *Zone) FetchChildren(ctx context.Context) (int64, *map[string]Rack, error) {
 
-	_, names, err := z.ListChildren(ctx)
+	rev, names, err := z.ListChildren(ctx)
 
 	if err != nil {
-		return nil, err
+		return store.RevisionInvalid, nil, err
 	}
 
 	children := make(map[string]Rack, len(names))
@@ -948,19 +921,19 @@ func (z *Zone) FetchChildren(ctx context.Context) (*map[string]Rack, error) {
 		child, err := z.NewChild(ctx, v)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, err
 		}
 	
 		_, err = child.Read(ctx)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, err
 		}
 
 		children[v] = *child
 	}
 
-	return &children, nil
+	return rev, &children, nil
 }
 
 
@@ -990,48 +963,37 @@ type Rack struct {
 
 }
 
-// SetName is a 
-//
-func (r *Rack) SetName(ctx context.Context, name string) error {
-
-	key, err := GetKeyForRegion(r.Table, name)
-
-	if nil != err {
-		return err
-	}
-
-	r.Key = key
-
-	return nil
-}
-
 // SetDetails is a
 //
 func (r *Rack) SetDetails(ctx context.Context, details *pb.RackDetails) {
 
 	r.details  = details
 	r.revision = store.RevisionInvalid
-
-	return
 }
 
 // GetDetails is a
 //
-func (r *Rack) GetDetails(ctx context.Context) (int64, *pb.RackDetails) {
-	return 	r.revision, r.details
+func (r *Rack) GetDetails(ctx context.Context) *pb.RackDetails {
+	return r.details
 }
 
 // GetRevision is a
 //
-func (r *Rack) GetRevision(ctx context.Context) (int64) {return r.revision}
+func (r *Rack) GetRevision(ctx context.Context) (int64) {
+	return r.revision
+}
 
 // GetRevisionRecord is a
 //
-func (r *Rack) GetRevisionRecord(ctx context.Context) (int64) {return r.revisionRecord}
+func (r *Rack) GetRevisionRecord(ctx context.Context) (int64) {
+	return r.revisionRecord
+}
 
 // GetRevisionStore is a
 //
-func (r *Rack) GetRevisionStore(ctx context.Context) (int64) {return r.revisionStore}
+func (r *Rack) GetRevisionStore(ctx context.Context) (int64) {
+	return r.revisionStore
+}
 
 // Create is
 //
@@ -1217,158 +1179,237 @@ func (r *Rack) NewBlade(ctx context.Context, ID int64) (*Blade, error) {
 
 // FetchChildren is a
 //
-func (r *Rack) FetchChildren(ctx context.Context) (*map[string]Zone, error) {
-	return nil, ErrFunctionNotAvailable
+func (r *Rack) FetchChildren(ctx context.Context) (int64, *map[string]Zone, error) {
+	return store.RevisionInvalid, nil, ErrFunctionNotAvailable
 }
 
 
 // ListPdus is a
 //
-func (r *Rack) ListPdus(ctx context.Context) (*map[int64]Pdu, error) {
+func (r *Rack) ListPdus(ctx context.Context) (int64, []int64, error) {
 
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexPdu)
 
 	if err == store.ErrStoreIndexNotFound(r.KeyIndexPdu) {
-		return nil, ErrIndexNotFound(r.KeyIndexPdu)
+		return store.RevisionInvalid, nil, ErrIndexNotFound(r.KeyIndexPdu)
 	}
 
 	if err != nil {
-		return nil, err
+		return store.RevisionInvalid, nil, err
 	}
 
-	pdus := make(map[int64]Pdu, len(*records))
+	names := make([]int64, 0, len(*records))
 
 	for k, v := range *records {
-
-		i, err := strconv.ParseInt(k, 10, 0)
-
-		if err != nil {
-			return nil, err
-		}
-
-		record := &pb.StoreRecordDefinitionPdu{}
-
-		if err = store.Decode(v.Value, record); err != nil {
-			return nil, err
-		}
-
-		pdu, err := r.NewPdu(ctx, i)
-
-		if err != nil {
-			return nil, err
-		}
 	
-		pdu.details        = record.Details
-		pdu.ports          = &record.Ports
-		pdu.record         = record
-		pdu.revision       = v.Revision
-		pdu.revisionRecord = v.Revision
-		pdu.revisionStore  = rev
-		
-		pdus[i] = *pdu
+		name := strings.TrimPrefix(k, r.KeyIndexPdu)
+
+		// Verify that the "index" part of the name is numeric
+		//
+		intName, err := strconv.ParseInt(name, 10, 0)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, ErrfPduIndexInvalid(r.Table, r.Zone, r.Rack, name)
+		}
+
+		intValue, err := strconv.ParseInt(v.Value, 10, 0)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, ErrfPduIndexInvalid(r.Table, r.Zone, r.Rack, v.Value)
+		}
+
+		if intName != intValue {
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(r.Table, name, v.Value)
+		}
+
+		names = append(names, intValue)
 	}
 
-	return &pdus, nil
+	return rev, names, nil
 }
 
 // ListTors is a
 //
-func (r *Rack) ListTors(ctx context.Context) (*map[int64]Tor, error) {
+func (r *Rack) ListTors(ctx context.Context) (int64, []int64, error) {
 
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexTor)
 
 	if err == store.ErrStoreIndexNotFound(r.KeyIndexTor) {
-		return nil, ErrIndexNotFound(r.KeyIndexTor)
+		return store.RevisionInvalid, nil, ErrIndexNotFound(r.KeyIndexTor)
 	}
 
 	if err != nil {
-		return nil, err
+		return store.RevisionInvalid, nil, err
 	}
 
-	tors := make(map[int64]Tor, len(*records))
+	names := make([]int64, 0, len(*records))
 
 	for k, v := range *records {
+	
+		name := strings.TrimPrefix(k, r.KeyIndexTor)
 
-		i, err := strconv.ParseInt(k, 10, 0)
+		// Verify that the "index" part of the name is numeric
+		//
+		intName, err := strconv.ParseInt(name, 10, 0)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, ErrfTorIndexInvalid(r.Table, r.Zone, r.Rack, name)
 		}
 
-		record := &pb.StoreRecordDefinitionTor{}
-
-		if err = store.Decode(v.Value, record); err != nil {
-			return nil, err
-		}
-
-		tor, err := r.NewTor(ctx, i)
+		intValue, err := strconv.ParseInt(v.Value, 10, 0)
 
 		if err != nil {
-			return nil, err
+			return store.RevisionInvalid, nil, ErrfTorIndexInvalid(r.Table, r.Zone, r.Rack, v.Value)
 		}
-	
-		tor.details        = record.Details
-		tor.ports          = &record.Ports
-		tor.record         = record
-		tor.revision       = v.Revision
-		tor.revisionRecord = v.Revision
-		tor.revisionStore  = rev
-	
-		tors[i] = *tor
+
+		if intName != intValue {
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(r.Table, name, v.Value)
+		}
+
+		names = append(names, intValue)
 	}
 
-	return &tors, nil
+	return rev, names, nil
 }
 
 // ListBlades is a
 //
-func (r *Rack) ListBlades(ctx context.Context) (*map[int64]Blade, error) {
+func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexBlade)
 
 	if err == store.ErrStoreIndexNotFound(r.KeyIndexBlade) {
-		return nil, ErrIndexNotFound(r.KeyIndexBlade)
+		return store.RevisionInvalid, nil, ErrIndexNotFound(r.KeyIndexBlade)
 	}
 
 	if err != nil {
-		return nil, err
+		return store.RevisionInvalid, nil, err
 	}
 
-	blades := make(map[int64]Blade, len(*records))
+	names := make([]int64, 0, len(*records))
 
 	for k, v := range *records {
-
-		i, err := strconv.ParseInt(k, 10, 0)
-
-		if err != nil {
-			return nil, err
-		}
-
-		record := &pb.StoreRecordDefinitionBlade{}
-
-		if err = store.Decode(v.Value, record); err != nil {
-			return nil, err
-		}
-
-		blade, err := r.NewBlade(ctx, i)
-
-		if err != nil {
-			return nil, err
-		}
 	
-		blade.details        = record.Details
-		blade.capacity       = record.Capacity
-		blade.bootOnPowerOn  = record.BootOnPowerOn
-		blade.bootInfo       = record.BootInfo
-		blade.record         = record
-		blade.revision       = v.Revision
-		blade.revisionRecord = v.Revision
-		blade.revisionStore  = rev
-		
-		blades[i] = *blade
+		name := strings.TrimPrefix(k, r.KeyIndexBlade)
+
+		// Verify that the "index" part of the name is numeric
+		//
+		intName, err := strconv.ParseInt(name, 10, 0)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, ErrfBladeIndexInvalid(r.Table, r.Zone, r.Rack, name)
+		}
+
+		intValue, err := strconv.ParseInt(v.Value, 10, 0)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, ErrfBladeIndexInvalid(r.Table, r.Zone, r.Rack, v.Value)
+		}
+
+		if intName != intValue {
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(r.Table, name, v.Value)
+		}
+
+		names = append(names, intValue)
 	}
 
-	return &blades, nil
+	return rev, names, nil
+}
+
+// FetchPdus is a
+//
+func (r *Rack) FetchPdus(ctx context.Context) (int64, *map[int64]Pdu, error) {
+
+	rev, names, err := r.ListPdus(ctx)
+
+	if err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	pdus := make(map[int64]Pdu, len(names))
+
+	for _, v := range names {
+
+		pdu, err := r.NewPdu(ctx, v)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, err
+		}
+	
+		_, err = pdu.Read(ctx)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, err
+		}
+
+		pdus[v] = *pdu
+	}
+
+	return rev, &pdus, nil
+}
+
+// FetchTors is a
+//
+func (r *Rack) FetchTors(ctx context.Context) (int64, *map[int64]Tor, error) {
+
+	rev, names, err := r.ListTors(ctx)
+
+	if err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	tors := make(map[int64]Tor, len(names))
+
+	for _, v := range names {
+
+		tor, err := r.NewTor(ctx, v)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, err
+		}
+	
+		_, err = tor.Read(ctx)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, err
+		}
+
+		tors[v] = *tor
+	}
+
+	return rev, &tors, nil
+}
+
+// FetchBlades is a
+//
+func (r *Rack) FetchBlades(ctx context.Context) (int64, *map[int64]Blade, error) {
+
+	rev, names, err := r.ListBlades(ctx)
+
+	if err != nil {
+		return store.RevisionInvalid, nil, err
+	}
+
+	blades := make(map[int64]Blade, len(names))
+
+	for _, v := range names {
+
+		blade, err := r.NewBlade(ctx, v)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, err
+		}
+	
+		_, err = blade.Read(ctx)
+
+		if err != nil {
+			return store.RevisionInvalid, nil, err
+		}
+
+		blades[v] = *blade
+	}
+
+	return rev, &blades, nil
 }
 
 
@@ -1395,21 +1436,6 @@ type Pdu struct {
 	record         *pb.StoreRecordDefinitionPdu
 }
 
-// SetName is a 
-//
-func (p *Pdu) SetName(ctx context.Context, ID int64) error {
-
-	key, err := GetKeyForPdu(p.Table, p.Region, p.Zone, p.Rack, ID)
-
-	if nil != err {
-		return err
-	}
-
-	p.Key = key
-
-	return nil
-}
-
 // SetDetails is a
 //
 func (p *Pdu) SetDetails(ctx context.Context, details *pb.PduDetails) {
@@ -1419,21 +1445,27 @@ func (p *Pdu) SetDetails(ctx context.Context, details *pb.PduDetails) {
 
 // GetDetails is a
 //
-func (p *Pdu) GetDetails(ctx context.Context) (int64, *pb.PduDetails) {
-	return 	p.revision, p.details
+func (p *Pdu) GetDetails(ctx context.Context) *pb.PduDetails {
+	return 	p.details
 }
 
 // GetRevision is a
 //
-func (p *Pdu) GetRevision(ctx context.Context) int64 {return p.revision}
+func (p *Pdu) GetRevision(ctx context.Context) int64 {
+	return p.revision
+}
 
 // GetRevisionRecord is a
 //
-func (p *Pdu) GetRevisionRecord(ctx context.Context) (int64) {return p.revisionRecord}
+func (p *Pdu) GetRevisionRecord(ctx context.Context) int64 {
+	return p.revisionRecord
+}
 
 // GetRevisionStore is a
 //
-func (p *Pdu) GetRevisionStore(ctx context.Context) (int64) {return p.revisionStore}
+func (p *Pdu) GetRevisionStore(ctx context.Context) int64 {
+	return p.revisionStore
+}
 
 // SetPorts is a
 //
@@ -1444,8 +1476,8 @@ func (p *Pdu) SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort) {
 
 // GetPorts is a 
 //
-func (p *Pdu) GetPorts(ctx context.Context) (int64, *map[int64]*pb.PowerPort) {
-	return p.revision, p.ports
+func (p *Pdu) GetPorts(ctx context.Context) *map[int64]*pb.PowerPort {
+	return p.ports
 }
 
 // Create is
@@ -1619,21 +1651,6 @@ type Tor struct {
 	record         *pb.StoreRecordDefinitionTor
 }
 
-// SetName is a 
-//
-func (t *Tor) SetName(ctx context.Context, ID int64) error {
-
-	key, err := GetKeyForPdu(t.Table, t.Region, t.Zone, t.Rack, ID)
-
-	if nil != err {
-		return err
-	}
-
-	t.Key = key
-
-	return nil
-}
-
 // SetDetails is a
 //
 func (t *Tor) SetDetails(ctx context.Context, details *pb.TorDetails) {
@@ -1643,21 +1660,27 @@ func (t *Tor) SetDetails(ctx context.Context, details *pb.TorDetails) {
 
 // GetDetails is a
 //
-func (t *Tor) GetDetails(ctx context.Context) (int64, *pb.TorDetails) {
-	return 	t.revision, t.details
+func (t *Tor) GetDetails(ctx context.Context) *pb.TorDetails {
+	return 	t.details
 }
 
 // GetRevision is a
 //
-func (t *Tor) GetRevision(ctx context.Context) int64 {return t.revision}
+func (t *Tor) GetRevision(ctx context.Context) int64 {
+	return t.revision
+}
 
 // GetRevisionRecord is a
 //
-func (t *Tor) GetRevisionRecord(ctx context.Context) (int64) {return t.revisionRecord}
+func (t *Tor) GetRevisionRecord(ctx context.Context) int64 {
+	return t.revisionRecord
+}
 
 // GetRevisionStore is a
 //
-func (t *Tor) GetRevisionStore(ctx context.Context) (int64) {return t.revisionStore}
+func (t *Tor) GetRevisionStore(ctx context.Context) int64 {
+	return t.revisionStore
+}
 
 // SetPorts is a
 //
@@ -1668,8 +1691,8 @@ func (t *Tor) SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort) {
 
 // GetPorts is a 
 //
-func (t *Tor) GetPorts(ctx context.Context) (int64, *map[int64]*pb.NetworkPort) {
-	return t.revision, t.ports
+func (t *Tor) GetPorts(ctx context.Context) *map[int64]*pb.NetworkPort {
+	return t.ports
 }
 
 // Create is
@@ -1846,27 +1869,6 @@ type Blade struct {
 	record         *pb.StoreRecordDefinitionBlade
 }
 
-// SetName is a 
-//
-func (b *Blade) SetName(ctx context.Context, region string, zone string, rack string, blade int64) error {
-
-	key, err := GetKeyForBlade(b.Table, region, zone, rack, blade)
-
-	if nil != err {
-		return err
-	}
-
-	b.Region = region
-	b.Zone   = zone
-	b.Rack   = rack
-	b.ID     = blade
-
-	b.Key    = key
-	b.record = nil
-
-	return nil
-}
-
 // SetDetails is a
 //
 func (b *Blade) SetDetails(ctx context.Context, details *pb.BladeDetails) {
@@ -1876,21 +1878,27 @@ func (b *Blade) SetDetails(ctx context.Context, details *pb.BladeDetails) {
 
 // GetDetails is a
 //
-func (b *Blade) GetDetails(ctx context.Context) (int64, *pb.BladeDetails) {
-	return 	b.revision, b.details
+func (b *Blade) GetDetails(ctx context.Context) *pb.BladeDetails {
+	return 	b.details
 }
 
 // GetRevision is a
 //
-func (b *Blade) GetRevision(ctx context.Context) int64 {return b.revision}
+func (b *Blade) GetRevision(ctx context.Context) int64 {
+	return b.revision
+}
 
 // GetRevisionRecord is a
 //
-func (b *Blade) GetRevisionRecord(ctx context.Context) (int64) {return b.revisionRecord}
+func (b *Blade) GetRevisionRecord(ctx context.Context) int64 {
+	return b.revisionRecord
+}
 
 // GetRevisionStore is a
 //
-func (b *Blade) GetRevisionStore(ctx context.Context) (int64) {return b.revisionStore}
+func (b *Blade) GetRevisionStore(ctx context.Context) int64 {
+	return b.revisionStore
+}
 
 // SetCapacity is a
 //
@@ -1909,14 +1917,14 @@ func (b *Blade) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *p
 
 // GetCapacity is a
 //
-func (b *Blade) GetCapacity(ctx context.Context) (int64, *pb.BladeCapacity) {
-	return b.revision, b.capacity
+func (b *Blade) GetCapacity(ctx context.Context) *pb.BladeCapacity {
+	return b.capacity
 }
 
 // GetBootInfo is a
 //
-func (b *Blade) GetBootInfo(ctx context.Context) (int64, bool, *pb.BladeBootInfo) {
-	return b.revision, b.bootOnPowerOn, b.bootInfo
+func (b *Blade) GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo) {
+	return b.bootOnPowerOn, b.bootInfo
 }
 
 // Create is

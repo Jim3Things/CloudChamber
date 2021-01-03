@@ -825,7 +825,7 @@ func (m *DBInventory) ReadZone(
 		return nil, InvalidRev, err
 	}
 
-	_, details := z.GetDetails(ctx)
+	details := z.GetDetails(ctx)
 
 	return &pb.DefinitionZone{Details: details}, rev, nil
 }
@@ -857,7 +857,7 @@ func (m *DBInventory) ReadRack(
 		return nil, InvalidRev, err
 	}
 
-	_, details := r.GetDetails(ctx)
+	details := r.GetDetails(ctx)
 
 	return &pb.DefinitionRack{Details: details}, rev, nil
 }
@@ -890,8 +890,8 @@ func (m *DBInventory) ReadPdu(
 		return nil, InvalidRev, err
 	}
 
-	_, details := p.GetDetails(ctx)
-	_, ports   := p.GetPorts(ctx)
+	details := p.GetDetails(ctx)
+	ports   := p.GetPorts(ctx)
 
 	return &pb.DefinitionPdu{Details: details, Ports: *ports}, rev, nil
 }
@@ -924,8 +924,8 @@ func (m *DBInventory) ReadTor(
 		return nil, InvalidRev, err
 	}
 
-	_, details := t.GetDetails(ctx)
-	_, ports   := t.GetPorts(ctx)
+	details := t.GetDetails(ctx)
+	ports   := t.GetPorts(ctx)
 
 	return &pb.DefinitionTor{Details: details, Ports: *ports}, rev, nil
 }
@@ -958,9 +958,9 @@ func (m *DBInventory) ReadBlade(
 		return nil, InvalidRev, err
 	}
 
-	_, details := b.GetDetails(ctx)
-	_, capacity := b.GetCapacity(ctx)
-	_, bootOnPowerOn, bootInfo := b.GetBootInfo(ctx)
+	details := b.GetDetails(ctx)
+	capacity := b.GetCapacity(ctx)
+	bootOnPowerOn, bootInfo := b.GetBootInfo(ctx)
 
 	blade := &pb.DefinitionBlade{
 		Details:       details,
