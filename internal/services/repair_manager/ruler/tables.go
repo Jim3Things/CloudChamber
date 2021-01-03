@@ -53,4 +53,3 @@ type Table interface {
 	// in the key
 	GetValue(key *Key) (interface{}, error)
 }
-
