@@ -156,6 +156,7 @@ func (ts *testSuiteCore)createStandardInventory(ctx context.Context) error {
 
 	err := ts.createInventory(
 		ctx,
+		DefinitionTableStdTest,
 		ts.regionCount,
 		ts.zonesPerRegion,
 		ts.racksPerZone,
@@ -168,6 +169,7 @@ func (ts *testSuiteCore)createStandardInventory(ctx context.Context) error {
 
 func (ts *testSuiteCore)createInventory(
 	ctx context.Context,
+	table string,
 	regions int,
 	zonesPerRegion int,
 	racksPerZone int,
@@ -175,7 +177,7 @@ func (ts *testSuiteCore)createInventory(
 	torsPerRack int,
 	bladesPerRack int) error {
 
-	root, err := NewRoot(ctx, ts.store, DefinitionTable)
+	root, err := NewRoot(ctx, ts.store, table)
 	if err != nil {
 		return err
 	}
@@ -2537,7 +2539,7 @@ func (ts *testSuiteCore) TestRootListChildren() {
 
 	ctx := context.Background()
 
-	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
 	require.NoError(err)
 
 	_, regions, err := root.ListChildren(ctx)
@@ -2551,7 +2553,7 @@ func (ts *testSuiteCore) TestRegionListChildren() {
 
 	ctx := context.Background()
 
-	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
 	require.NoError(err)
 
 	_, regions, err := root.ListChildren(ctx)
@@ -2574,7 +2576,7 @@ func (ts *testSuiteCore) TestZoneListChildren() {
 
 	ctx := context.Background()
 
-	root, err := NewRoot (ctx, ts.store, DefinitionTable)
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
 	require.NoError(err)
 
 	_, regions, err := root.ListChildren(ctx)

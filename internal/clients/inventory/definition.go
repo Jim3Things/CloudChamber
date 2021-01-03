@@ -30,6 +30,7 @@ func NewRoot(ctx context.Context, store *store.Store, table string) (*Root, erro
 	r := &Root{
 		Store:         store,
 		KeyChildIndex: k,
+		Table:         table,
 	}
 
 	return r, nil
@@ -63,6 +64,7 @@ func NewRegion(ctx context.Context, store *store.Store, table string, region str
 		KeyChildIndex: keyIndex,
 		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
+		Table:         table,
 		Region:        region,
 	}
 
@@ -97,6 +99,7 @@ func NewZone(ctx context.Context, store *store.Store, table string, region strin
 		KeyChildIndex: keyIndex,
 		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
+		Table:         table,
 		Region:        region,
 		Zone:          zone,
 	}
@@ -127,13 +130,13 @@ func NewRack(ctx context.Context, store *store.Store, table string, region strin
 		return nil, err
 	}
 
-	keyIndexEntry, err := GetKeyForIndexEntryRack(DefinitionTable, region, zone, rack)
+	keyIndexEntry, err := GetKeyForIndexEntryRack(table, region, zone, rack)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := GetKeyForRack(DefinitionTable, region, zone, rack)
+	key, err := GetKeyForRack(table, region, zone, rack)
 
 	if nil != err {
 		return nil, err
@@ -146,6 +149,7 @@ func NewRack(ctx context.Context, store *store.Store, table string, region strin
 		KeyIndexBlade: keyIndexBlade,
 		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
+		Table:         table,
 		Region:        region,
 		Zone:          zone,
 		Rack:          rack,
@@ -165,7 +169,7 @@ func NewPdu(ctx context.Context, store *store.Store, table string, region string
 		return nil, err
 	}
 
-	key, err := GetKeyForPdu(DefinitionTable, region, zone, rack, id)
+	key, err := GetKeyForPdu(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -175,6 +179,7 @@ func NewPdu(ctx context.Context, store *store.Store, table string, region string
 		Store:         store,
 		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
+		Table:         table,
 		Region:        region,
 		Zone:          zone,
 		Rack:          rack,
@@ -195,7 +200,7 @@ func NewTor(ctx context.Context, store *store.Store, table string, region string
 		return nil, err
 	}
 
-	key, err := GetKeyForTor(DefinitionTable, region, zone, rack, id)
+	key, err := GetKeyForTor(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -205,6 +210,7 @@ func NewTor(ctx context.Context, store *store.Store, table string, region string
 		Store:         store,
 		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
+		Table:         table,
 		Region:        region,
 		Zone:          zone,
 		Rack:          rack,
@@ -225,7 +231,7 @@ func NewBlade(ctx context.Context, store *store.Store, table string, region stri
 		return nil, err
 	}
 
-	key, err := GetKeyForBlade(DefinitionTable, region, zone, rack, id)
+	key, err := GetKeyForBlade(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -235,6 +241,7 @@ func NewBlade(ctx context.Context, store *store.Store, table string, region stri
 		Store:         store,
 		KeyIndexEntry: keyIndexEntry,
 		Key:           key,
+		Table:         table,
 		Region:        region,
 		Zone:          zone,
 		Rack:          rack,
@@ -253,6 +260,7 @@ type Root struct {
 
 	Store         *store.Store
 	KeyChildIndex  string
+	Table          string
 
 	revision       int64
 	revisionRecord int64
@@ -265,7 +273,7 @@ type Root struct {
 //
 func (r *Root) SetName(ctx context.Context, name string) error {
 	
-	keyIndex , err := GetKeyForIndexZone(DefinitionTable, name)
+	keyIndex , err := GetKeyForIndexZone(r.Table, name)
 
 	if err != nil {
 		return err
@@ -332,7 +340,7 @@ func (r *Root) Delete(ctx context.Context, unconditional bool) (int64, error) {
 //
 func (r *Root) NewChild(ctx context.Context, name string) (*Region, error) {
 
-	region, err := NewRegion(ctx, r.Store, DefinitionTable, name)
+	region, err := NewRegion(ctx, r.Store, r.Table, name)
 
 	if err != nil {
 		return nil, err
@@ -362,7 +370,7 @@ func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {
 		name := strings.TrimPrefix(k, r.KeyChildIndex)
 
 		if name != store.GetNormalizedName(v.Value) {
-			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(DefinitionTable, name, v.Value)
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(r.Table, name, v.Value)
 		}
 
 		names = append(names, v.Value)
@@ -414,6 +422,7 @@ type Region struct {
 	KeyChildIndex  string
 	KeyIndexEntry  string
 	Key            string
+	Table          string
 	Region         string
 
 	revision       int64
@@ -428,7 +437,7 @@ type Region struct {
 //
 func (r *Region) SetName(ctx context.Context, name string) error {
 
-	key, err := GetKeyForRegion(DefinitionTable, name)
+	key, err := GetKeyForRegion(r.Table, name)
 
 	if nil != err {
 		return err
@@ -608,7 +617,7 @@ func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) 
 //
 func (r *Region) NewChild(ctx context.Context, name string) (*Zone, error) {
 
-	z, err := NewZone(ctx, r.Store, DefinitionTable, r.Region, name)
+	z, err := NewZone(ctx, r.Store, r.Table, r.Region, name)
 
 	if err != nil {
 		return nil, err
@@ -638,7 +647,7 @@ func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 		name := strings.TrimPrefix(k, r.KeyChildIndex)
 
 		if name != store.GetNormalizedName(v.Value) {
-			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(DefinitionTable, name, v.Value)
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(r.Table, name, v.Value)
 		}
 
 		names = append(names, v.Value)
@@ -690,6 +699,7 @@ type Zone struct {
 	KeyChildIndex  string
 	KeyIndexEntry  string
 	Key            string
+	Table          string
 	Region         string
 	Zone           string
 
@@ -704,7 +714,7 @@ type Zone struct {
 //
 func (z *Zone) SetName(ctx context.Context, name string) error {
 
-	key, err := GetKeyForZone(DefinitionTable, z.Region, name)
+	key, err := GetKeyForZone(z.Table, z.Region, name)
 
 	if nil != err {
 		return err
@@ -882,7 +892,7 @@ func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 //
 func (z *Zone) NewChild(ctx context.Context, name string) (*Rack, error) {
 
-	r, err := NewRack(ctx, z.Store, DefinitionTable, z.Region, z.Zone, name)
+	r, err := NewRack(ctx, z.Store, z.Table, z.Region, z.Zone, name)
 
 	if err != nil {
 		return nil, err
@@ -912,7 +922,7 @@ func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 		name := strings.TrimPrefix(k, z.KeyChildIndex)
 
 		if name != store.GetNormalizedName(v.Value) {
-			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(DefinitionTable, name, v.Value)
+			return store.RevisionInvalid, nil, ErrfIndexKeyValueMismatch(z.Table, name, v.Value)
 		}
 
 		names = append(names, v.Value)
@@ -966,6 +976,7 @@ type Rack struct {
 	KeyIndexBlade  string
 	KeyIndexEntry  string
 	Key            string
+	Table          string
 	Region         string
 	Zone           string
 	Rack           string
@@ -983,7 +994,7 @@ type Rack struct {
 //
 func (r *Rack) SetName(ctx context.Context, name string) error {
 
-	key, err := GetKeyForRegion(DefinitionTable, name)
+	key, err := GetKeyForRegion(r.Table, name)
 
 	if nil != err {
 		return err
@@ -1169,7 +1180,7 @@ func (r *Rack) NewChild(ctx context.Context, name string) (*Zone, error) {
 //
 func (r *Rack) NewPdu(ctx context.Context, ID int64) (*Pdu, error) {
 
-	p, err := NewPdu(ctx, r.Store, DefinitionTable, r.Region, r.Zone, r.Rack, ID)
+	p, err := NewPdu(ctx, r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
 
 	if err != nil {
 		return nil, err
@@ -1182,7 +1193,7 @@ func (r *Rack) NewPdu(ctx context.Context, ID int64) (*Pdu, error) {
 //
 func (r *Rack) NewTor(ctx context.Context, ID int64) (*Tor, error) {
 
-	t, err := NewTor(ctx, r.Store, DefinitionTable, r.Region, r.Zone, r.Rack, ID)
+	t, err := NewTor(ctx, r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
 
 	if err != nil {
 		return nil, err
@@ -1195,7 +1206,7 @@ func (r *Rack) NewTor(ctx context.Context, ID int64) (*Tor, error) {
 //
 func (r *Rack) NewBlade(ctx context.Context, ID int64) (*Blade, error) {
 
-	b, err := NewBlade(ctx, r.Store, DefinitionTable, r.Region, r.Zone, r.Rack, ID)
+	b, err := NewBlade(ctx, r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
 
 	if err != nil {
 		return nil, err
@@ -1370,6 +1381,7 @@ type Pdu struct {
 	Store          *store.Store
 	Key            string
 	KeyIndexEntry  string
+	Table          string
 	Region         string
 	Zone           string
 	Rack           string
@@ -1387,7 +1399,7 @@ type Pdu struct {
 //
 func (p *Pdu) SetName(ctx context.Context, ID int64) error {
 
-	key, err := GetKeyForPdu(DefinitionTable, p.Region, p.Zone, p.Rack, ID)
+	key, err := GetKeyForPdu(p.Table, p.Region, p.Zone, p.Rack, ID)
 
 	if nil != err {
 		return err
@@ -1593,6 +1605,7 @@ type Tor struct {
 	Store          *store.Store
 	Key            string
 	KeyIndexEntry  string
+	Table          string
 	Region         string
 	Zone           string
 	Rack           string
@@ -1610,7 +1623,7 @@ type Tor struct {
 //
 func (t *Tor) SetName(ctx context.Context, ID int64) error {
 
-	key, err := GetKeyForPdu(DefinitionTable, t.Region, t.Zone, t.Rack, ID)
+	key, err := GetKeyForPdu(t.Table, t.Region, t.Zone, t.Rack, ID)
 
 	if nil != err {
 		return err
@@ -1817,6 +1830,7 @@ type Blade struct {
 	Store          *store.Store
 	Key            string
 	KeyIndexEntry  string
+	Table          string
 	Region         string
 	Zone           string
 	Rack           string
@@ -1836,7 +1850,7 @@ type Blade struct {
 //
 func (b *Blade) SetName(ctx context.Context, region string, zone string, rack string, blade int64) error {
 
-	key, err := GetKeyForBlade(DefinitionTable, region, zone, rack, blade)
+	key, err := GetKeyForBlade(b.Table, region, zone, rack, blade)
 
 	if nil != err {
 		return err
