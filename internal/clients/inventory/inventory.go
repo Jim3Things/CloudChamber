@@ -28,6 +28,12 @@ const (
 	//
 	DefinitionTable = "definition"
 
+	// DefinitionTableStdTest is a constant to indicate the inventory operation should be
+	// performed against the test inventory definition table for the standard test 
+	// inventory for the item of interest.
+	//
+	DefinitionTableStdTest = "definitionstdtest"
+
 	// ActualTable is a constant to indicate the inventory operation should be
 	// performed against the inventory actual state table for the item of interest.
 	//
@@ -83,6 +89,11 @@ func verifyTable(table string) error {
 	case ActualTable:     return nil
 	case ObservedTable:   return nil
 	case TargetTable:     return nil
+
+	// Special case for a namespace only ever expected to be used
+	// in CloudChamber tests
+	//
+	case DefinitionTableStdTest: return nil
 
 	case "":
 		return ErrTableNameMissing(table)
