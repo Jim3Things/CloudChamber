@@ -3,6 +3,8 @@ package ruler
 import (
 	"fmt"
 	"strings"
+
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 type ValueType int
@@ -123,7 +125,7 @@ func (v *Leaf) AsInt64() (int64, error) {
 		return int64(v.numVal), nil
 
 	default:
-		return 0, ErrInvalidType(v.vtype)
+		return 0, errors.ErrInvalidType(v.vtype)
 	}
 }
 
@@ -136,7 +138,7 @@ func (v *Leaf) AsInt32() (int32, error) {
 		return int32(v.numVal), nil
 
 	default:
-		return 0, ErrInvalidType(v.vtype)
+		return 0, errors.ErrInvalidType(v.vtype)
 	}
 }
 
@@ -148,7 +150,7 @@ func (v *Leaf) AsBool() (bool, error) {
 		return v.numVal != 0, nil
 
 	default:
-		return false, ErrInvalidType(v.vtype)
+		return false, errors.ErrInvalidType(v.vtype)
 	}
 }
 
@@ -172,7 +174,7 @@ func (v *Leaf) AsString() (string, error) {
 		return v.strVal, nil
 
 	default:
-		return "", ErrInvalidType(v.vtype)
+		return "", errors.ErrInvalidType(v.vtype)
 	}
 }
 

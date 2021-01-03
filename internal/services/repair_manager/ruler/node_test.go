@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 type NodeTestSuite struct {
@@ -214,7 +216,7 @@ func (ts *NodeTestSuite) TestAllEvaluate() {
 
 	l, err = n.Evaluate(ec)
 	require.Error(err)
-	assert.Equal(ErrInvalidType(ValueString), err)
+	assert.Equal(errors.ErrInvalidType(ValueString), err)
 }
 
 func (ts *NodeTestSuite) TestAnyEvaluate() {
@@ -252,7 +254,7 @@ func (ts *NodeTestSuite) TestAnyEvaluate() {
 
 	l, err = n.Evaluate(ec)
 	require.Error(err)
-	assert.Equal(ErrInvalidType(ValueString), err)
+	assert.Equal(errors.ErrInvalidType(ValueString), err)
 }
 
 func (ts *NodeTestSuite) TestInvalidEvaluate() {
@@ -270,7 +272,7 @@ func (ts *NodeTestSuite) TestInvalidEvaluate() {
 
 	_, err := n.Evaluate(ec)
 	require.Error(err)
-	assert.Equal(ErrInvalidOp(OpInvalid), err)
+	assert.Equal(errors.ErrInvalidRuleOp(OpInvalid), err)
 }
 
 func TestNodeTestSuite(t *testing.T) {

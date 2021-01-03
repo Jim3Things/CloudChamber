@@ -19,10 +19,10 @@ type MockTable struct {
 
 func (m *MockTable) GetValue(key *Key) (interface{}, error) {
 	if len(key.Nodes) != 1 {
-		return nil, ErrInvalidArgLen{
-			op:       fmt.Sprintf("GetValue from table %s", key.Table),
-			required: "exactly 1 node in the path",
-			actual:   len(key.Nodes),
+		return nil, errors.ErrInvalidArgLen{
+			Op:       fmt.Sprintf("GetValue from table %s", key.Table),
+			Required: "exactly 1 node in the path",
+			Actual:   len(key.Nodes),
 		}
 	}
 

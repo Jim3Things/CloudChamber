@@ -39,27 +39,27 @@ type mockTable struct {
 
 func (t *mockTable) GetValue(key *r.Key) (interface{}, error) {
 	if len(key.Nodes) != 4 {
-		return nil, r.ErrMissingPath("path is too short")
+		return nil, errors.ErrMissingPath("path is too short")
 	}
 	if key.Nodes[0] != "racks" {
-		return nil, r.ErrMissingPath(key.Nodes[0])
+		return nil, errors.ErrMissingPath(key.Nodes[0])
 	}
 
 	rack, ok := t.racks[key.Nodes[1]]
 	if !ok {
-		return nil, r.ErrMissingPath(key.Nodes[1])
+		return nil, errors.ErrMissingPath(key.Nodes[1])
 	}
 
 	switch key.Nodes[2] {
 	case "blades":
 		blade, ok := rack.blades[key.Nodes[3]]
 		if !ok {
-			return nil, r.ErrMissingPath(key.Nodes[3])
+			return nil, errors.ErrMissingPath(key.Nodes[3])
 		}
 
 		f, ok := blade.fields[key.Field]
 		if !ok {
-			return nil, r.ErrMissingFieldName(key.Field)
+			return nil, errors.ErrMissingFieldName(key.Field)
 		}
 
 		return f, nil
@@ -67,12 +67,12 @@ func (t *mockTable) GetValue(key *r.Key) (interface{}, error) {
 	case "pdu":
 		cable, ok := rack.pdu.cables[key.Nodes[3]]
 		if !ok {
-			return nil, r.ErrMissingPath(key.Nodes[3])
+			return nil, errors.ErrMissingPath(key.Nodes[3])
 		}
 
 		f, ok := cable[key.Field]
 		if !ok {
-			return nil, r.ErrMissingFieldName(key.Field)
+			return nil, errors.ErrMissingFieldName(key.Field)
 		}
 
 		return f, nil
@@ -80,18 +80,18 @@ func (t *mockTable) GetValue(key *r.Key) (interface{}, error) {
 	case "tor":
 		cable, ok := rack.tor.cables[key.Nodes[3]]
 		if !ok {
-			return nil, r.ErrMissingPath(key.Nodes[3])
+			return nil, errors.ErrMissingPath(key.Nodes[3])
 		}
 
 		f, ok := cable[key.Field]
 		if !ok {
-			return nil, r.ErrMissingFieldName(key.Field)
+			return nil, errors.ErrMissingFieldName(key.Field)
 		}
 
 		return f, nil
 
 	default:
-		return nil, r.ErrMissingPath(key.Nodes[2])
+		return nil, errors.ErrMissingPath(key.Nodes[2])
 	}
 
 }

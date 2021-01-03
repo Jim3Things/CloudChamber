@@ -7,6 +7,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	r "github.com/Jim3Things/CloudChamber/internal/services/repair_manager/ruler"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 func PowerChangeBlade(ctx context.Context, args map[string]r.Term, ec *r.EvalContext) (*r.Proposal, error) {
@@ -77,7 +78,7 @@ func HumanIntervention(ctx context.Context, args map[string]r.Term, ec *r.EvalCo
 func argToString(name string, args map[string]r.Term, ec *r.EvalContext) (string, error) {
 	t, ok := args[name]
 	if !ok {
-		return "", r.ErrMissingFieldName(name)
+		return "", errors.ErrMissingFieldName(name)
 	}
 
 	leaf, err := t.Evaluate(ec)
@@ -91,7 +92,7 @@ func argToString(name string, args map[string]r.Term, ec *r.EvalContext) (string
 func argToBool(name string, args map[string]r.Term, ec *r.EvalContext) (bool, error) {
 	t, ok := args[name]
 	if !ok {
-		return false, r.ErrMissingFieldName(name)
+		return false, errors.ErrMissingFieldName(name)
 	}
 
 	leaf, err := t.Evaluate(ec)
