@@ -485,16 +485,20 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 		return store.RevisionInvalid, err
 	}
 
-	_, err = r.Store.Create(ctx, store.KeyRootInventory, r.KeyIndexEntry, r.Region)
-
-	if err == store.ErrStoreAlreadyExists(r.KeyIndexEntry) {
-		return store.RevisionInvalid, ErrfRegionAlreadyExists(r.Region)
+	// Create the child and its index as an atomic pair.
+	//
+	keySet := &map[string]string{
+		r.KeyIndexEntry : r.Region,
+		r.Key           : v,
 	}
 
-	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
+	rev, err := r.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err == store.ErrStoreAlreadyExists(r.Key) {
-		return store.RevisionInvalid, ErrfRegionAlreadyExists(r.Region)
+	switch (err) {
+	case nil:
+	case store.ErrStoreAlreadyExists(r.KeyIndexEntry): return store.RevisionInvalid, ErrfRegionAlreadyExists(r.Region)
+	case store.ErrStoreAlreadyExists(r.Key):           return store.RevisionInvalid, ErrfRegionAlreadyExists(r.Region)
+	default:                                           return store.RevisionInvalid, err
 	}
 
 	r.record         = record
@@ -755,16 +759,20 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 		return store.RevisionInvalid, err
 	}
 
-	_, err = z.Store.Create(ctx, store.KeyRootInventory, z.KeyIndexEntry, z.Zone)
-
-	if err == store.ErrStoreAlreadyExists(z.KeyIndexEntry) {
-		return store.RevisionInvalid, ErrfZoneAlreadyExists(z.Region, z.Zone)
+	// Create the child and its index as an atomic pair.
+	//
+	keySet := &map[string]string{
+		z.KeyIndexEntry : z.Zone,
+		z.Key           : v,
 	}
 
-	rev, err := z.Store.Create(ctx, store.KeyRootInventory, z.Key, v)
+	rev, err := z.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err == store.ErrStoreAlreadyExists(z.Key) {
-		return store.RevisionInvalid, ErrfZoneAlreadyExists(z.Region, z.Zone)
+	switch (err) {
+	case nil:
+	case store.ErrStoreAlreadyExists(z.KeyIndexEntry): return store.RevisionInvalid, ErrfZoneAlreadyExists(z.Region, z.Zone)
+	case store.ErrStoreAlreadyExists(z.Key):           return store.RevisionInvalid, ErrfZoneAlreadyExists(z.Region, z.Zone)
+	default:                                           return store.RevisionInvalid, err
 	}
 
 	z.record         = record
@@ -1032,16 +1040,20 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 		return store.RevisionInvalid, err
 	}
 
-	_, err = r.Store.Create(ctx, store.KeyRootInventory, r.KeyIndexEntry, r.Rack)
-
-	if err == store.ErrStoreAlreadyExists(r.KeyIndexEntry) {
-		return store.RevisionInvalid, ErrfRackAlreadyExists(r.Region, r.Zone, r.Rack)
+	// Create the child and its index as an atomic pair.
+	//
+	keySet := &map[string]string{
+		r.KeyIndexEntry : r.Rack,
+		r.Key           : v,
 	}
 
-	rev, err := r.Store.Create(ctx, store.KeyRootInventory, r.Key, v)
+	rev, err := r.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err == store.ErrStoreAlreadyExists(r.Key) {
-		return store.RevisionInvalid, ErrfRackAlreadyExists(r.Region, r.Zone, r.Rack)
+	switch (err) {
+	case nil:
+	case store.ErrStoreAlreadyExists(r.KeyIndexEntry): return store.RevisionInvalid, ErrfRackAlreadyExists(r.Region, r.Zone, r.Rack)
+	case store.ErrStoreAlreadyExists(r.Key):           return store.RevisionInvalid, ErrfRackAlreadyExists(r.Region, r.Zone, r.Rack)
+	default:                                           return store.RevisionInvalid, err
 	}
 
 	r.record         = record
@@ -1446,16 +1458,20 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 		return store.RevisionInvalid, err
 	}
 
-	_, err = p.Store.Create(ctx, store.KeyRootInventory, p.KeyIndexEntry, fmt.Sprintf("%d", p.ID))
-
-	if err == store.ErrStoreAlreadyExists(p.KeyIndexEntry) {
-		return store.RevisionInvalid, ErrfPduAlreadyExists(p.Region, p.Zone, p.Rack, p.ID)
+	// Create the child and its index as an atomic pair.
+	//
+	keySet := &map[string]string{
+		p.KeyIndexEntry : fmt.Sprintf("%d", p.ID),
+		p.Key           : v,
 	}
 
-	rev, err := p.Store.Create(ctx, store.KeyRootInventory, p.Key, v)
+	rev, err := p.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err == store.ErrStoreAlreadyExists(p.Key) {
-		return store.RevisionInvalid, ErrfPduAlreadyExists(p.Region, p.Zone, p.Rack, p.ID)
+	switch (err) {
+	case nil:
+	case store.ErrStoreAlreadyExists(p.KeyIndexEntry): return store.RevisionInvalid, ErrfPduAlreadyExists(p.Region, p.Zone, p.Rack, p.ID)
+	case store.ErrStoreAlreadyExists(p.Key):           return store.RevisionInvalid, ErrfPduAlreadyExists(p.Region, p.Zone, p.Rack, p.ID)
+	default:                                           return store.RevisionInvalid, err
 	}
 
 	p.record         = record
@@ -1666,16 +1682,20 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 		return store.RevisionInvalid, err
 	}
 
-	_, err = t.Store.Create(ctx, store.KeyRootInventory, t.KeyIndexEntry, fmt.Sprintf("%d", t.ID))
-
-	if err == store.ErrStoreAlreadyExists(t.KeyIndexEntry) {
-		return store.RevisionInvalid, ErrfTorAlreadyExists(t.Region, t.Zone, t.Rack, t.ID)
+	// Create the child and its index as an atomic pair.
+	//
+	keySet := &map[string]string{
+		t.KeyIndexEntry : fmt.Sprintf("%d", t.ID),
+		t.Key           : v,
 	}
 
-	rev, err := t.Store.Create(ctx, store.KeyRootInventory, t.Key, v)
+	rev, err := t.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err == store.ErrStoreAlreadyExists(t.Key) {
-		return store.RevisionInvalid, ErrfTorAlreadyExists(t.Region, t.Zone, t.Rack, t.ID)
+	switch (err) {
+	case nil:
+	case store.ErrStoreAlreadyExists(t.KeyIndexEntry): return store.RevisionInvalid, ErrfTorAlreadyExists(t.Region, t.Zone, t.Rack, t.ID)
+	case store.ErrStoreAlreadyExists(t.Key):           return store.RevisionInvalid, ErrfTorAlreadyExists(t.Region, t.Zone, t.Rack, t.ID)
+	default:                                           return store.RevisionInvalid, err
 	}
 
 	t.record         = record
@@ -1914,16 +1934,20 @@ func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 		return store.RevisionInvalid, err
 	}
 
-	_, err = b.Store.Create(ctx, store.KeyRootInventory, b.KeyIndexEntry, fmt.Sprintf("%d", b.ID))
-
-	if err == store.ErrStoreAlreadyExists(b.KeyIndexEntry) {
-		return store.RevisionInvalid, ErrfBladeAlreadyExists(b.Region, b.Zone, b.Rack, b.ID)
+	// Create the child and its index as an atomic pair.
+	//
+	keySet := &map[string]string{
+		b.KeyIndexEntry : fmt.Sprintf("%d", b.ID),
+		b.Key           : v,
 	}
 
-	rev, err := b.Store.Create(ctx, store.KeyRootInventory, b.Key, v)
+	rev, err := b.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err == store.ErrStoreAlreadyExists(b.Key) {
-		return store.RevisionInvalid, ErrfPduAlreadyExists(b.Region, b.Zone, b.Rack, b.ID)
+	switch (err) {
+	case nil:
+	case store.ErrStoreAlreadyExists(b.KeyIndexEntry): return store.RevisionInvalid, ErrfBladeAlreadyExists(b.Region, b.Zone, b.Rack, b.ID)
+	case store.ErrStoreAlreadyExists(b.Key):           return store.RevisionInvalid, ErrfBladeAlreadyExists(b.Region, b.Zone, b.Rack, b.ID)
+	default:                                           return store.RevisionInvalid, err
 	}
 
 	b.record         = record
