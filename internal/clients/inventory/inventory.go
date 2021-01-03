@@ -578,11 +578,10 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things". You can send operations and commands to things, but not containers.
 type inventoryItem interface {
 	SetDetails(ctx context.Context, details *interface{})
-	GetDetails(ctx context.Context) (int64, *interface{})
-	GetRevision(ctx context.Context) (int64)
-	GetRevisionRecord(ctx context.Context) (int64)
-	GetRevisionStore(ctx context.Context) (int64)
-	
+	GetDetails(ctx context.Context) *interface{}
+	GetRevision(ctx context.Context) int64
+	GetRevisionRecord(ctx context.Context) int64
+	GetRevisionStore(ctx context.Context) int64
 
 	Create(ctx context.Context) (int64, error)
 	Read(ctx context.Context) (int64, error)
@@ -593,12 +592,10 @@ type inventoryItem interface {
 type inventoryItemNode interface {
 	inventoryItem
 
-	SetName(ctx context.Context, name string) error
-
 	NewChild(ctx context.Context, name string) (*interface{}, error)
 
-	ListChildren(ctx context.Context) (*[]string, error)
-	FetchChildren(ctx context.Context) (*map[string]interface{}, error)
+	ListChildren(ctx context.Context) (int64, *[]string, error)
+	FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error)
 }
 
 type inventoryItemRack interface {
@@ -608,40 +605,40 @@ type inventoryItemRack interface {
 	NewTor(ctx context.Context,   name string) (*interface{}, error)
 	NewBlade(ctx context.Context, name string) (*interface{}, error)
 
-	ListPdus(ctx context.Context)   (*map[int64]*interface{}, error)
-	ListTors(ctx context.Context)   (*map[int64]*interface{}, error)
-	ListBlades(ctx context.Context) (*map[int64]*interface{}, error)
+	ListPdus(ctx context.Context)   (int64, *map[int64]*interface{}, error)
+	ListTors(ctx context.Context)   (int64, *map[int64]*interface{}, error)
+	ListBlades(ctx context.Context) (int64, *map[int64]*interface{}, error)
+
+	FetchPdus(ctx context.Context)   (int64, *map[int64]*interface{}, error)
+	FetchTors(ctx context.Context)   (int64, *map[int64]*interface{}, error)
+	FetchBlades(ctx context.Context) (int64, *map[int64]*interface{}, error)
 }
 
 type inventoryItemPdu interface {
 	inventoryItem
 
-	SetName(ctx context.Context, ID int64) error
-
 	SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort)
-	GetPorts(ctx context.Context) (int64, *map[int64]*pb.PowerPort)
+	GetPorts(ctx context.Context) *map[int64]*pb.PowerPort
 }
 
 type inventoryTor interface {
 	inventoryItem
 
-	SetName(ctx context.Context, ID int64) error
-
 	SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort)
-	GetPorts(ctx context.Context) (int64, *map[int64]*pb.NetworkPort)
+	GetPorts(ctx context.Context) *map[int64]*pb.NetworkPort
 }
 
 type inventoryBlade interface {
 	inventoryItem
 
-	SetName(ctx context.Context, ID int64) error
-
 	SetCapacity(ctx context.Context, capacity *pb.BladeCapacity)
-	GetCapacity(ctx context.Context) (int64, *pb.BladeCapacity)
+	GetCapacity(ctx context.Context) *pb.BladeCapacity
 
 	SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo)
-	GetBootInfo(ctx context.Context) (int64, bool, *pb.BladeBootInfo)
+	GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo)
 }
+
+
 
 
 var (
@@ -657,26 +654,31 @@ var (
 
 type nullItem struct {}
 
-// SetName is a
-//
-func (n *nullItem) SetName(name interface{}) error {
-	return ErrNullItem
+func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) {
 }
 
-func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) error {
-	return ErrNullItem
+func (n *nullItem) GetDetails(ctx context.Context) *nullItem {
+	return nil
 }
 
-func (n *nullItem) GetDetails(ctx context.Context) (*nullItem, error) {
-	return nil, ErrNullItem
+func (n *nullItem) GetRevision(ctx context.Context) int64 {
+	return store.RevisionInvalid
+}
+
+func (n *nullItem) GetRevisionRecord(ctx context.Context) int64 {
+	return store.RevisionInvalid
+}
+
+func (n *nullItem) GetRevisionStore(ctx context.Context) int64 {
+	return store.RevisionInvalid
 }
 
 func (n *nullItem) Create(ctx context.Context) (int64, error) {
 	return store.RevisionInvalid, ErrNullItem
 }
 
-func (n *nullItem) Read(ctx context.Context) (int64, *nullItem, error){
-	return store.RevisionInvalid, nil, ErrNullItem
+func (n *nullItem) Read(ctx context.Context) (int64, error){
+	return store.RevisionInvalid, ErrNullItem
 }
 
 func (n *nullItem) Update(ctx context.Context) (int64, error) {
@@ -688,9 +690,23 @@ func (n *nullItem) Delete(ctx context.Context) (int64, error) {
 }
 
 
+
+// Additional functions for the node specialization of the basic inventory item
+//
+func (n *nullItem) NewChild(ctx context.Context, name string) (*interface{}, error){
+	return nil, ErrNullItem
+}
+
+func (n *nullItem) ListChildren(ctx context.Context) (int64, *[]string, error){
+	return store.RevisionInvalid, nil, ErrNullItem
+}
+func (n *nullItem) FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error){
+	return store.RevisionInvalid, nil, ErrNullItem
+}
+
+
 // Additional functions for the rack specialization of the basic inventory item
 //
-
 func (n *nullItem) NewPdu(ctx context.Context,   name string) (*interface{}, error) {
 	return nil, ErrNullItem
 }
@@ -703,38 +719,44 @@ func (n *nullItem) NewBlade(ctx context.Context, name string) (*interface{}, err
 	return nil, ErrNullItem
 }
 
-func (n *nullItem) ListPdus(ctx context.Context)   (*map[int64]*interface{}, error) {
-	return nil, ErrNullItem
+func (n *nullItem) ListPdus(ctx context.Context)   (int64, *map[int64]*interface{}, error) {
+	return store.RevisionInvalid, nil, ErrNullItem
 }
 
-func (n *nullItem) ListTors(ctx context.Context)   (*map[int64]*interface{}, error) {
-	return nil, ErrNullItem
+func (n *nullItem) ListTors(ctx context.Context)   (int64, *map[int64]*interface{}, error) {
+	return store.RevisionInvalid, nil, ErrNullItem
 }
 
-func (n *nullItem) ListBlades(ctx context.Context) (*map[int64]*interface{}, error) {
-	return nil, ErrNullItem
+func (n *nullItem) ListBlades(ctx context.Context) (int64, *map[int64]*interface{}, error) {
+	return store.RevisionInvalid, nil, ErrNullItem
 }
 
-func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{}) error {
-	return ErrNullItem
+
+// Additional functions for the pdu and tor specialization of the basic inventory item
+//
+func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{})  {
+	return
 }
 
-func (n *nullItem) GetPorts(ctx context.Context) (*map[int64]*interface{}, error) {
-	return nil, ErrNullItem
+func (n *nullItem) GetPorts(ctx context.Context) *map[int64]*interface{} {
+	return nil
 }
 
-func (n *nullItem) SetCapacity(ctx context.Context, capacity *interface{}) error {
-	return ErrNullItem
+
+// Additional functions for the blade specialization of the basic inventory item
+//
+func (n *nullItem) SetCapacity(ctx context.Context, capacity *interface{}) {
+	return
 }
 
-func (n *nullItem) GetCapacity(ctx context.Context) (*interface{}, error) {
-	return nil, ErrNullItem
+func (n *nullItem) GetCapacity(ctx context.Context) *interface{} {
+	return nil
 }
 
-func (n *nullItem) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *interface{}) error {
-	return ErrNullItem
+func (n *nullItem) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *interface{}) {
+	return
 }
 
-func (n *nullItem) GetBootInfo(ctx context.Context) (bool, *interface{}, error) {
-	return false, nil, ErrNullItem
+func (n *nullItem) GetBootInfo(ctx context.Context) (bool, *interface{}) {
+	return false, nil
 }
