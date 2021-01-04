@@ -746,3 +746,58 @@ func (e ErrInvalidOpenAttrsType) Error() string {
 		e.Expected,
 		e.Actual)
 }
+
+// ErrInvalidArgLen indicates that the number of child nodes for a rule
+// operation is incorrect.
+type ErrInvalidArgLen struct {
+	Op       string
+	Required string
+	Actual   int
+}
+
+func (e ErrInvalidArgLen) Error() string {
+	return fmt.Sprintf("operation %s expects %s but received %d", e.Op, e.Required, e.Actual)
+}
+
+type ErrMissingFieldName string
+
+func (e ErrMissingFieldName) Error() string {
+	return fmt.Sprintf(
+		"key must have a table name, one or more path elements, and one field name.  "+
+			"no field name was found in %q.", string(e))
+}
+
+type ErrExtraFieldNames string
+
+func (e ErrExtraFieldNames) Error() string {
+	return fmt.Sprintf(
+		"key must have a table name, one or more path elements, and one field name.  "+
+			"multiple possible field were names found in %q.",
+		string(e))
+}
+
+type ErrMissingPath string
+
+func (e ErrMissingPath) Error() string {
+	return fmt.Sprintf(
+		"key must have a table name, one or more path elements, and one field name.  "+
+			"No path elements were found in %q.",
+		string(e))
+}
+
+// ErrInvalidType indicates that a rule's leaf value type is invalid for the
+// requested extraction operation.  For instance, a string is not a valid type
+// when extraction as a boolean value is requested.
+type ErrInvalidType int
+
+func (e ErrInvalidType) Error() string {
+	return fmt.Sprintf("unexpected value type %d encountered", e)
+}
+
+// ErrInvalidRuleOp indicates that an intermediate node for a rule contains an
+// execution operation that is unexpected, and cannot be processed.
+type ErrInvalidRuleOp int
+
+func (e ErrInvalidRuleOp) Error() string {
+	return fmt.Sprintf("unexpected operation %d encountered", e)
+}

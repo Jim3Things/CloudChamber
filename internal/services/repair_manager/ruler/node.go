@@ -2,6 +2,8 @@ package ruler
 
 import (
 	"fmt"
+
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 type OpType int
@@ -69,7 +71,7 @@ var opToEntry = map[OpType]*opEntry{
 func (n *Node) Evaluate(ec *EvalContext) (*Leaf, error) {
 	item, ok := opToEntry[n.Op]
 	if !ok {
-		return nil, ErrInvalidOp(n.Op)
+		return nil, errors.ErrInvalidRuleOp(n.Op)
 	}
 
 	return item.eval(n.Args, ec)
@@ -143,10 +145,10 @@ func NewNodeAny(terms ...Term) *Node {
 
 func doOpFetch(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) != 1 {
-		return nil, ErrInvalidArgLen{
-			op:       "Fetch",
-			required: "exactly 1 argument",
-			actual:   len(args),
+		return nil, errors.ErrInvalidArgLen{
+			Op:       "Fetch",
+			Required: "exactly 1 argument",
+			Actual:   len(args),
 		}
 	}
 
@@ -178,7 +180,7 @@ func doOpFetch(args []Term, ec *EvalContext) (*Leaf, error) {
 
 	l := NewLeaf(v)
 	if l == nil {
-		return nil, ErrInvalidType(ValueInvalid)
+		return nil, errors.ErrInvalidType(ValueInvalid)
 	}
 
 	return l, nil
@@ -186,10 +188,10 @@ func doOpFetch(args []Term, ec *EvalContext) (*Leaf, error) {
 
 func doOpMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) != 2 {
-		return nil, ErrInvalidArgLen{
-			op:       "Match",
-			required: "exactly 2 arguments",
-			actual:   len(args),
+		return nil, errors.ErrInvalidArgLen{
+			Op:       "Match",
+			Required: "exactly 2 arguments",
+			Actual:   len(args),
 		}
 	}
 
@@ -211,10 +213,10 @@ func doOpMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 
 func doOpNotMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) != 2 {
-		return nil, ErrInvalidArgLen{
-			op:       "NotMatch",
-			required: "exactly 2 arguments",
-			actual:   len(args),
+		return nil, errors.ErrInvalidArgLen{
+			Op:       "NotMatch",
+			Required: "exactly 2 arguments",
+			Actual:   len(args),
 		}
 	}
 
@@ -236,10 +238,10 @@ func doOpNotMatch(args []Term, ec *EvalContext) (*Leaf, error) {
 
 func doOpAll(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) <= 0 {
-		return nil, ErrInvalidArgLen{
-			op:       "All",
-			required: "at least 1 argument",
-			actual:   len(args),
+		return nil, errors.ErrInvalidArgLen{
+			Op:       "All",
+			Required: "at least 1 argument",
+			Actual:   len(args),
 		}
 	}
 
@@ -264,10 +266,10 @@ func doOpAll(args []Term, ec *EvalContext) (*Leaf, error) {
 
 func doOpAny(args []Term, ec *EvalContext) (*Leaf, error) {
 	if len(args) <= 0 {
-		return nil, ErrInvalidArgLen{
-			op:       "Any",
-			required: "at least 1 argument",
-			actual:   len(args),
+		return nil, errors.ErrInvalidArgLen{
+			Op:       "Any",
+			Required: "at least 1 argument",
+			Actual:   len(args),
 		}
 	}
 

@@ -2,6 +2,8 @@ package ruler
 
 import (
 	"strings"
+
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Key defines the path to a designated field.
@@ -19,17 +21,17 @@ type Key struct {
 func MakeKey(path string) (*Key, error) {
 	pathAndField := strings.Split(path, ".")
 	if len(pathAndField) == 1 {
-		return nil, ErrMissingFieldName(path)
+		return nil, errors.ErrMissingFieldName(path)
 	}
 
 	if len(pathAndField) > 2 {
-		return nil, ErrExtraFieldNames(path)
+		return nil, errors.ErrExtraFieldNames(path)
 	}
 
 	tableAndPath := strings.Split(pathAndField[0], "/")
 
 	if len(tableAndPath) == 1 {
-		return nil, ErrMissingPath(path)
+		return nil, errors.ErrMissingPath(path)
 	}
 
 	return &Key{
@@ -51,4 +53,3 @@ type Table interface {
 	// in the key
 	GetValue(key *Key) (interface{}, error)
 }
-

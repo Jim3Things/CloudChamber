@@ -9,56 +9,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 )
 
-// Error definitions.  Placeholder for now.
-
-type ErrInvalidType ValueType
-
-func (e ErrInvalidType) Error() string {
-	return fmt.Sprintf("unexpected value type %d encountered", int(e))
-}
-
-type ErrInvalidOp OpType
-
-func (e ErrInvalidOp) Error() string {
-	return fmt.Sprintf("unexpected operation %d encountered", int(e))
-}
-
-type ErrInvalidArgLen struct {
-	op       string
-	required string
-	actual   int
-}
-
-func (e ErrInvalidArgLen) Error() string {
-	return fmt.Sprintf("operation %s expects %s but received %d", e.op, e.required, e.actual)
-}
-
-type ErrMissingFieldName string
-
-func (e ErrMissingFieldName) Error() string {
-	return fmt.Sprintf(
-		"key must have a table name, one or more path elements, and one field name.  "+
-			"no field name was found in %q.", string(e))
-}
-
-type ErrExtraFieldNames string
-
-func (e ErrExtraFieldNames) Error() string {
-	return fmt.Sprintf(
-		"key must have a table name, one or more path elements, and one field name.  "+
-			"multiple possible field were names found in %q.",
-		string(e))
-}
-
-type ErrMissingPath string
-
-func (e ErrMissingPath) Error() string {
-	return fmt.Sprintf(
-		"key must have a table name, one or more path elements, and one field name.  "+
-			"No path elements were found in %q.",
-		string(e))
-}
-
 // Define the rules definition layout
 
 // Proposal is the placeholder structure for the result from calling the
