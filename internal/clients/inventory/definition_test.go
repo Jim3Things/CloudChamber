@@ -32,6 +32,9 @@ type testSuiteCore struct {
 	pdusPerRack    int
 	torsPerRack    int
 	bladesPerRack  int
+
+	portsPerPdu    int
+	portsPerTor    int
 }
 
 func (ts *testSuiteCore) rootName(suffix string)   string { return "StandardRoot-" + suffix }
@@ -167,6 +170,136 @@ func (ts *testSuiteCore)createStandardInventory(ctx context.Context) error {
 	return err
 }
 
+func (ts *testSuiteCore)createStandardInventoryRegionDetails(name string) *pb.RegionDetails {
+	return &pb.RegionDetails{
+		Name: name,
+		State: pb.State_in_service,
+		Location: fmt.Sprintf("DC-PNW-%s", name),
+		Notes: "Standard Region",
+	}
+}
+
+func (ts *testSuiteCore)verifyStandardInventoryRegionDetails(name string, details *pb.RegionDetails) {
+	assert := ts.Assert()
+
+	check := ts.createStandardInventoryRegionDetails(name)
+
+	assert.Equal(check.Name,     details.Name)
+	assert.Equal(check.State,    details.State)
+	assert.Equal(check.Location, details.Location)
+	assert.Equal(check.Notes,    details.Notes)
+}
+
+func (ts *testSuiteCore)createStandardInventoryZoneDetails(name string) *pb.ZoneDetails {
+	return &pb.ZoneDetails{
+		Enabled: true,
+		State: pb.State_in_service,
+		Location: fmt.Sprintf("DC-PNW-%s", name),
+		Notes: "Standard Zone",
+	}
+}
+
+func (ts *testSuiteCore)verifyStandardInventoryZoneDetails(name string, details *pb.ZoneDetails) {
+	assert := ts.Assert()
+
+	check := ts.createStandardInventoryZoneDetails(name)
+
+	assert.Equal(check.Enabled,  details.Enabled)
+	assert.Equal(check.State,    details.State)
+	assert.Equal(check.Location, details.Location)
+	assert.Equal(check.Notes,    details.Notes)
+}
+
+func (ts *testSuiteCore)createStandardInventoryRackDetails(name string) *pb.RackDetails {
+	return &pb.RackDetails{
+		Enabled: true,
+		Condition: pb.Condition_operational,
+		Location: fmt.Sprintf("DC-PNW-%s", name),
+		Notes: "Standard Rack",
+	}
+}
+
+func (ts *testSuiteCore)verifyStandardInventoryRackDetails(name string, details *pb.RackDetails) {
+	assert := ts.Assert()
+
+	check := ts.createStandardInventoryRackDetails(name)
+
+	assert.Equal(check.Enabled,   details.Enabled)
+	assert.Equal(check.Condition, details.Condition)
+	assert.Equal(check.Location,  details.Location)
+	assert.Equal(check.Notes,     details.Notes)
+}
+
+func (ts *testSuiteCore) verifyStandardInventoryPdu(index int64, pdu Pdu) {
+	assert := ts.Assert()
+
+	details := ts.stdPduDetails(index)
+
+	assert.Equal(details.Enabled,   pdu.details.Enabled)
+	assert.Equal(details.Condition, pdu.details.Condition)
+
+	ports := ts.stdPowerPorts(ts.portsPerPdu)
+
+	assert.Equal(len(*ports), len(*pdu.ports))
+
+	for k, v := range *ports {
+		p := (*pdu.ports)[k]
+
+		assert.Equal(v.Wired,     p.Wired)
+		assert.Equal(v.Item.Type, p.Item.Type)
+		assert.Equal(v.Item.Id,   p.Item.Id)
+		assert.Equal(v.Item.Port, p.Item.Port)
+	}
+}
+
+func (ts *testSuiteCore) verifyStandardInventoryTor(index int64, tor *Tor) {
+	assert := ts.Assert()
+
+	details := ts.stdTorDetails()
+
+	assert.Equal(details.Enabled,   tor.details.Enabled)
+	assert.Equal(details.Condition, tor.details.Condition)
+
+	ports := ts.stdNetworkPorts(ts.portsPerTor)
+
+	assert.Equal(len(*ports), len(*tor.ports))
+
+	for k, v := range *ports {
+		p := (*tor.ports)[k]
+
+		assert.Equal(v.Wired,     p.Wired)
+		assert.Equal(v.Item.Type, p.Item.Type)
+		assert.Equal(v.Item.Id,   p.Item.Id)
+		assert.Equal(v.Item.Port, p.Item.Port)
+	}
+}
+
+func (ts *testSuiteCore) verifyStandardInventoryBlade(index int64, blade *Blade) {
+	assert := ts.Assert()
+
+	details := ts.stdTorDetails()
+
+	assert.Equal(details.Enabled, blade.details.Enabled)
+	assert.Equal(details.Condition, blade.details.Condition)
+
+	capacity := ts.stdBladeCapacity()
+
+	assert.Equal(capacity.Cores,                  blade.capacity.Cores)
+	assert.Equal(capacity.MemoryInMb,             blade.capacity.MemoryInMb)
+	assert.Equal(capacity.DiskInGb,               blade.capacity.DiskInGb)
+	assert.Equal(capacity.NetworkBandwidthInMbps, blade.capacity.NetworkBandwidthInMbps)
+	assert.Equal(capacity.Arch,                   blade.capacity.Arch)
+	assert.Equal(capacity.Accelerators,           blade.capacity.Accelerators)
+
+	bootInfo := ts.stdBladeBootInfo()
+	assert.Equal(bootInfo.Source,     blade.bootInfo.Source)
+	assert.Equal(bootInfo.Image,      blade.bootInfo.Image)
+	assert.Equal(bootInfo.Version,    blade.bootInfo.Version)
+	assert.Equal(bootInfo.Parameters, blade.bootInfo.Parameters)
+
+	assert.True(blade.bootOnPowerOn)
+}
+
 func (ts *testSuiteCore)createInventory(
 	ctx context.Context,
 	table string,
@@ -187,12 +320,7 @@ func (ts *testSuiteCore)createInventory(
 
 		region, err := root.NewChild(ctx, regionName)
 
-		region.SetDetails(ctx, &pb.RegionDetails{
-			Name: regionName,
-			State: pb.State_in_service,
-			Location: fmt.Sprintf("DC-PNW-%s", regionName),
-			Notes: "Standard Region",
-		})
+		region.SetDetails(ctx, ts.createStandardInventoryRegionDetails(regionName))
 
 		_, err = region.Create(ctx)
 		if err != nil {
@@ -203,13 +331,7 @@ func (ts *testSuiteCore)createInventory(
 			zoneName := fmt.Sprintf("Zone-%d-%d", i, j)
 
 			zone, err := region.NewChild(ctx, zoneName)
-	
-			zone.SetDetails(ctx, &pb.ZoneDetails{
-				Enabled: true,
-				State: pb.State_in_service,
-				Location: fmt.Sprintf("DC-PNW-%s", zoneName),
-				Notes: "Standard Zone",
-			})
+			zone.SetDetails(ctx, ts.createStandardInventoryZoneDetails(zoneName))
 	
 			_, err = zone.Create(ctx)
 			if err != nil {
@@ -221,12 +343,7 @@ func (ts *testSuiteCore)createInventory(
 
 				rack, err := zone.NewChild(ctx, rackName)
 		
-				rack.SetDetails(ctx, &pb.RackDetails{
-					Enabled: true,
-					Condition: pb.Condition_operational,
-					Location: fmt.Sprintf("DC-PNW-%s", rackName),
-					Notes: "Standard Rack",
-				})
+				rack.SetDetails(ctx, ts.createStandardInventoryRackDetails(rackName))
 		
 				_, err = rack.Create(ctx)
 				if err != nil {
@@ -240,7 +357,7 @@ func (ts *testSuiteCore)createInventory(
 					}
 
 					pdu.SetDetails(ctx, ts.stdPduDetails(1))
-					pdu.SetPorts(ctx, ts.stdPowerPorts(torsPerRack + bladesPerRack))
+					pdu.SetPorts(ctx, ts.stdPowerPorts(ts.portsPerPdu))
 	
 					_, err = pdu.Create(ctx)
 					if err != nil {
@@ -255,7 +372,7 @@ func (ts *testSuiteCore)createInventory(
 					}
 
 					tor.SetDetails(ctx, ts.stdTorDetails())
-					tor.SetPorts(ctx, ts.stdNetworkPorts(pdusPerRack + torsPerRack + bladesPerRack))
+					tor.SetPorts(ctx, ts.stdNetworkPorts(ts.portsPerTor))
 	
 					_, err = tor.Create(ctx)
 					if err != nil {
@@ -307,12 +424,16 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.cfg   = cfg
 	ts.store = store.NewStore()
 
-	ts.regionCount    = 4
+	ts.regionCount    = 2
 	ts.zonesPerRegion = 3
-	ts.racksPerZone   = 8
+	ts.racksPerZone   = 4
 	ts.pdusPerRack    = 1
 	ts.torsPerRack    = 1
-	ts.bladesPerRack  = 8
+	ts.bladesPerRack  = 5
+
+	ts.portsPerPdu    = ts.torsPerRack + ts.bladesPerRack
+	ts.portsPerTor    = ts.pdusPerRack + ts.torsPerRack + ts.bladesPerRack
+
 
 	_ = ts.utf.Open(ts.T())
 
@@ -2503,7 +2624,6 @@ func (ts *testSuiteCore) TestRegionListChildren() {
 		require.NoError(err)
 		assert.Equal(ts.zonesPerRegion, len(zones))
 	}
-
 }
 
 func (ts *testSuiteCore) TestZoneListChildren() {
@@ -2577,6 +2697,163 @@ func (ts *testSuiteCore) TestRackListChildren() {
 				_, blades, err := rack.ListBlades(ctx)
 				require.NoError(err)
 				assert.Equal(ts.bladesPerRack, len(blades))
+			}
+		}
+	}
+}
+
+func (ts *testSuiteCore) TestRootFetchChildren() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
+	require.NoError(err)
+
+	_, regions, err := root.FetchChildren(ctx)
+	require.NoError(err)
+	assert.Equal(ts.regionCount, len(*regions))
+
+	for n, v := range *regions {
+		ts.verifyStandardInventoryRegionDetails(n, v.GetDetails(ctx))
+	}
+}
+
+func (ts *testSuiteCore) TestRegionFetchChildren() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
+	require.NoError(err)
+
+	_, regions, err := root.FetchChildren(ctx)
+	require.NoError(err)
+	assert.Equal(ts.regionCount, len(*regions))
+
+	for n, v := range *regions {
+		ts.verifyStandardInventoryRegionDetails(n, v.GetDetails(ctx))
+
+		region, err := root.NewChild(ctx, n)
+
+		_, zones, err := region.FetchChildren(ctx)
+		require.NoError(err)
+		assert.Equal(ts.zonesPerRegion, len(*zones))
+
+		for n, v := range *zones {
+			ts.verifyStandardInventoryZoneDetails(n, v.GetDetails(ctx))
+		}
+	}
+}
+
+func (ts *testSuiteCore) TestZoneFetchChildren() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
+	require.NoError(err)
+
+	_, regions, err := root.FetchChildren(ctx)
+	require.NoError(err)
+	assert.Equal(ts.regionCount, len(*regions))
+
+	for n, v := range *regions {
+		ts.verifyStandardInventoryRegionDetails(n, v.GetDetails(ctx))
+
+		region, err := root.NewChild(ctx, n)
+
+		_, zones, err := region.FetchChildren(ctx)
+		require.NoError(err)
+		assert.Equal(ts.zonesPerRegion, len(*zones))
+
+		for n, v := range *zones {
+			ts.verifyStandardInventoryZoneDetails(n, v.GetDetails(ctx))
+
+			zone, err := region.NewChild(ctx, n)
+
+			_, racks, err := zone.FetchChildren(ctx)
+			require.NoError(err)
+			assert.Equal(ts.zonesPerRegion, len(*zones))
+	
+			for n, v := range *racks {
+				ts.verifyStandardInventoryRackDetails(n, v.GetDetails(ctx))
+			}
+		}
+	}
+}
+
+func (ts *testSuiteCore) TestRackFetchChildren() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := NewRoot (ctx, ts.store, DefinitionTableStdTest)
+	require.NoError(err)
+
+	_, regions, err := root.FetchChildren(ctx)
+	require.NoError(err)
+	assert.Equal(ts.regionCount, len(*regions))
+
+	for n, v := range *regions {
+		ts.verifyStandardInventoryRegionDetails(n, v.GetDetails(ctx))
+
+		region, err := root.NewChild(ctx, n)
+
+		_, zones, err := region.FetchChildren(ctx)
+		require.NoError(err)
+		assert.Equal(ts.zonesPerRegion, len(*zones))
+
+		for n, v := range *zones {
+			ts.verifyStandardInventoryZoneDetails(n, v.GetDetails(ctx))
+
+			zone, err := region.NewChild(ctx, n)
+
+			_, racks, err := zone.FetchChildren(ctx)
+			require.NoError(err)
+			assert.Equal(ts.zonesPerRegion, len(*zones))
+	
+			for n, v := range *racks {
+				ts.verifyStandardInventoryRackDetails(n, v.GetDetails(ctx))
+
+				rack, err := zone.NewChild(ctx, n)
+
+				// There should be no implementation of the generic FetchChildren()
+				// function for a rack. Instead it has specific FetchXxx() functions
+				// for each type of sub-element.
+				//
+				rev, children, err := rack.FetchChildren(ctx)
+				require.ErrorIs(err, ErrFunctionNotAvailable)
+				assert.Nil(children)
+				assert.Equal(store.RevisionInvalid, rev)
+
+				_, pdus, err := rack.FetchPdus(ctx)
+				require.NoError(err)
+				assert.Equal(ts.pdusPerRack, len(*pdus))
+
+				_, tors, err := rack.FetchTors(ctx)
+				require.NoError(err)
+				assert.Equal(ts.torsPerRack, len(*tors))
+
+				_, blades, err := rack.FetchBlades(ctx)
+				require.NoError(err)
+				assert.Equal(ts.bladesPerRack, len(*blades))
+
+				for n, v := range *pdus {
+					ts.verifyStandardInventoryPdu(n, v)
+				}
+
+				for n, v := range *tors {
+					ts.verifyStandardInventoryTor(n, &v)
+				}
+
+				for n, v := range *blades {
+					ts.verifyStandardInventoryBlade(n, &v)
+				}
 			}
 		}
 	}
