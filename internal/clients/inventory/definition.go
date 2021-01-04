@@ -2071,9 +2071,27 @@ func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		revDelete = store.RevisionInvalid
 	}
 
+	// This should really use store.DeleteMultiple() except that doesn't exist
+	// yet to allow multiple key,value pairs to removed as an atomic update.
+	//
+	// Oops.
+	//
+	// Once the DeleteMultiple() routine has been added, this should change to
+	// make use of the new call.
+	//
 	rev, err := b.Store.Delete(ctx, store.KeyRootInventory, b.Key, revDelete)
 
 	if err == store.ErrStoreKeyNotFound(b.Key) {
+		return store.RevisionInvalid, ErrfBladeNotFound(b.Region, b.Zone, b.Rack, b.ID)
+	}
+
+	if err != nil {
+		return store.RevisionInvalid, err
+	}
+
+	_, err = b.Store.Delete(ctx, store.KeyRootInventory, b.KeyIndexEntry, store.RevisionInvalid)
+
+	if err == store.ErrStoreKeyNotFound(b.KeyIndexEntry) {
 		return store.RevisionInvalid, ErrfBladeNotFound(b.Region, b.Zone, b.Rack, b.ID)
 	}
 
