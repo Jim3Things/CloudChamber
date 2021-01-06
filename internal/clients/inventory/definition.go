@@ -1,3 +1,6 @@
+// This module contain the structures and methods to operate on the persisted definition
+// table within the inventory package.
+
 package inventory
 
 import (
@@ -10,8 +13,8 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
-// NewRoot returns a root struct which can be used to navigate
-// the namespace for a given table
+// NewRoot returns a root object which acts as a well-knwon point in a namespace
+// and which can be used to navigate the namespace for a given table.
 //
 // Valid tables are
 //	- DefinitionTable
@@ -36,7 +39,7 @@ func NewRoot(ctx context.Context, store *store.Store, table string) (*Root, erro
 	return r, nil
 }
 
-// NewRegion is a convenience function used to construct a Region struct
+// NewRegion is a convenience function used to construct a Region object
 // from scratch rather than relative to its parent.
 //
 func NewRegion(ctx context.Context, store *store.Store, table string, region string) (*Region, error) {
@@ -71,7 +74,7 @@ func NewRegion(ctx context.Context, store *store.Store, table string, region str
 	return r, nil
 }
 
-// NewZone is a convenience function used to construct a Zone struct
+// NewZone is a convenience function used to construct a Zone object
 // from scratch rather than relative to its parent.
 //
 func NewZone(ctx context.Context, store *store.Store, table string, region string, zone string) (*Zone, error) {
@@ -107,7 +110,7 @@ func NewZone(ctx context.Context, store *store.Store, table string, region strin
 	return z, nil
 }
 
-// NewRack is a convenience function used to construct a Rack struct
+// NewRack is a convenience function used to construct a Rack object
 // from scratch rather than relative to its parent.
 //
 func NewRack(ctx context.Context, store *store.Store, table string, region string, zone string, rack string) (*Rack, error) {
@@ -158,7 +161,7 @@ func NewRack(ctx context.Context, store *store.Store, table string, region strin
 	return r, nil
 }
 
-// NewPdu is a convenience function used to construct a Pdu struct
+// NewPdu is a convenience function used to construct a Pdu object
 // from scratch rather than relative to its parent.
 //
 func NewPdu(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Pdu, error) {
@@ -189,7 +192,7 @@ func NewPdu(ctx context.Context, store *store.Store, table string, region string
 	return p, nil
 }
 
-// NewTor is a convenience function used to construct a Pdu struct
+// NewTor is a convenience function used to construct a Tor object
 // from scratch rather than relative to its parent.
 //
 func NewTor(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Tor, error) {
@@ -220,7 +223,7 @@ func NewTor(ctx context.Context, store *store.Store, table string, region string
 	return t, nil
 }
 
-// NewBlade is a convenience function used to construct a Pdu struct
+// NewBlade is a convenience function used to construct a Blade object
 // from scratch rather than relative to its parent.
 //
 func NewBlade(ctx context.Context, store *store.Store, table string, region string, zone string, rack string, id int64) (*Blade, error) {
@@ -254,7 +257,12 @@ func NewBlade(ctx context.Context, store *store.Store, table string, region stri
 
 
 
-// Root is a 
+// Root is a structure representing the well-known root of the namespace. It 
+// is used to locate the regions within the namespace represented by the table
+// field.
+//
+// The root object is an in-memory construct only and cannot be persisted to
+// the store, or retrieved from it.
 //
 type Root struct {
 
@@ -269,7 +277,7 @@ type Root struct {
 }
 
 
-// SetDetails is a
+// SetDetails is used to attach some attribute information to the object.
 //
 func (r *Root) SetDetails(ctx context.Context, details *pb.RootDetails) {
 
@@ -403,7 +411,11 @@ func (r *Root) FetchChildren(ctx context.Context) (int64, *map[string]Region, er
 
 
 
-// Region is a
+// Region is a structure representing a region object. This object can be used
+// to operate on the associated region records in the underlying store, or to
+// navigate to child zone objects. The object can store information fetched
+// from the underlying store, or as a staging area in preparation for updates
+// to the store.
 //
 type Region struct {
 
@@ -422,7 +434,12 @@ type Region struct {
 	record        *pb.StoreRecordDefinitionRegion
 }
 
-// SetDetails is a
+// SetDetails is used to attach some attribute information to the object.
+//
+// The attribute information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the region object is reset
 //
 func (r *Region) SetDetails(ctx context.Context, details *pb.RegionDetails) {
 
@@ -430,31 +447,54 @@ func (r *Region) SetDetails(ctx context.Context, details *pb.RegionDetails) {
 	r.revision = store.RevisionInvalid
 }
 
-// GetDetails is a
+// GetDetails is used to extract the attribute information from the object. The
+// attribute information must have been previously read from the store (see
+// the Read() method) or attached via a SetDetails() call.
+//
+// May return nil if there are no attributes currently held in the object.
 //
 func (r *Region) GetDetails(ctx context.Context) *pb.RegionDetails {
 	return r.details
 }
 
-// GetRevision is a
+// GetRevision returns the revision of the details field within the object. This
+// will be either the revision of the object in the store after a Create() or
+// Read() call or be store.ReVisionInvalid if the details have been set or no
+// Create() or Read() call has been executed.
 //
 func (r *Region) GetRevision(ctx context.Context) int64 {
 	return r.revision
 }
 
-// GetRevisionRecord is a
+// GetRevisionRecord returns the revision of the underlying store object as 
+// determined at the time of the last Create() or Read() for the object. The
+// record revision is not reset by a SetDetails() call and is used when
+// performing either a conditional update or conditional delete using the
+// object.
 //
 func (r *Region) GetRevisionRecord(ctx context.Context) int64 {
 	return r.revisionRecord
 }
 
-// GetRevisionStore is a
+// GetRevisionStore returns the revison of the underlying store ifself as 
+// determined at the time of the last Read() for the object. The
+// store revision is not reset by a SetDetails() call and is provided 
+// for information only.
 //
 func (r *Region) GetRevisionStore(ctx context.Context) int64 {
 	return r.revisionStore
 }
 
-// Create is
+// Create is used to create a record in the underlying store for the
+// object along with the associated index information.
+//
+// The underlying store record will contain the information currently
+// held in the object.
+//
+// Once the store operation completes successfully, the revision fields
+// in the object will be updated to that returned by the store. These can
+// either be reetrieved by one of the GetRevisionXxx() call or used for
+// subsequent conditional operaions such as a conditional Update() call.
 //
 func (r *Region) Create(ctx context.Context) (int64, error) {
 
@@ -496,7 +536,13 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 	return r.revision, nil
 }
 
-// Read is
+// Read is used to load a record from the underlying store to populate the
+// fields in the object and determine the revision values associated with
+// that record.
+//
+// Once the Read() has completed successfully the details and other
+// information for the object can be retrieved by any of the GetXxx() methods
+// for that obect.
 //
 func (r *Region) Read(ctx context.Context) (int64, error) {
 
@@ -521,7 +567,16 @@ func (r *Region) Read(ctx context.Context) (int64, error) {
 	return r.revision, nil
 }
 
-// Update is
+// Update is used to persist the information in the fields of the object to
+// a record in the underlying store. The update can be either unconditional
+// by setting the unconditional parameter to true, or conditional based on
+// the revision of the object compared to the revision of the associated
+// record in the underlying store.
+//
+// Once the store operation completes successfully, the revision information
+// in the object is updated with that returned from the store.
+//
+// Update() has no effect on the index information for the object.
 //
 func (r *Region) Update(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -563,7 +618,17 @@ func (r *Region) Update(ctx context.Context, unconditional bool) (int64, error) 
 	return rev, nil
 }
 
-// Delete is
+// Delete is used to remove the persisted copy of the object from the
+// store along with any index information needed to navigate to or
+// through that object. The delete can be either unconditional by
+// setting the unconditional parameter to true, or conditional based
+// on the revision of the object compared to the revision of the
+// associated record in the underlying store.
+//
+// Deleting the record from the underlying store  has no effect on the
+// values held in the fields of the object other than updating the
+// revision information using the information returned by the store
+// operation.
 //
 func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -593,7 +658,13 @@ func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) 
 	return rev, nil
 }
 
-// NewChild is a 
+// NewChild creates a new child object for the zone within the current
+// region using the supplied name. This new object can be used for
+// further navigation or for actions involving operations against the
+// associated record in the underlying store.
+//
+// No information is fetched from the underlying store so the attribute
+// and revisions fields within the oject are not valid.
 //
 func (r *Region) NewChild(ctx context.Context, name string) (*Zone, error) {
 
@@ -606,7 +677,10 @@ func (r *Region) NewChild(ctx context.Context, name string) (*Zone, error) {
 	return z, err
 }
 
-// ListChildren is a
+// ListChildren uses the current object to discover the names of all the
+// zone child objects in the underlying store for the the current region
+// object, The elements of the returned list can be used in subsequent
+// NewChild() calls to create new zone objects.
 //
 func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 	
@@ -636,7 +710,10 @@ func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 	return rev, names, nil
 }
 
-// FetchChildren is a
+// FetchChildren is used to discover all the child zone objects in the
+// underlying store for the current region object and to generate a new
+// zone object for each of those children. It is a convenience wrapper
+// around ListChildren() followed by a NewChild() on each name discovered.
 //
 func (r *Region) FetchChildren(ctx context.Context) (int64, *map[string]Zone, error) {
 
@@ -673,7 +750,11 @@ func (r *Region) FetchChildren(ctx context.Context) (int64, *map[string]Zone, er
 
 
 
-// Zone is a
+// Zone is a structure representing a zone object. This object can be used
+// to operate on the associated zone records in the underlying store, or to
+// navigate to child rack objects. The object can store information fetched
+// from the underlying store, or as a staging area in preparation for updates
+// to the store.
 //
 type Zone struct {
 
@@ -692,7 +773,12 @@ type Zone struct {
 	record         *pb.StoreRecordDefinitionZone
 }
 
-// SetDetails is a
+// SetDetails is used to attach some attribute information to the object.
+//
+// The attribute information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the zone object is reset
 //
 func (z *Zone) SetDetails(ctx context.Context, details *pb.ZoneDetails) {
 
@@ -700,31 +786,54 @@ func (z *Zone) SetDetails(ctx context.Context, details *pb.ZoneDetails) {
 	z.revision = store.RevisionInvalid
 }
 
-// GetDetails is a
+// GetDetails is used to extract the attribute information from the object. The
+// attribute information must have been previously read from the store (see
+// the Read() method) or attached via a SetDetails() call.
+//
+// May return nil if there are no attributes currently held in the object.
 //
 func (z *Zone) GetDetails(ctx context.Context) *pb.ZoneDetails {
 	return z.details
 }
 
-// GetRevision is a
+// GetRevision returns the revision of the details field within the object. This
+// will be either the revision of the object in the store after a Create() or
+// Read() call or be store.ReVisionInvalid if the details have been set or no
+// Create() or Read() call has been executed.
 //
 func (z *Zone) GetRevision(ctx context.Context) (int64) {
 	return z.revision
 }
 
-// GetRevisionRecord is a
+// GetRevisionRecord returns the revision of the underlying store object as 
+// determined at the time of the last Create() or Read() for the object. The
+// record revision is not reset by a SetDetails() call and is used when
+// performing either a conditional update or conditional delete using the
+// object.
 //
 func (z *Zone) GetRevisionRecord(ctx context.Context) (int64) {
 	return z.revisionRecord
 }
 
-// GetRevisionStore is a
+// GetRevisionStore returns the revison of the underlying store ifself as 
+// determined at the time of the last Read() for the object. The
+// store revision is not reset by a SetDetails() call and is provided 
+// for information only.
 //
 func (z *Zone) GetRevisionStore(ctx context.Context) (int64) {
 	return z.revisionStore
 }
 
-// Create is
+// Create is used to create a record in the underlying store for the
+// object along with the associated index information.
+//
+// The underlying store record will contain the information currently
+// held in the object.
+//
+// Once the store operation completes successfully, the revision fields
+// in the object will be updated to that returned by the store. These can
+// either be reetrieved by one of the GetRevisionXxx() call or used for
+// subsequent conditional operaions such as a conditional Update() call.
 //
 func (z *Zone) Create(ctx context.Context) (int64, error) {
 
@@ -766,7 +875,13 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 	return z.revision, nil
 }
 
-// Read is
+// Read is used to load a record from the underlying store to populate the
+// fields in the object and determine the revision values associated with
+// that record.
+//
+// Once the Read() has completed successfully the details and other
+// information for the object can be retrieved by any of the GetXxx() methods
+// for that obect.
 //
 func (z *Zone) Read(ctx context.Context) (int64, error) {
 
@@ -791,7 +906,16 @@ func (z *Zone) Read(ctx context.Context) (int64, error) {
 	return z.revision, nil
 }
 
-// Update is
+// Update is used to persist the information in the fields of the object to
+// a record in the underlying store. The update can be either unconditional
+// by setting the unconditional parameter to true, or conditional based on
+// the revision of the object compared to the revision of the associated
+// record in the underlying store.
+//
+// Once the store operation completes successfully, the revision information
+// in the object is updated with that returned from the store.
+//
+// Update() has no effect on the index information for the object.
 //
 func (z *Zone) Update(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -833,7 +957,17 @@ func (z *Zone) Update(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-// Delete is
+// Delete is used to remove the persisted copy of the object from the
+// store along with any index information needed to navigate to or
+// through that object. The delete can be either unconditional by
+// setting the unconditional parameter to true, or conditional based
+// on the revision of the object compared to the revision of the
+// associated record in the underlying store.
+//
+// Deleting the record from the underlying store  has no effect on the
+// values held in the fields of the object other than updating the
+// revision information using the information returned by the store
+// operation.
 //
 func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -861,7 +995,13 @@ func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-// NewChild is a 
+// NewChild creates a new child object for the zone within the current
+// region using the supplied name. This new object can be used for
+// further navigation or for actions involving operations against the
+// associated record in the underlying store.
+//
+// No information is fetched from the underlying store so the attribute
+// and revisions fields within the oject are not valid.
 //
 func (z *Zone) NewChild(ctx context.Context, name string) (*Rack, error) {
 
@@ -874,7 +1014,10 @@ func (z *Zone) NewChild(ctx context.Context, name string) (*Rack, error) {
 	return r, err
 }
 
-// ListChildren is a
+// ListChildren uses the current object to discover the names of all the
+// rack child objects in the underlying store for the the current zone
+// object, The elements of the returned list can be used in subsequent
+// NewChild() calls to create new rack objects.
 //
 func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 	
@@ -904,7 +1047,10 @@ func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 	return rev, names, nil
 }
 
-// FetchChildren is a
+// FetchChildren is used to discover all the child rack objects in the
+// underlying store for the current zone object and to generate a new
+// rack object for each of those children. It is a convenience wrapper
+// around ListChildren() followed by a NewChild() on each name discovered.
 //
 func (z *Zone) FetchChildren(ctx context.Context) (int64, *map[string]Rack, error) {
 
@@ -939,7 +1085,11 @@ func (z *Zone) FetchChildren(ctx context.Context) (int64, *map[string]Rack, erro
 
 
 
-// Rack is a
+// Rack is a structure representing a rack object. This object can be used
+// to operate on the associated rack records in the underlying store, or to
+// navigate to child pdu, tor or blade objects. The object can store
+// information fetched from the underlying store, or as a staging area in
+// preparation for updates to the store.
 //
 type Rack struct {
 
@@ -963,7 +1113,12 @@ type Rack struct {
 
 }
 
-// SetDetails is a
+// SetDetails is used to attach some attribute information to the object.
+//
+// The attribute information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the rack object is reset
 //
 func (r *Rack) SetDetails(ctx context.Context, details *pb.RackDetails) {
 
@@ -971,31 +1126,54 @@ func (r *Rack) SetDetails(ctx context.Context, details *pb.RackDetails) {
 	r.revision = store.RevisionInvalid
 }
 
-// GetDetails is a
+// GetDetails is used to extract the attribute information from the object. The
+// attribute information must have been previously read from the store (see
+// the Read() method) or attached via a SetDetails() call.
+//
+// May return nil if there are no attributes currently held in the object.
 //
 func (r *Rack) GetDetails(ctx context.Context) *pb.RackDetails {
 	return r.details
 }
 
-// GetRevision is a
+// GetRevision returns the revision of the details field within the object. This
+// will be either the revision of the object in the store after a Create() or
+// Read() call or be store.ReVisionInvalid if the details have been set or no
+// Create() or Read() call has been executed.
 //
 func (r *Rack) GetRevision(ctx context.Context) (int64) {
 	return r.revision
 }
 
-// GetRevisionRecord is a
+// GetRevisionRecord returns the revision of the underlying store object as 
+// determined at the time of the last Create() or Read() for the object. The
+// record revision is not reset by a SetDetails() call and is used when
+// performing either a conditional update or conditional delete using the
+// object.
 //
 func (r *Rack) GetRevisionRecord(ctx context.Context) (int64) {
 	return r.revisionRecord
 }
 
-// GetRevisionStore is a
+// GetRevisionStore returns the revison of the underlying store ifself as 
+// determined at the time of the last Read() for the object. The
+// store revision is not reset by a SetDetails() call and is provided 
+// for information only.
 //
 func (r *Rack) GetRevisionStore(ctx context.Context) (int64) {
 	return r.revisionStore
 }
 
-// Create is
+// Create is used to create a record in the underlying store for the
+// object along with the associated index information.
+//
+// The underlying store record will contain the information currently
+// held in the object.
+//
+// Once the store operation completes successfully, the revision fields
+// in the object will be updated to that returned by the store. These can
+// either be reetrieved by one of the GetRevisionXxx() call or used for
+// subsequent conditional operaions such as a conditional Update() call.
 //
 func (r *Rack) Create(ctx context.Context) (int64, error) {
 
@@ -1037,7 +1215,13 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 	return r.revision, nil
 }
 
-// Read is
+// Read is used to load a record from the underlying store to populate the
+// fields in the object and determine the revision values associated with
+// that record.
+//
+// Once the Read() has completed successfully the details and other
+// information for the object can be retrieved by any of the GetXxx() methods
+// for that obect.
 //
 func (r *Rack) Read(ctx context.Context) (int64, error) {
 
@@ -1062,7 +1246,16 @@ func (r *Rack) Read(ctx context.Context) (int64, error) {
 	return r.revision, nil
 }
 
-// Update is
+// Update is used to persist the information in the fields of the object to
+// a record in the underlying store. The update can be either unconditional
+// by setting the unconditional parameter to true, or conditional based on
+// the revision of the object compared to the revision of the associated
+// record in the underlying store.
+//
+// Once the store operation completes successfully, the revision information
+// in the object is updated with that returned from the store.
+//
+// Update() has no effect on the index information for the object.
 //
 func (r *Rack) Update(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -1089,7 +1282,7 @@ func (r *Rack) Update(ctx context.Context, unconditional bool) (int64, error) {
 	rev, err := r.Store.Update(ctx, store.KeyRootInventory, r.Key, revUpdate, v)
 
 	if err == store.ErrStoreKeyNotFound(r.Key) {
-		return store.RevisionInvalid, ErrfRegionNotFound(r.Region)
+		return store.RevisionInvalid, ErrfRackNotFound(r.Region, r.Zone, r.Rack)
 	}
 
 	if err != nil {
@@ -1104,7 +1297,17 @@ func (r *Rack) Update(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-// Delete is
+// Delete is used to remove the persisted copy of the object from the
+// store along with any index information needed to navigate to or
+// through that object. The delete can be either unconditional by
+// setting the unconditional parameter to true, or conditional based
+// on the revision of the object compared to the revision of the
+// associated record in the underlying store.
+//
+// Deleting the record from the underlying store  has no effect on the
+// values held in the fields of the object other than updating the
+// revision information using the information returned by the store
+// operation.
 //
 func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -1117,7 +1320,7 @@ func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 	rev, err := r.Store.Delete(ctx, store.KeyRootInventory, r.Key, revDelete)
 
 	if err == store.ErrStoreKeyNotFound(r.Key) {
-		return store.RevisionInvalid, ErrfRegionNotFound(r.Region)
+		return store.RevisionInvalid, ErrfRackNotFound(r.Region, r.Zone, r.Rack)
 	}
 
 	if err != nil {
@@ -1132,13 +1335,27 @@ func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-// NewChild is a 
+// NewChild is a stub function for rack objects as there are no generic
+// child objects. Instead one of the specialized functions
+//
+//    NewPdu()
+//    NewTor()
+//    NewBlade()
+//
+// should be called to construct an object for the appropriate specialized
+// child.
 //
 func (r *Rack) NewChild(ctx context.Context, name string) (*Zone, error) {
 	return nil, ErrFunctionNotAvailable
 }
 
-// NewPdu is a 
+// NewPdu creates a new child object for the pdu within the current
+// rack using the supplied identifier. This new object can be used for
+// for actions involving operations against the associated record in
+// the underlying store.
+//
+// No information is fetched from the underlying store so the attribute
+// and revisions fields within the oject are not valid.
 //
 func (r *Rack) NewPdu(ctx context.Context, ID int64) (*Pdu, error) {
 
@@ -1151,7 +1368,13 @@ func (r *Rack) NewPdu(ctx context.Context, ID int64) (*Pdu, error) {
 	return p, err
 }
 
-// NewTor is a 
+// NewTor creates a new child object for the tor within the current
+// rack using the supplied identifier. This new object can be used for
+// for actions involving operations against the associated record in
+// the underlying store.
+//
+// No information is fetched from the underlying store so the attribute
+// and revisions fields within the oject are not valid.
 //
 func (r *Rack) NewTor(ctx context.Context, ID int64) (*Tor, error) {
 
@@ -1164,7 +1387,13 @@ func (r *Rack) NewTor(ctx context.Context, ID int64) (*Tor, error) {
 	return t, err
 }
 
-// NewBlade is a 
+// NewBlade creates a new child object for the blade within the current
+// rack using the supplied identifier. This new object can be used for
+// for actions involving operations against the associated record in
+// the underlying store.
+//
+// No information is fetched from the underlying store so the attribute
+// and revisions fields within the oject are not valid.
 //
 func (r *Rack) NewBlade(ctx context.Context, ID int64) (*Blade, error) {
 
@@ -1177,14 +1406,38 @@ func (r *Rack) NewBlade(ctx context.Context, ID int64) (*Blade, error) {
 	return b, err
 }
 
-// FetchChildren is a
+// ListChildren is a stub function for rack objects as there are no
+// generic child objects. Instead one of the specialized functions
 //
-func (r *Rack) FetchChildren(ctx context.Context) (int64, *map[string]Zone, error) {
+//    ListPdu()
+//    ListTor()
+//    ListBlade()
+//
+// should be called to construct an object for the appropriate specialized
+// child.
+//
+func (r *Rack) ListChildren(ctx context.Context) (int64, *[]string, error) {
 	return store.RevisionInvalid, nil, ErrFunctionNotAvailable
 }
 
+// FetchChildren is a stub function for rack objects as there are no
+// generic child objects. Instead one of the specialized functions
+//
+//    FetchPdu()
+//    FetchTor()
+//    FetchBlade()
+//
+// should be called to construct an object for the appropriate specialized
+// child.
+//
+func (r *Rack) FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error) {
+	return store.RevisionInvalid, nil, ErrFunctionNotAvailable
+}
 
-// ListPdus is a
+// ListPdus uses the current object to discover the names of all the
+// pdu child objects in the underlying store for the the current rack
+// object, The elements of the returned list can be used in subsequent
+// NewPdu() calls to create new pdu objects.
 //
 func (r *Rack) ListPdus(ctx context.Context) (int64, []int64, error) {
 
@@ -1228,7 +1481,10 @@ func (r *Rack) ListPdus(ctx context.Context) (int64, []int64, error) {
 	return rev, names, nil
 }
 
-// ListTors is a
+// ListTors uses the current object to discover the names of all the
+// tor child objects in the underlying store for the the current rack
+// object, The elements of the returned list can be used in subsequent
+// NewTor() calls to create new tor objects.
 //
 func (r *Rack) ListTors(ctx context.Context) (int64, []int64, error) {
 
@@ -1272,7 +1528,10 @@ func (r *Rack) ListTors(ctx context.Context) (int64, []int64, error) {
 	return rev, names, nil
 }
 
-// ListBlades is a
+// ListBlades uses the current object to discover the names of all the
+// blade child objects in the underlying store for the the current rack
+// object, The elements of the returned list can be used in subsequent
+// NewBlade() calls to create new blade objects.
 //
 func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 
@@ -1316,7 +1575,10 @@ func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 	return rev, names, nil
 }
 
-// FetchPdus is a
+// FetchPdus is used to discover all the child pdu objects in the
+// underlying store for the current rack object and to generate a new
+// pdu object for each of those children. It is a convenience wrapper
+// around ListPdus() followed by a NewPdu() on each name discovered.
 //
 func (r *Rack) FetchPdus(ctx context.Context) (int64, *map[int64]Pdu, error) {
 
@@ -1348,7 +1610,10 @@ func (r *Rack) FetchPdus(ctx context.Context) (int64, *map[int64]Pdu, error) {
 	return rev, &pdus, nil
 }
 
-// FetchTors is a
+// FetchTors is used to discover all the child tor objects in the
+// underlying store for the current rack object and to generate a new
+// tor object for each of those children. It is a convenience wrapper
+// around ListTors() followed by a NewTor() on each name discovered.
 //
 func (r *Rack) FetchTors(ctx context.Context) (int64, *map[int64]Tor, error) {
 
@@ -1380,7 +1645,10 @@ func (r *Rack) FetchTors(ctx context.Context) (int64, *map[int64]Tor, error) {
 	return rev, &tors, nil
 }
 
-// FetchBlades is a
+// FetchBlades is used to discover all the child blade objects in the
+// underlying store for the current rack object and to generate a new
+// blade object for each of those children. It is a convenience wrapper
+// around ListBlades() followed by a NewBlade() on each name discovered.
 //
 func (r *Rack) FetchBlades(ctx context.Context) (int64, *map[int64]Blade, error) {
 
@@ -1415,7 +1683,12 @@ func (r *Rack) FetchBlades(ctx context.Context) (int64, *map[int64]Blade, error)
 
 
 
-// Pdu is a
+// Pdu is a structure representing a pdu object. This object can be used
+// to operate on the associated pdu records in the underlying store. The
+// object can hold information fetched from the underlying store, or as
+// a staging area in preparation for updates to the store.
+//
+// Pdu is a specialization of a child object for a rack parent.
 //
 type Pdu struct {
 
@@ -1436,51 +1709,89 @@ type Pdu struct {
 	record         *pb.StoreRecordDefinitionPdu
 }
 
-// SetDetails is a
+// SetDetails is used to attach some attribute information to the object.
+//
+// The attribute information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the pdu object is reset
 //
 func (p *Pdu) SetDetails(ctx context.Context, details *pb.PduDetails) {
 	p.details  = details
 	p.revision = store.RevisionInvalid
 }
 
-// GetDetails is a
+// GetDetails is used to extract the attribute information from the object. The
+// attribute information must have been previously read from the store (see
+// the Read() method) or attached via a SetDetails() call.
+//
+// May return nil if there are no attributes currently held in the object.
 //
 func (p *Pdu) GetDetails(ctx context.Context) *pb.PduDetails {
 	return 	p.details
 }
 
-// GetRevision is a
+// GetRevision returns the revision of the details field within the object. This
+// will be either the revision of the object in the store after a Create() or
+// Read() call or be store.ReVisionInvalid if the details have been set or no
+// Create() or Read() call has been executed.
 //
 func (p *Pdu) GetRevision(ctx context.Context) int64 {
 	return p.revision
 }
 
-// GetRevisionRecord is a
+// GetRevisionRecord returns the revision of the underlying store object as 
+// determined at the time of the last Create() or Read() for the object. The
+// record revision is not reset by a SetDetails() call and is used when
+// performing either a conditional update or conditional delete using the
+// object.
 //
 func (p *Pdu) GetRevisionRecord(ctx context.Context) int64 {
 	return p.revisionRecord
 }
 
-// GetRevisionStore is a
+// GetRevisionStore returns the revison of the underlying store ifself as 
+// determined at the time of the last Read() for the object. The
+// store revision is not reset by a SetDetails() call and is provided 
+// for information only.
 //
 func (p *Pdu) GetRevisionStore(ctx context.Context) int64 {
 	return p.revisionStore
 }
 
-// SetPorts is a
+// SetPorts is used to attach some power port information to the object.
+//
+// The port information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the pdu object is reset
 //
 func (p *Pdu) SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort) {
 	p.ports    = ports
 	p.revision = store.RevisionInvalid
 }
 
-// GetPorts is a 
+// GetPorts is used to extract the power port information from the object.
+// The port information must have been previously read from the store (see
+// the Read() method) or attached via a SetPorts() call.
+//
+// May return nil if there are no power port information currently held
+// in the object.
 //
 func (p *Pdu) GetPorts(ctx context.Context) *map[int64]*pb.PowerPort {
 	return p.ports
 }
 
-// Create is
+// Create is used to create a record in the underlying store for the
+// object along with the associated index information.
+//
+// The underlying store record will contain the information currently
+// held in the object.
+//
+// Once the store operation completes successfully, the revision fields
+// in the object will be updated to that returned by the store. These can
+// either be reetrieved by one of the GetRevisionXxx() call or used for
+// subsequent conditional operaions such as a conditional Update() call.
 //
 func (p *Pdu) Create(ctx context.Context) (int64, error) {
 
@@ -1496,6 +1807,7 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 		Details: p.details,
 		Ports:   *p.ports,
 	}
+
 	v, err := store.Encode(record)
 
 	if err != nil {
@@ -1526,7 +1838,13 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 	return p.revision, nil
 }
 
-// Read is
+// Read is used to load a record from the underlying store to populate the
+// fields in the object and determine the revision values associated with
+// that record.
+//
+// Once the Read() has completed successfully the details and other
+// information for the object can be retrieved by any of the GetXxx() methods
+// for that obect.
 //
 func (p *Pdu) Read(ctx context.Context) (int64, error) {
 
@@ -1552,7 +1870,16 @@ func (p *Pdu) Read(ctx context.Context) (int64, error) {
 	return p.revision, nil
 }
 
-// Update is
+// Update is used to persist the information in the fields of the object to
+// a record in the underlying store. The update can be either unconditional
+// by setting the unconditional parameter to true, or conditional based on
+// the revision of the object compared to the revision of the associated
+// record in the underlying store.
+//
+// Once the store operation completes successfully, the revision information
+// in the object is updated with that returned from the store.
+//
+// Update() has no effect on the index information for the object.
 //
 func (p *Pdu) Update(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -1599,7 +1926,17 @@ func (p *Pdu) Update(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-// Delete is
+// Delete is used to remove the persisted copy of the object from the
+// store along with any index information needed to navigate to or
+// through that object. The delete can be either unconditional by
+// setting the unconditional parameter to true, or conditional based
+// on the revision of the object compared to the revision of the
+// associated record in the underlying store.
+//
+// Deleting the record from the underlying store  has no effect on the
+// values held in the fields of the object other than updating the
+// revision information using the information returned by the store
+// operation.
 //
 func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -1630,7 +1967,12 @@ func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
 
 
-// Tor is a
+// Tor is a structure representing a tor object. This object can be used
+// to operate on the associated tor records in the underlying store. The
+// object can hold information fetched from the underlying store, or as
+// a staging area in preparation for updates to the store.
+//
+// Tor is a specialization of a child object for a rack parent.
 //
 type Tor struct {
 
@@ -1651,51 +1993,89 @@ type Tor struct {
 	record         *pb.StoreRecordDefinitionTor
 }
 
-// SetDetails is a
+// SetDetails is used to attach some attribute information to the object.
+//
+// The attribute information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the tor object is reset
 //
 func (t *Tor) SetDetails(ctx context.Context, details *pb.TorDetails) {
 	t.details  = details
 	t.revision = store.RevisionInvalid
 }
 
-// GetDetails is a
+// GetDetails is used to extract the attribute information from the object. The
+// attribute information must have been previously read from the store (see
+// the Read() method) or attached via a SetDetails() call.
+//
+// May return nil if there are no attributes currently held in the object.
 //
 func (t *Tor) GetDetails(ctx context.Context) *pb.TorDetails {
 	return 	t.details
 }
 
-// GetRevision is a
+// GetRevision returns the revision of the details field within the object. This
+// will be either the revision of the object in the store after a Create() or
+// Read() call or be store.ReVisionInvalid if the details have been set or no
+// Create() or Read() call has been executed.
 //
 func (t *Tor) GetRevision(ctx context.Context) int64 {
 	return t.revision
 }
 
-// GetRevisionRecord is a
+// GetRevisionRecord returns the revision of the underlying store object as 
+// determined at the time of the last Create() or Read() for the object. The
+// record revision is not reset by a SetDetails() call and is used when
+// performing either a conditional update or conditional delete using the
+// object.
 //
 func (t *Tor) GetRevisionRecord(ctx context.Context) int64 {
 	return t.revisionRecord
 }
 
-// GetRevisionStore is a
+// GetRevisionStore returns the revison of the underlying store ifself as 
+// determined at the time of the last Read() for the object. The
+// store revision is not reset by a SetDetails() call and is provided 
+// for information only.
 //
 func (t *Tor) GetRevisionStore(ctx context.Context) int64 {
 	return t.revisionStore
 }
 
-// SetPorts is a
+// SetPorts is used to attach some network port information to the object.
+//
+// The port information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the tor object is reset
 //
 func (t *Tor) SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort) {
 	t.ports    = ports
 	t.revision = store.RevisionInvalid
 }
 
-// GetPorts is a 
+// GetPorts is used to extract the network port information from the object.
+// The port information must have been previously read from the store (see
+// the Read() method) or attached via a SetPorts() call.
+//
+// May return nil if there are no network port information currently held
+// in the object.
 //
 func (t *Tor) GetPorts(ctx context.Context) *map[int64]*pb.NetworkPort {
 	return t.ports
 }
 
-// Create is
+// Create is used to create a record in the underlying store for the
+// object along with the associated index information.
+//
+// The underlying store record will contain the information currently
+// held in the object.
+//
+// Once the store operation completes successfully, the revision fields
+// in the object will be updated to that returned by the store. These can
+// either be reetrieved by one of the GetRevisionXxx() call or used for
+// subsequent conditional operaions such as a conditional Update() call.
 //
 func (t *Tor) Create(ctx context.Context) (int64, error) {
 
@@ -1742,7 +2122,13 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 	return t.revision, nil
 }
 
-// Read is
+// Read is used to load a record from the underlying store to populate the
+// fields in the object and determine the revision values associated with
+// that record.
+//
+// Once the Read() has completed successfully the details and other
+// information for the object can be retrieved by any of the GetXxx() methods
+// for that obect.
 //
 func (t *Tor) Read(ctx context.Context) (int64, error) {
 
@@ -1768,7 +2154,16 @@ func (t *Tor) Read(ctx context.Context) (int64, error) {
 	return t.revision, nil
 }
 
-// Update is
+// Update is used to persist the information in the fields of the object to
+// a record in the underlying store. The update can be either unconditional
+// by setting the unconditional parameter to true, or conditional based on
+// the revision of the object compared to the revision of the associated
+// record in the underlying store.
+//
+// Once the store operation completes successfully, the revision information
+// in the object is updated with that returned from the store.
+//
+// Update() has no effect on the index information for the object.
 //
 func (t *Tor) Update(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -1815,7 +2210,17 @@ func (t *Tor) Update(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-// Delete is
+// Delete is used to remove the persisted copy of the object from the
+// store along with any index information needed to navigate to or
+// through that object. The delete can be either unconditional by
+// setting the unconditional parameter to true, or conditional based
+// on the revision of the object compared to the revision of the
+// associated record in the underlying store.
+//
+// Deleting the record from the underlying store  has no effect on the
+// values held in the fields of the object other than updating the
+// revision information using the information returned by the store
+// operation.
 //
 func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -1846,7 +2251,12 @@ func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
 
 
-// Blade is a
+// Blade is a structure representing a blade object. This object can be
+// used to operate on the associated blade records in the underlying
+// store. The object can hold information fetched from the underlying
+// store, or as a staging area in preparation for updates to the store.
+//
+// Blade is a specialization of a child object for a rack parent.
 //
 type Blade struct {
 
@@ -1869,45 +2279,74 @@ type Blade struct {
 	record         *pb.StoreRecordDefinitionBlade
 }
 
-// SetDetails is a
+// SetDetails is used to attach some attribute information to the object.
+//
+// The attribute information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the blade object is reset
 //
 func (b *Blade) SetDetails(ctx context.Context, details *pb.BladeDetails) {
 	b.details  = details
 	b.revision = store.RevisionInvalid
 }
 
-// GetDetails is a
+// GetDetails is used to extract the attribute information from the object. The
+// attribute information must have been previously read from the store (see
+// the Read() method) or attached via a SetDetails() call.
+//
+// May return nil if there are no attributes currently held in the object.
 //
 func (b *Blade) GetDetails(ctx context.Context) *pb.BladeDetails {
 	return 	b.details
 }
 
-// GetRevision is a
+// GetRevision returns the revision of the details field within the object. This
+// will be either the revision of the object in the store after a Create() or
+// Read() call or be store.ReVisionInvalid if the details have been set or no
+// Create() or Read() call has been executed.
 //
 func (b *Blade) GetRevision(ctx context.Context) int64 {
 	return b.revision
 }
 
-// GetRevisionRecord is a
+// GetRevisionRecord returns the revision of the underlying store object as 
+// determined at the time of the last Create() or Read() for the object. The
+// record revision is not reset by a SetDetails() call and is used when
+// performing either a conditional update or conditional delete using the
+// object.
 //
 func (b *Blade) GetRevisionRecord(ctx context.Context) int64 {
 	return b.revisionRecord
 }
 
-// GetRevisionStore is a
+// GetRevisionStore returns the revison of the underlying store ifself as 
+// determined at the time of the last Read() for the object. The
+// store revision is not reset by a SetDetails() call and is provided 
+// for information only.
 //
 func (b *Blade) GetRevisionStore(ctx context.Context) int64 {
 	return b.revisionStore
 }
 
-// SetCapacity is a
+// SetCapacity is used to attach some capacity information to the object.
+//
+// The capacity information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the blade object is reset
 //
 func (b *Blade) SetCapacity(ctx context.Context, capacity *pb.BladeCapacity) {
 	b.capacity = capacity
 	b.revision = store.RevisionInvalid
 }
 
-// SetBootInfo is a
+// SetBootInfo is used to attach some boot information to the object.
+//
+// The boot information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the blade object is reset
 //
 func (b *Blade) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) {
 	b.bootOnPowerOn = bootOnPowerOn
@@ -1915,19 +2354,38 @@ func (b *Blade) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *p
 	b.revision      = store.RevisionInvalid
 }
 
-// GetCapacity is a
+// GetCapacity is used to extract the capacity information from the object.
+// The capacity information must have been previously read from the store (see
+// the Read() method) or attached via a SetCapacity() call.
+//
+// May return nil if there are no capacity information currently held
+// in the object.
 //
 func (b *Blade) GetCapacity(ctx context.Context) *pb.BladeCapacity {
 	return b.capacity
 }
 
-// GetBootInfo is a
+// GetBootInfo is used to extract the boot information from the object.
+// The boot information must have been previously read from the store (see
+// the Read() method) or attached via a SetBootInfo() call.
+//
+// May return nil if there are no boot information currently held
+// in the object.
 //
 func (b *Blade) GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo) {
 	return b.bootOnPowerOn, b.bootInfo
 }
 
-// Create is
+// Create is used to create a record in the underlying store for the
+// object along with the associated index information.
+//
+// The underlying store record will contain the information currently
+// held in the object.
+//
+// Once the store operation completes successfully, the revision fields
+// in the object will be updated to that returned by the store. These can
+// either be reetrieved by one of the GetRevisionXxx() call or used for
+// subsequent conditional operaions such as a conditional Update() call.
 //
 func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 
@@ -1980,14 +2438,20 @@ func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 	return b.revision, nil
 }
 
-// Read is
+// Read is used to load a record from the underlying store to populate the
+// fields in the object and determine the revision values associated with
+// that record.
+//
+// Once the Read() has completed successfully the details and other
+// information for the object can be retrieved by any of the GetXxx() methods
+// for that obect.
 //
 func (b *Blade) Read(ctx context.Context) (int64, error) {
 
 	v, rev, err := b.Store.Read(ctx, store.KeyRootInventory, b.Key)
 
 	if err == store.ErrStoreKeyNotFound(b.Key) {
-		return store.RevisionInvalid, ErrfPduNotFound(b.Region, b.Zone, b.Rack, b.ID)
+		return store.RevisionInvalid, ErrfBladeNotFound(b.Region, b.Zone, b.Rack, b.ID)
 	}
 
 	record := &pb.StoreRecordDefinitionBlade{}
@@ -2008,7 +2472,16 @@ func (b *Blade) Read(ctx context.Context) (int64, error) {
 	return b.revision, nil
 }
 
-// Update is
+// Update is used to persist the information in the fields of the object to
+// a record in the underlying store. The update can be either unconditional
+// by setting the unconditional parameter to true, or conditional based on
+// the revision of the object compared to the revision of the associated
+// record in the underlying store.
+//
+// Once the store operation completes successfully, the revision information
+// in the object is updated with that returned from the store.
+//
+// Update() has no effect on the index information for the object.
 //
 func (b *Blade) Update(ctx context.Context, unconditional bool) (int64, error) {
 
@@ -2061,7 +2534,17 @@ func (b *Blade) Update(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-// Delete is
+// Delete is used to remove the persisted copy of the object from the
+// store along with any index information needed to navigate to or
+// through that object. The delete can be either unconditional by
+// setting the unconditional parameter to true, or conditional based
+// on the revision of the object compared to the revision of the
+// associated record in the underlying store.
+//
+// Deleting the record from the underlying store  has no effect on the
+// values held in the fields of the object other than updating the
+// revision information using the information returned by the store
+// operation.
 //
 func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 

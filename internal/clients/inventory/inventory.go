@@ -1,3 +1,55 @@
+// This package is used to access the persisted inventory state in an underlying
+// store and to provide an abstraction to the other CloudChamber services such that
+// they need not concern themselves with how the data is laid out or manipulated.
+//
+// The access method is based around a 'cursor' object which can be used to
+// operate on the underlying persisted version of that object just by
+// using a few basic access methods, e.g. Read, Update, ListChildren etc.
+//
+// The objects providing such a cursor are regions, zones, racks, pdus, tor and
+// blades. There is also a root object which provides a well-known entry point
+// and can be used to start the discovery process. These object form a hierarchy
+// which allows for navigating from parent objects to an associated child.
+//
+// The complete inventory is split into a number of separate namespaces (or tables)
+// which are used to compartmentalize different usage groups within the inventory.
+// For example, the primary namespaces are
+//
+//		definition
+//		observed
+//		actual
+//		target
+//
+// See the CloudChamber documentation for a description of these namespaces and
+// their uses.
+//
+//
+// The objects within a table form a hierarchy of navigable "nodes" from root,
+// to region, to zone to rack. Within a rack there are the further child objects
+// for puds, tors and blades. These last choild objects do not themselves have
+// children and are accessed as complete entities which are operated on an an
+// atomic unit.
+//
+// NOTE: At least so far. It is conceivable that we may wish to extednd this
+//       to allow indivudual entries within these leaf items to be manipulated
+//       directly, e.g. we may wish to update the state of a network port
+//       within a tor without having to re-write the complete tor object.
+//
+// To allow for object discovery, the inventory allows a caller to request a
+// list of all the children of a navigable node, e.g. search for all of the
+// racks within a zone. To achieve this, the pacakge maintains an index for
+// child objects which is kept separately from the objects themselves. Thus
+// when creating a new object, the package will also create an appropriate
+// index entry to allow that object to be discovered from its parent. In
+// this way, by knowing the root of a namespace, all the regions can be
+// located. Once a region is know, all the zones within that region can be
+// located. And so on for racks within zones, etc.
+//
+// NOTE: Currently there is no way to discover a parent for a given oject.
+//       However, each object contains sufficient information that a parent
+//       can be readily identified if required which would allow this feature
+//       to be added if needed.
+
 package inventory
 
 import (
@@ -251,7 +303,6 @@ func GetKeyForIndexRegion(table string) (key string, err error) {
 	return key, nil
 }
 
-
 // GetKeyForIndexZone generates the key to discover the list of zones within a
 // specific table (definition, actual, observed, target)
 // 
@@ -269,7 +320,7 @@ func GetKeyForIndexZone(table string, region string) (key string, err error) {
 	return key, nil
 }
 
-// GetKeyForIndexRack generates the key to discover the list of reracksgions within a
+// GetKeyForIndexRack generates the key to discover the list of racks within a
 // specific table (definition, actual, observed, target)
 // 
 func GetKeyForIndexRack(table string, region string, zone string) (key string, err error) {
@@ -343,7 +394,6 @@ func GetKeyForIndexBlade(table string, region string, zone string, rack string) 
 
 		return key, nil
 }
-
 
 // GetKeyForIndexEntryRegion generates the key to create an index entry for a region within a
 // specific table (definition, actual, observed, target)
@@ -575,26 +625,98 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 }
 
 
-// Region, zone and rack are "containers" whereas tor, pdu and blade are "things". You can send operations and commands to things, but not containers.
+// Region, zone and rack are "containers" whereas tor, pdu and blade are "things".
+// You can send operations and commands to things, but not containers.
+//
+// Of the following SetXxx() and GetXxx() methods fetch or set values within the
+// fields of an object (cursor) and do NOT perform any operations to the underlying
+// store.
+//
+// the Create(), Read(), Update() and Delete() methods perform the appropriate
+// operation to the persisted object based upon the current values of fields
+// within the object (cursor) being used and will return an error if needed fields
+// are not set.
+//
 type inventoryItem interface {
+	// Use to set the attribues of an object within the inventory
+	//
 	SetDetails(ctx context.Context, details *interface{})
 	GetDetails(ctx context.Context) *interface{}
 	GetRevision(ctx context.Context) int64
 	GetRevisionRecord(ctx context.Context) int64
 	GetRevisionStore(ctx context.Context) int64
 
+	// Create uses the current object to persist the object to the underlying
+	// store  and also create any index entries that may be required.
+	//
+	// This is not valid to call on a root object and doing so will return
+	// an error.
+	//
 	Create(ctx context.Context) (int64, error)
+
+	// Read issues a request to the underlying store to populate all the fields
+	// within the cursor object, including any attributes for that object or 
+	// other information specific to that object.
+	//
+	// This is not valid to call on a root object and doing so will return
+	// an error.
+	//
 	Read(ctx context.Context) (int64, error)
+
+	// Update will write a record the underlying store using the currenty 
+	// information  in the fields of the object. The update can be either
+	// unconditional by setting the unconditional parameter to true, or 
+	// conditional based on the revision of the object compared to the
+	// revision of the associated record in the underlying store.
+	//
+	// Note the object maintains revision information returned from the
+	// store for any actions involving the store, e.g. Create(), Read() or
+	// Update().
+	//
 	Update(ctx context.Context, unconditional bool) (int64, error)
+
+	// Delete is used to remove the persisted copy of the object from the
+	// store along with any index information needed to navigate to or
+	// through that object. The delete can be either unconditional by
+	// setting the unconditional parameter to true, or conditional based
+	// on the revision of the object compared to the revision of the
+	// associated record in the underlying store.
+	//
+	// Note the object maintains revision information returned from the
+	// store for any actions involving the store, e.g. Create(), Read() or
+	// Update().
+	//
 	Delete(ctx context.Context, unconditional bool) (int64, error)
 }
 
+// A node object within the inventory is one which in addition to having its own
+// attributes also allows for navigation of the namespace
+//
 type inventoryItemNode interface {
 	inventoryItem
 
+
+	// NewChild creates a child of the current object but uses only on the
+	// current object to create a new child object and no store
+	// operations are involved.
+	//
+	// Note, this method does not populate the attributes of the new child
+	// object. To retrieve the attributes a Read() using the child must be
+	// performed.
+	// 
 	NewChild(ctx context.Context, name string) (*interface{}, error)
 
+	// ListChildren uses the current object to discover the names of all the
+	// child objects of the current object, The elements of the returned list
+	// can be used in subsequent operations to create child objects.
+	//
 	ListChildren(ctx context.Context) (int64, *[]string, error)
+
+	// FetchChildren is used to locate all the children of the current object
+	// and to generate an object for each of those children. It is a
+	// convenience wrapper around ListChildren() followed by a NewChild() on
+	// each name discovered.
+	//
 	FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error)
 }
 
@@ -707,11 +829,11 @@ func (n *nullItem) FetchChildren(ctx context.Context) (int64, *map[string]interf
 
 // Additional functions for the rack specialization of the basic inventory item
 //
-func (n *nullItem) NewPdu(ctx context.Context,   name string) (*interface{}, error) {
+func (n *nullItem) NewPdu(ctx context.Context, name string) (*interface{}, error) {
 	return nil, ErrNullItem
 }
 
-func (n *nullItem) NewTor(ctx context.Context,   name string) (*interface{}, error) {
+func (n *nullItem) NewTor(ctx context.Context, name string) (*interface{}, error) {
 	return nil, ErrNullItem
 }
 
@@ -719,11 +841,11 @@ func (n *nullItem) NewBlade(ctx context.Context, name string) (*interface{}, err
 	return nil, ErrNullItem
 }
 
-func (n *nullItem) ListPdus(ctx context.Context)   (int64, *map[int64]*interface{}, error) {
+func (n *nullItem) ListPdus(ctx context.Context) (int64, *map[int64]*interface{}, error) {
 	return store.RevisionInvalid, nil, ErrNullItem
 }
 
-func (n *nullItem) ListTors(ctx context.Context)   (int64, *map[int64]*interface{}, error) {
+func (n *nullItem) ListTors(ctx context.Context) (int64, *map[int64]*interface{}, error) {
 	return store.RevisionInvalid, nil, ErrNullItem
 }
 
@@ -731,8 +853,21 @@ func (n *nullItem) ListBlades(ctx context.Context) (int64, *map[int64]*interface
 	return store.RevisionInvalid, nil, ErrNullItem
 }
 
+func (n *nullItem) FetchPdus(ctx context.Context) (int64, *[]string, error) {
+	return store.RevisionInvalid, nil, ErrNullItem
+}
 
-// Additional functions for the pdu and tor specialization of the basic inventory item
+func (n *nullItem) FetchTors(ctx context.Context) (int64, *[]string, error) {
+	return store.RevisionInvalid, nil, ErrNullItem
+}
+
+func (n *nullItem) FetchBlades(ctx context.Context) (int64, *[]string, error) {
+	return store.RevisionInvalid, nil, ErrNullItem
+}
+
+
+
+// Additional functions for the pdu and tor specializations of the basic inventory item
 //
 func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{})  {
 	return
