@@ -1,19 +1,29 @@
 package frontend
 
 import (
-	"errors"
+	"fmt"
 	"strings"
 )
 
-// ErrInMatch is a new error declaration for the instance if a bad view is found
-var errInMatch  = errors.New("decode: Bad view found")
+type errInMatch struct {
+	keywords []string
+	source string
+}
 
-// function to decode the input array in comparison to the source array
-func decode(keywords []string, source string) ([]bool, error){
-	
+func (e errInMatch) Error() string {
+	return fmt.Sprintf(
+		"The source %q was not found in keywords %v.",
+		e.source,
+		e.keywords)
+}
+
+// Decode is a function that finds all occurences of the source string in the keyword array.
+// - It returns an error if no occurence of the source string is found in the keyword array.
+// - When there is no error, the true value returned in boolean array represents that the
+// source string is not null and is equal to one or more elements of the keyword array.
+func Decode(keywords []string, source string) ([]bool, error){
 	var test []string = strings.Split(source, ",")
-	
-	outputkeywords := make([]bool, len(keywords))
+		outputkeywords := make([]bool, len(keywords))
 	
 	for _, t := range test{
 		t2 := strings.TrimSpace(t)
@@ -24,13 +34,13 @@ func decode(keywords []string, source string) ([]bool, error){
 				outputkeywords[i] = true
 				found = true	
 			}
-
 		}
-		
 		if found == false {
-			return nil, errInMatch
+			return nil, errInMatch{
+				keywords: keywords,
+				source: source,
+			}
 		}
 	}
-
-return outputkeywords, nil
+	return outputkeywords, nil
 }
