@@ -33,25 +33,25 @@ func TestDecodeBadView(t *testing.T) {
 
 func TestDecodeMultipleView(t *testing.T) {
 	var keywords []string = []string  {"Defined", "Actual", "Target", "Observed"}
-	var multipleview = "Defined, Defined, Observed, Actual"
+	var multipleView = "Defined, Defined, Observed, Actual"
 	var expected []bool = []bool {true, true, false, true}
 	
-	got, err := Decode(keywords, multipleview)
+	got, err := Decode(keywords, multipleView)
 	require.NoError(t, err)
 	assert.Equal(t, expected,got)
 }
 
  func TestDecodeBlankSource(t *testing.T){
 	var keywords []string = []string  {"Defined", "Actual", "Target", "Observed"}
-	var blanksource = ""
+	var blankSource = ""
 	var expected []bool = nil
 
-	got, err := Decode(keywords, blanksource)
+	got, err := Decode(keywords, blankSource)
 	require.Error(t, err)
 	assert.Equal(t, expected, got)
 }
 
-  func TestDecodemultiplecopiesSource(t *testing.T){
+  func TestDecodeMultipleCopiesSource(t *testing.T){
 	var source string = "Defined"
 	var keyword2 []string = []string {"Defined", "Defined", "Observed", "Defined"}
 	var expected []bool = []bool {true, true, false, true}
@@ -62,12 +62,12 @@ func TestDecodeMultipleView(t *testing.T) {
  }
 
  
- func TestDecodeemptyarraySource(t *testing.T){
+ func TestDecodeEmptyArraySource(t *testing.T){
 	emptyArray := make ([]string, 0, 4) 
-	var somestring = "Defined"
+	var someString = "Defined"
 	var expected []bool = nil
 
-	got, err := Decode(emptyArray, somestring)
+	got, err := Decode(emptyArray, someString)
 	require.Error(t, err)
 	assert.Equal(t, expected, got)
  }
@@ -82,7 +82,7 @@ func TestDecodeMultipleView(t *testing.T) {
 	assert.Equal(t, expected, got)
  }
 
-func TestDecodekeywordNil(t *testing.T){
+func TestDecodeKeywordNil(t *testing.T){
 	var keywords []string = nil
 	var views = "Defined, Observed"
 	var expected []bool = nil

@@ -19,11 +19,12 @@ func (e errInMatch) Error() string {
 
 // Decode is a function that finds all occurences of the source string in the keyword array.
 // - It returns an error if no occurence of the source string is found in the keyword array.
-// - When there is no error, the true value returned in boolean array represents that the
-// source string is not null and is equal to one or more elements of the keyword array.
+// - When there is no error, the boolean array describes which keywords were matched .
+//  An element in that array is true if the element with the same index in the keywords
+//  array was matched.
 func Decode(keywords []string, source string) ([]bool, error){
 	var test []string = strings.Split(source, ",")
-		outputkeywords := make([]bool, len(keywords))
+		outputKeywords := make([]bool, len(keywords))
 	
 	for _, t := range test{
 		t2 := strings.TrimSpace(t)
@@ -31,10 +32,11 @@ func Decode(keywords []string, source string) ([]bool, error){
 		
 		for i, k := range keywords{
 			if k == t2 {
-				outputkeywords[i] = true
+				outputKeywords[i] = true
 				found = true	
 			}
 		}
+
 		if found == false {
 			return nil, errInMatch{
 				keywords: keywords,
@@ -42,5 +44,5 @@ func Decode(keywords []string, source string) ([]bool, error){
 			}
 		}
 	}
-	return outputkeywords, nil
+	return outputKeywords, nil
 }
