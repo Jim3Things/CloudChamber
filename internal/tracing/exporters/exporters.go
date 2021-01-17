@@ -12,6 +12,7 @@ import (
 
 	export "go.opentelemetry.io/otel/sdk/export/trace"
 
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pbl "github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
@@ -96,7 +97,7 @@ func (e *Exporter) Open(attrs interface{}) error {
 	defer e.m.Unlock()
 
 	if !e.closed {
-		return ErrAlreadyOpen
+		return errors.ErrAlreadyOpen
 	}
 
 	if err := e.proc.Open(attrs); err != nil {

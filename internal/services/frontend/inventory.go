@@ -81,7 +81,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.Scan(func(name string) error {
+	err = dbInventory.ScanRacks(func(name string) error {
 		target := fmt.Sprintf("%s%s/", b, name)
 
 		res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
@@ -123,7 +123,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rack, err := dbInventory.Get(rackID)
+	rack, err := dbInventory.GetRack(rackID)
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return

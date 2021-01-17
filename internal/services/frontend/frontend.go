@@ -34,6 +34,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Server is the context structure for the frontend web service. It is used to
@@ -133,7 +134,32 @@ func initHandlers() error {
 	return nil
 }
 
+// initClients sets up the internal service clients used by the frontend
+// handlers themselves.
+func initClients(cfg *config.GlobalConfig) error {
+	err := ts.InitTimestamp(
+		cfg.SimSupport.EP.String(),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(ct.Interceptor))
+
+	if err != nil {
+		return err
+	}
+
+	err = tsc.InitSinkClient(
+		cfg.SimSupport.EP.String(),
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(ct.Interceptor))
+
+	return err
+}
+
 func initService(cfg *config.GlobalConfig) error {
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Initialize web service"),
+		tracing.WithContextValue(ts.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
 
 	// A failure to generate a random key is most likely a result of a failure of the
 	// system supplied random number generator mechanism. Although not known for sure
@@ -147,12 +173,12 @@ func initService(cfg *config.GlobalConfig) error {
 		log.Fatalf(
 			"Failed to generate required authentication key (Check system "+
 				"Random Number Generator and restart the service after 60s). Error: %v",
-			ErrNotInitialized)
+            errors.ErrNotInitialized)
 	} else if nil == keyEncryption {
 		log.Fatalf(
 			"Failed to generate required encryption key (Check system Random "+
 				"Number Generator and restart the service after 60s). Error: %v",
-			ErrNotInitialized)
+            errors.ErrNotInitialized)
 	}
 
 	server.rootFilePath = cfg.WebServer.RootFilePath
@@ -165,26 +191,7 @@ func initService(cfg *config.GlobalConfig) error {
 	server.cookieStore.Options.Secure = false
 	server.cookieStore.Options.HttpOnly = false
 
-	// Initialize the service clients
-	ts.InitTimestamp(
-		cfg.SimSupport.EP.String(),
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
-
-	tsc.InitSinkClient(
-		cfg.SimSupport.EP.String(),
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
-
 	if err := initHandlers(); err != nil {
-		return err
-	}
-
-	if err := InitDBInventory(cfg); err != nil {
-		return err
-	}
-
-	if err := InitDBInventoryActual(dbInventory); err != nil {
 		return err
 	}
 
@@ -192,12 +199,25 @@ func initService(cfg *config.GlobalConfig) error {
 	//
 	store.Initialize(cfg)
 
+	// initialize the inventory store and apply any updates from the configuration.
+	//
+	if err := InitDBInventory(ctx, cfg); err != nil {
+		return err
+	}
+
+	if err := InitDBInventoryActual(dbInventory); err != nil {
+		return err
+	}
+
 	// Finally, initialize the user store
-	return InitDBUsers(context.Background(), cfg)
+	return InitDBUsers(ctx, cfg)
 }
 
 // StartService is the primary entry point to start the front-end web service.
 func StartService(cfg *config.GlobalConfig) error {
+	if err := initClients(cfg); err != nil {
+		log.Fatalf("Error initializing local clients: %v", err)
+	}
 
 	if err := initService(cfg); err != nil {
 		log.Fatalf("Error initializing service: %v", err)

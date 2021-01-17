@@ -9,6 +9,7 @@ PROTO_FILES = \
     pkg/protos/common/timestamp.proto \
     pkg/protos/log/entry.proto \
     pkg/protos/inventory/actual.proto \
+    pkg/protos/inventory/definition.proto \
     pkg/protos/inventory/external.proto \
     pkg/protos/inventory/internal.proto \
     pkg/protos/inventory/target.proto \
@@ -30,6 +31,7 @@ PROTO_GEN_FILES = \
     pkg/protos/common/timestamp.pb.go \
     pkg/protos/log/entry.pb.go \
     pkg/protos/inventory/actual.pb.go \
+    pkg/protos/inventory/definition.pb.go \
     pkg/protos/inventory/external.pb.go \
     pkg/protos/inventory/internal.pb.go \
     pkg/protos/inventory/target.pb.go \
@@ -46,11 +48,16 @@ PROTO_GEN_FILES = \
 
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
 
+SRC_ERRORS = \
+	$(call ProdFiles, pkg/errors)
+
 SRC_CONFIG = \
+	$(SRC_ERRORS) \
 	$(call ProdFiles, internal/config)
 
 SRC_FRONTEND = \
 	$(SRC_CONFIG) \
+	$(SRC_ERRORS) \
 	$(SRC_STORE) \
 	$(SRC_TIMESTAMP) \
 	$(SRC_TRACING) \
@@ -75,14 +82,16 @@ SRC_STEPPER_ACTOR = \
     $(SRC_SM) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, internal/services/stepper_actor)
+	$(call ProdFiles, internal/services/stepper)
 
 SRC_STORE = \
+	$(SRC_ERRORS) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
 	$(call ProdFiles, internal/clients/store)
 
 SRC_TIMESTAMP = \
+	$(SRC_ERRORS) \
 	$(call ProdFiles, internal/clients/timestamp)
 
 SRC_TRACING = \
@@ -101,6 +110,7 @@ SRC_TRACING_SERVER = \
 	$(call ProdFiles, internal/tracing/server)
 
 SRC_TRACING_CLIENT = \
+	$(SRC_ERRORS) \
 	$(call ProdFiles, internal/tracing/client)
 
 SRC_VERSION = \
@@ -152,7 +162,7 @@ VERSION_MARKER = \
 ARTIFACTS = \
     deployments/readme.md \
     deployments/cloudchamber.yaml \
-	deployments/inventory.yaml \
+    deployments/inventory.yaml \
     deployments/Deploy.cmd \
     deployments/StartAll.cmd \
     deployments/StartCloudChamber.cmd \
@@ -230,14 +240,16 @@ install_clean:
 .PHONY : run_tests
 
 run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
-	go test $(PROJECT)/internal/clients/store
-	go test $(PROJECT)/internal/clients/timestamp
-	go test $(PROJECT)/internal/services/frontend
-	go test $(PROJECT)/internal/services/inventory
-	go test $(PROJECT)/internal/services/stepper_actor
-	go test $(PROJECT)/internal/services/tracing_sink
-	go test $(PROJECT)/internal/tracing/exporters
-	go test $(PROJECT)/internal/config
+	go test -count=1 $(PROJECT)/internal/clients/store
+	go test -count=1 $(PROJECT)/internal/clients/timestamp
+	go test -count=1 $(PROJECT)/internal/config
+	go test -count=1 $(PROJECT)/internal/services/frontend
+	go test -count=1 $(PROJECT)/internal/services/inventory
+	go test -count=1 $(PROJECT)/internal/services/repair_manager/inventory
+	go test -count=1 $(PROJECT)/internal/services/repair_manager/ruler
+	go test -count=1 $(PROJECT)/internal/services/stepper
+	go test -count=1 $(PROJECT)/internal/services/tracing_sink
+	go test -count=1 $(PROJECT)/internal/tracing/exporters
 
 
 .PHONY : clean

@@ -50,7 +50,7 @@ func Interceptor(
 	parent.AddEvent(
 		ctx,
 		method,
-		kv.Int64(tracing.SeverityKey, int64(sev)),
+		kv.Int64(tracing.SeverityKey, int64(overrideSeverity(method, sev))),
 		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
 		kv.Int64(tracing.StepperTicksKey, common.TickFromContext(ctx)),
 		kv.String(tracing.MessageTextKey,

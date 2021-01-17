@@ -7,6 +7,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pbl "github.com/Jim3Things/CloudChamber/pkg/protos/log"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 )
@@ -51,15 +52,15 @@ func NewSinkForwarder(dialOptions ...grpc.DialOption) *SinkForwarder {
 // sink service.
 func (sf *SinkForwarder) Open(attrs interface{}) error {
 	if attrs == nil {
-		return ErrOpenAttrsNil
+		return errors.ErrOpenAttrsNil
 	}
 
 	ep, ok := attrs.(string)
 
 	if !ok {
-		return ErrInvalidOpenAttrsType{
-			expected: reflect.TypeOf(sf.endpoint).String(),
-			actual:   reflect.TypeOf(ep).String(),
+		return errors.ErrInvalidOpenAttrsType{
+			Expected: reflect.TypeOf(sf.endpoint).String(),
+			Actual:   reflect.TypeOf(ep).String(),
 		}
 	}
 

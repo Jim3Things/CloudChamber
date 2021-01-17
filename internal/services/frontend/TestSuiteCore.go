@@ -4,13 +4,10 @@ import (
 	"bufio"
 	"bytes"
 	"context"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,18 +16,12 @@ import (
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
-	"github.com/Jim3Things/CloudChamber/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/internal/config"
-	stepper "github.com/Jim3Things/CloudChamber/internal/services/stepper_actor"
-	"github.com/Jim3Things/CloudChamber/internal/services/tracing_sink"
-	ctrc "github.com/Jim3Things/CloudChamber/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	strc "github.com/Jim3Things/CloudChamber/internal/tracing/server"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
+	"github.com/Jim3Things/CloudChamber/test/setup"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -38,30 +29,18 @@ import (
 // be put into the test file where they are needed.  Also, no specific test
 // file should redefine the values set here.
 
-const (
-	bufSize = 1024 * 1024
-)
-
 var (
-	s   *grpc.Server = nil
-	lis *bufconn.Listener
+	initServiceDone = false
 )
 
 type testSuiteCore struct {
 	suite.Suite
 
-	baseURI     string
-	initialized bool
+	baseURI string
 
-	lis *bufconn.Listener
 	utf *exporters.Exporter
 
-	ep       string
-	dialOpts []grpc.DialOption
-
 	cfg *config.GlobalConfig
-
-	s *grpc.Server
 }
 
 func (ts *testSuiteCore) adminAccountName() string { return "Admin" }
@@ -69,24 +48,20 @@ func (ts *testSuiteCore) adminPassword() string    { return "AdminPassword" }
 func (ts *testSuiteCore) userPath() string         { return ts.baseURI + "/api/users/" }
 
 func (ts *testSuiteCore) SetupSuite() {
+	require := ts.Require()
+
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
 
-	ts.ep = "bufnet"
-	ts.dialOpts = []grpc.DialOption{
-		grpc.WithContextDialer(ts.bufDialer),
-		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ctrc.Interceptor),
-	}
+	c, err := setup.StartSimSupportServices()
+	require.NoError(err)
+	ts.cfg = c
 
 	ts.ensureServicesStarted()
 }
 
 func (ts *testSuiteCore) SetupTest() {
 	_ = ts.utf.Open(ts.T())
-
-	timestamp.InitTimestamp(ts.ep, ts.dialOpts...)
-	trace_sink.InitSinkClient(ts.ep, ts.dialOpts...)
 
 	ts.baseURI = fmt.Sprintf("http://localhost:%d", server.port)
 
@@ -100,10 +75,6 @@ func (ts *testSuiteCore) SetupTest() {
 
 func (ts *testSuiteCore) TearDownTest() {
 	ts.utf.Close()
-}
-
-func (ts *testSuiteCore) bufDialer(_ context.Context, _ string) (net.Conn, error) {
-	return ts.lis.Dial()
 }
 
 // Convert a proto message into a reader with json-formatted contents
@@ -142,7 +113,7 @@ func (ts *testSuiteCore) getBody(resp *http.Response) ([]byte, error) {
 	return ioutil.ReadAll(resp.Body)
 }
 
-// Get the body of a response, unmarshaled into the supplied message structure
+// Get the body of a response, unmarshalled into the supplied message structure
 func (ts *testSuiteCore) getJSONBody(resp *http.Response, v proto.Message) error {
 	defer func() { _ = resp.Body.Close() }()
 	return jsonpb.Unmarshal(resp.Body, v)
@@ -208,43 +179,13 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 }
 
 // ensureServicesStarted handles the various components that can only be set or
-// initialized once.  This includes flag parsing and support service startup.
+// initialized once.
 func (ts *testSuiteCore) ensureServicesStarted() {
-	if s == nil {
-		configPath := flag.String("config", "./testdata", "path to the configuration file")
-		flag.Parse()
-
-		cfg, err := config.ReadGlobalConfig(*configPath)
-		if err != nil {
-			log.Fatalf("failed to process the global configuration: %v", err)
-		}
-
-		ts.cfg = cfg
+	if !initServiceDone {
+		require := ts.Require()
 
 		// Start the test web service, which all tests will use
-		if err = initService(cfg); err != nil {
-			log.Fatalf("Error initializing service: %v", err)
-		}
-
-		lis = bufconn.Listen(bufSize)
-		s = grpc.NewServer(grpc.UnaryInterceptor(strc.Interceptor))
-
-		if err = stepper.Register(s, pb.StepperPolicy_Invalid); err != nil {
-			log.Fatalf("Failed to register stepper actor: %v", err)
-			return
-		}
-
-		if _, err = tracing_sink.Register(s, cfg.SimSupport.TraceRetentionLimit); err != nil {
-			log.Fatalf("Failed to register tracing sink: %v", err)
-		}
-
-		go func() {
-			if err = s.Serve(lis); err != nil {
-				log.Fatalf("Server exited with error: %v", err)
-			}
-		}()
+		require.NoError(initService(ts.cfg))
+		initServiceDone = true
 	}
-
-	ts.lis = lis
-	ts.s = s
 }

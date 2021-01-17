@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pbl "github.com/Jim3Things/CloudChamber/pkg/protos/log"
 )
 
@@ -47,15 +48,15 @@ func NewIOWForwarder() *IOWForwarder {
 // Open connects the forwarder to the supplied IO.Writer
 func (iow *IOWForwarder) Open(attrs interface{}) error {
 	if attrs == nil {
-		return ErrOpenAttrsNil
+		return errors.ErrOpenAttrsNil
 	}
 
 	writer, ok := attrs.(io.Writer)
 
 	if !ok {
-		return ErrInvalidOpenAttrsType{
-			expected: reflect.TypeOf(iow.writer).String(),
-			actual:   reflect.TypeOf(attrs).String(),
+		return errors.ErrInvalidOpenAttrsType{
+			Expected: reflect.TypeOf(iow.writer).String(),
+			Actual:   reflect.TypeOf(attrs).String(),
 		}
 	}
 

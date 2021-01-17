@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // cable describes the active state of a connecting cable from the one element
@@ -37,11 +38,11 @@ func newCable(on bool, faulted bool, at int64) *cable {
 // changed, and an error if the conditions for changing were not met.
 func (c *cable) set(offOn bool, guard int64, at int64) (bool, error) {
 	if c.faulted {
-		return false, ErrCableStuck
+		return false, errors.ErrCableStuck
 	}
 
 	if !c.Pass(guard, at) {
-		return false, ErrTooLate
+		return false, errors.ErrInventoryChangeTooLate(guard)
 	}
 
 	startState := c.on
@@ -54,7 +55,7 @@ func (c *cable) set(offOn bool, guard int64, at int64) (bool, error) {
 // also requires that the guard check be met.
 func (c *cable) fault(offOn bool, guard int64, at int64) error {
 	if !c.Pass(guard, at) {
-		return ErrTooLate
+		return errors.ErrInventoryChangeTooLate(guard)
 	}
 
 	c.faulted = true
@@ -66,7 +67,7 @@ func (c *cable) fault(offOn bool, guard int64, at int64) error {
 // fix is the inverse of fault, in that it clears the faulted state.
 func (c *cable) fix(guard int64, at int64) error {
 	if !c.Pass(guard, at) {
-		return ErrTooLate
+		return errors.ErrInventoryChangeTooLate(guard)
 	}
 
 	c.faulted = false
@@ -77,7 +78,7 @@ func (c *cable) fix(guard int64, at int64) error {
 // force sets the underlying state of the cable, even if it is faulted.
 func (c *cable) force(offOn bool, guard int64, at int64) (bool, error) {
 	if !c.Pass(guard, at) {
-		return false, ErrTooLate
+		return false, errors.ErrInventoryChangeTooLate(guard)
 	}
 
 	startState := c.on

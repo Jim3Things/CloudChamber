@@ -2,19 +2,15 @@ package timestamp
 
 import (
 	"context"
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 
 	"google.golang.org/grpc"
-)
-
-var (
-	ErrTimerNotFound = errors.New("timer ID was not found")
 )
 
 // timerEntry describes a single active timer
@@ -26,7 +22,7 @@ type timerEntry struct {
 	dueTime int64
 
 	// ch is the channel that is to receive the expiration message
-	ch chan interface{}
+	callback func(msg interface{})
 
 	// msg is the expiration message specified for this timer
 	msg interface{}
@@ -80,16 +76,16 @@ func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
 // that point, the supplied msg is sent on the completion channel specified by
 // the parameter ch.  This function returns an id that can be used to cancel
 // the timer, and an error to indicate if the timer was successfully set.
-func (t *Timers) Timer(ctx context.Context, delay int64, ch chan interface{}, msg interface{}) (int, error) {
+func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callback func(msg interface{})) (int, error) {
 	t.m.Lock()
 	defer t.m.Unlock()
 
 	now := common.TickFromContext(ctx)
 	entry := &timerEntry{
-		id:      t.nextID,
-		dueTime: delay + now,
-		ch:      ch,
-		msg:     msg,
+		id:       t.nextID,
+		dueTime:  delay + now,
+		callback: callback,
+		msg:      msg,
 	}
 
 	t.idMap[entry.id] = entry.dueTime
@@ -116,7 +112,7 @@ func (t *Timers) Cancel(timerID int) error {
 
 	dueTime, ok := t.idMap[timerID]
 	if !ok {
-		return ErrTimerNotFound
+		return errors.ErrTimerNotFound(timerID)
 	}
 
 	entries := t.waiters[dueTime]
@@ -184,7 +180,7 @@ func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) i
 
 			if toSignal, stop = t.getExpiredWaiters(now, epoch); toSignal != nil {
 				for _, entry := range toSignal {
-					entry.ch <- entry.msg
+					entry.callback(entry.msg)
 				}
 			}
 		}

@@ -7,9 +7,11 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 
-	"google.golang.org/protobuf/runtime/protoiface"
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+
+	"google.golang.org/protobuf/runtime/protoiface"
 )
 
 // KeyRoot is used to describe which part of the store namespace
@@ -20,26 +22,117 @@ type KeyRoot int
 // The set of available namespace roots used by various record types
 //
 const (
-	KeyRootUsers KeyRoot = iota
-	KeyRootBlades
-	KeyRootRacks
-	KeyRootWorkloads
-	KeyRootStoreTest
+	KeyRootStoreTest KeyRoot = iota
+	KeyRootUsers
+
+	KeyRootInventoryDefinitions
+	KeyRootInventoryTargetState
+	KeyRootInventoryActualState
+	KeyRootInventoryObservedState
+	KeyRootInventoryRepairActions
+
+	KeyRootWorkloadDefinitions
+	KeyRootWorkloadTargetState
+	KeyRootWorkloadActualState
+	KeyRootWorkloadObservedState
+	KeyRootWorkloadRepairActions
 )
+
 const (
-	namespaceRootUsers     = "users"
-	namespaceRootRacks     = "racks"
-	namespaceRootBlades    = "blades"
-	namespaceRootWorkloads = "workloads"
 	namespaceRootStoreTest = "storetest"
+	namespaceRootUsers     = "users"
+	namespaceRootInventory = "inventory"
+	namespaceRootWorkloads = "workload"
+
+	namespaceRootInventoryDefinition    = namespaceRootInventory + "/" + "definition"
+	namespaceRootInventoryTargetState   = namespaceRootInventory + "/" + "target"
+	namespaceRootInventoryActualState   = namespaceRootInventory + "/" + "actual"
+	namespaceRootInventoryObservedState = namespaceRootInventory + "/" + "observed"
+	namespaceRootInventoryRepairActions = namespaceRootInventory + "/" + "repair"
+
+	namespaceRootWorkloadDefinition    = namespaceRootWorkloads + "/" + "definition"
+	namespaceRootWorkloadTargetState   = namespaceRootWorkloads + "/" + "target"
+	namespaceRootWorkloadActualState   = namespaceRootWorkloads + "/" + "actual"
+	namespaceRootWorkloadObservedState = namespaceRootWorkloads + "/" + "observed"
+	namespaceRootWorkloadRepairActions = namespaceRootWorkloads + "/" + "repair"
 )
 
 var namespaceRoots = map[KeyRoot]string{
-	KeyRootUsers:     namespaceRootUsers,
-	KeyRootRacks:     namespaceRootBlades,
-	KeyRootBlades:    namespaceRootBlades,
-	KeyRootWorkloads: namespaceRootWorkloads,
-	KeyRootStoreTest: namespaceRootStoreTest,
+	KeyRootStoreTest:              namespaceRootStoreTest,
+	KeyRootUsers:                  namespaceRootUsers,
+	KeyRootInventoryDefinitions:   namespaceRootInventoryDefinition,
+	KeyRootInventoryTargetState:   namespaceRootInventoryTargetState,
+	KeyRootInventoryActualState:   namespaceRootInventoryActualState,
+	KeyRootInventoryObservedState: namespaceRootInventoryObservedState,
+	KeyRootInventoryRepairActions: namespaceRootInventoryRepairActions,
+	KeyRootWorkloadDefinitions:    namespaceRootWorkloadDefinition,
+	KeyRootWorkloadTargetState:    namespaceRootWorkloadTargetState,
+	KeyRootWorkloadActualState:    namespaceRootWorkloadTargetState,
+	KeyRootWorkloadObservedState:  namespaceRootWorkloadObservedState,
+	KeyRootWorkloadRepairActions:  namespaceRootWorkloadRepairActions,
+}
+
+// Action defines the signature for a function to be invoked when the
+// WithAction option is used.
+//
+type Action func(string) error
+
+// Options is a set of options supplied via zero or more WithXxxx() functions
+//
+type Options struct {
+	revision    int64
+	keysOnly    bool
+	useAsPrefix bool
+	action      Action
+}
+
+func (options *Options) applyOpts(optionsArray []Option) {
+	for _, option := range optionsArray {
+		option(options)
+	}
+}
+
+// Option is the signature of the option functions used to select additional
+// optional parameters on a base routine call.
+//
+type Option func(*Options)
+
+// WithRevision is an option to supply a specific revision that applies to the
+// request. For example, to modify a basic Read() request to read a specific
+// revision of a record.
+//
+func WithRevision(rev int64) Option {
+	return func(options *Options) { options.revision = rev }
+}
+
+// WithPrefix is an option used to indicate the supplied name should be used
+// as a prefix for the request. This is primarily useful for Read() and Delete()
+// calls to indicate the supplied name is the root for a wildcard operation.
+//
+// Care should be used when applying this option on a Delete() call as a small
+// error could easily lead to an entire namespace being inadvertently deleted.
+//
+func WithPrefix() Option {
+	return func(options *Options) { options.useAsPrefix = true }
+}
+
+// WithKeysOnly is an option applying to a Read() request to avoid reading any
+// value(s) associated with the requested set of one or more keys.
+//
+// This option is primarily useful when attempting to determine which keys are
+// present when there is no immediate need to know the associated values. By
+// restricting the amount of data being retrieved, this option may lead to an
+// increase in performance and/or a reduction in consumed resources.
+//
+func WithKeysOnly() Option {
+	return func(options *Options) { options.keysOnly = true }
+}
+
+// WithAction allows a caller to supply an action routine which is invoke
+// on each record being processed within the transaction
+//
+func WithAction(action Action) Option {
+	return func(options *Options) { options.action = action }
 }
 
 func getNamespaceRootFromKeyRoot(r KeyRoot) string {
@@ -52,6 +145,11 @@ func getNamespacePrefixFromKeyRoot(r KeyRoot) string {
 
 func getKeyFromKeyRootAndName(r KeyRoot, n string) string {
 	return namespaceRoots[r] + "/" + GetNormalizedName(n)
+}
+
+func getNameFromKeyRootAndKey(r KeyRoot, k string) string {
+	n := strings.TrimPrefix(namespaceRoots[r]+"/", k)
+	return n
 }
 
 // GetKeyFromUsername1 is a utility function to convert a supplied username to
@@ -76,7 +174,38 @@ type Request struct {
 	Reason     string
 	Records    map[string]Record
 	Conditions map[string]Condition
+	Actions    map[string]Action
 }
+
+// // Operation indicates which operation should be applied to the item in the request.
+// //
+// type Operation uint
+
+// // The set of permissible operations on each Item within the set of items in a request
+// //
+// const (
+// 	OpRead Operation = iota
+// 	OpUpdate
+// 	OpDelete
+// )
+
+// // Item represents a specific record with
+// //
+// type Item struct {
+// 	Record Record
+// 	Condition Condition
+// 	Operation Operation
+// 	Action Action
+// }
+
+// // Request2 is a struct defining the collection of values needed to make a request
+// // of the underlying store. Which values need to be set depend on the request.
+// // For example, setting any "value" for a read request is ignored.
+// //
+// type Request2 struct {
+// 	Reason     string
+// 	Items      map[string]Item
+// }
 
 // Response is a struct defining the set of values returned from a request.
 //
@@ -146,8 +275,8 @@ func (store *Store) CreateWithEncode(
 	// Need to strip the namespace prefix and return something described
 	// in terms the caller should recognize
 	//
-	if err == ErrStoreAlreadyExists(k) {
-		return RevisionInvalid, ErrStoreAlreadyExists(n)
+	if err == errors.ErrStoreAlreadyExists(k) {
+		return RevisionInvalid, errors.ErrStoreAlreadyExists(n)
 	}
 
 	if err != nil {
@@ -188,8 +317,8 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 	// Need to strip the namespace prefix and return something described
 	// in terms the caller should recognize
 	//
-	if err == ErrStoreAlreadyExists(k) {
-		return RevisionInvalid, ErrStoreAlreadyExists(n)
+	if err == errors.ErrStoreAlreadyExists(k) {
+		return RevisionInvalid, errors.ErrStoreAlreadyExists(n)
 	}
 
 	if err != nil {
@@ -197,6 +326,57 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 	}
 
 	tracing.Info(ctx, "Created record for %q under prefix %q with revision %v", n, prefix, resp.Revision)
+
+	revision = resp.Revision
+
+	return resp.Revision, nil
+}
+
+// CreateMultiple is a function to create a set of related key, value pairs within a single operation (txn)
+//
+func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[string]string) (revision int64, err error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
+	defer span.End()
+
+	prefix := getNamespacePrefixFromKeyRoot(r)
+
+	tracing.Info(ctx, "Request to create new key set under prefix %q", prefix)
+
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
+
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition),
+	}
+
+	for n, v := range *kvs {
+		k := getKeyFromKeyRootAndName(r, n)
+		request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
+		request.Conditions[k] = ConditionCreate
+	}
+
+	resp, err := store.WriteTxn(ctx, request)
+
+	if err != nil {
+		// Need to strip the namespace prefix and return something described
+		// in terms the caller should recognize
+		//
+		for k := range request.Records {
+			if err == errors.ErrStoreAlreadyExists(k) {
+				n := getNameFromKeyRootAndKey(r, k)
+				return RevisionInvalid, errors.ErrStoreAlreadyExists(n)
+			}
+		}
+
+		// Nothing more appropriate found so just return what we have.
+		//
+		return RevisionInvalid, err
+	}
+
+	tracing.Info(ctx, "Created record set under prefix %q with revision %v", prefix, resp.Revision)
 
 	revision = resp.Revision
 
@@ -257,10 +437,10 @@ func (store *Store) ReadWithDecode(
 
 	switch recordCount {
 	default:
-		return RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
+		return RevisionInvalid, errors.ErrStoreBadRecordCount{Key: n, Expected: 1, Actual: recordCount}
 
 	case 0:
-		return RevisionInvalid, ErrStoreKeyNotFound(n)
+		return RevisionInvalid, errors.ErrStoreKeyNotFound(n)
 
 	case 1:
 		rev = response.Records[k].Revision
@@ -326,10 +506,10 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 
 	switch recordCount {
 	default:
-		return nil, RevisionInvalid, ErrStoreBadRecordCount{n, 1, recordCount}
+		return nil, RevisionInvalid, errors.ErrStoreBadRecordCount{Key: n, Expected: 1, Actual: recordCount}
 
 	case 0:
-		return nil, RevisionInvalid, ErrStoreKeyNotFound(n)
+		return nil, RevisionInvalid, errors.ErrStoreKeyNotFound(n)
 
 	case 1:
 		rev = response.Records[k].Revision
@@ -341,6 +521,52 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 
 		return value, revision, err
 	}
+}
+
+// Update is a function to conditionally update a value for a single key
+//
+func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64, v string) (revision int64, err error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
+	defer span.End()
+
+	prefix := getNamespacePrefixFromKeyRoot(r)
+	k := getKeyFromKeyRootAndName(r, n)
+
+	tracing.Info(ctx, "Request to update %q under prefix %q", n, prefix)
+
+	if err = store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
+
+	var condition Condition
+
+	switch {
+	case rev == RevisionInvalid:
+		condition = ConditionUnconditional
+
+	default:
+		condition = ConditionRevisionEqual
+	}
+
+	request := &Request{
+		Records:    make(map[string]Record),
+		Conditions: make(map[string]Condition)}
+
+	request.Records[k] = Record{Revision: rev, Value: v}
+	request.Conditions[k] = condition
+
+	resp, err := store.WriteTxn(ctx, request)
+
+	if err != nil {
+		return RevisionInvalid, err
+	}
+
+	tracing.Info(ctx,
+		"Updated record %q under prefix %q from revision %v to revision %v",
+		n, prefix, rev, resp.Revision)
+
+	return resp.Revision, nil
 }
 
 // UpdateWithEncode is a function to conditionally update a value for a single key
@@ -438,8 +664,8 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 	// Need to strip the namespace prefix and return something described
 	// in terms the caller should recognize
 	//
-	if err == ErrStoreKeyNotFound(k) {
-		return RevisionInvalid, ErrStoreKeyNotFound(n)
+	if err == errors.ErrStoreKeyNotFound(k) {
+		return RevisionInvalid, errors.ErrStoreKeyNotFound(n)
 	}
 
 	if err != nil {
@@ -485,7 +711,7 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 	for k, record := range response.Records {
 
 		if !strings.HasPrefix(k, prefix) {
-			return nil, RevisionInvalid, ErrStoreBadRecordKey(k)
+			return nil, RevisionInvalid, errors.ErrStoreBadRecordKey(k)
 		}
 
 		name := strings.TrimPrefix(k, prefix)

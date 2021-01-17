@@ -57,8 +57,8 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 	for _, event := range data.MessageEvents {
 		item := log.Event{
-			Text: event.Name,
-			Tick: -1,
+			Text:        event.Name,
+			Tick:        -1,
 			EventAction: log.Action_Trace,
 		}
 
@@ -84,6 +84,9 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 			case tracing.ActionKey:
 				item.EventAction = log.Action(attr.Value.AsInt64())
+
+			case tracing.ImpactKey:
+				item.Impacted = processImpacts(attr.Value.AsArray())
 			}
 		}
 
@@ -108,7 +111,7 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 	stack := doIndent(entry.GetStackTrace(), tab)
 
 	return doIndent(fmt.Sprintf(
-		"[%s:%s]%s%s%s %s %s(%s):\n%s\n",
+		"[%s:%s]%s%s%s %s %s (%s):\n%s\n",
 		entry.GetSpanID(),
 		entry.GetParentID(),
 		formatLink(entry.GetStartingLink(), entry.GetLinkSpanID(), entry.GetLinkTraceID()),
@@ -177,19 +180,21 @@ func formatNormalEvent(event *log.Event, leader string) string {
 
 	if event.GetTick() < 0 {
 		return doIndent(fmt.Sprintf(
-			"       : [%s] (%s) %s\n%s\n",
+			"       : [%s] (%s) %s\n%s%s\n",
 			severityFlag(event.GetSeverity()),
 			event.GetName(),
 			event.GetText(),
+			formatModules(event.Impacted),
 			stack), leader)
 	}
 
 	return doIndent(fmt.Sprintf(
-		"  @%4d: [%s] (%s) %s\n%s\n",
+		"  @%4d: [%s] (%s) %s\n%s%s\n",
 		event.GetTick(),
 		severityFlag(event.GetSeverity()),
 		event.GetName(),
 		event.GetText(),
+		formatModules(event.Impacted),
 		stack), leader)
 }
 
@@ -241,6 +246,57 @@ func formatLink(tag string, spanID string, traceID string) string {
 	}
 
 	return ""
+}
+
+func formatModules(modules []*log.Module) string {
+	if len(modules) == 0 {
+		return ""
+	}
+
+	res := tab + "Impacts:\n"
+	for i, module := range modules {
+		res = fmt.Sprintf("%s%s%s[%d] %s: %s\n", res, tab, tab, i, module.Impact.String(), module.Name)
+	}
+
+	return res
+}
+
+func processImpacts(attrs interface{}) []*log.Module {
+	var modules []*log.Module
+	values := attrs.([]string)
+
+	for _, value := range values {
+		tags := strings.Split(value, ":")
+
+		modules = append(modules, &log.Module{
+			Impact: decodeImpact(tags[0]),
+			Name:   tags[1],
+		})
+	}
+
+	return modules
+}
+
+func decodeImpact(tag string) log.Impact {
+	switch tag {
+	case tracing.ImpactCreate:
+		return log.Impact_Create
+
+	case tracing.ImpactRead:
+		return log.Impact_Read
+
+	case tracing.ImpactModify:
+		return log.Impact_Modify
+
+	case tracing.ImpactDelete:
+		return log.Impact_Delete
+
+	case tracing.ImpactUse:
+		return log.Impact_Execute
+
+	default:
+		return log.Impact_Invalid
+	}
 }
 
 // --- helper functions

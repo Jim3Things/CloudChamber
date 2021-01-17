@@ -3,9 +3,9 @@
 package inventory
 
 import (
-	"fmt"
+    "fmt"
 
-	"github.com/Jim3Things/CloudChamber/pkg/protos/common"
+    "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Validate is a method that verifies that the associated ExternalRack instance
@@ -14,7 +14,7 @@ func (x *ExternalRack) Validate() error {
 	// Verify that a rack has at least one blade
 	actual := int64(len(x.Blades))
 	if actual < 1 {
-		return common.ErrMinLenMap{
+		return errors.ErrMinLenMap{
 			Field:    "Blades",
 			Actual:   actual,
 			Required: 1,

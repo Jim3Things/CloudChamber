@@ -8,87 +8,32 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/internal/common"
+	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
-	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	ct "github.com/Jim3Things/CloudChamber/pkg/protos/common"
-	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 type PduTestSuite struct {
-	suite.Suite
-
-	utf *exporters.Exporter
-}
-
-func (ts *PduTestSuite) SetupSuite() {
-	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.ConnectToProvider(ts.utf)
-}
-
-func (ts *PduTestSuite) SetupTest() {
-	_ = ts.utf.Open(ts.T())
-}
-
-func (ts *PduTestSuite) TearDownTest() {
-	ts.utf.Close()
-}
-
-func createDummyRack(bladeCount int) *pb.ExternalRack {
-	rackDef := &pb.ExternalRack{
-		Pdu:    &pb.ExternalPdu{},
-		Tor:    &pb.ExternalTor{},
-		Blades: make(map[int64]*ct.BladeCapacity),
-	}
-
-	for i := 0; i < bladeCount; i++ {
-		rackDef.Blades[int64(i)] = &ct.BladeCapacity{}
-	}
-
-	return rackDef
-}
-
-func (ts *PduTestSuite) completeWithin(ch <-chan *sm.Response, delay time.Duration) *sm.Response {
-	select {
-	case res := <-ch:
-		return res
-	case <-time.After(delay):
-		return nil
-	}
-}
-
-func execute(ctx context.Context, msg *sm.Envelope, action func(ctx2 context.Context, envelope *sm.Envelope)) {
-	go func(tick int64, msg *sm.Envelope) {
-		c2, s := tracing.StartSpan(context.Background(),
-			tracing.WithName("Executing simulated inventory operation"),
-			tracing.WithNewRoot(),
-			tracing.WithLink(msg.Span, msg.Link))
-
-		c2 = common.ContextWithTick(c2, tick)
-
-		action(c2, msg)
-
-		s.End()
-	}(common.TickFromContext(ctx), msg)
+	testSuiteCore
 }
 
 func (ts *PduTestSuite) TestCreatePdu() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	rackDef := createDummyRack(2)
+	rackDef := ts.createDummyRack(2)
 
-	r := newRack(context.Background(), rackDef)
+	r := newRack(context.Background(), ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
-	assert.Equal("AwaitingStart", r.sm.Current.Name())
+	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
 
 	p := r.pdu
 	require.NotNil(p)
 
 	assert.Equal(2, len(p.cables))
 
-	assert.Equal("working", p.sm.Current.Name())
+	assert.Equal(pduWorkingState, p.sm.CurrentIndex)
 
 	for _, c := range p.cables {
 		assert.False(c.on)
@@ -100,50 +45,33 @@ func (ts *PduTestSuite) TestBadPowerTarget() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
-
-	rackDef := createDummyRack(2)
-
-	r := newRack(ctx, rackDef)
-	ctx = common.ContextWithTick(ctx, 2)
-
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test bad power target"))
-
-	for i := range r.pdu.cables {
-		r.pdu.cables[i] = newCable(true, false, 0)
-	}
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
 
 	rsp := make(chan *sm.Response)
 
-	badMsg := sm.NewEnvelope(
+	badMsg := messages.NewSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Tor{},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: false,
-			},
-		},
+		messages.NewTargetTor(ts.rackName()),
+		common.TickFromContext(ctx),
+		false,
 		rsp)
 
-	span.End()
+	r.Receive(badMsg)
 
-	execute(ctx, badMsg, r.pdu.Receive)
-
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 
 	assert.Error(res.Err)
-	assert.Equal(ErrInvalidTarget, res.Err)
+	assert.Equal(errors.ErrInvalidTarget, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	ok = utilities.WaitForStateChange(1, func() bool {
+		return r.pdu.sm.CurrentIndex == pduWorkingState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 
 	for _, c := range r.pdu.cables {
 		assert.True(c.on)
@@ -154,138 +82,227 @@ func (ts *PduTestSuite) TestPowerOffPdu() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
-
-	rackDef := createDummyRack(2)
-
-	r := newRack(ctx, rackDef)
-	ctx = common.ContextWithTick(ctx, 2)
-
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test powering off a PDU"))
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := messages.NewSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Pdu{},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: false,
-			},
-		},
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		false,
 		rsp)
 
-	span.End()
+	r.Receive(msg)
 
-	execute(ctx, msg, r.pdu.Receive)
-
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
-	require.NotNil(res)
-	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
-	assert.Equal(common.TickFromContext(ctx), res.At)
-	assert.Nil(res.Msg)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
 	}
 
-	assert.Equal("off", r.pdu.sm.Current.Name())
+	ok = utilities.WaitForStateChange(1, func() bool {
+		return r.pdu.sm.CurrentIndex == pduOffState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
+}
+
+func (ts *PduTestSuite) TestOffGetStatus() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
+
+	rsp := make(chan *sm.Response)
+
+	tick := common.TickFromContext(ctx)
+
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		tick,
+		false,
+		rsp)
+
+	r.Receive(msg)
+
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.Nil(res)
+
+	ok = utilities.WaitForStateChange(1, func() bool {
+		return r.pdu.sm.CurrentIndex == pduOffState
+	})
+
+	for _, c := range r.pdu.cables {
+		assert.False(c.on)
+	}
+
+	rsp2 := make(chan *sm.Response)
+
+	msg2 := messages.NewGetStatus(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		rsp2)
+
+	r.Receive(msg2)
+
+	res2, ok := ts.completeWithin(rsp2, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.NotNil(res2)
+	require.NoError(res2.Err)
+	assert.Equal(common.TickFromContext(ctx), res2.At)
+	require.NotNil(res2.Msg)
+
+	status, ok := res2.Msg.(*messages.PduStatus)
+	require.True(ok)
+
+	assert.Equal(pduOffState, status.State)
+	assert.Equal(tick, status.EnteredAt)
+
+	for _, c := range status.Cables {
+		assert.False(c.On)
+		assert.False(c.Faulted)
+	}
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
+}
+
+func (ts *PduTestSuite) TestPowerOffPduTooLate() {
+	require := ts.Require()
+	assert := ts.Assert()
+	startTime := int64(1)
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
+	ok := utilities.WaitForStateChange(1, func() bool {
+		return r.pdu.sm.CurrentIndex == pduWorkingState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
+
+	rsp := make(chan *sm.Response)
+
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		startTime-1,
+		false,
+		rsp)
+
+	r.Receive(msg)
+
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.Nil(res)
+
+	for _, c := range r.pdu.cables {
+		assert.True(c.on)
+	}
+
+	// Verify that it did not change - should never need to wait for this.
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnPdu() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
+	ctx, r := ts.createAndStartRack(context.Background(), 2, false, true)
+	ok := utilities.WaitForStateChange(1, func() bool {
+		return r.pdu.sm.CurrentIndex == pduWorkingState
+	})
 
-	rackDef := createDummyRack(2)
-
-	r := newRack(ctx, rackDef)
-	ctx = common.ContextWithTick(ctx, 2)
-
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test powering on a PDU"))
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := messages.NewSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Pdu{},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		true,
 		rsp)
 
-	span.End()
+	r.Receive(msg)
 
-	execute(ctx, msg, r.pdu.Receive)
-
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
-	require.NotNil(res)
-	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
-	assert.Equal(common.TickFromContext(ctx), res.At)
-	assert.Nil(res.Msg)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
 	}
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	// Verify that it did not change - should never need to wait for this.
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
+}
+
+func (ts *PduTestSuite) TestWorkingGetStatus() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, false, true)
+	ok := utilities.WaitForStateChange(1, func() bool {
+		return r.pdu.sm.CurrentIndex == pduWorkingState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
+
+	rsp := make(chan *sm.Response)
+
+	msg := messages.NewGetStatus(
+		ctx,
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		rsp)
+
+	r.Receive(msg)
+
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.NotNil(res)
+	require.NoError(res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	require.NotNil(res.Msg)
+
+	status, ok := res.Msg.(*messages.PduStatus)
+	require.True(ok)
+
+	assert.Equal(pduWorkingState, status.State)
+	assert.Equal(int64(0), status.EnteredAt)
+
+	for _, c := range status.Cables {
+		assert.False(c.On)
+		assert.False(c.Faulted)
+	}
+
+	// Verify that it did not change - should never need to wait for this.
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnBlade() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
-
-	rackDef := createDummyRack(2)
-
-	r := newRack(ctx, rackDef)
-	ctx = common.ContextWithTick(ctx, 2)
-
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test powering on a blade"))
+	ctx, r := ts.createAndStartRack(context.Background(), 2, false, true)
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := messages.NewSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
+		messages.NewTargetBlade(ts.rackName(), 0),
+		common.TickFromContext(ctx),
+		true,
 		rsp)
 
-	span.End()
+	r.Receive(msg)
 
-	execute(ctx, msg, r.pdu.Receive)
-
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	assert.NoError(res.Err)
 
@@ -295,165 +312,178 @@ func (ts *PduTestSuite) TestPowerOnBlade() {
 	assert.True(r.pdu.cables[0].on)
 	assert.False(r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
+}
+
+func (ts *PduTestSuite) TestPowerOnBladeBadID() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
+
+	rsp := make(chan *sm.Response)
+
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 9),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
+
+	r.Receive(msg)
+
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.NotNil(res)
+	assert.Error(res.Err)
+	assert.Equal(errors.ErrInvalidTarget, res.Err)
+
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Less(r.pdu.sm.Guard, msg.Guard)
+
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
+}
+
+func (ts *PduTestSuite) TestPowerOnBladeWhileOn() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
+
+	rsp := make(chan *sm.Response)
+
+	msg := messages.NewSetPower(
+		ctx,
+		messages.NewTargetBlade(ts.rackName(), 0),
+		common.TickFromContext(ctx),
+		true,
+		rsp)
+
+	r.Receive(msg)
+
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.NotNil(res)
+	require.Error(res.Err)
+	assert.Equal(errors.ErrNoOperation, res.Err)
+
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Equal(common.TickFromContext(ctx), r.pdu.sm.Guard)
+	assert.Equal(common.TickFromContext(ctx), r.pdu.cables[0].Guard)
+
+	assert.True(r.pdu.cables[0].on)
+	assert.False(r.pdu.cables[0].faulted)
+
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestPowerOnBladeTooLate() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	startTime := int64(1)
-	ctx := common.ContextWithTick(context.Background(), startTime)
+	ctx := ts.advance(context.Background())
+	commandTime := common.TickFromContext(ctx)
 
-	rackDef := createDummyRack(2)
-
-	r := newRack(ctx, rackDef)
-	ctx = common.ContextWithTick(ctx, 2)
-
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test powering on a blade (too late)"))
+	ctx, r := ts.createAndStartRack(ctx, 2, false, true)
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := messages.NewSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
-			After: &ct.Timestamp{Ticks: startTime - 1},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
 		rsp)
 
-	span.End()
+	r.Receive(msg)
 
-	execute(ctx, msg, r.pdu.Receive)
-
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
-	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
-	assert.Equal(common.TickFromContext(ctx), res.At)
-	assert.Nil(res.Msg)
+	require.Error(errors.ErrInventoryChangeTooLate(commandTime), res.Err)
 
-	assert.Equal(startTime, r.pdu.sm.Guard)
-	assert.Equal(startTime, r.pdu.cables[0].Guard)
+	assert.Less(r.pdu.sm.Guard, common.TickFromContext(ctx))
+	assert.Less(commandTime, r.pdu.cables[0].Guard)
 	assert.False(r.pdu.cables[0].on)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestStuckCable() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
-
-	rackDef := createDummyRack(2)
-
-	r := newRack(ctx, rackDef)
-
-	startTime := common.TickFromContext(ctx)
-	require.Nil(r.pdu.cables[0].fault(false, startTime, startTime))
-	ctx = common.ContextWithTick(ctx, 2)
-
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test powering on a blade (stuck cable)"))
+	ctx, r := ts.createAndStartRack(context.Background(), 2, false, true)
+	r.pdu.cables[0].faulted = true
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	commandTime := common.TickFromContext(ctx)
+	msg := messages.NewSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack: "",
-				Element: &services.InventoryAddress_BladeId{
-					BladeId: 0,
-				},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: true,
-			},
-		},
+		messages.NewTargetBlade(ts.rackName(), 0),
+		commandTime,
+		true,
 		rsp)
 
-	span.End()
+	r.Receive(msg)
 
-	execute(ctx, msg, r.pdu.Receive)
-
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
-	assert.Equal(ErrCableStuck, res.Err)
+	assert.Equal(errors.ErrCableStuck, res.Err)
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal(startTime, r.pdu.sm.Guard)
-	assert.Equal(startTime, r.pdu.cables[0].Guard)
+	assert.Less(r.pdu.sm.Guard, commandTime)
+	assert.Less(r.pdu.cables[0].Guard, commandTime)
 	assert.False(r.pdu.cables[0].on)
 	assert.Equal(true, r.pdu.cables[0].faulted)
 
-	assert.Equal("working", r.pdu.sm.Current.Name())
+	// SetPower above will have synchronized enough that the state should be
+	// correct without any waiting
+	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
 }
 
 func (ts *PduTestSuite) TestStuckCablePduOff() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	ctx := common.ContextWithTick(context.Background(), 1)
-
-	rackDef := createDummyRack(2)
-	r := newRack(ctx, rackDef)
-
-	startTime := common.TickFromContext(ctx)
-	require.Nil(r.pdu.cables[0].fault(true, startTime, startTime))
-	ctx = common.ContextWithTick(ctx, 2)
-
-	ctx, span := tracing.StartSpan(
-		ctx,
-		tracing.WithName("test powering off a pdu (stuck cable)"))
+	ctx, r := ts.createAndStartRack(context.Background(), 2, true, true)
 
 	rsp := make(chan *sm.Response)
 
-	msg := sm.NewEnvelope(
+	msg := messages.NewSetPower(
 		ctx,
-		&services.InventoryRepairMsg{
-			Target: &services.InventoryAddress{
-				Rack:    "",
-				Element: &services.InventoryAddress_Pdu{},
-			},
-			After: &ct.Timestamp{Ticks: common.TickFromContext(ctx)},
-			Action: &services.InventoryRepairMsg_Power{
-				Power: false,
-			},
-		},
+		messages.NewTargetPdu(ts.rackName()),
+		common.TickFromContext(ctx),
+		false,
 		rsp)
 
-	span.End()
+	r.Receive(msg)
 
-	execute(ctx, msg, r.pdu.Receive)
-
-	res := ts.completeWithin(rsp, time.Duration(1)*time.Second)
-	require.NotNil(res)
-	require.Error(res.Err)
-	assert.Equal(ErrRepairMessageDropped, res.Err)
-	assert.Equal(common.TickFromContext(ctx), res.At)
-	assert.Nil(res.Msg)
+	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	require.True(ok)
+	require.Nil(res)
 
 	for _, c := range r.pdu.cables {
 		assert.False(c.on)
 	}
 
-	assert.Equal("off", r.pdu.sm.Current.Name())
+	ok = utilities.WaitForStateChange(1, func() bool {
+		return r.pdu.sm.CurrentIndex == pduOffState
+	})
+
+	require.True(ok, "state is %v", r.pdu.sm.CurrentIndex)
 }
 
 func TestPduTestSuite(t *testing.T) {
