@@ -10,15 +10,14 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/suite"
 
-    "github.com/Jim3Things/CloudChamber/pkg/errors"
-    pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 type UserTestSuite struct {
@@ -83,8 +82,9 @@ func (ts *UserTestSuite) ensureAccount(
 		logf("Found existing user %q.", user)
 
 		var rev int64
-		rev, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
-		assert.NoError(err, "Error parsing ETag. Value received is : %q", err)
+		tagString := response.Header.Get("ETag")
+		rev, err := parseAsMatchTag(tagString)
+		assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 		return rev, response.Cookies()
 	}
@@ -110,7 +110,7 @@ func (ts *UserTestSuite) ensureAccount(
 	ts.knownNames[path] = path
 
 	tagString := response.Header.Get("ETag")
-	tag, err := strconv.ParseInt(tagString, 10, 64)
+	tag, err := parseAsMatchTag(tagString)
 	assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 	return tag, response.Cookies()
@@ -149,11 +149,11 @@ func (ts *UserTestSuite) setPassword(
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response := ts.doHTTP(request, cookies)
 
-	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	match, err := parseAsMatchTag(response.Header.Get("ETag"))
 	assert.NoError(err)
 
 	return response, match
@@ -171,14 +171,13 @@ func (ts *UserTestSuite) userUpdate(
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response := ts.doHTTP(request, cookies)
 	assert.Equal(http.StatusOK, response.StatusCode)
 
-	tagString := response.Header.Get("ETag")
-	tag, err := strconv.ParseInt(tagString, 10, 64)
-	assert.NoError(err, fmt.Sprintf("Error parsing ETag. tag = %q, err = %v", tagString, err))
+	tag, err := parseAsMatchTag(response.Header.Get("ETag"))
+	assert.NoError(err)
 
 	return response, tag
 }
@@ -668,7 +667,7 @@ func (ts *UserTestSuite) TestRead() {
 
 	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	match, err := parseAsMatchTag(response.Header.Get("ETag"))
 	assert.NoError(err, "failed to convert the ETag to valid int64")
 	assert.Less(int64(1), match)
 
@@ -793,7 +792,7 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, cookies)
 	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
@@ -802,7 +801,7 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	err = ts.getJSONBody(response, user)
 	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	match, err := strconv.ParseInt(response.Header.Get("ETag"), 10, 64)
+	match, err := parseAsMatchTag(response.Header.Get("ETag"))
 	assert.NoError(err, "failed to convert the ETag to valid int64")
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
@@ -838,7 +837,7 @@ func (ts *UserTestSuite) TestUpdateBadData() {
 		ts.alice(),
 		strings.NewReader("{\"enabled\":123,\"manageAccounts\":false, \"password\":\"test\"}"))
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, cookies)
 	body, err := ts.getBody(response)
@@ -877,7 +876,7 @@ func (ts *UserTestSuite) TestUpdateBadMatch() {
 	rev += 10
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, cookies)
 	body, err := ts.getBody(response)
@@ -909,7 +908,7 @@ func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", "abc")
+	request.Header.Set("If-Match", "\"abc\"")
 
 	response = ts.doHTTP(request, cookies)
 	body, err := ts.getBody(response)
@@ -938,7 +937,7 @@ func (ts *UserTestSuite) TestUpdateNoUser() {
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.userPath(), "BadUser"), r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", "1"))
+	request.Header.Set("If-Match", formatAsEtag(1))
 
 	response = ts.doHTTP(request, response.Cookies())
 	body, err := ts.getBody(response)
@@ -971,7 +970,7 @@ func (ts *UserTestSuite) TestUpdateNoPrivilege() {
 
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, response.Cookies())
 	body, err := ts.getBody(response)
@@ -1012,7 +1011,7 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, response.Cookies())
 	body, err := ts.getBody(response)
@@ -1248,7 +1247,7 @@ func (ts *UserTestSuite) TestSetPasswordBadPassword() {
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", rev))
+	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, cookies)
 
@@ -1287,7 +1286,7 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set("If-Match", fmt.Sprintf("%v", -1))
+	request.Header.Set("If-Match", formatAsEtag(-1))
 
 	response = ts.doHTTP(request, response.Cookies())
 

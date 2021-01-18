@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -20,8 +19,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-    "github.com/Jim3Things/CloudChamber/pkg/errors"
-    pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 const (
@@ -163,7 +162,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	w.Header().Set("ETag", formatAsEtag(rev))
 
 	tracing.Info(
 		ctx,
@@ -209,7 +208,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	w.Header().Set("ETag", formatAsEtag(rev))
 
 	ext := &pb.UserPublic{
 		Enabled:           u.Enabled,
@@ -268,7 +267,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	var match int64
 
 	matchString := r.Header.Get("If-Match")
-	match, err = strconv.ParseInt(matchString, 10, 64)
+	match, err = parseAsMatchTag(matchString)
 	if err != nil {
 		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
@@ -301,7 +300,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	w.Header().Set("ETag", formatAsEtag(rev))
 
 	ext := &pb.UserPublic{
 		Enabled:           newVer.Enabled,
@@ -429,7 +428,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	var match int64
 
 	matchString := r.Header.Get("If-Match")
-	match, err = strconv.ParseInt(matchString, 10, 64)
+	match, err = parseAsMatchTag(matchString)
 	if err != nil {
 		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
@@ -452,7 +451,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("ETag", fmt.Sprintf("%v", rev))
+	w.Header().Set("ETag", formatAsEtag(rev))
 
 	tracing.Info(
 		ctx,
