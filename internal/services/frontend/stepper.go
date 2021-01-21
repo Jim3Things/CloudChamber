@@ -147,7 +147,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	matchString := r.Header.Get("If-Match")
-	match, err := parseAsMatchTag(matchString)
+	match, err := parseETag(matchString)
 	if err != nil {
 		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return

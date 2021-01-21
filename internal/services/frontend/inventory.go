@@ -90,7 +90,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 		return nil
 	})
-
+If
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return

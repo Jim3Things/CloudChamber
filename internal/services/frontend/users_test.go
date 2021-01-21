@@ -83,7 +83,7 @@ func (ts *UserTestSuite) ensureAccount(
 
 		var rev int64
 		tagString := response.Header.Get("ETag")
-		rev, err := parseAsMatchTag(tagString)
+		rev, err := parseETag(tagString)
 		assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 		return rev, response.Cookies()
@@ -110,7 +110,7 @@ func (ts *UserTestSuite) ensureAccount(
 	ts.knownNames[path] = path
 
 	tagString := response.Header.Get("ETag")
-	tag, err := parseAsMatchTag(tagString)
+	tag, err := parseETag(tagString)
 	assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 	return tag, response.Cookies()
@@ -153,7 +153,7 @@ func (ts *UserTestSuite) setPassword(
 
 	response := ts.doHTTP(request, cookies)
 
-	match, err := parseAsMatchTag(response.Header.Get("ETag"))
+	match, err := parseETag(response.Header.Get("ETag"))
 	assert.NoError(err)
 
 	return response, match
@@ -176,7 +176,7 @@ func (ts *UserTestSuite) userUpdate(
 	response := ts.doHTTP(request, cookies)
 	assert.Equal(http.StatusOK, response.StatusCode)
 
-	tag, err := parseAsMatchTag(response.Header.Get("ETag"))
+	tag, err := parseETag(response.Header.Get("ETag"))
 	assert.NoError(err)
 
 	return response, tag
@@ -667,7 +667,7 @@ func (ts *UserTestSuite) TestRead() {
 
 	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	match, err := parseAsMatchTag(response.Header.Get("ETag"))
+	match, err := parseETag(response.Header.Get("ETag"))
 	assert.NoError(err, "failed to convert the ETag to valid int64")
 	assert.Less(int64(1), match)
 
@@ -801,7 +801,7 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	err = ts.getJSONBody(response, user)
 	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
-	match, err := parseAsMatchTag(response.Header.Get("ETag"))
+	match, err := parseETag(response.Header.Get("ETag"))
 	assert.NoError(err, "failed to convert the ETag to valid int64")
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
