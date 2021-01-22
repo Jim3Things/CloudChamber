@@ -117,7 +117,7 @@
 // This includes the blade ID number and associated URI.
 //
 // GET /api/racks/{rackid}/blades/{bladeid}
-// Returns the detail information for the blade numbed by bladeid in the rack
+// Returns the detail information for the blade number by bladeid in the rack
 // identified by rackid.
 //
 //
@@ -162,6 +162,9 @@
 // supplied document is invalid in some way, or if the supplied username is not
 // known.
 //
+// This operation is normally gated by an If-Match on a previously returned
+// revision ETag.
+//
 // POST /api/users/{username}
 // Creates a record for the user matching username, or an error if the supplied
 // document is invalid in some way. If the user record is successfully created,
@@ -174,9 +177,6 @@
 // If the username already exists and the supplied document differs from the
 // existing user record in any significant way, the response will be an HTTP
 // 409 (Conflict) status.
-//
-// This operation is normally gated by an If-Match on a previously returned
-// revision ETag.
 //
 // DELETE /api/users/{username}
 // Deletes the record for the user matching username, or an error is the
