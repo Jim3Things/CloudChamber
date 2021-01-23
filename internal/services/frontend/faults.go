@@ -8,7 +8,7 @@ import (
 )
 
 func injectionAddRoutes(routeBase *mux.Router) {
-	router := routeBase.PathPrefix("/inject").Subrouter()
+	router := routeBase.PathPrefix("/faults").Subrouter()
 
 	router.HandleFunc("", handlerInjectionRoot).Methods("GET")
 	router.HandleFunc("/", handlerInjectionRoot).Methods("GET")

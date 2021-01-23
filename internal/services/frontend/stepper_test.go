@@ -33,12 +33,12 @@ func (ts *StepperTestSuite) setManual(match int64, cookies []*http.Cookie) []*ht
 	assert := ts.Assert()
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=manual"), nil)
-	request.Header.Set("If-Match", fmt.Sprintf("%v", match))
+	request.Header.Set("If-Match", formatAsEtag(match))
 
 	response := ts.doHTTP(request, cookies)
 
 	assert.Equal(http.StatusOK, response.StatusCode)
-	assert.Equal(fmt.Sprintf("%v", match+1), response.Header.Get("ETag"))
+	assert.Equal(formatAsEtag(match+1), response.Header.Get("ETag"))
 
 	return response.Cookies()
 }
@@ -147,7 +147,7 @@ func (ts *StepperTestSuite) TestSetModeInvalid() {
 	cookies = ts.setManual(res.Epoch, cookies)
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=badChoice"), nil)
-	request.Header.Set("If-Match", "-1")
+	request.Header.Set("If-Match", formatAsEtag(-1))
 
 	response = ts.doHTTP(request, cookies)
 
@@ -179,7 +179,7 @@ func (ts *StepperTestSuite) TestSetModeBadEpoch() {
 	cookies = ts.setManual(stat.Epoch, cookies)
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=manual"), nil)
-	request.Header.Set("If-Match", fmt.Sprintf("%v", stat.Epoch))
+	request.Header.Set("If-Match", formatAsEtag(stat.Epoch))
 
 	response = ts.doHTTP(request, cookies)
 

@@ -2,7 +2,6 @@ package frontend
 
 import (
 	"context"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -61,7 +60,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("ETag", fmt.Sprintf("%v", stat.Epoch))
+	w.Header().Set("ETag", formatAsEtag(stat.Epoch))
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, stat)
@@ -148,8 +147,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	matchString := r.Header.Get("If-Match")
-	match, err := strconv.ParseInt(matchString, 10, 64)
-
+	match, err := parseETag(matchString)
 	if err != nil {
 		postHTTPError(ctx, w, NewErrBadMatchType(matchString))
 		return
@@ -196,7 +194,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("ETag", fmt.Sprintf("%v", match+1))
+	w.Header().Set("ETag", formatAsEtag(match+1))
 
 	httpErrorIf(ctx, w, err)
 }
