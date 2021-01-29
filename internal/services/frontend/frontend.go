@@ -22,6 +22,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
@@ -34,7 +35,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	ct "github.com/Jim3Things/CloudChamber/internal/tracing/client"
-    "github.com/Jim3Things/CloudChamber/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Server is the context structure for the frontend web service. It is used to
@@ -47,6 +48,8 @@ type Server struct {
 
 	handler     http.Handler
 	cookieStore *sessions.CookieStore
+
+	startTime	time.Time
 }
 
 var (
@@ -112,13 +115,14 @@ func initHandlers() error {
 	// Add the routes for the API
 	//
 	routeAPI := handler.PathPrefix("/api").Subrouter()
+	injectionAddRoutes(routeAPI)
+	inventoryAddRoutes(routeAPI)
+	logsAddRoutes(routeAPI)
+	pingAddRoutes(routeAPI)
+	simulationAddRoutes(routeAPI)
+	stepperAddRoutes(routeAPI)
 	usersAddRoutes(routeAPI)
 	workloadsAddRoutes(routeAPI)
-	inventoryAddRoutes(routeAPI)
-	stepperAddRoutes(routeAPI)
-	pingAddRoutes(routeAPI)
-	logsAddRoutes(routeAPI)
-	injectionAddRoutes(routeAPI)
 
 	// Add the file handling for any other paths.
 	handler.PathPrefix("/").
@@ -173,12 +177,12 @@ func initService(cfg *config.GlobalConfig) error {
 		log.Fatalf(
 			"Failed to generate required authentication key (Check system "+
 				"Random Number Generator and restart the service after 60s). Error: %v",
-            errors.ErrNotInitialized)
+			errors.ErrNotInitialized)
 	} else if nil == keyEncryption {
 		log.Fatalf(
 			"Failed to generate required encryption key (Check system Random "+
 				"Number Generator and restart the service after 60s). Error: %v",
-            errors.ErrNotInitialized)
+			errors.ErrNotInitialized)
 	}
 
 	server.rootFilePath = cfg.WebServer.RootFilePath
@@ -190,6 +194,8 @@ func initService(cfg *config.GlobalConfig) error {
 	//       Once it is, these need to be removed.
 	server.cookieStore.Options.Secure = false
 	server.cookieStore.Options.HttpOnly = false
+
+	server.startTime = time.Now()
 
 	if err := initHandlers(); err != nil {
 		return err

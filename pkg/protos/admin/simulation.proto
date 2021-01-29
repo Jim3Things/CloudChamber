@@ -1,0 +1,40 @@
+syntax = "proto3";
+
+package admin;
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/admin";
+
+// SessionSummary contains the key and address information for all active
+// logged-in sessions.
+message SessionSummary {
+    message session {
+        int64 id = 1;
+        string uri = 2;
+    }
+    repeated session sessions = 1;
+}
+
+// SimulationStatus contains overview information about the status of the
+// CloudChamber cluster.
+message SimulationStatus {
+    // The wall clock time the cluster started.
+    google.protobuf.Timestamp frontEndStartedAt = 1;
+
+    // The wall clock timeout for logged in sessions.  If no activity occurs
+    // for that session within the timeout period, the session is removed.
+    google.protobuf.Duration inactivityTimeout = 2;
+}
+
+// SessionStatus contains the detail information about an active logged in
+// session.
+message SessionStatus {
+    // The username that is logged in for this session.
+    string userName = 1;
+
+    // The wall clock time when this session will end if no further activity is
+    // seen on it.
+    google.protobuf.Timestamp timeout = 2;
+}

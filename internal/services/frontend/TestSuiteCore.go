@@ -143,7 +143,7 @@ func (ts *testSuiteCore) randomCase(val string) string {
 
 // Log the specified user into CloudChamber
 func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.Cookie) *http.Response {
-	assert := ts.Assert()
+	require := ts.Require()
 	logf := ts.T().Logf
 
 	path := fmt.Sprintf("%s%s?op=login", ts.userPath(), user)
@@ -153,9 +153,9 @@ func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.C
 	response := ts.doHTTP(request, cookies)
 	_, err := ts.getBody(response)
 
-	assert.Nilf(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
-	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	require.NoError(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
+	require.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	require.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	return response
 }

@@ -11,8 +11,8 @@ import (
 
 	"github.com/gorilla/sessions"
 
-    "github.com/Jim3Things/CloudChamber/pkg/errors"
-    pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 )
 
 const (
@@ -40,6 +40,27 @@ var timeouts = map[time.Time]int64{}
 
 // lastID contains the last session ID used by this server
 var lastID int64 = 0
+
+// getSessionSummaryList returns the list of session IDs for all currently
+// active sessions.
+func getSessionSummaryList() []int64 {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	keys := make([]int64, 0, len(activeSessions))
+
+	for key := range activeSessions {
+		keys = append(keys, key)
+	}
+
+	return keys
+}
+
+// getSessionTimeout returns the inactivity timer used to determine when a
+// session should be removed due to lack of incoming requests.
+func getSessionTimeout() time.Duration {
+	return expirationTimeout
+}
 
 // newSession is a function that creates a new login session, so long as
 // one is not currently active
@@ -85,6 +106,24 @@ func removeSession(session *sessions.Session) {
 	}
 }
 
+// removeSessionById removes the active session specified by the id, if it is
+// active.  It returns a copy of the deleted session state for informational
+// use by the caller.
+func removeSessionById(id int64) (sessionState, bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	purgeStaleSessions()
+
+	if entry, ok2 := activeSessions[id]; ok2 {
+		delete(activeSessions, id)
+		delete(timeouts, entry.timeout)
+		return entry, true
+	}
+
+	return sessionState{}, false
+}
+
 // getSession is a function that returns the state associated with the current
 // session.  It also returns a true/false flag indicating if the state was
 // found in the active sessions, much like map lookup does.
@@ -114,6 +153,20 @@ func getSession(session *sessions.Session) (sessionState, bool) {
 	}
 
 	return sessionState{}, false
+}
+
+// getSessionById returns the session state for an active session specified by
+// the id.  This lookup does not count as an attempt to use the session, so does
+// not reset the inactivity timer.  The second return value is true iff an
+// active session with the specified id is found.
+func getSessionById(id int64) (sessionState, bool) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	purgeStaleSessions()
+
+	entry, ok := activeSessions[id]
+	return entry, ok
 }
 
 // purgeStaleSessions removes stale sessions from the active session list.  It

@@ -11,6 +11,7 @@ import (
 	"strconv"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
+	err2 "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // HTTPError is a custom common HTTP error type that includes the status code
@@ -92,6 +93,15 @@ func ensureNumber(field string, value string) (int64, error) {
 }
 
 // +++ HTTPError specializations
+
+// NewErrSessionNotFound creates an HTTP error indicating that the requested
+// session ID was not found amongst the active sessions.
+func NewErrSessionNotFound(id int64) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusNotFound,
+		Base: err2.ErrSessionNotFound(id),
+	}
+}
 
 // NewErrNoSessionActive indicates that the request was made without first
 // establishing a logged in session
