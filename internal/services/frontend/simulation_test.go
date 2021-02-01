@@ -21,8 +21,8 @@ func (ts *SimulationTestSuite) SetupSuite() {
 	ts.testSuiteCore.SetupSuite()
 }
 
-func (ts *SimulationTestSuite) simulationPath() string { return ts.baseURI + "/api/simulation" }
-func (ts *SimulationTestSuite) sessionListPath() string { return ts.simulationPath() + "/sessions"}
+func (ts *SimulationTestSuite) simulationPath() string  { return ts.baseURI + "/api/simulation" }
+func (ts *SimulationTestSuite) sessionListPath() string { return ts.simulationPath() + "/sessions" }
 
 func (ts *SimulationTestSuite) TestSimulationSummary() {
 	require := ts.Require()
@@ -46,7 +46,7 @@ func (ts *SimulationTestSuite) TestSimulationSummary() {
 
 	inactivity, err := ptypes.Duration(status.InactivityTimeout)
 	require.NoError(err)
-	require.Equal(time.Duration(1) * time.Hour, inactivity)
+	require.Equal(time.Duration(1)*time.Hour, inactivity)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -67,6 +67,27 @@ func (ts *SimulationTestSuite) TestActiveSessionList() {
 	require.Equal(1, len(status.Sessions))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
+}
+
+func (ts *SimulationTestSuite) TestListNoPrivilege() {
+	require := ts.Require()
+
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+
+	// ... next we need a second account that we're sure exists
+	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+
+	ts.doLogout(ts.adminAccountName(), cookies)
+
+	response = ts.doLogin("alice", ts.alicePassword(), nil)
+
+	request := httptest.NewRequest("GET", ts.sessionListPath(), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response = ts.doHTTP(request, response.Cookies())
+	require.Equal(http.StatusForbidden, response.StatusCode)
+
+	ts.doLogout("alice", response.Cookies())
 }
 
 func (ts *SimulationTestSuite) TestSessionStatus() {
@@ -99,6 +120,33 @@ func (ts *SimulationTestSuite) TestSessionStatus() {
 	require.Equal(strings.ToLower(ts.adminAccountName()), strings.ToLower(entry.UserName))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
+}
+
+func (ts *SimulationTestSuite) TestSessionStatusNoPrivilege() {
+	require := ts.Require()
+
+	response := ts.doLogin(ts.adminAccountName(), ts.adminPassword(), nil)
+
+	request := httptest.NewRequest("GET", ts.sessionListPath(), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response = ts.doHTTP(request, response.Cookies())
+	status := &pb.SessionSummary{}
+	err := ts.getJSONBody(response, status)
+	require.NoError(err)
+
+	_, cookies := ts.ensureAccount("alice", ts.aliceDef, response.Cookies())
+
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
+	response = ts.doLogin("alice", ts.alicePassword(), nil)
+
+	request = httptest.NewRequest("GET", status.Sessions[0].Uri, nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response = ts.doHTTP(request, response.Cookies())
+	require.Equal(http.StatusForbidden, response.StatusCode)
+
+	ts.doLogout("alice", response.Cookies())
 }
 
 func (ts *SimulationTestSuite) TestDeleteSession() {
@@ -137,6 +185,31 @@ func (ts *SimulationTestSuite) TestDeleteSession() {
 
 	response = ts.doHTTP(request, response.Cookies())
 	require.Equal(http.StatusForbidden, response.StatusCode)
+}
+
+func (ts *SimulationTestSuite) TestDeleteNoPrivilege() {
+	require := ts.Require()
+
+	response := ts.doLogin(ts.adminAccountName(), ts.adminPassword(), nil)
+
+	request := httptest.NewRequest("GET", ts.sessionListPath(), nil)
+	request.Header.Set("Content-Type", "application/json")
+
+	response = ts.doHTTP(request, response.Cookies())
+	status := &pb.SessionSummary{}
+	err := ts.getJSONBody(response, status)
+	require.NoError(err)
+
+	_, cookies := ts.ensureAccount("alice", ts.aliceDef, response.Cookies())
+
+	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
+	response = ts.doLogin("alice", ts.alicePassword(), nil)
+
+	request = httptest.NewRequest("DELETE", status.Sessions[0].Uri, nil)
+	response = ts.doHTTP(request, response.Cookies())
+	require.Equal(http.StatusForbidden, response.StatusCode)
+
+	ts.doLogout("alice", response.Cookies())
 }
 
 func TestSimulationTestSuite(t *testing.T) {

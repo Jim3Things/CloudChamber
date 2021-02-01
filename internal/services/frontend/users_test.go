@@ -5,15 +5,12 @@
 package frontend
 
 import (
-	"bufio"
-	"bytes"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
-	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/pkg/errors"
@@ -22,98 +19,10 @@ import (
 
 type UserTestSuite struct {
 	testSuiteCore
-
-	aliceDef *pb.UserDefinition
-	bobDef   *pb.UserDefinition
-
-	knownNames map[string]string
 }
-
-func (ts *UserTestSuite) userPath() string      { return ts.baseURI + "/api/users/" }
-func (ts *UserTestSuite) admin() string         { return ts.userPath() + ts.adminAccountName() }
-func (ts *UserTestSuite) alice() string         { return ts.userPath() + "Alice" }
-func (ts *UserTestSuite) bob() string           { return ts.userPath() + "Bob" }
-func (ts *UserTestSuite) alicePassword() string { return "test" }
-func (ts *UserTestSuite) bobPassword() string   { return "test2" }
 
 func (ts *UserTestSuite) SetupSuite() {
 	ts.testSuiteCore.SetupSuite()
-
-	ts.aliceDef = &pb.UserDefinition{
-		Password:          ts.alicePassword(),
-		Enabled:           true,
-		CanManageAccounts: false,
-	}
-
-	ts.bobDef = &pb.UserDefinition{
-		Password:          ts.bobPassword(),
-		Enabled:           true,
-		CanManageAccounts: false,
-	}
-
-	// The user URLs that have been added and not deleted during the test run.
-	// Note that this does not include any predefined users, such as Admin.
-	ts.knownNames = make(map[string]string)
-}
-
-// Ensure that the specified account exists.  This function first checks if it
-// is already known, returning that account's current revision if it is.  If it
-// is not, then the account is created using the supplied definition, again
-// returning the revision number.
-//
-// Note that this is mostly used by unit tests in order to support running any
-// unit test in isolation from the overall flow.
-func (ts *UserTestSuite) ensureAccount(
-	user string,
-	u *pb.UserDefinition,
-	cookies []*http.Cookie) (int64, []*http.Cookie) {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-
-	path := ts.userPath() + user
-
-	req := httptest.NewRequest("GET", path, nil)
-	req.Header.Set("Content-Type", "application/json")
-	response := ts.doHTTP(req, cookies)
-	_ = response.Body.Close()
-
-	// If we found the user, just return the existing revision and cookies
-	if response.StatusCode == http.StatusOK {
-		logf("Found existing user %q.", user)
-
-		var rev int64
-		tagString := response.Header.Get("ETag")
-		rev, err := parseETag(tagString)
-		assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
-
-		return rev, response.Cookies()
-	}
-
-	// Didn't find the user, create a new incarnation of it.
-	logf("Did not find user %q.  Creating it from scratch.", user)
-
-	var buf bytes.Buffer
-	w := bufio.NewWriter(&buf)
-
-	p := jsonpb.Marshaler{}
-	err := p.Marshal(w, u)
-	assert.NoError(err)
-	_ = w.Flush()
-	r := bufio.NewReader(&buf)
-
-	req = httptest.NewRequest("POST", path, r)
-	req.Header.Set("Content-Type", "application/json")
-
-	response = ts.doHTTP(req, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode)
-
-	ts.knownNames[path] = path
-
-	tagString := response.Header.Get("ETag")
-	tag, err := parseETag(tagString)
-	assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
-
-	return tag, response.Cookies()
 }
 
 func (ts *UserTestSuite) userRead(path string, cookies []*http.Cookie) (*http.Response, *pb.UserPublic) {
