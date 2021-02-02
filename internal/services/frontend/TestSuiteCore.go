@@ -20,6 +20,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/pkg/protos/admin"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/test/setup"
 )
@@ -41,14 +42,40 @@ type testSuiteCore struct {
 	utf *exporters.Exporter
 
 	cfg *config.GlobalConfig
+
+	aliceDef *admin.UserDefinition
+	bobDef   *admin.UserDefinition
+
+	knownNames map[string]string
 }
 
 func (ts *testSuiteCore) adminAccountName() string { return "Admin" }
 func (ts *testSuiteCore) adminPassword() string    { return "AdminPassword" }
 func (ts *testSuiteCore) userPath() string         { return ts.baseURI + "/api/users/" }
+func (ts *testSuiteCore) admin() string            { return ts.userPath() + ts.adminAccountName() }
+func (ts *testSuiteCore) alice() string            { return ts.userPath() + "Alice" }
+func (ts *testSuiteCore) bob() string              { return ts.userPath() + "Bob" }
+func (ts *testSuiteCore) alicePassword() string    { return "test" }
+func (ts *testSuiteCore) bobPassword() string      { return "test2" }
 
 func (ts *testSuiteCore) SetupSuite() {
 	require := ts.Require()
+
+	// The user URLs that have been added and not deleted during the test run.
+	// Note that this does not include any predefined users, such as Admin.
+	ts.knownNames = make(map[string]string)
+
+	ts.aliceDef = &admin.UserDefinition{
+		Password:          ts.alicePassword(),
+		Enabled:           true,
+		CanManageAccounts: false,
+	}
+
+	ts.bobDef = &admin.UserDefinition{
+		Password:          ts.bobPassword(),
+		Enabled:           true,
+		CanManageAccounts: false,
+	}
 
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
@@ -143,7 +170,7 @@ func (ts *testSuiteCore) randomCase(val string) string {
 
 // Log the specified user into CloudChamber
 func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.Cookie) *http.Response {
-	assert := ts.Assert()
+	require := ts.Require()
 	logf := ts.T().Logf
 
 	path := fmt.Sprintf("%s%s?op=login", ts.userPath(), user)
@@ -153,9 +180,9 @@ func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.C
 	response := ts.doHTTP(request, cookies)
 	_, err := ts.getBody(response)
 
-	assert.Nilf(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
-	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	require.NoError(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
+	require.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
+	require.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	return response
 }
@@ -188,4 +215,64 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 		require.NoError(initService(ts.cfg))
 		initServiceDone = true
 	}
+}
+
+// Ensure that the specified account exists.  This function first checks if it
+// is already known, returning that account's current revision if it is.  If it
+// is not, then the account is created using the supplied definition, again
+// returning the revision number.
+//
+// Note that this is mostly used by unit tests in order to support running any
+// unit test in isolation from the overall flow.
+func (ts *testSuiteCore) ensureAccount(
+	user string,
+	u *admin.UserDefinition,
+	cookies []*http.Cookie) (int64, []*http.Cookie) {
+	assert := ts.Assert()
+	logf := ts.T().Logf
+
+	path := ts.userPath() + user
+
+	req := httptest.NewRequest("GET", path, nil)
+	req.Header.Set("Content-Type", "application/json")
+	response := ts.doHTTP(req, cookies)
+	_ = response.Body.Close()
+
+	// If we found the user, just return the existing revision and cookies
+	if response.StatusCode == http.StatusOK {
+		logf("Found existing user %q.", user)
+
+		var rev int64
+		tagString := response.Header.Get("ETag")
+		rev, err := parseETag(tagString)
+		assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
+
+		return rev, response.Cookies()
+	}
+
+	// Didn't find the user, create a new incarnation of it.
+	logf("Did not find user %q.  Creating it from scratch.", user)
+
+	var buf bytes.Buffer
+	w := bufio.NewWriter(&buf)
+
+	p := jsonpb.Marshaler{}
+	err := p.Marshal(w, u)
+	assert.NoError(err)
+	_ = w.Flush()
+	r := bufio.NewReader(&buf)
+
+	req = httptest.NewRequest("POST", path, r)
+	req.Header.Set("Content-Type", "application/json")
+
+	response = ts.doHTTP(req, response.Cookies())
+	assert.Equal(http.StatusOK, response.StatusCode)
+
+	ts.knownNames[path] = path
+
+	tagString := response.Header.Get("ETag")
+	tag, err := parseETag(tagString)
+	assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
+
+	return tag, response.Cookies()
 }
