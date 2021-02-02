@@ -318,7 +318,7 @@ func (st *sessionTable) touch(id int64) (sessionState, bool) {
 	st.purge()
 
 	if entry, ok := st.known[id]; ok {
-		st.deleteFromTimeoutList(id, entry.timeout)
+		st.removeFromTimeoutList(id, entry.timeout)
 		entry.timeout = time.Now().Add(st.maxInactive)
 		st.addToTimeoutList(id, entry.timeout)
 
@@ -384,7 +384,7 @@ func (st *sessionTable) deleteFromTables(id int64) (sessionState, bool) {
 	if entry, ok := st.known[id]; ok {
 		delete(st.known, id)
 
-		st.deleteFromTimeoutList(id, entry.timeout)
+		st.removeFromTimeoutList(id, entry.timeout)
 
 		return entry, true
 	}
@@ -405,10 +405,10 @@ func (st *sessionTable) addToTimeoutList(id int64, expiry time.Time) {
 	st.timeouts[expiry] = list
 }
 
-// deleteFromTimeoutList removes an entry from the appropriate timeout map
+// removeFromTimeoutList removes an entry from the appropriate timeout map
 // list.  It cleans up map when the list of entries at a given timeout becomes
 // empty.
-func (st *sessionTable) deleteFromTimeoutList(id int64, expiry time.Time) {
+func (st *sessionTable) removeFromTimeoutList(id int64, expiry time.Time) {
 	list := st.timeouts[expiry]
 	var l2 []int64
 	for _, i := range list {
