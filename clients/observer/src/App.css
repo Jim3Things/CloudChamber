@@ -1,0 +1,15 @@
+.App {
+  text-align: left;
+  font-size: small;
+}
+
+.App-div {
+  text-align: left;
+  font-size: small;
+  color: black;
+}
+
+div {
+  font-size: small;
+  text-align: left;
+}
