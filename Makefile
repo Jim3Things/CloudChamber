@@ -1,6 +1,6 @@
 PROJECT = $(GOPATH)/src/github.com/Jim3Things/CloudChamber
 
-PROJECT_UI = ../cloud_chamber_react_ts/build
+PROJECT_UI = clients/observer/build
 
 PROTO_FILES = \
 	pkg/protos/admin/simulation.proto \
