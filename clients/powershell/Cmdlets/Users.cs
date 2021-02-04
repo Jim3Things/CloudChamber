@@ -5,14 +5,15 @@ using Newtonsoft.Json;
 
 namespace CloudChamber.Cmdlets
 {
-
     /// <summary>
     ///     NamedUserCmdlets further specializes UserCmdlets by including the most
     ///     common parameters.
     /// </summary>
     public class NamedUserCmdlets : CmdletBase
     {
-        public NamedUserCmdlets() : base("/api/users") { }
+        public NamedUserCmdlets() : base("/api/users")
+        {
+        }
 
         /// <summary>
         ///     Name is the name of the user to operate on.
@@ -33,7 +34,9 @@ namespace CloudChamber.Cmdlets
     [Cmdlet(VerbsCommon.Get, Names.Users)]
     public class GetUsersCmdlet : CmdletBase
     {
-        public GetUsersCmdlet()  : base("/api/users/") { }
+        public GetUsersCmdlet() : base("/api/users/")
+        {
+        }
 
         /// <summary>
         ///     Session contains the currently logged-in http client to use when
