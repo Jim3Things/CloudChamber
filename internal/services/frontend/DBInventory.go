@@ -23,7 +23,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/common"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -621,8 +620,8 @@ func (m *DBInventory) CreateZone(
 
 	rev, err := z.Create(ctx)
 
-	if err == errors.ErrStoreAlreadyExists(k) {
-		return InvalidRev, errors.ErrZoneAlreadyExists(name)
+	if err != nil {
+		return InvalidRev, err
 	}
 	
 	return rev, nil
@@ -759,12 +758,6 @@ func (m *DBInventory) CreateTor(
 // the stored record.
 //
 func (m *DBInventory) CreateBlade(
-	ctx context.Context,
-	zone string,
-	rack string,
-	index int64,
-	blade *pb.DefinitionBlade,
-	options ...InventoryOption) (int64, error) {
 	ctx context.Context,
 	zone string,
 	rack string,
@@ -1218,11 +1211,11 @@ func (m *DBInventory) DeleteRack(
 // TODO - should the deletion of the last PDU return a distinct
 //        status to indicate it is the last PDU?
 //
-func (m *DBInventory) DeletePdu(ctx context.Context, zone string, rack string, pdu int64, options ...InventoryOption) (int64, error) {
+func (m *DBInventory) DeletePdu(
 	ctx context.Context,
 	zone string,
 	rack string,
-	pdu int64,
+	index int64,
 	options ...InventoryOption) (int64, error) {
 
 	p, err := inventory.NewPdu(
@@ -1256,11 +1249,11 @@ func (m *DBInventory) DeletePdu(ctx context.Context, zone string, rack string, p
 // TODO - should the deletion of the last TOR return a distinct
 //        status to indicate it is the last TOR?
 //
-func (m *DBInventory) DeleteTor(ctx context.Context, zone string, rack string, tor int64, options ...InventoryOption) (int64, error) {
+func (m *DBInventory) DeleteTor(
 	ctx context.Context,
 	zone string,
 	rack string,
-	tor int64,
+	index int64,
 	options ...InventoryOption) (int64, error) {
 
 	t, err := inventory.NewTor(
@@ -1294,11 +1287,11 @@ func (m *DBInventory) DeleteTor(ctx context.Context, zone string, rack string, t
 // TODO - should the deletion of the last blade return a distinct
 //        status to indicate it is the last blade?
 //
-func (m *DBInventory) DeleteBlade(ctx context.Context, zone string, rack string, blade int64, options ...InventoryOption) (int64, error) {
+func (m *DBInventory) DeleteBlade(
 	ctx context.Context,
 	zone string,
 	rack string,
-	blade int64,
+	index int64,
 	options ...InventoryOption) (int64, error) {
 
 	b, err := inventory.NewBlade(
