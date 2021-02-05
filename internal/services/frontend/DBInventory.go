@@ -70,7 +70,7 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			MaxBladeCount: 0,
 			MaxCapacity:   &pb.BladeCapacity{},
 			Store:         store.NewStore(),
-			Region:       &pb.DefinitionRegion{},
+			Region:        &pb.DefinitionRegion{},
 		}
 
 		if err = db.Initialize(ctx, cfg); err != nil {
