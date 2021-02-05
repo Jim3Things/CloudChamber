@@ -26,12 +26,12 @@
 //
 // The objects within a table form a hierarchy of navigable "nodes" from root,
 // to region, to zone to rack. Within a rack there are the further child objects
-// for puds, tors and blades. These last choild objects do not themselves have
-// children and are accessed as complete entities which are operated on an an
+// for pdus, tors and blades. These last child objects do not themselves have
+// children and are accessed as complete entities which are operated on as an
 // atomic unit.
 //
-// NOTE: At least so far. It is conceivable that we may wish to extednd this
-//       to allow indivudual entries within these leaf items to be manipulated
+// NOTE: At least so far. It is conceivable that we may wish to extend this
+//       to allow individual entries within these leaf items to be manipulated
 //       directly, e.g. we may wish to update the state of a network port
 //       within a tor without having to re-write the complete tor object.
 //
@@ -54,10 +54,10 @@ package inventory
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -148,17 +148,23 @@ func verifyTable(table string) error {
 	case DefinitionTableStdTest: return nil
 
 	case "":
-		return ErrTableNameMissing(table)
+		return errors.ErrTableNameMissing(table)
 
 	default:
-		return ErrTableNameInvalid(table)
+		return errors.ErrTableNameInvalid{
+			Name:            table,
+			DefinitionTable: DefinitionTable,
+			ActualTable:     ActualTable,
+			ObservedTable:   ObservedTable,
+			TargetTable:     TargetTable,
+		}
 	}
 }
 
 func verifyRegion(val string) error {
 
 	if "" == val {
-		return ErrRegionNameMissing(val)
+		return errors.ErrRegionNameMissing(val)
 	}
 
 	return nil
@@ -167,7 +173,7 @@ func verifyRegion(val string) error {
 func verifyZone(val string) error {
 
 	if "" == val {
-		return ErrZoneNameMissing(val)
+		return errors.ErrZoneNameMissing(val)
 	}
 
 	return nil
@@ -176,7 +182,7 @@ func verifyZone(val string) error {
 func verifyRack(val string) error {
 
 	if "" == val {
-		return ErrRackNameMissing(val)
+		return errors.ErrRackNameMissing(val)
 	}
 
 	return nil
@@ -185,7 +191,7 @@ func verifyRack(val string) error {
 func verifyPdu(val int64) error {
 
 	if val < 0 || val > maxPduID {
-		return ErrPduIDInvalid(val)
+		return errors.ErrPduIDInvalid{Value: val, Limit: maxPduID}
 	}
 
 	return nil
@@ -194,7 +200,7 @@ func verifyPdu(val int64) error {
 func verifyTor(val int64) error {
 
 	if val < 0 || val > maxTorID {
-		return ErrTorIDInvalid(val)
+		return errors.ErrTorIDInvalid{Value: val, Limit: maxTorID}
 	}
 
 	return nil
@@ -203,7 +209,7 @@ func verifyTor(val int64) error {
 func verifyBlade(val int64) error {
 
 	if val < 0 || val > maxBladeID {
-		return ErrBladeIDInvalid(val)
+		return errors.ErrBladeIDInvalid{Value: val, Limit: maxBladeID}
 	}
 
 	return nil
@@ -761,19 +767,6 @@ type inventoryBlade interface {
 }
 
 
-
-
-var (
-	// ErrNullItem indicates the supplied item does not exist
-	//
-	ErrNullItem             = errors.New("item not initialized")
-
-	// ErrFunctionNotAvailable indicates the specified object does
-	// not have the requested method.
-	//
-	ErrFunctionNotAvailable = errors.New("function not available")
-)
-
 type nullItem struct {}
 
 func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) {
@@ -796,19 +789,19 @@ func (n *nullItem) GetRevisionStore(ctx context.Context) int64 {
 }
 
 func (n *nullItem) Create(ctx context.Context) (int64, error) {
-	return store.RevisionInvalid, ErrNullItem
+	return store.RevisionInvalid, errors.ErrNullItem
 }
 
 func (n *nullItem) Read(ctx context.Context) (int64, error){
-	return store.RevisionInvalid, ErrNullItem
+	return store.RevisionInvalid, errors.ErrNullItem
 }
 
 func (n *nullItem) Update(ctx context.Context) (int64, error) {
-	return store.RevisionInvalid, ErrNullItem
+	return store.RevisionInvalid, errors.ErrNullItem
 }
 
 func (n *nullItem) Delete(ctx context.Context) (int64, error) {
-	return store.RevisionInvalid, ErrNullItem
+	return store.RevisionInvalid, errors.ErrNullItem
 }
 
 
@@ -816,53 +809,53 @@ func (n *nullItem) Delete(ctx context.Context) (int64, error) {
 // Additional functions for the node specialization of the basic inventory item
 //
 func (n *nullItem) NewChild(ctx context.Context, name string) (*interface{}, error){
-	return nil, ErrNullItem
+	return nil, errors.ErrNullItem
 }
 
 func (n *nullItem) ListChildren(ctx context.Context) (int64, *[]string, error){
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 func (n *nullItem) FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error){
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
 
 // Additional functions for the rack specialization of the basic inventory item
 //
 func (n *nullItem) NewPdu(ctx context.Context, name string) (*interface{}, error) {
-	return nil, ErrNullItem
+	return nil, errors.ErrNullItem
 }
 
 func (n *nullItem) NewTor(ctx context.Context, name string) (*interface{}, error) {
-	return nil, ErrNullItem
+	return nil, errors.ErrNullItem
 }
 
 func (n *nullItem) NewBlade(ctx context.Context, name string) (*interface{}, error) {
-	return nil, ErrNullItem
+	return nil, errors.ErrNullItem
 }
 
 func (n *nullItem) ListPdus(ctx context.Context) (int64, *map[int64]*interface{}, error) {
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
 func (n *nullItem) ListTors(ctx context.Context) (int64, *map[int64]*interface{}, error) {
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
 func (n *nullItem) ListBlades(ctx context.Context) (int64, *map[int64]*interface{}, error) {
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
 func (n *nullItem) FetchPdus(ctx context.Context) (int64, *[]string, error) {
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
 func (n *nullItem) FetchTors(ctx context.Context) (int64, *[]string, error) {
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
 func (n *nullItem) FetchBlades(ctx context.Context) (int64, *[]string, error) {
-	return store.RevisionInvalid, nil, ErrNullItem
+	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
 

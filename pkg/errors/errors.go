@@ -62,6 +62,15 @@ var (
 	// ErrOpenAttrsNil indicates that an Open exporter operation was passed no
 	// arguments, but argument values were required.
 	ErrOpenAttrsNil = errors.New("CloudChamber: Exporter.Open attributes must not be nil")
+
+	// ErrNullItem indicates the supplied item does not exist
+	//
+	ErrNullItem             = errors.New("item not initialized")
+
+	// ErrFunctionNotAvailable indicates the specified object does
+	// not have the requested method.
+	//
+	ErrFunctionNotAvailable = errors.New("function not available")
 )
 
 // ErrInventoryChangeTooLate indicates that an attempt to modify an inventory
@@ -131,6 +140,15 @@ func (escf ErrStoreConnectionFailed) Error() string {
 	return fmt.Sprintf(
 		"CloudChamber: failed to establish connection to store - Endpoints: %q Reason: %q",
 		escf.Endpoints, escf.Reason)
+}
+
+// ErrStoreIndexNotFound indicates the requested index was not found when the store
+// lookup/fetch was attempted.
+//
+type ErrStoreIndexNotFound string
+
+func (esinf ErrStoreIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index %q not found", string(esinf))
 }
 
 // ErrStoreKeyNotFound indicates the request key was not found when the store
@@ -376,143 +394,190 @@ func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
 // ErrZoneAlreadyExists indicates the attempt to create a new zone record
 // failed as that zone already exists.
 //
-type ErrZoneAlreadyExists string
+type ErrZoneAlreadyExists struct {
+	Region string
+	Zone string
+}
 
 func (ezae ErrZoneAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q already exists", string(ezae))
+	return fmt.Sprintf("CloudChamber: zone %q already exists in region %q", ezae.Zone, ezae.Region)
 }
 
 // ErrZoneNotFound indicates the attempt to locate a zone record failed as that
 // zone does not exist.
 //
-type ErrZoneNotFound string
+type ErrZoneNotFound struct {
+	Region string
+	Zone string
+}
 
 func (eznf ErrZoneNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q not found", string(eznf))
+	return fmt.Sprintf("CloudChamber: zone %q not found in region %q", eznf.Zone, eznf.Region)
 }
 
 // ErrZoneStaleVersion indicates the attempt to locate a specific version of a
 // zone record failed as either that zone does not exist, or the specific
 // version is no longer present in the store.
 //
-type ErrZoneStaleVersion string
+type ErrZoneStaleVersion struct {
+	Region string
+	Zone string
+}
 
 func (ezsv ErrZoneStaleVersion) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q has a newer version than expected", string(ezsv))
+	return fmt.Sprintf("CloudChamber: zone %q in region %q has a newer version than expected", ezsv.Zone, ezsv.Region)
 }
 
 // ErrRackAlreadyExists indicates the attempt to create a new rack record
 // failed as that rack already exists.
 //
 type ErrRackAlreadyExists struct {
+	Region string
 	Zone string
 	Rack string
 }
 
 func (erae ErrRackAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: rack %q in zone %q already exists", erae.Rack, erae.Zone)
+	return fmt.Sprintf("CloudChamber: rack %q in zone %q already exists in region %q", erae.Rack, erae.Zone, erae.Region)
 }
 
 // ErrRackNotFound indicates the attempt to operate on a rack record failed
 // as that record cannot be found.
 //
 type ErrRackNotFound struct {
+	Region string
 	Zone string
 	Rack string
 }
 
 func (ernf ErrRackNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: rack %q in zone %q was not found", ernf.Rack, ernf.Zone)
+	return fmt.Sprintf("CloudChamber: rack %q in zone %q was not found in region %q", ernf.Rack, ernf.Zone, ernf.Region)
 }
 
-// ErrPduAlreadyExists indicates the attempt to create a new pdu record
-// failed as that pdu already exists.
+// ErrPduIndexInvalid indicates the attempt to locate a record
+// failed as the given index is invalid in some way.
 //
-type ErrPduAlreadyExists struct {
+type ErrPduIndexInvalid struct {
+	Region string
 	Zone string
 	Rack string
-	Pdu  int64
+	Pdu string
 }
 
-func (epae ErrPduAlreadyExists) Error() string {
-	return fmt.Sprintf(
-		"CloudChamber: %s already exists",
-		pduAddress(epae.Zone, epae.Rack, epae.Pdu))
+func (epii ErrPduIndexInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: pdu %q in region %q, zone %q, rack %q was not valid", epii.Pdu, epii.Region, epii.Zone, epii.Rack)
 }
 
 // ErrPduNotFound indicates the attempt to operate on a pdu record
 // failed as that record cannot be found.
 //
 type ErrPduNotFound struct {
+	Region string
 	Zone string
 	Rack string
-	Pdu  int64
+	Pdu int64
 }
 
 func (epae ErrPduNotFound) Error() string {
-	return fmt.Sprintf(
-		"CloudChamber: %s was not found",
-		pduAddress(epae.Zone, epae.Rack, epae.Pdu))
+	return fmt.Sprintf("CloudChamber: pdu %v in region %q, zone %q, rack %q was not found", epae.Pdu, epae.Region, epae.Zone, epae.Rack)
 }
 
-// ErrTorAlreadyExists indicates the attempt to create a new zone record
-// failed as that zone already exists.
+// ErrPduAlreadyExists indicates the attempt to create a new pdu record
+// failed as that pdu already exists.
 //
-type ErrTorAlreadyExists struct {
+type ErrPduAlreadyExists struct {
+	Region string
 	Zone string
 	Rack string
-	Tor  int64
+	Pdu int64
 }
 
-func (etae ErrTorAlreadyExists) Error() string {
-	return fmt.Sprintf(
-		"CloudChamber: %s already exists",
-		torAddress(etae.Zone, etae.Rack, etae.Tor))
+func (epae ErrPduAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: pdu %v in region %q, zone %q, rack %q already exists", epae.Pdu, epae.Region, epae.Zone, epae.Rack)
+}
+
+// ErrTorIndexInvalid indicates the attempt to locate a record
+// failed as the given index is invalid in some way.
+//
+type ErrTorIndexInvalid struct {
+	Region string
+	Zone string
+	Rack string
+	Tor string
+}
+
+func (etii ErrTorIndexInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: tor %q in region %q, zone %q, rack %q was not valid", etii.Tor, etii.Region, etii.Zone, etii.Rack)
 }
 
 // ErrTorNotFound indicates the attempt to operate on a tor record
 // failed as that record cannot be found.
 //
 type ErrTorNotFound struct {
+	Region string
 	Zone string
 	Rack string
-	Tor  int64
+	Tor int64
 }
 
 func (etnf ErrTorNotFound) Error() string {
-	return fmt.Sprintf(
-		"CloudChamber: %s was not found",
-		torAddress(etnf.Zone, etnf.Rack, etnf.Tor))
+	return fmt.Sprintf("CloudChamber: tor %v in region %q, zone %q, rack %q was not found", etnf.Tor, etnf.Region, etnf.Zone, etnf.Rack)
 }
 
-// ErrBladeAlreadyExists indicates the attempt to create a new blade record
-// failed as that blade already exists.
+// ErrTorAlreadyExists indicates the attempt to create a new zone record
+// failed as that zone already exists.
 //
-type ErrBladeAlreadyExists struct {
-	Zone  string
-	Rack  string
-	Blade int64
+type ErrTorAlreadyExists  struct {
+	Region string
+	Zone string
+	Rack string
+	Tor int64
 }
 
-func (ebae ErrBladeAlreadyExists) Error() string {
-	return fmt.Sprintf(
-		"CloudChamber: %s already exists",
-		bladeAddress(ebae.Zone, ebae.Rack, ebae.Blade))
+func (etae ErrTorAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: tor %v in region %q, zone %q, rack %q already exists", etae.Tor, etae.Region, etae.Zone, etae.Rack)
+}
+
+// ErrBladeIndexInvalid indicates the attempt to locate a record
+// failed as the given index is invalid in some way.
+//
+type ErrBladeIndexInvalid struct {
+	Region string
+	Zone string
+	Rack string
+	Blade string
+}
+
+func (ebii ErrBladeIndexInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: blade %q in region %q, zone %q, rack %q was not valid", ebii.Blade, ebii.Region, ebii.Zone, ebii.Rack)
 }
 
 // ErrBladeNotFound indicates the attempt to operate on a blade record
 // failed as that record cannot be found.
 //
 type ErrBladeNotFound struct {
-	Zone  string
-	Rack  string
+	Region string
+	Zone string
+	Rack string
 	Blade int64
 }
 
 func (ebnf ErrBladeNotFound) Error() string {
-	return fmt.Sprintf(
-		"CloudChamber: %s was not found",
-		bladeAddress(ebnf.Zone, ebnf.Rack, ebnf.Blade))
+	return fmt.Sprintf("CloudChamber: blade %v in region %q, zone %q, rack %q was not found", ebnf.Blade, ebnf.Region, ebnf.Zone, ebnf.Rack)
+}
+
+// ErrBladeAlreadyExists indicates the attempt to create a new blade record
+// failed as that blade already exists.
+//
+type ErrBladeAlreadyExists struct {
+	Region string
+	Zone string
+	Rack string
+	Blade int64
+}
+
+func (ebae ErrBladeAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: blade %v in region %q, zone %q, rack %q already exists", ebae.Blade, ebae.Region, ebae.Zone, ebae.Rack)
 }
 
 // ErrPolicyTooLate indicates that the attempt to change the stepper policy
@@ -815,3 +880,197 @@ type ErrSessionNotFound int64
 func (e ErrSessionNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: session %d not found", int64(e))
 }
+
+// ErrTableNameInvalid indicates the supplied region name is not one of the valid options.
+//
+type ErrTableNameInvalid struct {
+	Name            string
+	ActualTable     string
+	DefinitionTable string
+	ObservedTable   string
+	TargetTable     string
+}
+
+func (e ErrTableNameInvalid) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: table name %q is not one of the valid options [%q, %q, %q, %q",
+		e.Name,
+		e.ActualTable,
+		e.DefinitionTable,
+		e.ObservedTable,
+		e.TargetTable,
+	)
+}
+
+// ErrTableNameMissing indicates the supplied region name is absent or otherwise not properly specified.
+//
+type ErrTableNameMissing string
+
+func (etnm ErrTableNameMissing) Error() string {
+	return fmt.Sprintf("CloudChamber: table name %q is missing or not properly specified", string(etnm))
+}
+
+// ErrRegionNameMissing indicates the supplied region name is absent or otherwise not properly specified.
+//
+type ErrRegionNameMissing string
+
+func (ernm ErrRegionNameMissing) Error() string {
+	return fmt.Sprintf("CloudChamber: region name %q is missing or not properly specified", string(ernm))
+}
+
+// ErrZoneNameMissing indicates the supplied zone name is absent or otherwise not properly specified.
+//
+type ErrZoneNameMissing string
+
+func (eznm ErrZoneNameMissing) Error() string {
+	return fmt.Sprintf("CloudChamber: zone name %q is missing or not properly specified", string(eznm))
+}
+
+// ErrRackNameMissing indicates the supplied rack name is absent or otherwise not properly specified.
+//
+type ErrRackNameMissing string
+
+func (ernm ErrRackNameMissing) Error() string {
+	return fmt.Sprintf("CloudChamber: zone name %q is missing or not properly specified", string(ernm))
+}
+
+// ErrBladeIDInvalid indicates the supplied bladeID was out of range, either < less than 0 or greater than maxBladeID
+//
+type ErrBladeIDInvalid struct {
+	Value int64
+	Limit int64
+}
+
+func (ebii ErrBladeIDInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: bladeID %v is out of range (0 to %v)", ebii.Value, ebii.Limit)
+}
+
+// ErrPduIDInvalid indicates the supplied pduID was out of range, either < less than 0 or greater than maxPduID
+//
+type ErrPduIDInvalid struct {
+	Value int64
+	Limit int64
+}
+
+func (epii ErrPduIDInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: pduID %v is out of range (0 to %v)", epii.Value, epii.Limit)
+}
+
+// ErrTorIDInvalid indicates the supplied torID was out of range, either < less than 0 or greater than maxTorID
+//
+type ErrTorIDInvalid struct {
+	Value int64
+	Limit int64
+}
+
+func (etii ErrTorIDInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: torID %v is out of range (0 to %v)", etii.Value, etii.Limit)
+}
+
+// ErrRegionAlreadyExists indicates the attempt to create a new region record
+// failed as that region already exists.
+//
+type ErrRegionAlreadyExists string
+
+func (ezae ErrRegionAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: region %q already exists", string(ezae))
+}
+
+// ErrRegionNotFound indicates the attempt to locate a region record failed as that
+// region does not exist.
+//
+type ErrRegionNotFound string
+
+func (eznf ErrRegionNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: region %q not found", string(eznf))
+}
+
+// ErrRegionStaleVersion indicates the attempt to locate a specific version of a
+// region record failed as either that region does not exist, or the specific
+// version is no longer present in the store.
+//
+type ErrRegionStaleVersion string
+
+func (ezsv ErrRegionStaleVersion) Error() string {
+	return fmt.Sprintf("CloudChamber: region %q has a newer version than expected", string(ezsv))
+}
+
+// ErrRootNotFound indicates the attempt to operate on the specified namespace table
+// failed as that part of the namespace cannot be found.
+//
+type ErrRootNotFound struct {
+	namespace string
+}
+
+func (ernf ErrRootNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: unable to find the root of the %q namespace", ernf.namespace)
+}
+
+// ErrIndexNotFound indicates the requested index was not found when the store
+// lookup/fetch was attempted.
+//
+type ErrIndexNotFound string
+
+func (einf ErrIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index %q not found", string(einf))
+}
+
+// ErrRevisionNotAvailable indicates the requested detail for the item have not
+// yet been establiehed.
+//
+type ErrRevisionNotAvailable string
+
+func (erna ErrRevisionNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q revision not available", string(erna))
+}
+
+// ErrDetailsNotAvailable indicates the requested detail for the item have not
+// yet been establiehed.
+//
+type ErrDetailsNotAvailable string
+
+func (edna ErrDetailsNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q details not available", string(edna))
+}
+
+// ErrPortsNotAvailable indicates the requested detail for the item have not
+// yet been establiehed.
+//
+type ErrPortsNotAvailable string
+
+func (epna ErrPortsNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q ports not available", string(epna))
+}
+
+// ErrCapacityNotAvailable indicates the requested capacity information for 
+// the item have not yet been establiehed.
+//
+type ErrCapacityNotAvailable string
+
+func (ecna ErrCapacityNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q capacity not available", string(ecna))
+}
+
+// ErrBootInfoNotAvailable indicates the requested boot information for the item
+// have not yet been establiehed.
+//
+type ErrBootInfoNotAvailable string
+
+func (ebina ErrBootInfoNotAvailable) Error() string {
+	return fmt.Sprintf("CloudChamber: %q boot information not available", string(ebina))
+}
+
+// ErrIndexKeyValueMismatch indicates the requested boot information for the item
+// have not yet been establiehed.
+//
+type ErrIndexKeyValueMismatch struct {
+	Namespace string
+	Key       string
+	Value     string
+}
+
+func (ekvm ErrIndexKeyValueMismatch) Error() string {
+	return fmt.Sprintf("CloudChamber: mismatch in index key %q for returned value %q in the %q namespace", ekvm.Key, ekvm.Value, ekvm.Namespace)
+}
+
+

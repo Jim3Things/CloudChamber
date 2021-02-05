@@ -11,6 +11,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/internal/config"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
@@ -503,27 +504,27 @@ func (ts *testSuiteCore) TestNewRoot() {
 
 	rev, err = root.Read(ctx)
 	require.Error(err)
-	assert.Equal(ErrFunctionNotAvailable, err)
+	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = root.Update(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrFunctionNotAvailable, err)
+	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = root.Update(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrFunctionNotAvailable, err)
+	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = root.Delete(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrFunctionNotAvailable, err)
+	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = root.Delete(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrFunctionNotAvailable, err)
+	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -573,17 +574,17 @@ func (ts *testSuiteCore) TestNewRegion() {
 	//
 	rev, err = region.Read(ctx)
 	require.Error(err)
-	assert.Equal(ErrfRegionNotFound(region.Region), err)
+	assert.Equal(errors.ErrRegionNotFound(region.Region), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = region.Update(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("region"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("region"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = region.Update(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("region"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("region"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// This will actually attempt to delete the region from the store. Since
@@ -601,12 +602,12 @@ func (ts *testSuiteCore) TestNewRegion() {
 
 	// rev, err = region.Delete(ctx, false)
 	// require.Error(err)
-	// assert.Equal(ErrfRegionNotFound(region.Region), err)
+	// assert.Equal(errors.ErrfRegionNotFound(region.Region), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 
 	// rev, err = region.Delete(ctx, true)
 	// require.Error(err)
-	// assert.Equal(ErrfRegionNotFound(region.Region), err)
+	// assert.Equal(errors.ErrfRegionNotFound(region.Region), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -656,17 +657,17 @@ func (ts *testSuiteCore) TestNewZone() {
 	//
 	rev, err = zone.Read(ctx)
 	require.Error(err)
-	assert.Equal(ErrfZoneNotFound(zone.Region, zone.Zone), err)
+	assert.Equal(errors.ErrZoneNotFound{Region: zone.Region, Zone: zone.Zone}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = zone.Update(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("zone"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("zone"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = zone.Update(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("zone"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("zone"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// This will actually attempt to delete the zone from the store. Since
@@ -684,12 +685,12 @@ func (ts *testSuiteCore) TestNewZone() {
 
 	// rev, err = zone.Delete(ctx, false)
 	// require.Error(err)
-	// assert.Equal(ErrfZoneNotFound(zone.Region, zone.Zone), err)
+	// assert.Equal(errors.ErrfZoneNotFound(zone.Region, zone.Zone), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 
 	// rev, err = zone.Delete(ctx, true)
 	// require.Error(err)
-	// assert.Equal(ErrfZoneNotFound(zone.Region, zone.Zone), err)
+	// assert.Equal(errors.ErrfZoneNotFound(zone.Region, zone.Zone), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -746,17 +747,17 @@ func (ts *testSuiteCore) TestNewRack() {
 	//
 	rev, err = rack.Read(ctx)
 	require.Error(err)
-	assert.Equal(ErrfRackNotFound(rack.Region, rack.Zone, rack.Rack), err)
+	assert.Equal(errors.ErrRackNotFound{Region: rack.Region, Zone: rack.Zone, Rack: rack.Rack}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = rack.Update(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("rack"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("rack"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = rack.Update(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("rack"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("rack"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// This will actually attempt to delete the rack from the store. Since
@@ -774,12 +775,12 @@ func (ts *testSuiteCore) TestNewRack() {
 
 	// rev, err = rack.Delete(ctx, false)
 	// require.Error(err)
-	// assert.Equal(ErrfRackNotFound(rack.Region, rack.Zone, rack.Rack), err)
+	// assert.Equal(errors.ErrfRackNotFound(rack.Region, rack.Zone, rack.Rack), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 
 	// rev, err = rack.Delete(ctx, true)
 	// require.Error(err)
-	// assert.Equal(ErrfRackNotFound(rack.Region, rack.Zone, rack.Rack), err)
+	// assert.Equal(errors.ErrfRackNotFound(rack.Region, rack.Zone, rack.Rack), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -893,7 +894,7 @@ func (ts *testSuiteCore) TestNewPdu() {
 	//
 	rev, err = pdu.Read(ctx)
 	require.Error(err)
-	assert.Equal(ErrfPduNotFound(pdu.Region, pdu.Zone, pdu.Rack, pdu.ID), err)
+	assert.Equal(errors.ErrPduNotFound{Region: pdu.Region, Zone: pdu.Zone, Rack: pdu.Rack, Pdu: pdu.ID}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 
@@ -907,23 +908,23 @@ func (ts *testSuiteCore) TestNewPdu() {
 	pdu.SetPorts(ctx, nil)
 
 	rev, err = pdu.Update(ctx, false)
-	require.Equal(ErrPortsNotAvailable("pdu"), err)
+	require.Equal(errors.ErrPortsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = pdu.Update(ctx, true)
-	require.Equal(ErrPortsNotAvailable("pdu"), err)
+	require.Equal(errors.ErrPortsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	pdu.SetDetails(ctx, nil)
 
 	rev, err = pdu.Update(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("pdu"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = pdu.Update(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("pdu"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 
@@ -942,12 +943,12 @@ func (ts *testSuiteCore) TestNewPdu() {
 
 	// rev, err = pdu.Delete(ctx, false)
 	// require.Error(err)
-	// assert.Equal(ErrfPduNotFound(pdu.Region, pdu.Zone, pdu.Rack, pdu.ID), err)
+	// assert.Equal(errors.ErrfPduNotFound(pdu.Region, pdu.Zone, pdu.Rack, pdu.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 
 	// rev, err = pdu.Delete(ctx, true)
 	// require.Error(err)
-	// assert.Equal(ErrfPduNotFound(pdu.Region, pdu.Zone, pdu.Rack, pdu.ID), err)
+	// assert.Equal(errors.ErrfPduNotFound(pdu.Region, pdu.Zone, pdu.Rack, pdu.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -1061,7 +1062,7 @@ func (ts *testSuiteCore) TestNewTor() {
 	//
 	rev, err = tor.Read(ctx)
 	require.Error(err)
-	assert.Equal(ErrfTorNotFound(tor.Region, tor.Zone, tor.Rack, tor.ID), err)
+	assert.Equal(errors.ErrTorNotFound{Region: tor.Region, Zone: tor.Zone, Rack: tor.Rack, Tor: tor.ID}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 
@@ -1075,23 +1076,23 @@ func (ts *testSuiteCore) TestNewTor() {
 	tor.SetPorts(ctx, nil)
 
 	rev, err = tor.Update(ctx, false)
-	require.Equal(ErrPortsNotAvailable("tor"), err)
+	require.Equal(errors.ErrPortsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = tor.Update(ctx, true)
-	require.Equal(ErrPortsNotAvailable("tor"), err)
+	require.Equal(errors.ErrPortsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	tor.SetDetails(ctx, nil)
 
 	rev, err = tor.Update(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("tor"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = tor.Update(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("tor"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// This will actually attempt to delete the tor from the store. Since
@@ -1109,12 +1110,12 @@ func (ts *testSuiteCore) TestNewTor() {
 
 	// rev, err = tor.Delete(ctx, false)
 	// require.Error(err)
-	// assert.Equal(ErrfTorNotFound(tor.Region, tor.Zone, tor.Rack, tor.ID), err)
+	// assert.Equal(errors.ErrfTorNotFound(tor.Region, tor.Zone, tor.Rack, tor.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 
 	// rev, err = tor.Delete(ctx, true)
 	// require.Error(err)
-	// assert.Equal(ErrfTorNotFound(tor.Region, tor.Zone, tor.Rack, tor.ID), err)
+	// assert.Equal(errors.ErrfTorNotFound(tor.Region, tor.Zone, tor.Rack, tor.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -1225,7 +1226,7 @@ func (ts *testSuiteCore) TestNewBlade() {
 	//
 	rev, err = blade.Read(ctx)
 	require.Error(err)
-	assert.Equal(ErrfPduNotFound(blade.Region, blade.Zone, blade.Rack, blade.ID), err)
+	assert.Equal(errors.ErrBladeNotFound{Region: blade.Region, Zone: blade.Zone, Rack: blade.Rack, Blade: blade.ID}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 
@@ -1239,22 +1240,22 @@ func (ts *testSuiteCore) TestNewBlade() {
 	blade.SetBootInfo(ctx, false, nil)
 
 	rev, err = blade.Update(ctx, false)
-	require.Equal(ErrBootInfoNotAvailable("blade"), err)
+	require.Equal(errors.ErrBootInfoNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = blade.Update(ctx, true)
-	require.Equal(ErrBootInfoNotAvailable("blade"), err)
+	require.Equal(errors.ErrBootInfoNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 
 	blade.SetCapacity(ctx, nil)
 
 	rev, err = blade.Update(ctx, false)
-	require.Equal(ErrCapacityNotAvailable("blade"), err)
+	require.Equal(errors.ErrCapacityNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = blade.Update(ctx, true)
-	require.Equal(ErrCapacityNotAvailable("blade"), err)
+	require.Equal(errors.ErrCapacityNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 
@@ -1262,12 +1263,12 @@ func (ts *testSuiteCore) TestNewBlade() {
 
 	rev, err = blade.Update(ctx, false)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("blade"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = blade.Update(ctx, true)
 	require.Error(err)
-	assert.Equal(ErrDetailsNotAvailable("blade"), err)
+	assert.Equal(errors.ErrDetailsNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 
@@ -1286,12 +1287,12 @@ func (ts *testSuiteCore) TestNewBlade() {
 
 	// rev, err = blade.Delete(ctx, false)
 	// require.Error(err)
-	// assert.Equal(ErrfBladeNotFound(blade.Region, blade.Zone, blade.Rack, blade.ID), err)
+	// assert.Equal(errors.ErrfBladeNotFound(blade.Region, blade.Zone, blade.Rack, blade.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 
 	// rev, err = blade.Delete(ctx, true)
 	// require.Error(err)
-	// assert.Equal(ErrfBladeNotFound(blade.Region, blade.Zone, blade.Rack, blade.ID), err)
+	// assert.Equal(errors.ErrfBladeNotFound(blade.Region, blade.Zone, blade.Rack, blade.ID), err)
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
@@ -2827,7 +2828,7 @@ func (ts *testSuiteCore) TestRackFetchChildren() {
 				// for each type of sub-element.
 				//
 				rev, children, err := rack.FetchChildren(ctx)
-				require.ErrorIs(err, ErrFunctionNotAvailable)
+				require.ErrorIs(err, errors.ErrFunctionNotAvailable)
 				assert.Nil(children)
 				assert.Equal(store.RevisionInvalid, rev)
 
