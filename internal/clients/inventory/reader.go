@@ -24,7 +24,7 @@ const (
 // This mirrors the external zone format except the keys
 // are fields of array
 
-type xfrZone struct {
+type zone struct {
 	Racks []rack
 }
 
@@ -80,7 +80,7 @@ func ReadInventoryDefinition(ctx context.Context, path string) (*pb.ExternalZone
 	}
 
 	// First we are going to put it into intermediate format
-	xfr := &xfrZone{}
+	xfr := &zone{}
 	if err := viper.UnmarshalExact(xfr); err != nil {
 		return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 	}
@@ -100,7 +100,7 @@ func ReadInventoryDefinition(ctx context.Context, path string) (*pb.ExternalZone
 // One important difference is that the intermediate is array based.
 // The final format is map based using specific fields in array
 // entries as the map keys
-func toExternalZone(xfr *xfrZone) (*pb.ExternalZone, error) {
+func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 	cfg := &pb.ExternalZone{
 		Racks: make(map[string]*pb.ExternalRack),
 	}
@@ -173,7 +173,7 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Defi
 	}
 
 	// First we are going to put it into intermediate format
-	xfr := &xfrZone{}
+	xfr := &zone{}
 	if err := viper.UnmarshalExact(xfr); err != nil {
 		return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 	}
@@ -281,7 +281,7 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 			//
 			rack.Blades[b.Index] = &pb.DefinitionBlade{
 				Details: &pb.BladeDetails{
-				Enabled: true,
+					Enabled: true,
 					Condition: pb.Condition_operational,
 				},
 				Capacity: &pb.BladeCapacity{
@@ -324,6 +324,7 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 			return nil, errors.ErrRackValidationFailure{
 				Rack: r.Name,
 				Err:  err,
+			}
 		}
 
 		zone.Racks[r.Name] = rack
