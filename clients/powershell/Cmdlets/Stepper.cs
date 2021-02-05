@@ -10,17 +10,9 @@ namespace CloudChamber.Cmdlets
     ///     StepperCmdlets is the base class providing common prefix and command
     ///     parameter values.
     /// </summary>
-    public class StepperCmdlets : CmdletBase
+    public class StepperCmdlets : LoggedInCmdlet
     {
-        protected StepperCmdlets() : base("/api/stepper")
-        {
-        }
-
-        /// <summary>
-        ///     Session is the logged-in session to use for the operation.
-        /// </summary>
-        [Parameter(Mandatory = true)]
-        public Session Session { get; set; }
+        protected StepperCmdlets() : base("/api/stepper") { }
     }
 
     /// <summary>

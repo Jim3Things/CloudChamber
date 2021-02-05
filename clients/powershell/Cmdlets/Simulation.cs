@@ -5,19 +5,18 @@ using Newtonsoft.Json;
 
 namespace CloudChamber.Cmdlets
 {
-    public class SimulationCmdlets : CmdletBase
+    /// <summary>
+    ///     SimulationCmdlets provides the common specialization used by all
+    ///     simulation object cmdlets.
+    /// </summary>
+    public class SimulationCmdlets : LoggedInCmdlet
     {
-        protected SimulationCmdlets() : base("/api/simulation")
-        {
-        }
-
-        /// <summary>
-        ///     Session is the logged-in session to use for the operation.
-        /// </summary>
-        [Parameter(Mandatory = true)]
-        public Session Session { get; set; }
+        protected SimulationCmdlets() : base("/api/simulation") { }
     }
 
+    /// <summary>
+    ///     Get the current status of the simulation.
+    /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Simulation)]
     [OutputType(typeof(SimulationStatus))]
     public class GetSimulationCmdlet : SimulationCmdlets
@@ -34,6 +33,9 @@ namespace CloudChamber.Cmdlets
         }
     }
 
+    /// <summary>
+    ///     Get the summary list of active logged-in sessions.
+    /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Sessions)]
     [OutputType(typeof(List<SessionEntry>))]
     public class SessionsCmdlet : SimulationCmdlets
@@ -51,15 +53,22 @@ namespace CloudChamber.Cmdlets
         }
     }
 
+    /// <summary>
+    ///     Get the details for a given logged-in session.
+    /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Session)]
     [OutputType(typeof(ClusterSession))]
     public class ClusterSessionCmdlet : SimulationCmdlets
     {
-        [Parameter(Mandatory = true)] public long ActiveSessionId { get; set; }
+        /// <summary>
+        ///     Identifier for the session, such as supplied in the summary
+        ///     list.
+        /// </summary>
+        [Parameter(Mandatory = true)] public long Id { get; set; }
 
         protected override void ProcessRecord()
         {
-            var uri = $"{Prefix}/sessions/{ActiveSessionId}";
+            var uri = $"{Prefix}/sessions/{Id}";
             var resp = Session.Client.GetAsync(uri).Result;
             ThrowOnHttpFailure(resp, "GetSimulationSessionDetails", null);
 

@@ -62,20 +62,20 @@ namespace CloudChamber.Cmdlets.Protos
         [JsonConverter(typeof(StringEnumConverter))]
         public ActionEnum Action { get; set; }
 
-        [JsonProperty("spanId")] public string ChildSpanID { get; set; }
+        [JsonProperty("spanId")] public string ChildSpanId { get; set; }
 
-        [JsonProperty("linkId")] public string LinkID { get; set; }
+        [JsonProperty("linkId")] public string LinkId { get; set; }
     }
 
     public class LogEntry
     {
         [JsonProperty("name")] public string Name { get; set; }
 
-        [JsonProperty("spanID")] public string SpanID { get; set; }
+        [JsonProperty("spanID")] public string SpanId { get; set; }
 
-        [JsonProperty("parentID")] public string ParentID { get; set; }
+        [JsonProperty("parentID")] public string ParentId { get; set; }
 
-        [JsonProperty("traceID")] public string TraceID { get; set; }
+        [JsonProperty("traceID")] public string TraceId { get; set; }
 
         [JsonProperty("status")] public string Status { get; set; }
 
@@ -87,7 +87,7 @@ namespace CloudChamber.Cmdlets.Protos
 
         [JsonProperty("startingLink")] public string StartingLink { get; set; }
 
-        [JsonProperty("linkSpanID")] public string LinkSpanID { get; set; }
+        [JsonProperty("linkSpanID")] public string LinkSpanId { get; set; }
 
         [JsonProperty("linkTraceID")] public string LinkTraceId { get; set; }
 
@@ -112,6 +112,6 @@ namespace CloudChamber.Cmdlets.Protos
     {
         [JsonProperty("maxEntriesHeld")] public long MaxEntriesHeld { get; set; }
 
-        [JsonProperty("firstId")] public long FirstID { get; set; }
+        [JsonProperty("firstId")] public long FirstId { get; set; }
     }
 }

@@ -9,41 +9,24 @@ namespace CloudChamber.Cmdlets
     ///     NamedUserCmdlets further specializes UserCmdlets by including the most
     ///     common parameters.
     /// </summary>
-    public class NamedUserCmdlets : CmdletBase
+    public class NamedUserCmdlets : LoggedInCmdlet
     {
-        public NamedUserCmdlets() : base("/api/users")
-        {
-        }
+        public NamedUserCmdlets() : base("/api/users") { }
 
         /// <summary>
         ///     Name is the name of the user to operate on.
         /// </summary>
         [Parameter(Position = 0, Mandatory = true)]
         public string Name { get; set; }
-
-        /// <summary>
-        ///     Session is the logged-in session to use for the operation.
-        /// </summary>
-        [Parameter(Mandatory = true)]
-        public Session Session { get; set; }
     }
 
     /// <summary>
     ///     GetUsersCmdlet gets the list of users known to the cluster.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Users)]
-    public class GetUsersCmdlet : CmdletBase
+    public class GetUsersCmdlet : LoggedInCmdlet
     {
-        public GetUsersCmdlet() : base("/api/users/")
-        {
-        }
-
-        /// <summary>
-        ///     Session contains the currently logged-in http client to use when
-        ///     contacting the cluster.
-        /// </summary>
-        [Parameter(Mandatory = true)]
-        public Session Session { get; set; }
+        public GetUsersCmdlet() : base("/api/users/") { }
 
         /// <summary>
         ///     ProcessRecord retrieves the user list and writes it to the output
