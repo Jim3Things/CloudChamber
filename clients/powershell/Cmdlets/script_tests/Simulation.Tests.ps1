@@ -16,8 +16,8 @@
         $span = New-TimeSpan -Hours 1
         $status.InactivityTimeout | Should Be $span
 
-        $now = Get-Date
-        ($status.FrontEndStartedAt -lt $now) | Should Be $true
+        $now = (Get-Date).ToUniversalTime()
+        $status.FrontEndStartedAt | Should BeLessThan $now
     }
 
     It "Gets the summary list of current active sessions" {

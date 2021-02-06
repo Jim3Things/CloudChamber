@@ -89,13 +89,13 @@ func handlerSimSessionList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	list := &pb.SessionSummary{
-		Sessions: []*pb.SessionSummarySession{},
+		Sessions: []*pb.SessionSummary_Session{},
 	}
 
 	b := common.URLPrefix(r)
 
 	for _, key := range getSessionSummaryList() {
-		list.Sessions = append(list.Sessions, &pb.SessionSummarySession{
+		list.Sessions = append(list.Sessions, &pb.SessionSummary_Session{
 			Id:  key,
 			Uri: fmt.Sprintf("%s%d", b, key),
 		})

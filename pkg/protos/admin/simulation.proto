@@ -6,15 +6,16 @@ import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/admin";
+option csharp_namespace = "CloudChamber.Protos.Admin";
 
 // SessionSummary contains the key and address information for all active
 // logged-in sessions.
 message SessionSummary {
-    message session {
+    message Session {
         int64 id = 1;
         string uri = 2;
     }
-    repeated session sessions = 1;
+    repeated Session sessions = 1;
 }
 
 // SimulationStatus contains overview information about the status of the
