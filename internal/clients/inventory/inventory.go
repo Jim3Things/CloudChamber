@@ -134,7 +134,6 @@ const (
 	maxTorID   = int64(2)
 )
 
-
 func verifyTable(table string) error {
 	switch (table) {
 	case DefinitionTable: return nil
@@ -215,7 +214,6 @@ func verifyBlade(val int64) error {
 	return nil
 }
 
-
 func verifyNamesRegion(table string, region string) error {
 
 	if err := verifyTable(table); err != nil {
@@ -280,6 +278,7 @@ func verifyNamesTor(table string, region string, zone string, rack string, index
 
 	return nil
 }
+
 func verifyNamesBlade(table string, region string, zone string, rack string, index int64) error {
 
 	if err := verifyNamesRack(table, region, zone, rack); err != nil {
@@ -515,7 +514,6 @@ func GetKeyForIndexEntryBlade(table string, region string, zone string, rack str
 	return key, nil
 }
 
-
 // GetKeyForRegion generates the key to operate on the record for a region within a
 // specific table (definition, actual, observed, target)
 // 
@@ -630,7 +628,6 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 	return key, nil
 }
 
-
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things".
 // You can send operations and commands to things, but not containers.
 //
@@ -701,7 +698,6 @@ type inventoryItem interface {
 type inventoryItemNode interface {
 	inventoryItem
 
-
 	// NewChild creates a child of the current object but uses only on the
 	// current object to create a new child object and no store
 	// operations are involved.
@@ -766,7 +762,8 @@ type inventoryBlade interface {
 	GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo)
 }
 
-
+// Provide a set of definitions to cope with calls to a "null" object.
+//
 type nullItem struct {}
 
 func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) {
@@ -804,8 +801,6 @@ func (n *nullItem) Delete(ctx context.Context) (int64, error) {
 	return store.RevisionInvalid, errors.ErrNullItem
 }
 
-
-
 // Additional functions for the node specialization of the basic inventory item
 //
 func (n *nullItem) NewChild(ctx context.Context, name string) (*interface{}, error){
@@ -818,7 +813,6 @@ func (n *nullItem) ListChildren(ctx context.Context) (int64, *[]string, error){
 func (n *nullItem) FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error){
 	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
-
 
 // Additional functions for the rack specialization of the basic inventory item
 //
@@ -858,8 +852,6 @@ func (n *nullItem) FetchBlades(ctx context.Context) (int64, *[]string, error) {
 	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
-
-
 // Additional functions for the pdu and tor specializations of the basic inventory item
 //
 func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{})  {
@@ -869,7 +861,6 @@ func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{}) 
 func (n *nullItem) GetPorts(ctx context.Context) *map[int64]*interface{} {
 	return nil
 }
-
 
 // Additional functions for the blade specialization of the basic inventory item
 //
