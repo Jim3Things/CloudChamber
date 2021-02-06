@@ -54,7 +54,7 @@ namespace CloudChamber.Cmdlets
     /// Connect to a specified account on the target cluster.
     /// </summary>
     [Cmdlet(VerbsCommunications.Connect, Names.Account)]
-    public class LoginCmdlet : Cmdlet
+    public class LoginCmdlet : PSCmdlet
     {
         /// <summary>
         /// ClusterUri is the address of the target cluster.
@@ -93,7 +93,7 @@ namespace CloudChamber.Cmdlets
     /// Disconnect an active session.
     /// </summary>
     [Cmdlet(VerbsCommunications.Disconnect, Names.Account)]
-    public class LogoutCmdlet : Cmdlet
+    public class LogoutCmdlet : PSCmdlet
     {
         /// <summary>
         /// Session is the active session to disconnect.

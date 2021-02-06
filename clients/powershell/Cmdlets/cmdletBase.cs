@@ -29,4 +29,19 @@ namespace CloudChamber.Cmdlets
                 ThrowTerminatingError(resp.ToErrorRecord(errorName, target));
         }
     }
+
+    /// <summary>
+    ///     Extend the CmdletBase with the common Session parameter to handle the
+    ///     normal logged-in operations.
+    /// </summary>
+    public class LoggedInCmdlet : CmdletBase
+    {
+        protected LoggedInCmdlet(string prefix) : base(prefix) { }
+
+        /// <summary>
+        ///     Session is the logged-in session to use for the operation.
+        /// </summary>
+        [Parameter(Mandatory = true)]
+        public Session Session { get; set; }
+    }
 }
