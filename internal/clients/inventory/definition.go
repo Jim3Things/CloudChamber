@@ -255,9 +255,6 @@ func NewBlade(ctx context.Context, store *store.Store, table string, region stri
 	return b, nil
 }
 
-
-
-
 // Root is a structure representing the well-known root of the namespace. It 
 // is used to locate the regions within the namespace represented by the table
 // field.
@@ -276,7 +273,6 @@ type Root struct {
 	revisionStore  int64
 	details        *pb.RootDetails
 }
-
 
 // SetDetails is used to attach some attribute information to the object.
 //
@@ -412,9 +408,6 @@ func (r *Root) FetchChildren(ctx context.Context) (int64, *map[string]Region, er
 
 	return rev, &children, nil
 }
-
-
-
 
 // Region is a structure representing a region object. This object can be used
 // to operate on the associated region records in the underlying store, or to
@@ -752,9 +745,6 @@ func (r *Region) FetchChildren(ctx context.Context) (int64, *map[string]Zone, er
 	return rev, &children, nil
 }
 
-
-
-
 // Zone is a structure representing a zone object. This object can be used
 // to operate on the associated zone records in the underlying store, or to
 // navigate to child rack objects. The object can store information fetched
@@ -1086,9 +1076,6 @@ func (z *Zone) FetchChildren(ctx context.Context) (int64, *map[string]Rack, erro
 
 	return rev, &children, nil
 }
-
-
-
 
 // Rack is a structure representing a rack object. This object can be used
 // to operate on the associated rack records in the underlying store, or to
@@ -1685,9 +1672,6 @@ func (r *Rack) FetchBlades(ctx context.Context) (int64, *map[int64]Blade, error)
 	return rev, &blades, nil
 }
 
-
-
-
 // Pdu is a structure representing a pdu object. This object can be used
 // to operate on the associated pdu records in the underlying store. The
 // object can hold information fetched from the underlying store, or as
@@ -1969,9 +1953,6 @@ func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 	return rev, nil
 }
 
-
-
-
 // Tor is a structure representing a tor object. This object can be used
 // to operate on the associated tor records in the underlying store. The
 // object can hold information fetched from the underlying store, or as
@@ -2252,9 +2233,6 @@ func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
 	return rev, nil
 }
-
-
-
 
 // Blade is a structure representing a blade object. This object can be
 // used to operate on the associated blade records in the underlying
