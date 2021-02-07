@@ -1,8 +1,9 @@
 PROJECT = $(GOPATH)/src/github.com/Jim3Things/CloudChamber
 
-PROJECT_UI = ../cloud_chamber_react_ts/build
+PROJECT_UI = clients/observer/build
 
 PROTO_FILES = \
+	pkg/protos/admin/simulation.proto \
     pkg/protos/admin/users.proto \
     pkg/protos/common/capacity.proto \
     pkg/protos/common/completion.proto \
@@ -25,6 +26,7 @@ PROTO_FILES = \
 
 
 PROTO_GEN_FILES = \
+	pkg/protos/admin/simulation.pb.go \
     pkg/protos/admin/users.pb.go \
     pkg/protos/common/capacity.pb.go \
     pkg/protos/common/completion.pb.go \

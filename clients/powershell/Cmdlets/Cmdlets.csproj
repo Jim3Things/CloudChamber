@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>netstandard2.0</TargetFramework>
+        <RootNamespace>CloudChamber.Cmdlets</RootNamespace>
+        <LangVersion>9</LangVersion>
+        <AssemblyName>CloudChamber.Cmdlets</AssemblyName>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Content Condition="$(TargetFramework)=='netstandard2.0'" Include="$(NuGetPackageRoot)\newtonsoft.json\12.0.3\lib\netstandard2.0\Newtonsoft.Json.dll">
+          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+          <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+          <Visible>False</Visible>
+        </Content>
+        <PackageReference Include="Google.Protobuf" Version="3.14.0" />
+        <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+        <PackageReference Include="PowerShellStandard.Library" Version="5.1.0-preview-06">
+            <PrivateAssets>All</PrivateAssets>
+        </PackageReference>
+    </ItemGroup>
+
+</Project>

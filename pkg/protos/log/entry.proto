@@ -19,9 +19,10 @@ syntax = "proto3";
 package log;
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/log";
+option csharp_namespace = "CloudChamber.Protos.Log";
 
 // Describe the type of impact that this event has on a module.
-enum impact {
+enum Impact {
     Invalid = 0;
     Read = 1;
     Create = 2;
@@ -31,7 +32,7 @@ enum impact {
 }
 
 // Describe the actions to take when reading an event entry.
-enum action {
+enum Action {
     // Trace is the most common type of event.  The contents are added to a serial
     // list in the span, and the formatters will display the entry's data as a
     // child trace event.
@@ -67,7 +68,7 @@ enum action {
     AddLink = 4;
 }
 
-enum severity {
+enum Severity {
     Debug = 0;
 
     // This is the severity use to denote a purely explanatory entry
@@ -80,18 +81,18 @@ enum severity {
 }
 
 // Describe an impacted module
-message module {
-    impact impact = 1;
+message Module {
+    Impact impact = 1;
     string name = 2;
 }
 
 // Define an individual trace event
-message event {
+message Event {
     // Simulated time when it was logged.
     int64 tick = 1;
 
     // Event severity
-    severity severity = 2;
+    Severity severity = 2;
 
     // Label to quickly mark the event
     string name = 3;
@@ -103,10 +104,10 @@ message event {
     string stack_trace = 5;
 
     // The set of modules impacted, and the type of impact.
-    repeated module impacted = 6;
+    repeated Module impacted = 6;
 
     // Action to take when this trace is encountered.
-    action event_action = 7;
+    Action event_action = 7;
 
     // Child's span ID.  Ignored if the action is not SpanStart.
     string span_id = 8;
@@ -116,7 +117,7 @@ message event {
 }
 
 // Describe a full correlated span, consisting of zero or more events.
-message entry {
+message Entry {
     // Name of the span
     string name = 1;
 
@@ -132,7 +133,7 @@ message entry {
     string stack_trace = 6;
 
     // The set of events emitted by this span
-    repeated event event = 7;
+    repeated Event event = 7;
 
     // True, if this span represents internal-only operations.
     bool infrastructure = 8;

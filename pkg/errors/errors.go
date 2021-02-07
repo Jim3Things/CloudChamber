@@ -759,6 +759,8 @@ func (e ErrInvalidArgLen) Error() string {
 	return fmt.Sprintf("operation %s expects %s but received %d", e.Op, e.Required, e.Actual)
 }
 
+// ErrMissingFieldName indicates that the path to child nodes is missing an
+// expected path element.
 type ErrMissingFieldName string
 
 func (e ErrMissingFieldName) Error() string {
@@ -767,6 +769,8 @@ func (e ErrMissingFieldName) Error() string {
 			"no field name was found in %q.", string(e))
 }
 
+// ErrExtraFieldNames indicates that an unexpected field name appears in the
+// path to a child element.
 type ErrExtraFieldNames string
 
 func (e ErrExtraFieldNames) Error() string {
@@ -776,6 +780,9 @@ func (e ErrExtraFieldNames) Error() string {
 		string(e))
 }
 
+// ErrMissingPath indicates that a required path value is missing from the path
+// supplied for a child node.  This is typically the path element denoting a
+// collection, such a 'racks' for the collection of rack elements in a zone.
 type ErrMissingPath string
 
 func (e ErrMissingPath) Error() string {
@@ -800,4 +807,11 @@ type ErrInvalidRuleOp int
 
 func (e ErrInvalidRuleOp) Error() string {
 	return fmt.Sprintf("unexpected operation %d encountered", e)
+}
+
+// ErrSessionNotFound indicates that no session with the supplied ID was found.
+type ErrSessionNotFound int64
+
+func (e ErrSessionNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: session %d not found", int64(e))
 }
