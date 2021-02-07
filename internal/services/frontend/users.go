@@ -106,7 +106,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 			tracing.WithImpactRead("/users"),
 			"   Listing user %q: %q%s", entry.Name, target, protected)
 
-		users.Users = append(users.Users, &pb.UserListEntry{
+		users.Users = append(users.Users, &pb.UserList_Entry{
 			Name:      entry.Name,
 			Uri:       target,
 			Protected: entry.NeverDelete,

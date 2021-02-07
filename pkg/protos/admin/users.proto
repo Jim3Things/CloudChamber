@@ -3,13 +3,14 @@ syntax = "proto3";
 package admin;
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/admin";
+option csharp_namespace = "CloudChamber.Protos.Admin";
 
 // User is a representation of an individual user
 //
 // TODO This is just a placeholder until we have proper user records held
 //     in a persisted store (Etcd)
 //
-message user {
+message User {
     // The username, held so as to preserve the original case
     string name = 1;
 
@@ -26,7 +27,7 @@ message user {
 
 // Limited exposure of user attributes for use when returning information
 // to a remote client.
-message user_public {
+message UserPublic {
     bool enabled = 1;
 
     // The rights this user has
@@ -38,7 +39,7 @@ message user_public {
 
 // Public definition for a user, sent by a remote client to the Cloud Chamber
 // controller when the user is created.
-message user_definition {
+message UserDefinition {
     string password = 1;
     bool enabled = 2;
 
@@ -48,7 +49,7 @@ message user_definition {
 
 // Public definition for the fields for a user that can be mutated in an
 // update operation
-message user_update {
+message UserUpdate {
     bool enabled = 2;
 
     // The rights this user has
@@ -56,7 +57,7 @@ message user_update {
 }
 
 // Public definition for a request to set a new password for a user
-message user_password {
+message UserPassword {
     // The existing password, used to check that this is a legit request
     string old_password = 1;
 
@@ -68,10 +69,10 @@ message user_password {
 }
 
 // User list response.
-message user_list {
+message UserList {
 
     // A single user entry
-    message entry {
+    message Entry {
         // Name of the user
         string name = 1;
 
@@ -83,5 +84,5 @@ message user_list {
     }
 
     // List of known users
-    repeated entry users = 1;
+    repeated Entry users = 1;
 }

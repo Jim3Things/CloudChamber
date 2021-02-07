@@ -109,7 +109,8 @@ export function getETag(resp: Response): number {
         return -1
     }
 
-    return parseInt(tag, 10)
+    const value = tag.replace("\"", "")
+    return parseInt(value, 10)
 }
 
 // Set the ETag into a header as a match condition

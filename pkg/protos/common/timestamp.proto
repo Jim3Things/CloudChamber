@@ -5,6 +5,7 @@ syntax = "proto3";
 package common;
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/common";
+option csharp_namespace = "CloudChamber.Protos.Common";
 
 // Define the structure for a simulated time
 //

@@ -8,6 +8,7 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
 import "google/protobuf/duration.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
+option csharp_namespace = "CloudChamber.Protos.Services";
 
 // +++ Shared messages
 
@@ -108,7 +109,7 @@ message StatusResponse {
 // Specify the trace entry to append to the trace sink's store
 message AppendRequest {
     // The trace entry
-    log.entry entry = 1;
+    log.Entry entry = 1;
 }
 
 // Specify what trace entries to receive
@@ -141,7 +142,7 @@ message GetAfterResponse {
         int64 id = 1;
 
         // Contents of the trace entry
-        log.entry entry = 2;
+        log.Entry entry = 2;
     }
 
     // Set of trace entries we're returning
