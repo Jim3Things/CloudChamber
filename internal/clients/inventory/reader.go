@@ -190,7 +190,7 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Defi
 }
 
 // toDefinitionRegionInternal converts intermediate values to the final format
-// One important differnce is that the intermediate is array based.
+// One important difference is that the intermediate is array based.
 // The final format is map based using specific fields in array
 // entries as the map keys
 //
