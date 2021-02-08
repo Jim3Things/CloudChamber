@@ -47,6 +47,13 @@ PROTO_GEN_FILES = \
     pkg/protos/services/stepper.pb.go \
     pkg/protos/services/trace_sink.pb.go
 
+PROTO_CS_GEN_FILES = \
+	pkg/protos/admin/simulation.pb.cs \
+    pkg/protos/admin/users.pb.cs \
+    pkg/protos/common/completion.pb.cs \
+    pkg/protos/common/timestamp.pb.cs \
+    pkg/protos/log/entry.pb.cs \
+    pkg/protos/services/requests.pb.cs
 
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
 
@@ -196,6 +203,7 @@ endif
 PROTOC_BASE = protoc --proto_path=. --proto_path=$(GOPATH)/src
 
 PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src
+PROTOC_PBUF_CS = $(PROTOC_BASE) --csharp_out=$(PROJECT)/pkg/protos --csharp_opt=file_extension=.pb.cs,base_namespace=CloudChamber.Protos
 PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
 
 
@@ -210,9 +218,9 @@ RM-RECURSIVE = $(RM) -r
 
 all: build run_tests
 
-build: $(SERVICES) $(ARTIFACTS)
+build: $(PROTO_CS_GEN_FILES) $(SERVICES) $(ARTIFACTS)
 
-protogen: $(PROTO_GEN_FILES)
+protogen: $(PROTO_GEN_FILES) $(PROTO_GEN_CS_FILES)
 
 version: $(VERSION_MARKER)
 
@@ -257,7 +265,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 .PHONY : clean
 
 clean:
-	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(VERSION_MARKER)
+	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(PROTO_CS_GEN_FILES) $(VERSION_MARKER)
 
 
 .PHONY : test
@@ -268,6 +276,8 @@ test: run_tests
 %.pb.go : %.proto
 	$(PROTOC_PBUF) $(PROJECT)/$<
 
+%.pb.cs : %.proto
+	$(PROTOC_PBUF_CS) $(PROJECT)/$<
 
 pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
 	$(PROTOC_GRPC) $(PROJECT)/$<
@@ -280,7 +290,6 @@ pkg/protos/services/stepper.pb.go: pkg/protos/services/stepper.proto
 
 pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
 	$(PROTOC_GRPC) $(PROJECT)/$<
-
 
 
 $(VERSION_MARKER) &: $(SRC_VERSION)

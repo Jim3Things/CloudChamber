@@ -5,23 +5,13 @@ using System.Net.Http;
 namespace CloudChamber.Cmdlets
 {
     /// <summary>
-    /// Session holds the state for an active connection to a cluster.
+    ///     Session holds the state for an active connection to a cluster.
     /// </summary>
     public class Session : IDisposable
     {
         /// <summary>
-        /// Client is the active HTTP client to use for any REST calls.
-        /// </summary>
-        public HttpClient Client { get; private set; }
-
-        /// <summary>
-        /// Name is the username for the currently logged in user.
-        /// </summary>
-        public string Name { get; private set; }
-
-        /// <summary>
-        /// This constructor initializes the session and establishes the client
-        /// context for the target cluster.
+        ///     This constructor initializes the session and establishes the client
+        ///     context for the target cluster.
         /// </summary>
         /// <param name="uri">address of the target cluster.</param>
         /// <param name="name">logged in name.</param>
@@ -35,8 +25,18 @@ namespace CloudChamber.Cmdlets
         }
 
         /// <summary>
-        /// Performs the tasks associated with freeing, releasing, or resetting
-        /// the http client resources.
+        ///     Client is the active HTTP client to use for any REST calls.
+        /// </summary>
+        public HttpClient Client { get; private set; }
+
+        /// <summary>
+        ///     Name is the username for the currently logged in user.
+        /// </summary>
+        public string Name { get; }
+
+        /// <summary>
+        ///     Performs the tasks associated with freeing, releasing, or resetting
+        ///     the http client resources.
         /// </summary>
         public void Dispose()
         {
@@ -51,25 +51,26 @@ namespace CloudChamber.Cmdlets
     }
 
     /// <summary>
-    /// Connect to a specified account on the target cluster.
+    ///     Connect to a specified account on the target cluster.
     /// </summary>
     [Cmdlet(VerbsCommunications.Connect, Names.Account)]
+    [OutputType(typeof(Session))]
     public class LoginCmdlet : PSCmdlet
     {
         /// <summary>
-        /// ClusterUri is the address of the target cluster.
+        ///     ClusterUri is the address of the target cluster.
         /// </summary>
         [Parameter(Position = 0, Mandatory = true)]
         public Uri ClusterUri { get; set; }
 
         /// <summary>
-        /// Name is the username of the account to log in.
+        ///     Name is the username of the account to log in.
         /// </summary>
         [Parameter(Position = 1, Mandatory = true)]
         public string Name { get; set; }
 
         /// <summary>
-        /// Password is the password string to use when logging in.
+        ///     Password is the password string to use when logging in.
         /// </summary>
         [Parameter(Position = 2, Mandatory = true)]
         public string Password { get; set; }
@@ -90,13 +91,14 @@ namespace CloudChamber.Cmdlets
     }
 
     /// <summary>
-    /// Disconnect an active session.
+    ///     Disconnect an active session.
     /// </summary>
     [Cmdlet(VerbsCommunications.Disconnect, Names.Account)]
+    [OutputType(typeof(Session))]
     public class LogoutCmdlet : PSCmdlet
     {
         /// <summary>
-        /// Session is the active session to disconnect.
+        ///     Session is the active session to disconnect.
         /// </summary>
         [Parameter(Mandatory = true)]
         public Session Session { get; set; }

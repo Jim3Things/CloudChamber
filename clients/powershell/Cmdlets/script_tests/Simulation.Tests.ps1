@@ -14,13 +14,14 @@
     It "Gets the simulation status" {
         $status = Get-CcCluster -Session $sess
         $span = New-TimeSpan -Hours 1
-        $status.InactivityTimeout | Should Be $span
+        $status.Inactivity | Should Be $span
 
         $now = (Get-Date).ToUniversalTime()
-        $status.FrontEndStartedAt | Should BeLessThan $now
+        $status.Started | Should BeLessThan $now
     }
 
     It "Gets the summary list of current active sessions" {
+        $now = (Get-Date).ToUniversalTime()
         $list = Get-CcSessions -Session $sess
         $list.Count | Should BeGreaterThan 0
 
@@ -28,7 +29,8 @@
         for ($i = 0; $i -lt $list.Count; $i++) {
             $entry = $list[$i]
             $item = Get-CcSession -Session $sess -Id $entry.Id
-            $found = $found -or ($item.Name -eq "admin")
+            $found = $found -or ($item.UserName -eq "admin")
+            $item.Expires | Should BeGreaterThan $now
         }
 
         $found | Should Be $true

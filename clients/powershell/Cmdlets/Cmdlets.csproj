@@ -8,16 +8,54 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Content Condition="$(TargetFramework)=='netstandard2.0'" Include="$(NuGetPackageRoot)\newtonsoft.json\12.0.3\lib\netstandard2.0\Newtonsoft.Json.dll">
-          <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-          <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
-          <Visible>False</Visible>
+        <Content Condition="$(TargetFramework)=='netstandard2.0'" Include="$(NuGetPackageRoot)\google.protobuf\3.14.0\lib\netstandard2.0\Google.Protobuf.dll">
+              <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+              <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+              <Visible>False</Visible>
+        </Content>
+        <Content Condition="$(TargetFramework)=='netstandard2.0'" Include="$(NuGetPackageRoot)\system.memory\4.5.4\lib\netstandard2.0\System.Memory.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <Visible>False</Visible>
+        </Content>
+        <Content Condition="$(TargetFramework)=='netstandard2.0'" Include="$(NuGetPackageRoot)\system.buffers\4.5.1\lib\netstandard2.0\System.Buffers.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <Visible>False</Visible>
+        </Content>
+        <Content Condition="$(TargetFramework)=='netstandard2.0'" Include="$(NuGetPackageRoot)\system.runtime.compilerservices.unsafe\4.5.3\lib\netstandard2.0\System.Runtime.CompilerServices.Unsafe.dll">
+            <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+            <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+            <Visible>False</Visible>
         </Content>
         <PackageReference Include="Google.Protobuf" Version="3.14.0" />
-        <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
         <PackageReference Include="PowerShellStandard.Library" Version="5.1.0-preview-06">
             <PrivateAssets>All</PrivateAssets>
         </PackageReference>
+        <PackageReference Include="System.Buffers" Version="4.5.1" />
+        <PackageReference Include="System.Memory" Version="4.5.4" />
+        <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="4.5.3" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Include="..\..\..\pkg\protos\admin\Simulation.pb.cs">
+        <Link>protos\admin\Simulation.pb.cs</Link>
+      </Compile>
+      <Compile Include="..\..\..\pkg\protos\admin\Users.pb.cs">
+        <Link>protos\admin\Users.pb.cs</Link>
+      </Compile>
+      <Compile Include="..\..\..\pkg\protos\common\Completion.pb.cs">
+        <Link>protos\common\Completion.pb.cs</Link>
+      </Compile>
+      <Compile Include="..\..\..\pkg\protos\common\Timestamp.pb.cs">
+        <Link>protos\common\Timestamp.pb.cs</Link>
+      </Compile>
+      <Compile Include="..\..\..\pkg\protos\log\Entry.pb.cs">
+        <Link>protos\log\Entry.pb.cs</Link>
+      </Compile>
+        <Compile Include="..\..\..\pkg\protos\services\Requests.pb.cs">
+            <Link>protos\services\Requests.pb.cs</Link>
+        </Compile>
     </ItemGroup>
 
 </Project>

@@ -1,8 +1,33 @@
 using System;
 using System.Management.Automation;
 using System.Net.Http;
-using CloudChamber.Cmdlets.Protos;
-using Newtonsoft.Json;
+using CloudChamber.Protos.Common;
+using CloudChamber.Protos.Services;
+using Google.Protobuf;
+
+namespace CloudChamber.Protos.Services
+{
+    /// <summary>
+    ///     Extend to include the revision tag, and a usable form of the
+    ///     measured policy delay.
+    /// </summary>
+    public partial class StatusResponse
+    {
+        /// <summary>
+        ///     ETag contains the revision that was current when the data was read.
+        ///     It should be supplied on any attempt to modify the user data, in
+        ///     order to avoid updates based on stale data.
+        /// </summary>
+        public string ETag { get; set; }
+
+        /// <summary>
+        ///     Return the measured policy real time delay between incrementing
+        ///     the simulated time in a format that is normally usable by .Net
+        ///     applications.
+        /// </summary>
+        public TimeSpan Delay => MeasuredDelay.ToTimeSpan();
+    }
+}
 
 namespace CloudChamber.Cmdlets
 {
@@ -75,7 +100,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetNowError", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var now = JsonConvert.DeserializeObject<Timestamp>(msg);
+            var now = JsonParser.Default.Parse<Timestamp>(msg);
 
             WriteObject(now.Ticks);
         }
@@ -95,7 +120,7 @@ namespace CloudChamber.Cmdlets
 
             var msg = resp.Content.ReadAsStringAsync().Result;
 
-            var policy = JsonConvert.DeserializeObject<StepperPolicy>(msg);
+            var policy = JsonParser.Default.Parse<StatusResponse>(msg);
             policy.ETag = resp.Headers.GetHeader("ETag", "\"-1\"");
 
             WriteObject(policy);
@@ -125,7 +150,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetNowError", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var now = JsonConvert.DeserializeObject<Timestamp>(msg);
+            var now = JsonParser.Default.Parse<Timestamp>(msg);
 
             WriteObject(now.Ticks);
         }
@@ -212,7 +237,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "WaitUntilTimeError", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var now = JsonConvert.DeserializeObject<Timestamp>(msg);
+            var now = JsonParser.Default.Parse<Timestamp>(msg);
 
             WriteObject(now.Ticks);
         }

@@ -1,7 +1,30 @@
 ﻿using System.Management.Automation;
 using System.Net.Http;
-using CloudChamber.Cmdlets.Protos;
-using Newtonsoft.Json;
+using CloudChamber.Protos.Admin;
+using Google.Protobuf;
+using Google.Protobuf.Collections;
+
+namespace CloudChamber.Protos.Admin
+{
+    /// <summary>
+    ///     Extend UserPublic with the identifying name, and the associated
+    ///     revision tag.
+    /// </summary>
+    public partial class UserPublic
+    {
+        /// <summary>
+        ///     Name contains the string used to identify the user when logging in.
+        /// </summary>
+        public string Name { get; set; }
+
+        /// <summary>
+        ///     ETag contains the revision that was current when the data was read.
+        ///     It should be supplied on any attempt to modify the user data, in
+        ///     order to avoid updates based on stale data.
+        /// </summary>
+        public string ETag { get; set; }
+    }
+}
 
 namespace CloudChamber.Cmdlets
 {
@@ -24,6 +47,7 @@ namespace CloudChamber.Cmdlets
     ///     GetUsersCmdlet gets the list of users known to the cluster.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Users)]
+    [OutputType(typeof(RepeatedField<UserList.Types.Entry>))]
     public class GetUsersCmdlet : LoggedInCmdlet
     {
         public GetUsersCmdlet() : base("/api/users/") { }
@@ -39,7 +63,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetUsersList", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var list = JsonConvert.DeserializeObject<UserList>(msg);
+            var list = JsonParser.Default.Parse<UserList>(msg);
 
             WriteObject(list.Users, true);
         }
@@ -49,6 +73,7 @@ namespace CloudChamber.Cmdlets
     ///     GetUserCmdlet retrieves the attributes associated with the specified user.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.User)]
+    [OutputType(typeof(UserPublic))]
     public class GetUserCmdlet : NamedUserCmdlets
     {
         /// <summary>
@@ -62,16 +87,12 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetUserDetails", Name);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var details = JsonConvert.DeserializeObject<PublicUserDetails>(msg);
+            var details = JsonParser.Default.Parse<UserPublic>(msg);
 
-            WriteObject(new UserDetails
-            {
-                Name = Name,
-                Enabled = details.Enabled,
-                ManageAccounts = details.ManageAccounts,
-                Protected = details.Protected,
-                ETag = resp.Headers.GetHeader("ETag", "-1")
-            });
+            details.Name = Name;
+            details.ETag = resp.Headers.GetHeader("ETag", "-1");
+
+            WriteObject(details);
         }
     }
 
@@ -80,6 +101,7 @@ namespace CloudChamber.Cmdlets
     ///     attributes.
     /// </summary>
     [Cmdlet(VerbsCommon.New, Names.User)]
+    [OutputType(typeof(UserPublic))]
     public class NewUserCmdlet : NamedUserCmdlets
     {
         /// <summary>
@@ -107,10 +129,10 @@ namespace CloudChamber.Cmdlets
         /// </summary>
         protected override void ProcessRecord()
         {
-            var json = JsonConvert.SerializeObject(new NewUserDetails
+            var json = JsonFormatter.Default.Format(new UserDefinition
             {
                 Enabled = Enabled,
-                ManageAccounts = Admin,
+                CanManageAccounts = Admin,
                 Password = Password
             });
 
@@ -120,12 +142,12 @@ namespace CloudChamber.Cmdlets
 
             ThrowOnHttpFailure(resp, "NewUserError", Name);
 
-            WriteObject(new UserDetails
+            WriteObject(new UserPublic
             {
                 Name = Name,
                 Enabled = Enabled,
-                ManageAccounts = Admin,
-                Protected = false,
+                CanManageAccounts = Admin,
+                NeverDelete = false,
                 ETag = resp.Headers.GetHeader("ETag", "-1")
             });
         }
