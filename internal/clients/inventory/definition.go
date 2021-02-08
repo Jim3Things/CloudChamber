@@ -365,7 +365,10 @@ func (r *Root) GetDetails(ctx context.Context) *pb.RootDetails {
 
 // Create is not used for a Root object as there is no persistence for this
 // object.
+
 //
+
+
 func (r *Root) Create(ctx context.Context) (int64, error) {
 	return store.RevisionInvalid, errors.ErrFunctionNotAvailable
 }
@@ -402,6 +405,8 @@ func (r *Root) Delete(ctx context.Context, unconditional bool) (int64, error) {
 func (r *Root) NewChild(ctx context.Context, name string) (*Region, error) {
 
 	return NewRegion(ctx, r.Store, r.Table, name)
+
+
 }
 
 // ListChildren uses the current object to discover the names of all the
