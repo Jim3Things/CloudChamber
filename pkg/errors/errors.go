@@ -391,6 +391,40 @@ func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
 		eutvsa.Name, eutvsa.Err)
 }
 
+// ErrRegionAlreadyExists indicates the attempt to create a new region record
+// failed as that region already exists.
+//
+type ErrRegionAlreadyExists struct {
+	Region string
+}
+
+func (e ErrRegionAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: %s already exists", regionAddress(e.Region))
+}
+
+// ErrRegionNotFound indicates the attempt to locate a region record failed as that
+// region does not exist.
+//
+type ErrRegionNotFound struct {
+	Region string
+}
+
+func (e ErrRegionNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not found", regionAddress(e.Region))
+}
+
+// ErrRegionStaleVersion indicates the attempt to locate a specific version of a
+// region record failed as either that region does not exist, or the specific
+// version is no longer present in the store.
+//
+type ErrRegionStaleVersion struct {
+	Region string
+}
+
+func (e ErrRegionStaleVersion) Error() string {
+	return fmt.Sprintf("CloudChamber: %s has a newer version than expected", regionAddress(e.Region))
+}
+
 // ErrZoneAlreadyExists indicates the attempt to create a new zone record
 // failed as that zone already exists.
 //
@@ -399,8 +433,8 @@ type ErrZoneAlreadyExists struct {
 	Zone string
 }
 
-func (ezae ErrZoneAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q already exists in region %q", ezae.Zone, ezae.Region)
+func (e ErrZoneAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: %s already exists", zoneAddress(e.Zone, e.Region))
 }
 
 // ErrZoneNotFound indicates the attempt to locate a zone record failed as that
@@ -411,8 +445,8 @@ type ErrZoneNotFound struct {
 	Zone string
 }
 
-func (eznf ErrZoneNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q not found in region %q", eznf.Zone, eznf.Region)
+func (e ErrZoneNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not found", zoneAddress(e.Zone, e.Region))
 }
 
 // ErrZoneStaleVersion indicates the attempt to locate a specific version of a
@@ -424,8 +458,8 @@ type ErrZoneStaleVersion struct {
 	Zone string
 }
 
-func (ezsv ErrZoneStaleVersion) Error() string {
-	return fmt.Sprintf("CloudChamber: zone %q in region %q has a newer version than expected", ezsv.Zone, ezsv.Region)
+func (e ErrZoneStaleVersion) Error() string {
+	return fmt.Sprintf("CloudChamber: %s has a newer version than expected", zoneAddress(e.Zone, e.Region))
 }
 
 // ErrRackAlreadyExists indicates the attempt to create a new rack record
@@ -437,8 +471,8 @@ type ErrRackAlreadyExists struct {
 	Rack string
 }
 
-func (erae ErrRackAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: rack %q in zone %q already exists in region %q", erae.Rack, erae.Zone, erae.Region)
+func (e ErrRackAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: %s already exists", rackAddress(e.Region, e.Zone, e.Rack))
 }
 
 // ErrRackNotFound indicates the attempt to operate on a rack record failed
@@ -450,8 +484,8 @@ type ErrRackNotFound struct {
 	Rack string
 }
 
-func (ernf ErrRackNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: rack %q in zone %q was not found in region %q", ernf.Rack, ernf.Zone, ernf.Region)
+func (e ErrRackNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not found", rackAddress(e.Region, e.Zone, e.Rack))
 }
 
 // ErrPduIndexInvalid indicates the attempt to locate a record
@@ -464,8 +498,8 @@ type ErrPduIndexInvalid struct {
 	Pdu string
 }
 
-func (epii ErrPduIndexInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: pdu %q in region %q, zone %q, rack %q was not valid", epii.Pdu, epii.Region, epii.Zone, epii.Rack)
+func (e ErrPduIndexInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not valid", pduAddressName(e.Region, e.Zone, e.Rack, e.Pdu))
 }
 
 // ErrPduNotFound indicates the attempt to operate on a pdu record
@@ -478,8 +512,8 @@ type ErrPduNotFound struct {
 	Pdu int64
 }
 
-func (epae ErrPduNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: pdu %v in region %q, zone %q, rack %q was not found", epae.Pdu, epae.Region, epae.Zone, epae.Rack)
+func (e ErrPduNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not found", pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
 }
 
 // ErrPduAlreadyExists indicates the attempt to create a new pdu record
@@ -492,8 +526,8 @@ type ErrPduAlreadyExists struct {
 	Pdu int64
 }
 
-func (epae ErrPduAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: pdu %v in region %q, zone %q, rack %q already exists", epae.Pdu, epae.Region, epae.Zone, epae.Rack)
+func (e ErrPduAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: %s already exists", pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
 }
 
 // ErrTorIndexInvalid indicates the attempt to locate a record
@@ -506,8 +540,8 @@ type ErrTorIndexInvalid struct {
 	Tor string
 }
 
-func (etii ErrTorIndexInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: tor %q in region %q, zone %q, rack %q was not valid", etii.Tor, etii.Region, etii.Zone, etii.Rack)
+func (e ErrTorIndexInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not valid", torAddressName(e.Region, e.Zone, e.Rack, e.Tor))
 }
 
 // ErrTorNotFound indicates the attempt to operate on a tor record
@@ -520,8 +554,8 @@ type ErrTorNotFound struct {
 	Tor int64
 }
 
-func (etnf ErrTorNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: tor %v in region %q, zone %q, rack %q was not found", etnf.Tor, etnf.Region, etnf.Zone, etnf.Rack)
+func (e ErrTorNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not found", torAddress(e.Region, e.Zone, e.Rack, e.Tor))
 }
 
 // ErrTorAlreadyExists indicates the attempt to create a new zone record
@@ -534,8 +568,8 @@ type ErrTorAlreadyExists  struct {
 	Tor int64
 }
 
-func (etae ErrTorAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: tor %v in region %q, zone %q, rack %q already exists", etae.Tor, etae.Region, etae.Zone, etae.Rack)
+func (e ErrTorAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: %s already exists", torAddress(e.Region, e.Zone, e.Rack, e.Tor))
 }
 
 // ErrBladeIndexInvalid indicates the attempt to locate a record
@@ -548,8 +582,8 @@ type ErrBladeIndexInvalid struct {
 	Blade string
 }
 
-func (ebii ErrBladeIndexInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: blade %q in region %q, zone %q, rack %q was not valid", ebii.Blade, ebii.Region, ebii.Zone, ebii.Rack)
+func (e ErrBladeIndexInvalid) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not valid", bladeAddressName(e.Region, e.Zone, e.Rack, e.Blade))
 }
 
 // ErrBladeNotFound indicates the attempt to operate on a blade record
@@ -562,8 +596,8 @@ type ErrBladeNotFound struct {
 	Blade int64
 }
 
-func (ebnf ErrBladeNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: blade %v in region %q, zone %q, rack %q was not found", ebnf.Blade, ebnf.Region, ebnf.Zone, ebnf.Rack)
+func (e ErrBladeNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: %s was not found", bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
 }
 
 // ErrBladeAlreadyExists indicates the attempt to create a new blade record
@@ -576,8 +610,8 @@ type ErrBladeAlreadyExists struct {
 	Blade int64
 }
 
-func (ebae ErrBladeAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: blade %v in region %q, zone %q, rack %q already exists", ebae.Blade, ebae.Region, ebae.Zone, ebae.Rack)
+func (e ErrBladeAlreadyExists) Error() string {
+	return fmt.Sprintf("CloudChamber: %s already exists", bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
 }
 
 // ErrPolicyTooLate indicates that the attempt to change the stepper policy
@@ -942,7 +976,7 @@ type ErrBladeIDInvalid struct {
 }
 
 func (ebii ErrBladeIDInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: bladeID %v is out of range (0 to %v)", ebii.Value, ebii.Limit)
+	return fmt.Sprintf("CloudChamber: bladeID %d is out of range (0 to %d)", ebii.Value, ebii.Limit)
 }
 
 // ErrPduIDInvalid indicates the supplied pduID was out of range, either < less than 0 or greater than maxPduID
@@ -953,7 +987,7 @@ type ErrPduIDInvalid struct {
 }
 
 func (epii ErrPduIDInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: pduID %v is out of range (0 to %v)", epii.Value, epii.Limit)
+	return fmt.Sprintf("CloudChamber: pduID %d is out of range (0 to %d)", epii.Value, epii.Limit)
 }
 
 // ErrTorIDInvalid indicates the supplied torID was out of range, either < less than 0 or greater than maxTorID
@@ -964,35 +998,7 @@ type ErrTorIDInvalid struct {
 }
 
 func (etii ErrTorIDInvalid) Error() string {
-	return fmt.Sprintf("CloudChamber: torID %v is out of range (0 to %v)", etii.Value, etii.Limit)
-}
-
-// ErrRegionAlreadyExists indicates the attempt to create a new region record
-// failed as that region already exists.
-//
-type ErrRegionAlreadyExists string
-
-func (ezae ErrRegionAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: region %q already exists", string(ezae))
-}
-
-// ErrRegionNotFound indicates the attempt to locate a region record failed as that
-// region does not exist.
-//
-type ErrRegionNotFound string
-
-func (eznf ErrRegionNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: region %q not found", string(eznf))
-}
-
-// ErrRegionStaleVersion indicates the attempt to locate a specific version of a
-// region record failed as either that region does not exist, or the specific
-// version is no longer present in the store.
-//
-type ErrRegionStaleVersion string
-
-func (ezsv ErrRegionStaleVersion) Error() string {
-	return fmt.Sprintf("CloudChamber: region %q has a newer version than expected", string(ezsv))
+	return fmt.Sprintf("CloudChamber: torID %d is out of range (0 to %d)", etii.Value, etii.Limit)
 }
 
 // ErrRootNotFound indicates the attempt to operate on the specified namespace table

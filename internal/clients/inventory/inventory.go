@@ -125,9 +125,9 @@ const (
 	keyFormatRegion = "%s/data/" + prefixRegion + "/%s"
 	keyFormatZone   = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s"
 	keyFormatRack   = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s"
-	keyFormatPdu    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "/%v"
-	keyFormatTor    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "/%v"
-	keyFormatBlade  = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%v"
+	keyFormatPdu    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "/%d"
+	keyFormatTor    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "/%d"
+	keyFormatBlade  = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%d"
 
 	maxBladeID = int64(10 * 1000 * 1000)
 	maxPduID   = int64(2)
@@ -628,6 +628,48 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 	return key, nil
 }
 
+type inventoryRevision interface {
+	// GetRevision returns the revision of the details field within the object.
+	// This will be either the revision of the object in the store after a
+	// Create(), Read() or Update() call or be store.RevisionInvalid if the
+	// details have been set or no Create(), Read() or Update() call has been
+	// executed.
+	//
+	GetRevision(ctx context.Context) int64
+
+	// GetRevisionRecord returns the revision of the underlying store object as 
+	// determined at the time of the last Create(), Read() or Update() for the
+	// object. The record revision is not reset by a SetDetails() call and is
+	// used when performing either a conditional update or conditional delete
+	// using the object.
+	//
+	GetRevisionRecord(ctx context.Context) int64
+
+	// GetRevisionStore returns the revison of the underlying store ifself as 
+	// determined at the time of the last Create() Read() for the object. The
+	// store revision is not reset by a SetDetails() call and is provided 
+	// for information only.
+	//
+	GetRevisionStore(ctx context.Context) int64
+
+	// GetRevisionForRequest returns the appropriate revision for the update
+	// for either a conditional update based upon the revision of the most
+	// recently read record, or an unconditional update.
+	//
+	GetRevisionForRequest(ctx context.Context, unconditional bool) int64
+
+	// resetRevision resets the revision for the details field within the object.
+	// Subsequent calls to GetRevision() will return store.RevisionInvalid until
+	// a successful call is made to one of the routines which invoke the store
+	//
+	resetRevision(ctx context.Context) int64
+
+	// updateRevision is used to set/update the current revision information 
+	// as part of a successful invokation of a store routine.
+	//
+	updateRevisionInfo(ctx context.Context, rev int64) int64
+}
+
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things".
 // You can send operations and commands to things, but not containers.
 //
@@ -641,13 +683,12 @@ func GetKeyForBlade(table string, region string, zone string, rack string, blade
 // are not set.
 //
 type inventoryItem interface {
+	inventoryRevision
+
 	// Use to set the attribues of an object within the inventory
 	//
 	SetDetails(ctx context.Context, details *interface{})
 	GetDetails(ctx context.Context) *interface{}
-	GetRevision(ctx context.Context) int64
-	GetRevisionRecord(ctx context.Context) int64
-	GetRevisionStore(ctx context.Context) int64
 
 	// Create uses the current object to persist the object to the underlying
 	// store  and also create any index entries that may be required.
@@ -722,6 +763,32 @@ type inventoryItemNode interface {
 	FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error)
 }
 
+// Provide a set of definitions to cope with calls to a "null" object.
+//
+func (n *nullItem) GetRevision(ctx context.Context) int64 {
+	return store.RevisionInvalid
+}
+
+func (n *nullItem) GetRevisionRecord(ctx context.Context) int64 {
+	return store.RevisionInvalid
+}
+
+func (n *nullItem) GetRevisionStore(ctx context.Context) int64 {
+	return store.RevisionInvalid
+}
+
+func (n *nullItem) GetRevisionForRequest(ctx context.Context, unconditional bool) int64 {
+	return store.RevisionInvalid
+}
+
+func (n *nullItem) resetRevision(ctx context.Context) int64 {
+	return store.RevisionInvalid
+}
+
+func (n *nullItem) updateRevisionInfo(ctx context.Context, rev int64) int64 {
+	return store.RevisionInvalid
+}
+
 type inventoryItemRack interface {
 	inventoryItemNode
 
@@ -762,6 +829,7 @@ type inventoryBlade interface {
 	GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo)
 }
 
+
 // Provide a set of definitions to cope with calls to a "null" object.
 //
 type nullItem struct {}
@@ -771,18 +839,6 @@ func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) {
 
 func (n *nullItem) GetDetails(ctx context.Context) *nullItem {
 	return nil
-}
-
-func (n *nullItem) GetRevision(ctx context.Context) int64 {
-	return store.RevisionInvalid
-}
-
-func (n *nullItem) GetRevisionRecord(ctx context.Context) int64 {
-	return store.RevisionInvalid
-}
-
-func (n *nullItem) GetRevisionStore(ctx context.Context) int64 {
-	return store.RevisionInvalid
 }
 
 func (n *nullItem) Create(ctx context.Context) (int64, error) {

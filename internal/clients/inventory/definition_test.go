@@ -545,7 +545,7 @@ func (ts *testSuiteCore) TestNewRegion() {
 	//
 	rev, err = region.Read(ctx)
 	require.Error(err)
-	assert.Equal(errors.ErrRegionNotFound(region.Region), err)
+	assert.Equal(errors.ErrRegionNotFound{Region: region.Region}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	rev, err = region.Update(ctx, false)
