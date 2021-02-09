@@ -413,6 +413,28 @@ func (e ErrRegionNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: %s was not found", regionAddress(e.Region))
 }
 
+// ErrRegionIndexNotFound indicates the attempt to locate a region index record
+// failed as that region index does not exist.
+//
+type ErrRegionIndexNotFound struct {
+	Region string
+}
+
+func (e ErrRegionIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index for %s was not found", regionAddress(e.Region))
+}
+
+// ErrRegionChildIndexNotFound indicates the attempt to locate a region child
+// index record failed as that region child index does not exist.
+//
+type ErrRegionChildIndexNotFound struct {
+	Region string
+}
+
+func (e ErrRegionChildIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: child index for %s was not found", regionAddress(e.Region))
+}
+
 // ErrRegionStaleVersion indicates the attempt to locate a specific version of a
 // region record failed as either that region does not exist, or the specific
 // version is no longer present in the store.
@@ -447,6 +469,30 @@ type ErrZoneNotFound struct {
 
 func (e ErrZoneNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: %s was not found", zoneAddress(e.Zone, e.Region))
+}
+
+// ErrZoneIndexNotFound indicates the attempt to locate a zone index record
+// failed as that zone index does not exist.
+//
+type ErrZoneIndexNotFound struct {
+	Region string
+	Zone string
+}
+
+func (e ErrZoneIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index for %s was not found", zoneAddress(e.Zone, e.Region))
+}
+
+// ErrZoneChildIndexNotFound indicates the attempt to locate a zone child
+// index record failed as that zone child index does not exist.
+//
+type ErrZoneChildIndexNotFound struct {
+	Region string
+	Zone string
+}
+
+func (e ErrZoneChildIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: child index for %s was not found", zoneAddress(e.Zone, e.Region))
 }
 
 // ErrZoneStaleVersion indicates the attempt to locate a specific version of a
@@ -488,6 +534,61 @@ func (e ErrRackNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: %s was not found", rackAddress(e.Region, e.Zone, e.Rack))
 }
 
+// ErrRackIndexNotFound indicates the attempt to operate on a rack index record
+// failed as that record cannot be found.
+//
+type ErrRackIndexNotFound struct {
+	Region string
+	Zone string
+	Rack string
+}
+
+func (e ErrRackIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index for %s was not found", rackAddress(e.Region, e.Zone, e.Rack))
+}
+
+// ErrRackPduIndexNotFound indicates the attempt to operate on a rack pdu
+// index record failed as that record cannot be found.
+//
+type ErrRackPduIndexNotFound struct {
+	Region string
+	Zone string
+	Rack string
+	Pdu  int64
+}
+
+func (e ErrRackPduIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: pdu index for %s was not found", pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
+}
+
+// ErrRackTorIndexNotFound indicates the attempt to operate on a rack tor
+// index record failed as that record cannot be found.
+//
+type ErrRackTorIndexNotFound struct {
+	Region string
+	Zone string
+	Rack string
+	Tor  int64
+}
+
+func (e ErrRackTorIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: tor index for %s was not found", torAddress(e.Region, e.Zone, e.Rack, e.Tor))
+}
+
+// ErrRackBladeIndexNotFound indicates the attempt to operate on a rack blade
+// index record failed as that record cannot be found.
+//
+type ErrRackBladeIndexNotFound struct {
+	Region string
+	Zone string
+	Rack string
+	Blade  int64
+}
+
+func (e ErrRackBladeIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: blade index for %s was not found", bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
+}
+
 // ErrPduIndexInvalid indicates the attempt to locate a record
 // failed as the given index is invalid in some way.
 //
@@ -514,6 +615,20 @@ type ErrPduNotFound struct {
 
 func (e ErrPduNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: %s was not found", pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
+}
+
+// ErrPduIndexNotFound indicates the attempt to locate a record
+// failed as the given index is invalid in some way.
+//
+type ErrPduIndexNotFound struct {
+	Region string
+	Zone string
+	Rack string
+	Pdu int64
+}
+
+func (e ErrPduIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index for %s was not found", pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
 }
 
 // ErrPduAlreadyExists indicates the attempt to create a new pdu record
@@ -558,6 +673,20 @@ func (e ErrTorNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: %s was not found", torAddress(e.Region, e.Zone, e.Rack, e.Tor))
 }
 
+// ErrTorIndexNotFound indicates the attempt to operate on a tor record
+// failed as that record cannot be found.
+//
+type ErrTorIndexNotFound struct {
+	Region string
+	Zone string
+	Rack string
+	Tor int64
+}
+
+func (e ErrTorIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index for %s was not found", torAddress(e.Region, e.Zone, e.Rack, e.Tor))
+}
+
 // ErrTorAlreadyExists indicates the attempt to create a new zone record
 // failed as that zone already exists.
 //
@@ -598,6 +727,20 @@ type ErrBladeNotFound struct {
 
 func (e ErrBladeNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: %s was not found", bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
+}
+
+// ErrBladeIndexNotFound indicates the attempt to operate on a blade record
+// failed as that record cannot be found.
+//
+type ErrBladeIndexNotFound struct {
+	Region string
+	Zone string
+	Rack string
+	Blade int64
+}
+
+func (e ErrBladeIndexNotFound) Error() string {
+	return fmt.Sprintf("CloudChamber: index for %s was not found", bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
 }
 
 // ErrBladeAlreadyExists indicates the attempt to create a new blade record

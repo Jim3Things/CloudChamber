@@ -346,7 +346,7 @@ func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 		return RevisionInvalid, err
 	}
 
-	tracing.Info(ctx, "Created record set under prefix %q with revision %v", prefix, resp.Revision)
+	tracing.Info(ctx, "Created record set under prefix %q with revision %d", prefix, resp.Revision)
 
 	revision = resp.Revision
 
@@ -643,6 +643,63 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 	}
 
 	tracing.Info(ctx, "Deleted record for %q under prefix %q with revision %v resulting in store revision %v", n, prefix, rev, resp.Revision)
+
+	return resp.Revision, nil
+}
+
+// DeleteMultiple is a function to delete a set of related key, revision pairs
+// within a single operation (txn)
+//
+func (store *Store) DeleteMultiple(ctx context.Context, r KeyRoot, kvs *map[string]int64) (int64, error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
+	defer span.End()
+
+	prefix := getNamespacePrefixFromKeyRoot(r)
+
+	tracing.Info(ctx, "Request to delete key set under prefix %q", prefix)
+
+	if err := store.disconnected(ctx); err != nil {
+		return RevisionInvalid, err
+	}
+
+	request := &Request{
+		Records:    make(map[string]Record, len(*kvs)),
+		Conditions: make(map[string]Condition, len(*kvs)),
+	}
+
+	for n, rev := range *kvs {
+		k := getKeyFromKeyRootAndName(r, n)
+
+		condition := ConditionRevisionEqual
+
+		if rev == RevisionInvalid {
+			condition = ConditionUnconditional
+		}
+
+		request.Records[k]    = Record{Revision: rev}
+		request.Conditions[k] = condition
+	}
+
+	resp, err := store.DeleteTxn(ctx, request)
+
+	if err != nil {
+		// Need to strip the namespace prefix and return something described
+		// in terms the caller should recognize
+		//
+		for k := range request.Records {
+			if err == errors.ErrStoreKeyNotFound(k) {
+				n := getNameFromKeyRootAndKey(r, k)
+				return RevisionInvalid, errors.ErrStoreKeyNotFound(n)
+			}
+		}
+
+		// Nothing more appropriate found so just return what we have.
+		//
+		return RevisionInvalid, err
+	}
+
+	tracing.Info(ctx, "Deleted record set under prefix %q with revision %d", prefix, resp.Revision)
 
 	return resp.Revision, nil
 }
