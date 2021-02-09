@@ -268,7 +268,7 @@ type revisionInfo struct {
 // details have been set or no Create(), Read() or Update() call has been
 // executed.
 //
-func (r *revisionInfo) GetRevision(ctx context.Context) int64 {
+func (r *revisionInfo) GetRevision() int64 {
 	return r.revision
 }
 
@@ -278,7 +278,7 @@ func (r *revisionInfo) GetRevision(ctx context.Context) int64 {
 // used when performing either a conditional update or conditional delete
 // using the object.
 //
-func (r *revisionInfo) GetRevisionRecord(ctx context.Context) int64 {
+func (r *revisionInfo) GetRevisionRecord() int64 {
 	return r.revisionRecord
 }
 
@@ -287,7 +287,7 @@ func (r *revisionInfo) GetRevisionRecord(ctx context.Context) int64 {
 // store revision is not reset by a SetDetails() call and is provided 
 // for information only.
 //
-func (r *revisionInfo) GetRevisionStore(ctx context.Context) int64 {
+func (r *revisionInfo) GetRevisionStore() int64 {
 	return r.revisionStore
 }
 
@@ -295,7 +295,7 @@ func (r *revisionInfo) GetRevisionStore(ctx context.Context) int64 {
 // for either a conditional update based upon the revision of the most
 // recently read record, or an unconditional update.
 //
-func (r *revisionInfo) GetRevisionForRequest(ctx context.Context, unconditional bool) int64 {
+func (r *revisionInfo) GetRevisionForRequest(unconditional bool) int64 {
 
 	if unconditional == true {
 		return store.RevisionInvalid
@@ -308,7 +308,7 @@ func (r *revisionInfo) GetRevisionForRequest(ctx context.Context, unconditional 
 // Subsequent calls to GetRevision() will return store.RevisionInvalid until
 // a successful call is made to one of the routines which invoke the store
 //
-func (r *revisionInfo) resetRevision(ctx context.Context) int64 {
+func (r *revisionInfo) resetRevision() int64 {
 	r.revision = store.RevisionInvalid
 
 	return store.RevisionInvalid
@@ -317,7 +317,7 @@ func (r *revisionInfo) resetRevision(ctx context.Context) int64 {
 // updateRevision is used to set/update the current revision information 
 // as part of a successful invokation of a store routine.
 //
-func (r *revisionInfo) updateRevisionInfo(ctx context.Context, rev int64) int64 {
+func (r *revisionInfo) updateRevisionInfo(rev int64) int64 {
 	r.revision       = rev
 	r.revisionRecord = rev
 	r.revisionStore  = rev
@@ -351,7 +351,7 @@ type Root struct {
 //
 func (r *Root) SetDetails(ctx context.Context, details *pb.RootDetails) {
 	r.details  = details
-	r.resetRevision(ctx)
+	r.resetRevision()
 }
 
 // GetDetails is used to extract the attribute information from the object.
@@ -506,7 +506,7 @@ type Region struct {
 //
 func (r *Region) SetDetails(ctx context.Context, details *pb.RegionDetails) {
 	r.details  = details
-	r.resetRevision(ctx)
+	r.resetRevision()
 }
 
 // GetDetails is used to extract the attribute information from the object. The
@@ -555,13 +555,13 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 
 	rev, err := r.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err = r.mapErrStoreAlreadyExists(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	r.record = record
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // Read is used to load a record from the underlying store to populate the
@@ -576,7 +576,7 @@ func (r *Region) Read(ctx context.Context) (int64, error) {
 
 	v, rev, err := r.Store.Read(ctx, store.KeyRootInventory, r.Key)
 
-	if err = r.mapErrStoreKeyNotFound(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
@@ -589,7 +589,7 @@ func (r *Region) Read(ctx context.Context) (int64, error) {
 	r.details = record.Details
 	r.record  = record
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // Update is used to persist the information in the fields of the object to
@@ -623,16 +623,16 @@ func (r *Region) Update(ctx context.Context, unconditional bool) (int64, error) 
 		ctx,
 		store.KeyRootInventory,
 		r.Key,
-		r.GetRevisionForRequest(ctx, unconditional),
+		r.GetRevisionForRequest(unconditional),
 		v)
 
-	if err = r.mapErrStoreKeyNotFound(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	r.record = record
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // Delete is used to remove the persisted copy of the object from the
@@ -655,15 +655,15 @@ func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) 
 		ctx,
 		store.KeyRootInventory,
 		r.Key,
-		r.GetRevisionForRequest(ctx, unconditional))
+		r.GetRevisionForRequest(unconditional))
 
-	if err = r.mapErrStoreKeyNotFound(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	r.record = nil
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // NewChild creates a new child object for the zone within the current
@@ -688,7 +688,7 @@ func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 	
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
 
-	if err = r.mapErrStoreIndexNotFound(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
@@ -745,24 +745,15 @@ func (r *Region) FetchChildren(ctx context.Context) (int64, *map[string]Zone, er
 	return rev, &children, nil
 }
 
-func (r *Region) mapErrStoreKeyNotFound(err error) error {
-	if err == errors.ErrStoreKeyNotFound(r.Key) {
+func (r *Region) mapErrStoreValue(err error) error {
+	switch(err){
+	case errors.ErrStoreKeyNotFound(r.Key):
 		return errors.ErrRegionNotFound{Region: r.Region}
-	} 
-	
-	return err
-}
 
-func (r *Region) mapErrStoreIndexNotFound(err error) error {
-	if err == errors.ErrStoreIndexNotFound(r.KeyChildIndex) {
+	case errors.ErrStoreIndexNotFound(r.KeyChildIndex):
 		return errors.ErrIndexNotFound(r.KeyChildIndex)
-	}
 
-	return err
-}
-
-func (r *Region) mapErrStoreAlreadyExists(err error) error {
-	if err == errors.ErrStoreAlreadyExists(r.KeyIndexEntry) || err == errors.ErrStoreAlreadyExists(r.Key) {
+	case errors.ErrStoreAlreadyExists(r.KeyIndexEntry), errors.ErrStoreAlreadyExists(r.Key):
 		return errors.ErrRegionAlreadyExists{Region: r.Region}
 	}
 	
@@ -800,7 +791,7 @@ type Zone struct {
 //
 func (z *Zone) SetDetails(ctx context.Context, details *pb.ZoneDetails) {
 	z.details = details
-	z.resetRevision(ctx)
+	z.resetRevision()
 }
 
 // GetDetails is used to extract the attribute information from the object. The
@@ -849,13 +840,13 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 
 	rev, err := z.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err = z.mapErrStoreAlreadyExists(err); err != nil {
+	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	z.record = record
 
-	return z.updateRevisionInfo(ctx, rev), nil
+	return z.updateRevisionInfo(rev), nil
 }
 
 // Read is used to load a record from the underlying store to populate the
@@ -870,7 +861,7 @@ func (z *Zone) Read(ctx context.Context) (int64, error) {
 
 	v, rev, err := z.Store.Read(ctx, store.KeyRootInventory, z.Key)
 
-	if err = z.mapErrStoreKeyNotFound(err); err != nil {
+	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
@@ -883,7 +874,7 @@ func (z *Zone) Read(ctx context.Context) (int64, error) {
 	z.details = record.Details
 	z.record  = record
 
-	return z.updateRevisionInfo(ctx, rev), nil
+	return z.updateRevisionInfo(rev), nil
 }
 
 // Update is used to persist the information in the fields of the object to
@@ -917,16 +908,16 @@ func (z *Zone) Update(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		z.Key,
-		z.GetRevisionForRequest(ctx, unconditional),
+		z.GetRevisionForRequest(unconditional),
 		v)
 
-	if err = z.mapErrStoreKeyNotFound(err); err != nil {
+	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	z.record = record
 
-	return z.updateRevisionInfo(ctx, rev), nil
+	return z.updateRevisionInfo(rev), nil
 }
 
 // Delete is used to remove the persisted copy of the object from the
@@ -947,15 +938,15 @@ func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		z.Key,
-		z.GetRevisionForRequest(ctx, unconditional))
+		z.GetRevisionForRequest(unconditional))
 
-	if err = z.mapErrStoreKeyNotFound(err); err != nil {
+	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	z.record = nil
 
-	return z.updateRevisionInfo(ctx, rev), nil
+	return z.updateRevisionInfo(rev), nil
 }
 
 // NewChild creates a new child object for the zone within the current
@@ -980,7 +971,7 @@ func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 	
 	records, rev, err := z.Store.List(ctx, store.KeyRootInventory, z.KeyChildIndex)
 
-	if err = z.mapErrStoreIndexNotFound(err); err != nil {
+	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
@@ -1035,24 +1026,15 @@ func (z *Zone) FetchChildren(ctx context.Context) (int64, *map[string]Rack, erro
 	return rev, &children, nil
 }
 
-func (z *Zone) mapErrStoreKeyNotFound(err error) error {
-	if err == errors.ErrStoreKeyNotFound(z.Key) {
+func (z *Zone) mapErrStoreValue(err error) error {
+	switch(err){
+	case errors.ErrStoreKeyNotFound(z.Key):
 		return errors.ErrZoneNotFound{Region: z.Region, Zone: z.Zone}
-	} 
-	
-	return err
-}
 
-func (z *Zone) mapErrStoreIndexNotFound(err error) error {
-	if err == errors.ErrStoreIndexNotFound(z.KeyChildIndex) {
+	case errors.ErrStoreIndexNotFound(z.KeyChildIndex):
 		return errors.ErrIndexNotFound(z.KeyChildIndex)
-	}
 
-	return err
-}
-
-func (z *Zone) mapErrStoreAlreadyExists(err error) error {
-	if err == errors.ErrStoreAlreadyExists(z.KeyIndexEntry) || err == errors.ErrStoreAlreadyExists(z.Key) {
+	case errors.ErrStoreAlreadyExists(z.KeyIndexEntry), errors.ErrStoreAlreadyExists(z.Key):
 		return errors.ErrZoneAlreadyExists{Region: z.Region, Zone: z.Zone}
 	}
 	
@@ -1094,7 +1076,7 @@ type Rack struct {
 //
 func (r *Rack) SetDetails(ctx context.Context, details *pb.RackDetails) {
 	r.details  = details
-	r.resetRevision(ctx)
+	r.resetRevision()
 }
 
 // GetDetails is used to extract the attribute information from the object. The
@@ -1143,13 +1125,13 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 
 	rev, err := r.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err = r.mapErrStoreAlreadyExists(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	r.record = record
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // Read is used to load a record from the underlying store to populate the
@@ -1164,7 +1146,7 @@ func (r *Rack) Read(ctx context.Context) (int64, error) {
 
 	v, rev, err := r.Store.Read(ctx, store.KeyRootInventory, r.Key)
 
-	if err = r.mapErrStoreKeyNotFound(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
@@ -1177,7 +1159,7 @@ func (r *Rack) Read(ctx context.Context) (int64, error) {
 	r.details = record.Details
 	r.record  = record
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // Update is used to persist the information in the fields of the object to
@@ -1211,16 +1193,16 @@ func (r *Rack) Update(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		r.Key,
-		r.GetRevisionForRequest(ctx, unconditional),
+		r.GetRevisionForRequest(unconditional),
 		v)
 
-	if err = r.mapErrStoreKeyNotFound(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	r.record = record
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // Delete is used to remove the persisted copy of the object from the
@@ -1241,15 +1223,15 @@ func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		r.Key,
-		r.GetRevisionForRequest(ctx, unconditional))
+		r.GetRevisionForRequest(unconditional))
 
-	if err = r.mapErrStoreKeyNotFound(err); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	r.record = nil
 
-	return r.updateRevisionInfo(ctx, rev), nil
+	return r.updateRevisionInfo(rev), nil
 }
 
 // NewChild is a stub function for rack objects as there are no generic
@@ -1342,7 +1324,7 @@ func (r *Rack) ListPdus(ctx context.Context) (int64, []int64, error) {
 
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexPdu)
 
-	if err = r.mapErrStoreIndexNotFound(err, r.KeyIndexPdu); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
@@ -1385,7 +1367,7 @@ func (r *Rack) ListTors(ctx context.Context) (int64, []int64, error) {
 
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexTor)
 
-	if err = r.mapErrStoreIndexNotFound(err, r.KeyIndexTor); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
@@ -1428,7 +1410,7 @@ func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 
 	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexBlade)
 
-	if err = r.mapErrStoreIndexNotFound(err, r.KeyIndexBlade); err != nil {
+	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
@@ -1567,24 +1549,21 @@ func (r *Rack) FetchBlades(ctx context.Context) (int64, *map[int64]Blade, error)
 	return rev, &blades, nil
 }
 
-func (r *Rack) mapErrStoreKeyNotFound(err error) error {
-	if err == errors.ErrStoreKeyNotFound(r.Key) {
+func (r *Rack) mapErrStoreValue(err error) error {
+	switch(err) {
+	case errors.ErrStoreKeyNotFound(r.Key):
 		return errors.ErrRackNotFound{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
-	} 
-	
-	return err
-}
 
-func (r *Rack) mapErrStoreIndexNotFound(err error, index string) error {
-	if err == errors.ErrStoreIndexNotFound(index) {
-		return errors.ErrIndexNotFound(index)
-	}
+	case errors.ErrStoreIndexNotFound(r.KeyIndexPdu):
+		return errors.ErrIndexNotFound(r.KeyIndexPdu)
 
-	return err
-}
+	case errors.ErrStoreIndexNotFound(r.KeyIndexTor):
+		return errors.ErrIndexNotFound(r.KeyIndexTor)
 
-func (r *Rack) mapErrStoreAlreadyExists(err error) error {
-	if err == errors.ErrStoreAlreadyExists(r.KeyIndexEntry) || err == errors.ErrStoreAlreadyExists(r.Key) {
+	case errors.ErrStoreIndexNotFound(r.KeyIndexBlade):
+		return errors.ErrIndexNotFound(r.KeyIndexBlade)
+
+	case errors.ErrStoreAlreadyExists(r.KeyIndexEntry), errors.ErrStoreAlreadyExists(r.Key):
 		return errors.ErrRackAlreadyExists{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
 	}
 	
@@ -1625,7 +1604,7 @@ type Pdu struct {
 //
 func (p *Pdu) SetDetails(ctx context.Context, details *pb.PduDetails) {
 	p.details  = details
-	p.resetRevision(ctx)
+	p.resetRevision()
 }
 
 // GetDetails is used to extract the attribute information from the object. The
@@ -1647,7 +1626,7 @@ func (p *Pdu) GetDetails(ctx context.Context) *pb.PduDetails {
 //
 func (p *Pdu) SetPorts(ctx context.Context, ports *map[int64]*pb.PowerPort) {
 	p.ports    = ports
-	p.resetRevision(ctx)
+	p.resetRevision()
 }
 
 // GetPorts is used to extract the power port information from the object.
@@ -1702,13 +1681,13 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 
 	rev, err := p.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err = p.mapErrStoreAlreadyExists(err); err != nil {
+	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	p.record = record
 
-	return p.updateRevisionInfo(ctx, rev), nil
+	return p.updateRevisionInfo(rev), nil
 }
 
 // Read is used to load a record from the underlying store to populate the
@@ -1723,7 +1702,7 @@ func (p *Pdu) Read(ctx context.Context) (int64, error) {
 
 	v, rev, err := p.Store.Read(ctx, store.KeyRootInventory, p.Key)
 
-	if err = p.mapErrStoreKeyNotFound(err); err != nil {
+	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
@@ -1737,7 +1716,7 @@ func (p *Pdu) Read(ctx context.Context) (int64, error) {
 	p.ports   = &record.Ports
 	p.record  = record
 
-	return p.updateRevisionInfo(ctx, rev), nil
+	return p.updateRevisionInfo(rev), nil
 }
 
 // Update is used to persist the information in the fields of the object to
@@ -1776,16 +1755,16 @@ func (p *Pdu) Update(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		p.Key,
-		p.GetRevisionForRequest(ctx, unconditional),
+		p.GetRevisionForRequest(unconditional),
 		v)
 
-	if err = p.mapErrStoreKeyNotFound(err); err != nil {
+	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	p.record = record
 
-	return p.updateRevisionInfo(ctx, rev), nil
+	return p.updateRevisionInfo(rev), nil
 }
 
 // Delete is used to remove the persisted copy of the object from the
@@ -1806,27 +1785,23 @@ func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		p.Key,
-		p.GetRevisionForRequest(ctx, unconditional))
+		p.GetRevisionForRequest(unconditional))
 
-	if err = p.mapErrStoreKeyNotFound(err); err != nil {
+	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	p.record = nil
 
-	return p.updateRevisionInfo(ctx, rev), nil
+	return p.updateRevisionInfo(rev), nil
 }
 
-func (p *Pdu) mapErrStoreKeyNotFound(err error) error {
-	if err == errors.ErrStoreKeyNotFound(p.Key) {
+func (p *Pdu) mapErrStoreValue(err error) error {
+	switch (err) {
+	case errors.ErrStoreKeyNotFound(p.Key):
 		return errors.ErrPduNotFound{Region: p.Region, Zone: p.Zone, Rack: p.Rack, Pdu: p.ID}
-	} 
-	
-	return err
-}
 
-func (p *Pdu) mapErrStoreAlreadyExists(err error) error {
-	if err == errors.ErrStoreAlreadyExists(p.KeyIndexEntry) || err == errors.ErrStoreAlreadyExists(p.Key) {
+	case errors.ErrStoreAlreadyExists(p.KeyIndexEntry), errors.ErrStoreAlreadyExists(p.Key):
 		return errors.ErrPduAlreadyExists{Region: p.Region, Zone: p.Zone, Rack: p.Rack, Pdu: p.ID}
 	}
 	
@@ -1867,7 +1842,7 @@ type Tor struct {
 //
 func (t *Tor) SetDetails(ctx context.Context, details *pb.TorDetails) {
 	t.details  = details
-	t.resetRevision(ctx)
+	t.resetRevision()
 }
 
 // GetDetails is used to extract the attribute information from the object. The
@@ -1889,7 +1864,7 @@ func (t *Tor) GetDetails(ctx context.Context) *pb.TorDetails {
 //
 func (t *Tor) SetPorts(ctx context.Context, ports *map[int64]*pb.NetworkPort) {
 	t.ports    = ports
-	t.resetRevision(ctx)
+	t.resetRevision()
 }
 
 // GetPorts is used to extract the network port information from the object.
@@ -1944,13 +1919,13 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 
 	rev, err := t.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err = t.mapErrStoreAlreadyExists(err); err != nil {
+	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	t.record = record
 
-	return t.updateRevisionInfo(ctx, rev), nil
+	return t.updateRevisionInfo(rev), nil
 }
 
 // Read is used to load a record from the underlying store to populate the
@@ -1965,7 +1940,7 @@ func (t *Tor) Read(ctx context.Context) (int64, error) {
 
 	v, rev, err := t.Store.Read(ctx, store.KeyRootInventory, t.Key)
 
-	if err = t.mapErrStoreKeyNotFound(err); err != nil {
+	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
@@ -1979,7 +1954,7 @@ func (t *Tor) Read(ctx context.Context) (int64, error) {
 	t.ports   = &record.Ports
 	t.record  = record
 
-	return t.updateRevisionInfo(ctx, rev), nil
+	return t.updateRevisionInfo(rev), nil
 }
 
 // Update is used to persist the information in the fields of the object to
@@ -2018,16 +1993,16 @@ func (t *Tor) Update(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		t.Key,
-		t.GetRevisionForRequest(ctx, unconditional),
+		t.GetRevisionForRequest(unconditional),
 		v)
 
-	if err = t.mapErrStoreKeyNotFound(err); err != nil {
+	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	t.record = record
 
-	return t.updateRevisionInfo(ctx, rev), nil
+	return t.updateRevisionInfo(rev), nil
 }
 
 // Delete is used to remove the persisted copy of the object from the
@@ -2048,27 +2023,23 @@ func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		t.Key,
-		t.GetRevisionForRequest(ctx, unconditional))
+		t.GetRevisionForRequest(unconditional))
 
-	if err = t.mapErrStoreKeyNotFound(err); err != nil {
+	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	t.record = nil
 
-	return t.updateRevisionInfo(ctx, rev), nil
+	return t.updateRevisionInfo(rev), nil
 }
 
-func (t *Tor) mapErrStoreKeyNotFound(err error) error {
-	if err == errors.ErrStoreKeyNotFound(t.Key) {
+func (t *Tor) mapErrStoreValue(err error) error {
+	switch (err) {
+	case errors.ErrStoreKeyNotFound(t.Key):
 		return errors.ErrTorNotFound{Region: t.Region, Zone: t.Zone, Rack: t.Rack, Tor: t.ID}
-	} 
-	
-	return err
-}
 
-func (t *Tor) mapErrStoreAlreadyExists(err error) error {
-	if err == errors.ErrStoreAlreadyExists(t.KeyIndexEntry) || err == errors.ErrStoreAlreadyExists(t.Key) {
+	case errors.ErrStoreAlreadyExists(t.KeyIndexEntry), errors.ErrStoreAlreadyExists(t.Key):
 		return errors.ErrTorAlreadyExists{Region: t.Region, Zone: t.Zone, Rack: t.Rack, Tor: t.ID}
 	}
 	
@@ -2111,7 +2082,7 @@ type Blade struct {
 //
 func (b *Blade) SetDetails(ctx context.Context, details *pb.BladeDetails) {
 	b.details  = details
-	b.resetRevision(ctx)
+	b.resetRevision()
 }
 
 // GetDetails is used to extract the attribute information from the object. The
@@ -2133,7 +2104,7 @@ func (b *Blade) GetDetails(ctx context.Context) *pb.BladeDetails {
 //
 func (b *Blade) SetCapacity(ctx context.Context, capacity *pb.BladeCapacity) {
 	b.capacity = capacity
-	b.resetRevision(ctx)
+	b.resetRevision()
 }
 
 // SetBootInfo is used to attach some boot information to the object.
@@ -2146,7 +2117,7 @@ func (b *Blade) SetCapacity(ctx context.Context, capacity *pb.BladeCapacity) {
 func (b *Blade) SetBootInfo(ctx context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) {
 	b.bootOnPowerOn = bootOnPowerOn
 	b.bootInfo      = bootInfo
-	b.resetRevision(ctx)
+	b.resetRevision()
 }
 
 // GetCapacity is used to extract the capacity information from the object.
@@ -2218,13 +2189,13 @@ func (b *Blade) Create(ctx context.Context)  (int64, error)  {
 
 	rev, err := b.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
 
-	if err = b.mapErrStoreAlreadyExists(err); err != nil {
+	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	b.record = record
 
-	return b.updateRevisionInfo(ctx, rev), nil
+	return b.updateRevisionInfo(rev), nil
 }
 
 // Read is used to load a record from the underlying store to populate the
@@ -2239,7 +2210,7 @@ func (b *Blade) Read(ctx context.Context) (int64, error) {
 
 	v, rev, err := b.Store.Read(ctx, store.KeyRootInventory, b.Key)
 
-	if err = b.mapErrStoreKeyNotFound(err); err != nil {
+	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
@@ -2255,7 +2226,7 @@ func (b *Blade) Read(ctx context.Context) (int64, error) {
 	b.bootOnPowerOn = record.BootOnPowerOn
 	b.record        = record
 
-	return b.updateRevisionInfo(ctx, rev), nil
+	return b.updateRevisionInfo(rev), nil
 }
 
 // Update is used to persist the information in the fields of the object to
@@ -2300,16 +2271,16 @@ func (b *Blade) Update(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		b.Key,
-		b.GetRevisionForRequest(ctx, unconditional),
+		b.GetRevisionForRequest(unconditional),
 		v)
 
-	if err = b.mapErrStoreKeyNotFound(err); err != nil {
+	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	b.record = record
 
-	return b.updateRevisionInfo(ctx, rev), nil
+	return b.updateRevisionInfo(rev), nil
 }
 
 // Delete is used to remove the persisted copy of the object from the
@@ -2338,37 +2309,33 @@ func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		ctx,
 		store.KeyRootInventory,
 		b.Key,
-		b.GetRevisionForRequest(ctx, unconditional))
+		b.GetRevisionForRequest(unconditional))
 
-	if err == errors.ErrStoreKeyNotFound(b.Key) {
-		return store.RevisionInvalid, errors.ErrBladeNotFound{Region: b.Region, Zone: b.Zone, Rack: b.Rack, Blade: b.ID}
-	}
-
-	if err != nil {
+	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	_, err = b.Store.Delete(ctx, store.KeyRootInventory, b.KeyIndexEntry, store.RevisionInvalid)
+	rev, err = b.Store.Delete(
+		ctx,
+		store.KeyRootInventory,
+		b.KeyIndexEntry,
+		b.GetRevisionForRequest(unconditional))
 
-	if err = b.mapErrStoreKeyNotFound(err); err != nil {
+	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	b.record = nil
 
-	return b.updateRevisionInfo(ctx, rev), nil
+	return b.updateRevisionInfo(rev), nil
 }
 
-func (b *Blade) mapErrStoreKeyNotFound(err error) error {
-	if err == errors.ErrStoreKeyNotFound(b.Key) {
+func (b *Blade) mapErrStoreValue(err error) error {
+	switch (err) {
+	case errors.ErrStoreKeyNotFound(b.Key), errors.ErrStoreKeyNotFound(b.KeyIndexEntry):
 		return errors.ErrBladeNotFound{Region: b.Region, Zone: b.Zone, Rack: b.Rack, Blade: b.ID}
-	} 
-	
-	return err
-}
 
-func (b *Blade) mapErrStoreAlreadyExists(err error) error {
-	if err == errors.ErrStoreAlreadyExists(b.KeyIndexEntry) || err == errors.ErrStoreAlreadyExists(b.Key) {
+	case errors.ErrStoreAlreadyExists(b.KeyIndexEntry), errors.ErrStoreAlreadyExists(b.Key):
 		return errors.ErrBladeAlreadyExists{Region: b.Region, Zone: b.Zone, Rack: b.Rack, Blade: b.ID}
 	}
 	

@@ -927,7 +927,7 @@ type ErrTableNameInvalid struct {
 
 func (e ErrTableNameInvalid) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: table name %q is not one of the valid options [%q, %q, %q, %q",
+		"CloudChamber: table name %q is not one of the valid options [%q, %q, %q, %q]",
 		e.Name,
 		e.ActualTable,
 		e.DefinitionTable,

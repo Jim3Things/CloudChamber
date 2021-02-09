@@ -448,13 +448,13 @@ func (ts *testSuiteCore) TestNewRoot() {
 	// We only expect real revision values once there has been a create 
 	// or update to the store.
 	//
-	rev := root.GetRevision(ctx)
+	rev := root.GetRevision()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = root.GetRevisionRecord(ctx)
+	rev = root.GetRevisionRecord()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = root.GetRevisionStore(ctx)
+	rev = root.GetRevisionStore()
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// Now try the various combinations of setting and clearing details.
@@ -514,13 +514,13 @@ func (ts *testSuiteCore) TestNewRegion() {
 	// We only expect real revision values once there has been a create 
 	// or update to the store.
 	//
-	rev := region.GetRevision(ctx)
+	rev := region.GetRevision()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = region.GetRevisionRecord(ctx)
+	rev = region.GetRevisionRecord()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = region.GetRevisionStore(ctx)
+	rev = region.GetRevisionStore()
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// Now try the various combinations of setting and clearing details.
@@ -597,13 +597,13 @@ func (ts *testSuiteCore) TestNewZone() {
 	// We only expect real revision values once there has been a create 
 	// or update to the store.
 	//
-	rev := zone.GetRevision(ctx)
+	rev := zone.GetRevision()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = zone.GetRevisionRecord(ctx)
+	rev = zone.GetRevisionRecord()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = zone.GetRevisionStore(ctx)
+	rev = zone.GetRevisionStore()
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// Now try the various combinations of setting and clearing details.
@@ -687,13 +687,13 @@ func (ts *testSuiteCore) TestNewRack() {
 	// We only expect real revision values once there has been a create 
 	// or update to the store.
 	//
-	rev := rack.GetRevision(ctx)
+	rev := rack.GetRevision()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = rack.GetRevisionRecord(ctx)
+	rev = rack.GetRevisionRecord()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = rack.GetRevisionStore(ctx)
+	rev = rack.GetRevisionStore()
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// Now try the various combinations of setting and clearing details.
@@ -779,13 +779,13 @@ func (ts *testSuiteCore) TestNewPdu() {
 	// We only expect real revision values once there has been a create 
 	// or update to the store.
 	//
-	rev := pdu.GetRevision(ctx)
+	rev := pdu.GetRevision()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = pdu.GetRevisionRecord(ctx)
+	rev = pdu.GetRevisionRecord()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = pdu.GetRevisionStore(ctx)
+	rev = pdu.GetRevisionStore()
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// Now try the various combinations of setting and clearing
@@ -947,13 +947,13 @@ func (ts *testSuiteCore) TestNewTor() {
 	// We only expect real revision values once there has been a create 
 	// or update to the store.
 	//
-	rev := tor.GetRevision(ctx)
+	rev := tor.GetRevision()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = tor.GetRevisionRecord(ctx)
+	rev = tor.GetRevisionRecord()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = tor.GetRevisionStore(ctx)
+	rev = tor.GetRevisionStore()
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// Now try the various combinations of setting and clearing
@@ -1111,13 +1111,13 @@ func (ts *testSuiteCore) TestNewBlade() {
 	// We only expect real revision values once there has been a create 
 	// or update to the store.
 	//
-	rev := blade.GetRevision(ctx)
+	rev := blade.GetRevision()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = blade.GetRevisionRecord(ctx)
+	rev = blade.GetRevisionRecord()
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev = blade.GetRevisionStore(ctx)
+	rev = blade.GetRevisionStore()
 	assert.Equal(store.RevisionInvalid, rev)
 
 	// Now try the various combinations of setting and clearing
@@ -1633,7 +1633,7 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	rev2 := r.GetRevision(ctx)
+	rev2 := r.GetRevision()
 	assert.Equal(rev, rev2)
 
 	// Read the region back using the direct constructor
@@ -1644,7 +1644,7 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	revRead, err := rRead.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, revRead)
-	assert.Equal(revRead, rRead.GetRevision(ctx))
+	assert.Equal(revRead, rRead.GetRevision())
 
 	detRead := rRead.GetDetails(ctx)
 	require.NoError(err)
@@ -1662,7 +1662,7 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	crRev, err := cr.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, crRev)
-	assert.Equal(revRead, cr.GetRevision(ctx))
+	assert.Equal(revRead, cr.GetRevision())
 
 	crDet := cr.GetDetails(ctx)
 	require.NoError(err)
@@ -1691,7 +1691,7 @@ func (ts *testSuiteCore) TestZoneReadDetails() {
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	rev2 := z.GetRevision(ctx)
+	rev2 := z.GetRevision()
 	assert.Equal(rev, rev2)
 
 
@@ -1703,7 +1703,7 @@ func (ts *testSuiteCore) TestZoneReadDetails() {
 	revRead, err := rRead.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, revRead)
-	assert.Equal(revRead, rRead.GetRevision(ctx))
+	assert.Equal(revRead, rRead.GetRevision())
 
 	detRead := rRead.GetDetails(ctx)
 	require.NoError(err)
@@ -1724,7 +1724,7 @@ func (ts *testSuiteCore) TestZoneReadDetails() {
 	zoneRev, err := zone.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, zoneRev)
-	assert.Equal(zoneRev, zone.GetRevision(ctx))
+	assert.Equal(zoneRev, zone.GetRevision())
 
 	zoneDet := zone.GetDetails(ctx)
 	require.NoError(err)
@@ -1761,7 +1761,7 @@ func (ts *testSuiteCore) TestRackReadDetails() {
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	rev2 := r.GetRevision(ctx)
+	rev2 := r.GetRevision()
 	assert.Equal(rev, rev2)
 
 	// Read the region back using the direct constructor
@@ -1779,7 +1779,7 @@ func (ts *testSuiteCore) TestRackReadDetails() {
 	revRead, err := rRead.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, revRead)
-	assert.Equal(revRead, rRead.GetRevision(ctx))
+	assert.Equal(revRead, rRead.GetRevision())
 
 	detRead := rRead.GetDetails(ctx)
 	require.NoError(err)
@@ -1802,7 +1802,7 @@ func (ts *testSuiteCore) TestRackReadDetails() {
 	rackRev, err := rack.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, rackRev)
-	assert.Equal(rackRev, rack.GetRevision(ctx))
+	assert.Equal(rackRev, rack.GetRevision())
 
 	rackDet := rack.GetDetails(ctx)
 	require.NoError(err)
@@ -1843,7 +1843,7 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	rev2 := p.GetRevision(ctx)
+	rev2 := p.GetRevision()
 	assert.Equal(rev, rev2)
 
 	// Read the region back using the direct constructor
@@ -1862,7 +1862,7 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	p2Rev, err := p2.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, p2Rev)
-	assert.Equal(p2Rev, p2.GetRevision(ctx))
+	assert.Equal(p2Rev, p2.GetRevision())
 
 	p2Det := p2.GetDetails(ctx)
 	require.NoError(err)
@@ -1888,7 +1888,7 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	pduRev, err := pdu.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, pduRev)
-	assert.Equal(pduRev, pdu.GetRevision(ctx))
+	assert.Equal(pduRev, pdu.GetRevision())
 
 	pduDet := pdu.GetDetails(ctx)
 	require.NoError(err)
@@ -1933,7 +1933,7 @@ func (ts *testSuiteCore) TestTorReadDetails() {
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	rev2 := t.GetRevision(ctx)
+	rev2 := t.GetRevision()
 	assert.Equal(rev, rev2)
 
 	// Read the region back using the direct constructor
@@ -1952,7 +1952,7 @@ func (ts *testSuiteCore) TestTorReadDetails() {
 	t2Rev, err := t2.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, t2Rev)
-	assert.Equal(t2Rev, t2.GetRevision(ctx))
+	assert.Equal(t2Rev, t2.GetRevision())
 
 	p2Det := t2.GetDetails(ctx)
 	require.NoError(err)
@@ -1978,7 +1978,7 @@ func (ts *testSuiteCore) TestTorReadDetails() {
 	torRev, err := tor.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, torRev)
-	assert.Equal(torRev, tor.GetRevision(ctx))
+	assert.Equal(torRev, tor.GetRevision())
 
 	pduDet := tor.GetDetails(ctx)
 	require.NoError(err)
@@ -2026,7 +2026,7 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	rev2 := b.GetRevision(ctx)
+	rev2 := b.GetRevision()
 	assert.Equal(rev, rev2)
 
 	// Read the region back using the direct constructor
@@ -2045,7 +2045,7 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	t2Rev, err := b2.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, t2Rev)
-	assert.Equal(t2Rev, b2.GetRevision(ctx))
+	assert.Equal(t2Rev, b2.GetRevision())
 
 	p2Det := b2.GetDetails(ctx)
 	require.NoError(err)
@@ -2071,7 +2071,7 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	bladeRev, err := blade.Read(ctx)
 	require.NoError(err)
 	assert.Equal(rev, bladeRev)
-	assert.Equal(bladeRev, blade.GetRevision(ctx))
+	assert.Equal(bladeRev, blade.GetRevision())
 
 	bladeDet := blade.GetDetails(ctx)
 	require.NoError(err)

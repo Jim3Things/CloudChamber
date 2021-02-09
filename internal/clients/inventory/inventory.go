@@ -635,7 +635,7 @@ type inventoryRevision interface {
 	// details have been set or no Create(), Read() or Update() call has been
 	// executed.
 	//
-	GetRevision(ctx context.Context) int64
+	GetRevision() int64
 
 	// GetRevisionRecord returns the revision of the underlying store object as 
 	// determined at the time of the last Create(), Read() or Update() for the
@@ -643,31 +643,31 @@ type inventoryRevision interface {
 	// used when performing either a conditional update or conditional delete
 	// using the object.
 	//
-	GetRevisionRecord(ctx context.Context) int64
+	GetRevisionRecord() int64
 
 	// GetRevisionStore returns the revison of the underlying store ifself as 
 	// determined at the time of the last Create() Read() for the object. The
 	// store revision is not reset by a SetDetails() call and is provided 
 	// for information only.
 	//
-	GetRevisionStore(ctx context.Context) int64
+	GetRevisionStore() int64
 
 	// GetRevisionForRequest returns the appropriate revision for the update
 	// for either a conditional update based upon the revision of the most
 	// recently read record, or an unconditional update.
 	//
-	GetRevisionForRequest(ctx context.Context, unconditional bool) int64
+	GetRevisionForRequest(unconditional bool) int64
 
 	// resetRevision resets the revision for the details field within the object.
 	// Subsequent calls to GetRevision() will return store.RevisionInvalid until
 	// a successful call is made to one of the routines which invoke the store
 	//
-	resetRevision(ctx context.Context) int64
+	resetRevision() int64
 
 	// updateRevision is used to set/update the current revision information 
 	// as part of a successful invokation of a store routine.
 	//
-	updateRevisionInfo(ctx context.Context, rev int64) int64
+	updateRevisionInfo(rev int64) int64
 }
 
 // Region, zone and rack are "containers" whereas tor, pdu and blade are "things".
