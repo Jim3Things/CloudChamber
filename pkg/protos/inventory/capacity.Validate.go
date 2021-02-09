@@ -1,11 +1,11 @@
-package common
+package inventory
 
 // Validation methods for the types from capacity.proto.
 
 import (
 	"fmt"
 
-    "github.com/Jim3Things/CloudChamber/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
 )
 
 // Validate is a function to ensure that the blade capacity values are legal.

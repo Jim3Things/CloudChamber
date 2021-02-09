@@ -1,0 +1,95 @@
+// This file contains the definitions used by the inventory package to represent the
+// container classes which are used to .
+
+syntax = "proto3";
+
+package inventory;
+
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/target.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/actual.proto";
+
+option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+
+
+// A complete description of a rack internal "in-memory" usage as oppoesed to reading
+// and/or writing individual rack records from the store, i.e. a "container" structure.
+//
+message store {
+
+    message record_definition {
+
+        message pdu {
+            pdu_details            details = 1;
+            map<int64, power_port> ports   = 10;
+        }
+
+        message tor {
+            tor_details              details = 1;
+            map<int64, network_port> ports   = 10;
+        }
+
+        message blade {
+            blade_details   details          =  1;
+            blade_capacity  capacity         = 10;
+            bool            boot_on_power_on = 11;
+            blade_boot_info boot_info        = 12;
+        }
+
+        message rack {
+            rack_details details = 1;
+        }
+
+        message zone {
+            zone_details details = 1;
+        }
+
+        message region {
+            region_details details = 1;
+        }
+    }
+
+    // Current tgt and act are experimental to see what they look like and how they might
+    // operate. Expect changes in this area.
+    //
+    message record_target {
+
+        message pdu {
+            target.pdu target = 1;
+        }
+
+        message tor {
+            target.tor target = 1;
+        }
+
+        message blade {
+            target.tor target = 1;
+        }
+
+        message rack {
+            target.tor target = 1;
+        }
+
+        message zone {
+            target.tor target = 1;
+        }
+
+        message region {
+            target.tor target = 1;
+        }
+    }
+
+    message record_actual {
+        map<int64, actual.pdu>   pdus   = 10;
+        map<int64, actual.tor>   tors   = 11;
+        map<int64, actual.blade> blades = 12;
+    }
+
+    message record_observed {
+        map<int64, actual.pdu>   pdus   = 10;
+        map<int64, actual.tor>   tors   = 11;
+        map<int64, actual.blade> blades = 12;
+    }
+}
+

@@ -13,7 +13,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	err2 "github.com/Jim3Things/CloudChamber/pkg/errors"
 )
-
 // HTTPError is a custom common HTTP error type that includes the status code
 // to use in a response.
 type HTTPError struct {

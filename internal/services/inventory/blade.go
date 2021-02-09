@@ -8,7 +8,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-	pbc "github.com/Jim3Things/CloudChamber/pkg/protos/common"
+
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 type workload struct {
@@ -107,7 +108,7 @@ const (
 	bladeFaulted = "faulted"
 )
 
-func newBlade(def *pbc.BladeCapacity, r *Rack, id int64) *blade {
+func newBlade(def *pb.BladeCapacity, r *Rack, id int64) *blade {
 	b := &blade{
 		holder:           r,
 		id:               id,

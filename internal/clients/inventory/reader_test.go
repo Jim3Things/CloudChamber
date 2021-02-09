@@ -1,5 +1,5 @@
 // Test to parse the Inventory.Yaml file
-package config
+package inventory
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	"github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
+	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
 var (
@@ -42,7 +42,7 @@ func TestReadInventoryDefinition(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata")
+	response, err := ReadInventoryDefinition(context.Background(), "./testdata/Basic")
 	require.Nil(t, err)
 
 	require.Equal(t, 2, len(response.Racks))
@@ -123,18 +123,18 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 	defer utf.Close()
 	viper.Reset()
 
-	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata")
+	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Basic")
 	require.NoError(t, err)
 
 	// There should only be a single zone.
 	//
 	require.Equal(t, 1, len(zonemap.Zones))
 
-	zone, ok := zonemap.Zones["zone1"]
+	zone, ok := zonemap.Zones[DefaultZone]
 	require.True(t, ok)
 
 	assert.True(t, zone.Details.Enabled)
-	assert.Equal(t, inventory.DefinitionZone_operational, zone.Details.Condition)
+	assert.Equal(t, pb.State_in_service, zone.Details.State)
 	assert.Equal(t, "DC-PNW-0", zone.Details.Location)
 	assert.Equal(t, "Base zone", zone.Details.Notes)
 
@@ -148,7 +148,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, r.Details.Enabled)
-		assert.Equal(t, inventory.Definition_operational, r.Details.Condition)
+		assert.Equal(t, pb.Condition_operational, r.Details.Condition)
 		assert.Equal(t, "DC-PNW-0-" + name, r.Details.Location)
 		assert.Equal(t, "RackName: " + name, r.Details.Notes)
 
@@ -169,7 +169,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, p0b1.Wired)
-		assert.Equal(t, inventory.DefinitionItem_blade, p0b1.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, p0b1.Item.Type)
 		assert.Equal(t, int64(1), p0b1.Item.Id)
 		assert.Equal(t, int64(0), p0b1.Item.Port)
 
@@ -177,7 +177,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, p0b2.Wired)
-		assert.Equal(t, inventory.DefinitionItem_blade, p0b2.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, p0b2.Item.Type)
 		assert.Equal(t, int64(2), p0b2.Item.Id)
 		assert.Equal(t, int64(0), p0b2.Item.Port)
 
@@ -194,7 +194,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, t0b1.Wired)
-		assert.Equal(t, inventory.DefinitionItem_blade, t0b1.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, t0b1.Item.Type)
 		assert.Equal(t, int64(1), t0b1.Item.Id)
 		assert.Equal(t, int64(0), t0b1.Item.Port)
 
@@ -202,7 +202,7 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		require.True(t, ok)
 
 		assert.True(t, t0b2.Wired)
-		assert.Equal(t, inventory.DefinitionItem_blade, t0b2.Item.Type)
+		assert.Equal(t, pb.Hardware_blade, t0b2.Item.Type)
 		assert.Equal(t, int64(2), t0b2.Item.Id)
 		assert.Equal(t, int64(0), t0b2.Item.Port)
 
@@ -211,8 +211,8 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		b1, ok := r.Blades[1]
 		require.True(t, ok)
 
-		assert.True(t, b1.Enabled)
-		assert.Equal(t, inventory.Definition_operational, b1.Condition)
+		assert.True(t, b1.Details.Enabled)
+		assert.Equal(t, pb.Condition_operational, b1.Details.Condition)
 
 		assert.Equal(t, int64(16),    b1.Capacity.Cores)
 		assert.Equal(t, int64(16834), b1.Capacity.MemoryInMb)
@@ -223,8 +223,8 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		b2, ok := r.Blades[2]
 		require.True(t, ok)
 
-		assert.True(t, b2.Enabled)
-		assert.Equal(t, inventory.Definition_operational, b2.Condition)
+		assert.True(t, b2.Details.Enabled)
+		assert.Equal(t, pb.Condition_operational, b2.Details.Condition)
 
 		assert.Equal(t, int64(8),     b2.Capacity.Cores)
 		assert.Equal(t, int64(16834), b2.Capacity.MemoryInMb)

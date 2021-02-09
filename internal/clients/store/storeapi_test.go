@@ -481,7 +481,7 @@ func TestList(t *testing.T) {
 		}
 	}
 
-	listRecs, listRev, err := store.List(context.Background(), KeyRootUsers)
+	listRecs, listRev, err := store.List(context.Background(), KeyRootUsers, "")
 	assert.Nilf(t, err, "Failed to list records")
 	assert.LessOrEqualf(t, revFirstCreate, listRev, "Expected new store revision to be greater than initial revision")
 

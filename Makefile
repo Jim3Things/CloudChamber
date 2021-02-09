@@ -3,16 +3,18 @@ PROJECT = $(GOPATH)/src/github.com/Jim3Things/CloudChamber
 PROJECT_UI = clients/observer/build
 
 PROTO_FILES = \
-	pkg/protos/admin/simulation.proto \
+    pkg/protos/admin/simulation.proto \
     pkg/protos/admin/users.proto \
-    pkg/protos/common/capacity.proto \
     pkg/protos/common/completion.proto \
     pkg/protos/common/timestamp.proto \
     pkg/protos/log/entry.proto \
+    pkg/protos/inventory/capacity.proto \
+    pkg/protos/inventory/common.proto \
     pkg/protos/inventory/actual.proto \
     pkg/protos/inventory/definition.proto \
     pkg/protos/inventory/external.proto \
     pkg/protos/inventory/internal.proto \
+    pkg/protos/inventory/store.proto \
     pkg/protos/inventory/target.proto \
     pkg/protos/workload/actual.proto \
     pkg/protos/workload/external.proto \
@@ -26,16 +28,18 @@ PROTO_FILES = \
 
 
 PROTO_GEN_FILES = \
-	pkg/protos/admin/simulation.pb.go \
+    pkg/protos/admin/simulation.pb.go \
     pkg/protos/admin/users.pb.go \
-    pkg/protos/common/capacity.pb.go \
     pkg/protos/common/completion.pb.go \
     pkg/protos/common/timestamp.pb.go \
     pkg/protos/log/entry.pb.go \
+    pkg/protos/inventory/capacity.pb.go \
+    pkg/protos/inventory/common.pb.go \
     pkg/protos/inventory/actual.pb.go \
     pkg/protos/inventory/definition.pb.go \
     pkg/protos/inventory/external.pb.go \
     pkg/protos/inventory/internal.pb.go \
+    pkg/protos/inventory/store.pb.go \
     pkg/protos/inventory/target.pb.go \
     pkg/protos/workload/actual.pb.go \
     pkg/protos/workload/external.pb.go \
@@ -60,6 +64,7 @@ SRC_CONFIG = \
 SRC_FRONTEND = \
 	$(SRC_CONFIG) \
 	$(SRC_ERRORS) \
+	$(SRC_INVENTORY_CLIENT) \
 	$(SRC_STORE) \
 	$(SRC_TIMESTAMP) \
 	$(SRC_TRACING) \
@@ -85,6 +90,11 @@ SRC_STEPPER_ACTOR = \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
 	$(call ProdFiles, internal/services/stepper)
+
+SRC_INVENTORY_CLIENT = \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, internal/clients/inventory)
 
 SRC_STORE = \
 	$(SRC_ERRORS) \
@@ -193,7 +203,7 @@ endif
 
 
 
-PROTOC_BASE = protoc --proto_path=. --proto_path=$(GOPATH)/src
+PROTOC_BASE = protoc --proto_path=$(GOPATH)/src
 
 PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src
 PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
@@ -242,6 +252,7 @@ install_clean:
 .PHONY : run_tests
 
 run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
+	go test -count=1 $(PROJECT)/internal/clients/inventory
 	go test -count=1 $(PROJECT)/internal/clients/store
 	go test -count=1 $(PROJECT)/internal/clients/timestamp
 	go test -count=1 $(PROJECT)/internal/config
