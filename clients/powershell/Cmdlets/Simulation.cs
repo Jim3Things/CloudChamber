@@ -1,7 +1,22 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Management.Automation;
-using CloudChamber.Cmdlets.Protos;
-using Newtonsoft.Json;
+using CloudChamber.Protos.Admin;
+using Google.Protobuf;
+
+namespace CloudChamber.Protos.Admin
+{
+    public partial class SimulationStatus
+    {
+        public TimeSpan Inactivity => new(0, 0, (int) InactivityTimeout.Seconds);
+        public DateTime Started => FrontEndStartedAt.ToDateTime();
+    }
+
+    public partial class SessionStatus
+    {
+        public DateTime Expires => Timeout.ToDateTime();
+    }
+}
 
 namespace CloudChamber.Cmdlets
 {
@@ -27,7 +42,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetSimulationStatus", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var status = JsonConvert.DeserializeObject<SimulationStatus>(msg);
+            var status = JsonParser.Default.Parse<SimulationStatus>(msg);
 
             WriteObject(status);
         }
@@ -37,7 +52,7 @@ namespace CloudChamber.Cmdlets
     ///     Get the summary list of active logged-in sessions.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Sessions)]
-    [OutputType(typeof(List<SessionEntry>))]
+    [OutputType(typeof(IEnumerable<Session>))]
     public class SessionsCmdlet : SimulationCmdlets
     {
         protected override void ProcessRecord()
@@ -47,7 +62,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetSimulationSessionList", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var details = JsonConvert.DeserializeObject<SessionList>(msg);
+            var details = JsonParser.Default.Parse<SessionSummary>(msg);
 
             WriteObject(details.Sessions, true);
         }
@@ -57,14 +72,15 @@ namespace CloudChamber.Cmdlets
     ///     Get the details for a given logged-in session.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Session)]
-    [OutputType(typeof(ClusterSession))]
+    [OutputType(typeof(SessionStatus))]
     public class ClusterSessionCmdlet : SimulationCmdlets
     {
         /// <summary>
         ///     Identifier for the session, such as supplied in the summary
         ///     list.
         /// </summary>
-        [Parameter(Mandatory = true)] public long Id { get; set; }
+        [Parameter(Mandatory = true)]
+        public long Id { get; set; }
 
         protected override void ProcessRecord()
         {
@@ -73,7 +89,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetSimulationSessionDetails", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var details = JsonConvert.DeserializeObject<ClusterSession>(msg);
+            var details = JsonParser.Default.Parse<SessionStatus>(msg);
 
             WriteObject(details);
         }

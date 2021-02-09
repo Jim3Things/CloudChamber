@@ -33,14 +33,14 @@
         $account = Get-CcUser -session $sess -Name "admin"
         $account.Name | Should Be "admin"
         $account.Enabled | Should Be $true
-        $account.ManageAccounts | Should Be $true
+        $account.CanManageAccounts | Should Be $true
     }
 
     It "Creates and deletes a test account" {
         $user = New-CcUser -Session $sess -Name "cliTest" -Enabled -Password "fooBar"
         $user.Name | Should Be "cliTest"
         $user.Enabled | Should Be $true
-        $user.ManageAccounts | Should Be $false
+        $user.CanManageAccounts | Should Be $false
 
         $msg = Remove-CcUser -Session $sess -Name "cliTest"
         $msg | Should Be "User cliTest deleted."

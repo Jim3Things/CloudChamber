@@ -1,8 +1,8 @@
 ﻿namespace CloudChamber.Cmdlets
 {
     /// <summary>
-    /// Names is the collection of Powershell object names used by this cmdlet
-    /// module.
+    ///     Names is the collection of Powershell object names used by this cmdlet
+    ///     module.
     /// </summary>
     internal static class Names
     {
@@ -20,7 +20,6 @@
 
         internal const string Traces = "CcTraces";
         internal const string TracePolicy = "CcTracePolicy";
-
         internal const string Zones = "CcZones";
         internal const string Zone = "CcZone";
 

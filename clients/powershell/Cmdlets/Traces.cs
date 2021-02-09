@@ -1,6 +1,6 @@
 ﻿using System.Management.Automation;
-using CloudChamber.Cmdlets.Protos;
-using Newtonsoft.Json;
+using CloudChamber.Protos.Services;
+using Google.Protobuf;
 
 namespace CloudChamber.Cmdlets
 {
@@ -16,7 +16,7 @@ namespace CloudChamber.Cmdlets
     ///     Get the current tracing policy.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.TracePolicy)]
-    [OutputType(typeof(TracePolicy))]
+    [OutputType(typeof(GetPolicyResponse))]
     public class GetTracePolicyCmdlet : TraceCmdlets
     {
         protected override void ProcessRecord()
@@ -26,7 +26,7 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetTracePolicyError", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var policy = JsonConvert.DeserializeObject<TracePolicy>(msg);
+            var policy = JsonParser.Default.Parse<GetPolicyResponse>(msg);
 
             WriteObject(policy);
         }
@@ -37,27 +37,29 @@ namespace CloudChamber.Cmdlets
     ///     parameter is set to later than the last known trace.
     /// </summary>
     [Cmdlet(VerbsCommon.Get, Names.Traces)]
-    [OutputType(typeof(Traces))]
+    [OutputType(typeof(GetAfterResponse))]
     public class GetTracesCmdlet : TraceCmdlets
     {
         /// <summary>
         ///     From is the starting trace ID.
         /// </summary>
-        [Parameter] public long From { get; set; } = 0;
+        [Parameter]
+        public long From { get; set; } = 0;
 
         /// <summary>
         ///     For is the maximum number of traces to return in this call
         /// </summary>
-        [Parameter] public long For { get; set; } = 100;
+        [Parameter]
+        public long For { get; set; } = 100;
 
         protected override void ProcessRecord()
         {
             var uri = $"{Prefix}?from={From}&for={For}";
             var resp = Session.Client.GetAsync(uri).Result;
-            ThrowOnHttpFailure(resp, "GetTracePolicyError", null);
+            ThrowOnHttpFailure(resp, "GetTracesError", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var traces = JsonConvert.DeserializeObject<Traces>(msg);
+            var traces = JsonParser.Default.Parse<GetAfterResponse>(msg);
 
             WriteObject(traces);
         }
