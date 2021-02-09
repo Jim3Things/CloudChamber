@@ -24,18 +24,8 @@ type KeyRoot int
 const (
 	KeyRootStoreTest KeyRoot = iota
 	KeyRootUsers
-
-	KeyRootInventoryDefinitions
-	KeyRootInventoryTargetState
-	KeyRootInventoryActualState
-	KeyRootInventoryObservedState
-	KeyRootInventoryRepairActions
-
-	KeyRootWorkloadDefinitions
-	KeyRootWorkloadTargetState
-	KeyRootWorkloadActualState
-	KeyRootWorkloadObservedState
-	KeyRootWorkloadRepairActions
+	KeyRootInventory
+	KeyRootWorkloads
 )
 
 const (
@@ -43,33 +33,13 @@ const (
 	namespaceRootUsers     = "users"
 	namespaceRootInventory = "inventory"
 	namespaceRootWorkloads = "workload"
-
-	namespaceRootInventoryDefinition    = namespaceRootInventory + "/" + "definition"
-	namespaceRootInventoryTargetState   = namespaceRootInventory + "/" + "target"
-	namespaceRootInventoryActualState   = namespaceRootInventory + "/" + "actual"
-	namespaceRootInventoryObservedState = namespaceRootInventory + "/" + "observed"
-	namespaceRootInventoryRepairActions = namespaceRootInventory + "/" + "repair"
-
-	namespaceRootWorkloadDefinition    = namespaceRootWorkloads + "/" + "definition"
-	namespaceRootWorkloadTargetState   = namespaceRootWorkloads + "/" + "target"
-	namespaceRootWorkloadActualState   = namespaceRootWorkloads + "/" + "actual"
-	namespaceRootWorkloadObservedState = namespaceRootWorkloads + "/" + "observed"
-	namespaceRootWorkloadRepairActions = namespaceRootWorkloads + "/" + "repair"
 )
 
 var namespaceRoots = map[KeyRoot]string{
-	KeyRootStoreTest:              namespaceRootStoreTest,
-	KeyRootUsers:                  namespaceRootUsers,
-	KeyRootInventoryDefinitions:   namespaceRootInventoryDefinition,
-	KeyRootInventoryTargetState:   namespaceRootInventoryTargetState,
-	KeyRootInventoryActualState:   namespaceRootInventoryActualState,
-	KeyRootInventoryObservedState: namespaceRootInventoryObservedState,
-	KeyRootInventoryRepairActions: namespaceRootInventoryRepairActions,
-	KeyRootWorkloadDefinitions:    namespaceRootWorkloadDefinition,
-	KeyRootWorkloadTargetState:    namespaceRootWorkloadTargetState,
-	KeyRootWorkloadActualState:    namespaceRootWorkloadTargetState,
-	KeyRootWorkloadObservedState:  namespaceRootWorkloadObservedState,
-	KeyRootWorkloadRepairActions:  namespaceRootWorkloadRepairActions,
+	KeyRootStoreTest: namespaceRootStoreTest,
+	KeyRootUsers:     namespaceRootUsers,
+	KeyRootInventory: namespaceRootInventory,
+	KeyRootWorkloads: namespaceRootWorkloads,
 }
 
 // Action defines the signature for a function to be invoked when the
@@ -687,7 +657,7 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 //       be updated to use an "interrupted" enum style call to allow for
 //		 an essentially infinite number of records.
 //
-func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Record, revision int64, err error) {
+func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map[string]Record, revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
@@ -700,7 +670,9 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 		return nil, RevisionInvalid, err
 	}
 
-	response, err := store.ListWithPrefix(ctx, prefix)
+	k := getKeyFromKeyRootAndName(r, n)
+
+	response, err := store.ListWithPrefix(ctx, k)
 
 	if err != nil {
 		return nil, RevisionInvalid, err
@@ -725,3 +697,5 @@ func (store *Store) List(ctx context.Context, r KeyRoot) (records *map[string]Re
 
 	return &recs, response.Revision, nil
 }
+
+

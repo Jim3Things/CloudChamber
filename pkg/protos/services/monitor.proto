@@ -5,7 +5,7 @@ syntax = "proto3";
 
 package services;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/common/capacity.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 
 import "google/protobuf/empty.proto";
@@ -51,8 +51,8 @@ message actual {
         message blade_details {
             base_status status = 1;
 
-            common.blade_capacity present = 2;
-            common.blade_capacity used = 3;
+            inventory.blade_capacity present = 2;
+            inventory.blade_capacity used = 3;
 
             // TODO: We will probably want a list of the scheduling decision IDs that
             //       are represented in the used capacity.

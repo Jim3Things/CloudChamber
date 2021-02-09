@@ -306,7 +306,7 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 //
 func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) error {
 
-	recs, _, err := m.Store.List(ctx, store.KeyRootUsers)
+	recs, _, err := m.Store.List(ctx, store.KeyRootUsers, "")
 
 	if err != nil {
 		return err

@@ -10,6 +10,29 @@ option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
 
 message actual {
 
+    enum condition {
+        not_in_service = 0;
+        operational = 1;
+        faulted = 2;
+    }
+
+    message pdu {
+
+        condition condition = 1;
+
+    }
+
+    message tor {
+
+        condition condition = 1;
+
+    }
+
+    message blade {
+        
+        condition condition = 1;
+
+    }
 }
 
 

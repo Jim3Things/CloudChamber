@@ -14,7 +14,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/internal/tracing/exporters"
-	pbc "github.com/Jim3Things/CloudChamber/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/test/setup"
@@ -63,11 +62,11 @@ func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.ExternalRack {
 	rackDef := &pb.ExternalRack{
 		Pdu:    &pb.ExternalPdu{},
 		Tor:    &pb.ExternalTor{},
-		Blades: make(map[int64]*pbc.BladeCapacity),
+		Blades: make(map[int64]*pb.BladeCapacity),
 	}
 
 	for i := 0; i < bladeCount; i++ {
-		rackDef.Blades[int64(i)] = &pbc.BladeCapacity{}
+		rackDef.Blades[int64(i)] = &pb.BladeCapacity{}
 	}
 
 	return rackDef
