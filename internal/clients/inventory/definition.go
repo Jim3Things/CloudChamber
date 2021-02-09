@@ -642,20 +642,21 @@ func (r *Region) Update(ctx context.Context, unconditional bool) (int64, error) 
 // on the revision of the object compared to the revision of the
 // associated record in the underlying store.
 //
-// Deleting the record from the underlying store  has no effect on the
+// Deleting the record from the underlying store has no effect on the
 // values held in the fields of the object other than updating the
 // revision information using the information returned by the store
 // operation.
 //
 func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	// TODO - use delete multiple to remove object and index?
+	// Delete the record and its index as an atomic pair.
 	//
-	rev, err := r.Store.Delete(
-		ctx,
-		store.KeyRootInventory,
-		r.Key,
-		r.GetRevisionForRequest(unconditional))
+	keySet := &map[string]int64{
+		r.KeyIndexEntry : store.RevisionInvalid,
+		r.Key           : r.GetRevisionForRequest(unconditional),
+	}
+
+	rev, err := r.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -750,8 +751,11 @@ func (r *Region) mapErrStoreValue(err error) error {
 	case errors.ErrStoreKeyNotFound(r.Key):
 		return errors.ErrRegionNotFound{Region: r.Region}
 
-	case errors.ErrStoreIndexNotFound(r.KeyChildIndex):
-		return errors.ErrIndexNotFound(r.KeyChildIndex)
+	case errors.ErrStoreKeyNotFound(r.KeyIndexEntry):
+		return errors.ErrRegionIndexNotFound{Region: r.Region}
+
+	case errors.ErrStoreKeyNotFound(r.KeyChildIndex):
+		return errors.ErrRegionChildIndexNotFound{Region: r.Region}
 
 	case errors.ErrStoreAlreadyExists(r.KeyIndexEntry), errors.ErrStoreAlreadyExists(r.Key):
 		return errors.ErrRegionAlreadyExists{Region: r.Region}
@@ -927,18 +931,21 @@ func (z *Zone) Update(ctx context.Context, unconditional bool) (int64, error) {
 // on the revision of the object compared to the revision of the
 // associated record in the underlying store.
 //
-// Deleting the record from the underlying store  has no effect on the
+// Deleting the record from the underlying store has no effect on the
 // values held in the fields of the object other than updating the
 // revision information using the information returned by the store
 // operation.
 //
 func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	rev, err := z.Store.Delete(
-		ctx,
-		store.KeyRootInventory,
-		z.Key,
-		z.GetRevisionForRequest(unconditional))
+	// Delete the record and its index as an atomic pair.
+	//
+	keySet := &map[string]int64{
+		z.KeyIndexEntry : store.RevisionInvalid,
+		z.Key           : z.GetRevisionForRequest(unconditional),
+	}
+
+	rev, err := z.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
 
 	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1031,8 +1038,11 @@ func (z *Zone) mapErrStoreValue(err error) error {
 	case errors.ErrStoreKeyNotFound(z.Key):
 		return errors.ErrZoneNotFound{Region: z.Region, Zone: z.Zone}
 
-	case errors.ErrStoreIndexNotFound(z.KeyChildIndex):
-		return errors.ErrIndexNotFound(z.KeyChildIndex)
+	case errors.ErrStoreKeyNotFound(z.KeyIndexEntry):
+		return errors.ErrZoneIndexNotFound{Region: z.Region, Zone: z.Zone}
+
+	case errors.ErrStoreKeyNotFound(z.KeyChildIndex):
+		return errors.ErrZoneChildIndexNotFound{Region: z.Region, Zone: z.Zone}
 
 	case errors.ErrStoreAlreadyExists(z.KeyIndexEntry), errors.ErrStoreAlreadyExists(z.Key):
 		return errors.ErrZoneAlreadyExists{Region: z.Region, Zone: z.Zone}
@@ -1212,18 +1222,21 @@ func (r *Rack) Update(ctx context.Context, unconditional bool) (int64, error) {
 // on the revision of the object compared to the revision of the
 // associated record in the underlying store.
 //
-// Deleting the record from the underlying store  has no effect on the
+// Deleting the record from the underlying store has no effect on the
 // values held in the fields of the object other than updating the
 // revision information using the information returned by the store
 // operation.
 //
 func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	rev, err := r.Store.Delete(
-		ctx,
-		store.KeyRootInventory,
-		r.Key,
-		r.GetRevisionForRequest(unconditional))
+	// Delete the record and its index as an atomic pair.
+	//
+	keySet := &map[string]int64{
+		r.KeyIndexEntry : store.RevisionInvalid,
+		r.Key           : r.GetRevisionForRequest(unconditional),
+	}
+
+	rev, err := r.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1554,14 +1567,17 @@ func (r *Rack) mapErrStoreValue(err error) error {
 	case errors.ErrStoreKeyNotFound(r.Key):
 		return errors.ErrRackNotFound{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
 
-	case errors.ErrStoreIndexNotFound(r.KeyIndexPdu):
-		return errors.ErrIndexNotFound(r.KeyIndexPdu)
+	case errors.ErrStoreKeyNotFound(r.KeyIndexEntry):
+		return errors.ErrRackIndexNotFound{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
 
-	case errors.ErrStoreIndexNotFound(r.KeyIndexTor):
-		return errors.ErrIndexNotFound(r.KeyIndexTor)
+	case errors.ErrStoreKeyNotFound(r.KeyIndexPdu):
+		return errors.ErrRackPduIndexNotFound{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
 
-	case errors.ErrStoreIndexNotFound(r.KeyIndexBlade):
-		return errors.ErrIndexNotFound(r.KeyIndexBlade)
+	case errors.ErrStoreKeyNotFound(r.KeyIndexTor):
+		return errors.ErrRackTorIndexNotFound{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
+
+	case errors.ErrStoreKeyNotFound(r.KeyIndexBlade):
+		return errors.ErrRackBladeIndexNotFound{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
 
 	case errors.ErrStoreAlreadyExists(r.KeyIndexEntry), errors.ErrStoreAlreadyExists(r.Key):
 		return errors.ErrRackAlreadyExists{Region: r.Region, Zone: r.Zone, Rack: r.Rack}
@@ -1774,18 +1790,21 @@ func (p *Pdu) Update(ctx context.Context, unconditional bool) (int64, error) {
 // on the revision of the object compared to the revision of the
 // associated record in the underlying store.
 //
-// Deleting the record from the underlying store  has no effect on the
+// Deleting the record from the underlying store has no effect on the
 // values held in the fields of the object other than updating the
 // revision information using the information returned by the store
 // operation.
 //
 func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	rev, err := p.Store.Delete(
-		ctx,
-		store.KeyRootInventory,
-		p.Key,
-		p.GetRevisionForRequest(unconditional))
+	// Delete the record and its index as an atomic pair.
+	//
+	keySet := &map[string]int64{
+		p.KeyIndexEntry : store.RevisionInvalid,
+		p.Key           : p.GetRevisionForRequest(unconditional),
+	}
+
+	rev, err := p.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
 
 	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1800,6 +1819,9 @@ func (p *Pdu) mapErrStoreValue(err error) error {
 	switch (err) {
 	case errors.ErrStoreKeyNotFound(p.Key):
 		return errors.ErrPduNotFound{Region: p.Region, Zone: p.Zone, Rack: p.Rack, Pdu: p.ID}
+
+	case errors.ErrStoreKeyNotFound(p.KeyIndexEntry):
+		return errors.ErrPduIndexNotFound{Region: p.Region, Zone: p.Zone, Rack: p.Rack, Pdu: p.ID}
 
 	case errors.ErrStoreAlreadyExists(p.KeyIndexEntry), errors.ErrStoreAlreadyExists(p.Key):
 		return errors.ErrPduAlreadyExists{Region: p.Region, Zone: p.Zone, Rack: p.Rack, Pdu: p.ID}
@@ -2012,18 +2034,21 @@ func (t *Tor) Update(ctx context.Context, unconditional bool) (int64, error) {
 // on the revision of the object compared to the revision of the
 // associated record in the underlying store.
 //
-// Deleting the record from the underlying store  has no effect on the
+// Deleting the record from the underlying store has no effect on the
 // values held in the fields of the object other than updating the
 // revision information using the information returned by the store
 // operation.
 //
 func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	rev, err := t.Store.Delete(
-		ctx,
-		store.KeyRootInventory,
-		t.Key,
-		t.GetRevisionForRequest(unconditional))
+	// Delete the record and its index as an atomic pair.
+	//
+	keySet := &map[string]int64{
+		t.KeyIndexEntry : store.RevisionInvalid,
+		t.Key           : t.GetRevisionForRequest(unconditional),
+	}
+
+	rev, err := t.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
 
 	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2038,6 +2063,9 @@ func (t *Tor) mapErrStoreValue(err error) error {
 	switch (err) {
 	case errors.ErrStoreKeyNotFound(t.Key):
 		return errors.ErrTorNotFound{Region: t.Region, Zone: t.Zone, Rack: t.Rack, Tor: t.ID}
+
+	case errors.ErrStoreKeyNotFound(t.KeyIndexEntry):
+		return errors.ErrTorIndexNotFound{Region: t.Region, Zone: t.Zone, Rack: t.Rack, Tor: t.ID}
 
 	case errors.ErrStoreAlreadyExists(t.KeyIndexEntry), errors.ErrStoreAlreadyExists(t.Key):
 		return errors.ErrTorAlreadyExists{Region: t.Region, Zone: t.Zone, Rack: t.Rack, Tor: t.ID}
@@ -2290,36 +2318,21 @@ func (b *Blade) Update(ctx context.Context, unconditional bool) (int64, error) {
 // on the revision of the object compared to the revision of the
 // associated record in the underlying store.
 //
-// Deleting the record from the underlying store  has no effect on the
+// Deleting the record from the underlying store has no effect on the
 // values held in the fields of the object other than updating the
 // revision information using the information returned by the store
 // operation.
 //
 func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
-	// This should really use store.DeleteMultiple() except that doesn't exist
-	// yet to allow multiple key,value pairs to removed as an atomic update.
+	// Delete the record and its index as an atomic pair.
 	//
-	// Oops.
-	//
-	// Once the DeleteMultiple() routine has been added, this should change to
-	// make use of the new call.
-	//
-	rev, err := b.Store.Delete(
-		ctx,
-		store.KeyRootInventory,
-		b.Key,
-		b.GetRevisionForRequest(unconditional))
-
-	if err = b.mapErrStoreValue(err); err != nil {
-		return store.RevisionInvalid, err
+	keySet := &map[string]int64{
+		b.KeyIndexEntry : store.RevisionInvalid,
+		b.Key           : b.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err = b.Store.Delete(
-		ctx,
-		store.KeyRootInventory,
-		b.KeyIndexEntry,
-		b.GetRevisionForRequest(unconditional))
+	rev, err := b.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
 
 	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2332,8 +2345,11 @@ func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 
 func (b *Blade) mapErrStoreValue(err error) error {
 	switch (err) {
-	case errors.ErrStoreKeyNotFound(b.Key), errors.ErrStoreKeyNotFound(b.KeyIndexEntry):
+	case errors.ErrStoreKeyNotFound(b.Key):
 		return errors.ErrBladeNotFound{Region: b.Region, Zone: b.Zone, Rack: b.Rack, Blade: b.ID}
+
+	case errors.ErrStoreKeyNotFound(b.KeyIndexEntry):
+		return errors.ErrBladeIndexNotFound{Region: b.Region, Zone: b.Zone, Rack: b.Rack, Blade: b.ID}
 
 	case errors.ErrStoreAlreadyExists(b.KeyIndexEntry), errors.ErrStoreAlreadyExists(b.Key):
 		return errors.ErrBladeAlreadyExists{Region: b.Region, Zone: b.Zone, Rack: b.Rack, Blade: b.ID}

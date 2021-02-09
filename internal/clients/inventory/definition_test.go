@@ -1262,15 +1262,19 @@ func (ts *testSuiteCore) TestNewRegionWithCreate() {
 
 	ctx := context.Background()
 
-	r, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
+	region, err := NewRegion(ctx, ts.store, DefinitionTable, ts.regionName(stdSuffix))
 	require.NoError(err)
 
-	r.SetDetails(ctx, stdDetails)
+	region.SetDetails(ctx, stdDetails)
 
-	rev, err := r.Create(ctx)
+	rev, err := region.Create(ctx)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := region.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewZoneWithCreate() {
@@ -1291,6 +1295,10 @@ func (ts *testSuiteCore) TestNewZoneWithCreate() {
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := zone.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewRackWithCreate() {
@@ -1318,6 +1326,10 @@ func (ts *testSuiteCore) TestNewRackWithCreate() {
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := rack.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewPduWithCreate() {
@@ -1348,6 +1360,10 @@ func (ts *testSuiteCore) TestNewPduWithCreate() {
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := pdu.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewTorWithCreate() {
@@ -1378,6 +1394,10 @@ func (ts *testSuiteCore) TestNewTorWithCreate() {
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := tor.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewBladeWithCreate() {
@@ -1411,6 +1431,10 @@ func (ts *testSuiteCore) TestNewBladeWithCreate() {
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := blade.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestRootNewChild() {
@@ -1436,6 +1460,10 @@ func (ts *testSuiteCore) TestRootNewChild() {
 	rev, err := region.Create(ctx)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := region.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewChildZone() {
@@ -1463,6 +1491,10 @@ func (ts *testSuiteCore) TestNewChildZone() {
 	rev, err := zone.Create(ctx)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := zone.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewChildRack() {
@@ -1494,6 +1526,10 @@ func (ts *testSuiteCore) TestNewChildRack() {
 	rev, err := rack.Create(ctx)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := rack.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewChildPdu() {
@@ -1530,6 +1566,10 @@ func (ts *testSuiteCore) TestNewChildPdu() {
 	rev, err := pdu.Create(ctx)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := pdu.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewChildTor() {
@@ -1566,6 +1606,10 @@ func (ts *testSuiteCore) TestNewChildTor() {
 	rev, err := tor.Create(ctx)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := tor.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestNewChildBlade() {
@@ -1610,6 +1654,10 @@ func (ts *testSuiteCore) TestNewChildBlade() {
 	rev, err := blade.Create(ctx)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
+
+	revDel, err := blade.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rev, revDel)
 }
 
 func (ts *testSuiteCore) TestRegionReadDetails() {
@@ -1667,6 +1715,10 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	crDet := cr.GetDetails(ctx)
 	require.NoError(err)
 	assert.Equal(stdDetails, crDet)
+
+	revDel, err := cr.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(crRev, revDel)
 }
 
 func (ts *testSuiteCore) TestZoneReadDetails() {
@@ -1729,6 +1781,10 @@ func (ts *testSuiteCore) TestZoneReadDetails() {
 	zoneDet := zone.GetDetails(ctx)
 	require.NoError(err)
 	assert.Equal(stdDetails, zoneDet)
+
+	revDel, err := zone.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(zoneRev, revDel)
 }
 
 func (ts *testSuiteCore) TestRackReadDetails() {
@@ -1807,6 +1863,10 @@ func (ts *testSuiteCore) TestRackReadDetails() {
 	rackDet := rack.GetDetails(ctx)
 	require.NoError(err)
 	assert.Equal(stdDetails, rackDet)
+
+	revDel, err := rack.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(rackRev, revDel)
 }
 
 func (ts *testSuiteCore) TestPduReadDetails() {
@@ -1897,6 +1957,10 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	pduPorts := pdu.GetPorts(ctx)
 	require.NoError(err)
 	assert.Equal(stdPorts, pduPorts)
+
+	revDel, err := pdu.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(pduRev, revDel)
 }
 
 func (ts *testSuiteCore) TestTorReadDetails() {
@@ -1987,6 +2051,10 @@ func (ts *testSuiteCore) TestTorReadDetails() {
 	torPorts := tor.GetPorts(ctx)
 	require.NoError(err)
 	assert.Equal(stdPorts, torPorts)
+
+	revDel, err := tor.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(torRev, revDel)
 }
 
 func (ts *testSuiteCore) TestBladeReadDetails() {
@@ -2085,6 +2153,10 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	require.NoError(err)
 	assert.Equal(stdBootOnPowerOn, bladeBootOnPowerOn)
 	assert.Equal(stdBootInfo, bladeBootInfo)
+
+	revDel, err := blade.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(bladeRev, revDel)
 }
 
 func (ts *testSuiteCore) TestRegionUpdateDetails() {
@@ -2147,6 +2219,11 @@ func (ts *testSuiteCore) TestRegionUpdateDetails() {
 	// Compare new details with original + deltas
 	//
 	assert.Equal(details, detailsVerify)
+
+	revDel, err := cr.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(revUpdate, revDel)
+
 }
 
 func (ts *testSuiteCore) TestZoneUpdateDetails() {
@@ -2213,6 +2290,10 @@ func (ts *testSuiteCore) TestZoneUpdateDetails() {
 	// Compare new details with original + deltas
 	//
 	assert.Equal(details, detailsVerify)
+
+	revDel, err := cz.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(revUpdate, revDel)
 }
 
 func (ts *testSuiteCore) TestRackUpdateDetails() {
@@ -2284,6 +2365,10 @@ func (ts *testSuiteCore) TestRackUpdateDetails() {
 	// Compare new details with original + deltas
 	//
 	assert.Equal(details, detailsVerify)
+
+	revDel, err := cr.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(revUpdate, revDel)
 }
 
 func (ts *testSuiteCore) TestPduUpdateDetails() {
@@ -2364,6 +2449,10 @@ func (ts *testSuiteCore) TestPduUpdateDetails() {
 	//
 	assert.Equal(details, detailsVerify)
 	assert.Equal(stdPorts, portsVerify)
+
+	revDel, err := cp.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(revUpdate, revDel)
 }
 
 func (ts *testSuiteCore) TestTorUpdateDetails() {
@@ -2444,6 +2533,10 @@ func (ts *testSuiteCore) TestTorUpdateDetails() {
 	//
 	assert.Equal(details, detailsVerify)
 	assert.Equal(stdPorts, portsVerify)
+
+	revDel, err := ct.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(revUpdate, revDel)
 }
 
 func (ts *testSuiteCore) TestBladeUpdateDetails() {
@@ -2532,6 +2625,10 @@ func (ts *testSuiteCore) TestBladeUpdateDetails() {
 	assert.Equal(stdCapacity, capacityVerify)
 	assert.Equal(stdBootInfo, bootInfoVerify)
 	assert.Equal(stdBootOnPowerOn, bootOnPowerOnVerify)
+
+	revDel, err := cb.Delete(ctx, false)
+	require.NoError(err)
+	assert.Less(revUpdate, revDel)
 }
 
 func (ts *testSuiteCore) TestRootListChildren() {
