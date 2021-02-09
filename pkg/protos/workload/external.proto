@@ -5,11 +5,12 @@ package workload;
 import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/workload";
+option csharp_namespace = "CloudChamber.Protos.Workload";
 
-message external {
+message External {
     // Define a disk volume
-    message volume {
-        enum attr {
+    message Volume {
+        enum Attr {
             Invalid = 0;
 
             // Volume can be dynamically created, implicitly writable
@@ -26,32 +27,32 @@ message external {
         int64 size_in_gb = 1;
 
         // Constraint on the volume type.
-        attr attribute = 2;
+        Attr attribute = 2;
 
         // Address where the volume is located
         string uri = 3;
     }
 
     // Define a single instance
-    message instance {
+    message Instance {
         // Define the logical affinity group where this instance belongs.
         int64 affinity_group = 1;
 
         // Defined the required blade capacity used by this instance
-        inventory.instance_requirements required_capacity = 2;
+        inventory.InstanceRequirements required_capacity = 2;
 
         // Boot volume name
         string system_name = 3;
 
         // all volumes, must include the boot volume
-        map<string, volume> volumes = 4;
+        map<string, Volume> volumes = 4;
 
         // configuration / metadata to pass to the instance
         string config = 5;
     }
 
     // Define the policy for how to manage affinity groups
-    enum affinity_type {
+    enum AffinityType {
         // No placement restrictions, ignore affinity groups
         None = 0;
 
@@ -70,15 +71,15 @@ message external {
     }
 
     // Define a workload.  This is a logical service made up of one or more instances
-    message workload {
+    message Workload {
         // Specify the workload's name
         string name = 1;
 
         // Specify the affinity policy to apply to the instances
-        affinity_type affinity = 2;
+        AffinityType affinity = 2;
 
         // Define the set of instances in this workload.  Each instance has a name that is unique within
         // the workload.  That name is used as the key in the instance map.
-        map<string, instance> instances = 3;
+        map<string, Instance> instances = 3;
     }
 }

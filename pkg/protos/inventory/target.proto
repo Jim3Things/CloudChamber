@@ -6,30 +6,31 @@ syntax = "proto3";
 package inventory;
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+option csharp_namespace = "CloudChamber.Protos.Inventory";
 
-message target {
+message Target {
 
-    enum condition {
+    enum Condition {
         not_in_service = 0;
         operational = 1;
         faulted = 2;
     }
 
-    message pdu {
+    message Pdu {
 
-        condition condition = 1;
-
-    }
-
-    message tor {
-
-        condition condition = 1;
+        Condition condition = 1;
 
     }
 
-    message blade {
-        
-        condition condition = 1;
+    message Tor {
+
+        Condition condition = 1;
+
+    }
+
+    message Blade {
+
+        Condition condition = 1;
 
     }
 }

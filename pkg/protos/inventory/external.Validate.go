@@ -10,7 +10,7 @@ import (
 
 // Validate is a method that verifies that the associated ExternalRack instance
 // is structurally legal
-func (x *ExternalRack) Validate() error {
+func (x *External_Rack) Validate() error {
 	// Verify that a rack has at least one blade
 	actual := int64(len(x.Blades))
 	if actual < 1 {

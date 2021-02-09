@@ -55,7 +55,7 @@ type pdu struct {
 // ReadInventoryDefinition imports the inventory from
 // external YAML file and transforms it into the
 // internal Cloud chamber binary format.
-func ReadInventoryDefinition(ctx context.Context, path string) (*pb.ExternalZone, error) {
+func ReadInventoryDefinition(ctx context.Context, path string) (*pb.External_Zone, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -100,9 +100,9 @@ func ReadInventoryDefinition(ctx context.Context, path string) (*pb.ExternalZone
 // One important difference is that the intermediate is array based.
 // The final format is map based using specific fields in array
 // entries as the map keys
-func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
-	cfg := &pb.ExternalZone{
-		Racks: make(map[string]*pb.ExternalRack),
+func toExternalZone(xfr *zone) (*pb.External_Zone, error) {
+	cfg := &pb.External_Zone{
+		Racks: make(map[string]*pb.External_Rack),
 	}
 
 	for _, r := range xfr.Racks {
@@ -110,9 +110,9 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 			return nil, errors.ErrDuplicateRack(r.Name)
 		}
 
-		cfg.Racks[r.Name] = &pb.ExternalRack{
-			Tor:    &pb.ExternalTor{},
-			Pdu:    &pb.ExternalPdu{},
+		cfg.Racks[r.Name] = &pb.External_Rack{
+			Tor:    &pb.External_Tor{},
+			Pdu:    &pb.External_Pdu{},
 			Blades: make(map[int64]*pb.BladeCapacity),
 		}
 
@@ -148,7 +148,7 @@ func toExternalZone(xfr *zone) (*pb.ExternalZone, error) {
 // an external YAML file and transforms it into the
 // internal Cloud chamber binary format.
 //
-func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.DefinitionRegion, error) {
+func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Definition_Region, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -194,23 +194,23 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Defi
 // The final format is map based using specific fields in array
 // entries as the map keys
 //
-func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
+func toDefinitionRegionInternal(xfr *zone) (*pb.Definition_Region, error) {
 
-	region := &pb.DefinitionRegion{
+	region := &pb.Definition_Region{
 		Details: &pb.RegionDetails{},
-		Zones: make(map[string]*pb.DefinitionZone)}
+		Zones:   make(map[string]*pb.Definition_Zone)}
 
 	// Since we only have a single zone at present, there is no loop
 	// here. But there will be eventually.
 	//
-	zone := &pb.DefinitionZone{
+	zone := &pb.Definition_Zone{
 		Details: &pb.ZoneDetails{
-			Enabled:   true,
-			State:     pb.State_in_service,
-			Location:  "DC-PNW-0",
-			Notes:     "Base zone",
+			Enabled:  true,
+			State:    pb.State_in_service,
+			Location: "DC-PNW-0",
+			Notes:    "Base zone",
 		},
-		Racks: make(map[string]*pb.DefinitionRack),
+		Racks: make(map[string]*pb.Definition_Rack),
 	}
 
 	// For each rack in the supplied configuration, create rack in the
@@ -222,16 +222,16 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 			return nil, errors.ErrDuplicateRack(r.Name)
 		}
 
-		rack := &pb.DefinitionRack{
+		rack := &pb.Definition_Rack{
 			Details: &pb.RackDetails{
 				Enabled:   true,
 				Condition: pb.Condition_operational,
 				Location:  "DC-PNW-0-" + r.Name,
 				Notes:     "RackName: " + r.Name,
 			},
-			Pdus:   make(map[int64]*pb.DefinitionPdu),
-			Tors:   make(map[int64]*pb.DefinitionTor),
-			Blades:    make(map[int64]*pb.DefinitionBlade),
+			Pdus:   make(map[int64]*pb.Definition_Pdu),
+			Tors:   make(map[int64]*pb.Definition_Tor),
+			Blades: make(map[int64]*pb.Definition_Blade),
 		}
 
 		// Currently only have one each of Pdu and Tor per-rack.
@@ -240,20 +240,20 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 		// synthesized and not actually read from the definition
 		// file.
 		//
-		rack.Pdus[0] = &pb.DefinitionPdu{
+		rack.Pdus[0] = &pb.Definition_Pdu{
 			Details: &pb.PduDetails{
 				Enabled:   true,
 				Condition: pb.Condition_operational,
 			},
-			Ports:     make(map[int64]*pb.PowerPort),
+			Ports: make(map[int64]*pb.PowerPort),
 		}
 
-		rack.Tors[0] = &pb.DefinitionTor{
+		rack.Tors[0] = &pb.Definition_Tor{
 			Details: &pb.TorDetails{
 				Enabled:   true,
 				Condition: pb.Condition_operational,
 			},
-			Ports:     make(map[int64]*pb.NetworkPort),
+			Ports: make(map[int64]*pb.NetworkPort),
 		}
 
 		// We do support more than a single blade for each rack
@@ -279,9 +279,9 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 			// (currently) have an existence in the configuration
 			// file.
 			//
-			rack.Blades[b.Index] = &pb.DefinitionBlade{
+			rack.Blades[b.Index] = &pb.Definition_Blade{
 				Details: &pb.BladeDetails{
-					Enabled: true,
+					Enabled:   true,
 					Condition: pb.Condition_operational,
 				},
 				Capacity: &pb.BladeCapacity{
@@ -299,7 +299,7 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 			//
 			rack.Pdus[0].Ports[b.Index] = &pb.PowerPort{
 				Wired: true,
-				Item:  &pb.Hardware{
+				Item: &pb.Hardware{
 					Type: pb.Hardware_blade,
 					Id:   b.Index,
 					Port: 0,
@@ -312,7 +312,7 @@ func toDefinitionRegionInternal(xfr *zone) (*pb.DefinitionRegion, error) {
 			//
 			rack.Tors[0].Ports[b.Index] = &pb.NetworkPort{
 				Wired: true,
-				Item:  &pb.Hardware{
+				Item: &pb.Hardware{
 					Type: pb.Hardware_blade,
 					Id:   b.Index,
 					Port: 0,

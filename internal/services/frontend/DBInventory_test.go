@@ -11,7 +11,6 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/pkg/protos/inventory"
 )
 
-
 type DBInventoryTestSuite struct {
 	testSuiteCore
 
@@ -25,24 +24,24 @@ type DBInventoryTestSuite struct {
 }
 
 func (ts *DBInventoryTestSuite) SetupSuite() {
-//	require := ts.Require()
+	//	require := ts.Require()
 
 	ts.testSuiteCore.SetupSuite()
 
-//	configPath := flag.String("config", "./testdata", "path to the configuration file")
-//	flag.Parse()
+	//	configPath := flag.String("config", "./testdata", "path to the configuration file")
+	//	flag.Parse()
 
-//	cfg, err := config.ReadGlobalConfig(*configPath)
-//	require.NoError(err)
-//	require.NotNil(cfg)
+	//	cfg, err := config.ReadGlobalConfig(*configPath)
+	//	require.NoError(err)
+	//	require.NotNil(cfg)
 
-//	ts.cfg = cfg
+	//	ts.cfg = cfg
 
 	ts.zoneName = "zoneBasic"
 	ts.rackName = "rackBasic"
-	ts.pduID    = int64(17)
-	ts.torID    = int64(31)
-	ts.bladeID  = int64(100)
+	ts.pduID = int64(17)
+	ts.torID = int64(31)
+	ts.bladeID = int64(100)
 }
 
 func (ts *DBInventoryTestSuite) SetupTest() {
@@ -50,12 +49,12 @@ func (ts *DBInventoryTestSuite) SetupTest() {
 
 	_ = ts.utf.Open(ts.T())
 
-	ts.db =  &DBInventory{
-		mutex: sync.RWMutex{},
-		Zone: nil,
+	ts.db = &DBInventory{
+		mutex:         sync.RWMutex{},
+		Zone:          nil,
 		MaxBladeCount: 0,
 		MaxCapacity:   &pb.BladeCapacity{},
-		Store: store.NewStore(),
+		Store:         store.NewStore(),
 	}
 
 	err := ts.db.Store.Connect()
@@ -66,8 +65,6 @@ func (ts *DBInventoryTestSuite) TearDownTest() {
 	ts.utf.Close()
 }
 
-
-
 func (ts *DBInventoryTestSuite) ensureInventoryLoaded() {
 	// require := ts.Require()
 
@@ -75,13 +72,13 @@ func (ts *DBInventoryTestSuite) ensureInventoryLoaded() {
 
 	// if ts.db == nil {
 
-		// err := db.Initialize(ctx, ts.cfg)
-		// require.NoError(err)
-		// require.NotNil(dbInventory)
+	// err := db.Initialize(ctx, ts.cfg)
+	// require.NoError(err)
+	// require.NotNil(dbInventory)
 
-		// if ts.db == nil {
-		// 	ts.db = db
-		// }
+	// if ts.db == nil {
+	// 	ts.db = db
+	// }
 	// }
 }
 
@@ -93,12 +90,12 @@ func (ts *DBInventoryTestSuite) ensureBasicZone() {
 	_, err := ts.db.CreateZone(
 		ctx,
 		ts.zoneName,
-		&pb.DefinitionZone{
+		&pb.Definition_Zone{
 			Details: &pb.ZoneDetails{
-				Enabled:   true,
-				State:     pb.State_in_service,
-				Location:  "Pacific NW",
-				Notes:     "Basic Zone for test",
+				Enabled:  true,
+				State:    pb.State_in_service,
+				Location: "Pacific NW",
+				Notes:    "Basic Zone for test",
 			},
 		},
 	)
@@ -109,50 +106,50 @@ func (ts *DBInventoryTestSuite) ensureBasicZone() {
 		ctx,
 		ts.zoneName,
 		ts.rackName,
-		&pb.DefinitionRack{
+		&pb.Definition_Rack{
 			Details: &pb.RackDetails{
 				Enabled:   true,
-				Condition:     pb.Condition_operational,
+				Condition: pb.Condition_operational,
 				Location:  "In " + ts.zoneName,
 				Notes:     "Basic rack for test",
-				},
 			},
-		)
+		},
+	)
 
 	require.NoError(err)
 
-	pdu := pb.DefinitionPdu{
+	pdu := pb.Definition_Pdu{
 		Details: &pb.PduDetails{
-			Enabled: true,
+			Enabled:   true,
 			Condition: pb.Condition_operational,
 		},
 		Ports: make(map[int64]*pb.PowerPort),
 	}
 
-	tor := pb.DefinitionTor{
+	tor := pb.Definition_Tor{
 		Details: &pb.TorDetails{
-			Enabled: true,
+			Enabled:   true,
 			Condition: pb.Condition_operational,
 		},
 		Ports: make(map[int64]*pb.NetworkPort),
 	}
 
-	blade := pb.DefinitionBlade{
+	blade := pb.Definition_Blade{
 		Details: &pb.BladeDetails{
-			Enabled: true,
+			Enabled:   true,
 			Condition: pb.Condition_operational,
 		},
 		Capacity: &pb.BladeCapacity{
-			Cores: 8,
+			Cores:      8,
 			MemoryInMb: 8192,
-			DiskInGb: 8192,
+			DiskInGb:   8192,
 		},
 	}
 
 	_, err = ts.db.CreatePdu(ctx, ts.zoneName, ts.rackName, ts.pduID, &pdu)
 	require.NoError(err)
 
-	_, err = ts.db.CreateTor(ctx, ts.zoneName, ts.rackName, ts.torID, &tor,)
+	_, err = ts.db.CreateTor(ctx, ts.zoneName, ts.rackName, ts.torID, &tor)
 	require.NoError(err)
 
 	_, err = ts.db.CreateBlade(ctx, ts.zoneName, ts.rackName, ts.bladeID, &blade)
@@ -162,12 +159,12 @@ func (ts *DBInventoryTestSuite) ensureBasicZone() {
 func (ts *DBInventoryTestSuite) TestInitializeInventory() {
 	assert := ts.Assert()
 
-	db :=  &DBInventory{
-		mutex: sync.RWMutex{},
-		Zone: nil,
+	db := &DBInventory{
+		mutex:         sync.RWMutex{},
+		Zone:          nil,
 		MaxBladeCount: 0,
 		MaxCapacity:   &pb.BladeCapacity{},
-		Store: store.NewStore(),
+		Store:         store.NewStore(),
 	}
 
 	assert.NotNil(db.Store)
@@ -185,12 +182,12 @@ func (ts *DBInventoryTestSuite) TestCreateZone() {
 
 	zoneName := "zone1"
 
-	zone := &pb.DefinitionZone{
+	zone := &pb.Definition_Zone{
 		Details: &pb.ZoneDetails{
-			Enabled: true,
-			State: pb.State_in_service,
+			Enabled:  true,
+			State:    pb.State_in_service,
 			Location: "Nowhere in particular",
-			Notes: "empty notes",
+			Notes:    "empty notes",
 		},
 	}
 
@@ -203,12 +200,12 @@ func (ts *DBInventoryTestSuite) TestCreateZone() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(z)
 
-	assert.Equal(zone.Details.Enabled,  z.Details.Enabled)
-	assert.Equal(zone.Details.State,    z.Details.State)
+	assert.Equal(zone.Details.Enabled, z.Details.Enabled)
+	assert.Equal(zone.Details.State, z.Details.State)
 	assert.Equal(zone.Details.Location, z.Details.Location)
-	assert.Equal(zone.Details.Notes,    z.Details.Notes)
-	}
-	
+	assert.Equal(zone.Details.Notes, z.Details.Notes)
+}
+
 func (ts *DBInventoryTestSuite) TestCreateRack() {
 	assert := ts.Assert()
 	require := ts.Require()
@@ -217,7 +214,7 @@ func (ts *DBInventoryTestSuite) TestCreateRack() {
 
 	rackName := "rack1"
 
-	rack := &pb.DefinitionRack{
+	rack := &pb.Definition_Rack{
 		Details: &pb.RackDetails{
 			Enabled:   true,
 			Condition: pb.Condition_operational,
@@ -234,10 +231,10 @@ func (ts *DBInventoryTestSuite) TestCreateRack() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(r)
 
-	assert.Equal(rack.Details.Enabled,   r.Details.Enabled)
+	assert.Equal(rack.Details.Enabled, r.Details.Enabled)
 	assert.Equal(rack.Details.Condition, r.Details.Condition)
-	assert.Equal(rack.Details.Location,  r.Details.Location)
-	assert.Equal(rack.Details.Notes,     r.Details.Notes)
+	assert.Equal(rack.Details.Location, r.Details.Location)
+	assert.Equal(rack.Details.Notes, r.Details.Notes)
 }
 
 func (ts *DBInventoryTestSuite) TestCreatePdu() {
@@ -248,7 +245,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 
 	pduID := int64(1)
 
-	pdu := &pb.DefinitionPdu{
+	pdu := &pb.Definition_Pdu{
 		Details: &pb.PduDetails{
 			Enabled:   true,
 			Condition: pb.Condition_operational,
@@ -262,65 +259,64 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 
 	pdu.Ports[1] = &pb.PowerPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_unknown,
 		},
 	}
 
 	pdu.Ports[2] = &pb.PowerPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_tor,
-			Id: 0,
+			Id:   0,
 			Port: 0,
 		},
 	}
 
 	pdu.Ports[3] = &pb.PowerPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_tor,
-			Id: 1,
+			Id:   1,
 			Port: 0,
 		},
 	}
 
 	pdu.Ports[4] = &pb.PowerPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 0,
+			Id:   0,
 			Port: 0,
 		},
 	}
 
 	pdu.Ports[5] = &pb.PowerPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 0,
+			Id:   0,
 			Port: 1,
 		},
 	}
 
 	pdu.Ports[6] = &pb.PowerPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 1,
+			Id:   1,
 			Port: 0,
 		},
 	}
 
 	pdu.Ports[7] = &pb.PowerPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 1,
+			Id:   1,
 			Port: 1,
 		},
 	}
-
 
 	revCreate, err := ts.db.CreatePdu(ctx, ts.zoneName, ts.rackName, pduID, pdu)
 	require.NoError(err)
@@ -330,7 +326,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(t)
 
-	assert.Equal(pdu.Details.Enabled,   t.Details.Enabled)
+	assert.Equal(pdu.Details.Enabled, t.Details.Enabled)
 	assert.Equal(pdu.Details.Condition, t.Details.Condition)
 	assert.Equal(len(pdu.Ports), len(t.Ports))
 
@@ -345,7 +341,7 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 			require.NotNil(tp.Item)
 
 			assert.Equal(p.Item.Type, tp.Item.Type)
-			assert.Equal(p.Item.Id,   tp.Item.Id)
+			assert.Equal(p.Item.Id, tp.Item.Id)
 			assert.Equal(p.Item.Port, tp.Item.Port)
 		}
 	}
@@ -359,13 +355,13 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 
 	torID := int64(1)
 
-	tor := &pb.DefinitionTor{
+	tor := &pb.Definition_Tor{
 		Details: &pb.TorDetails{
 			Enabled:   true,
 			Condition: pb.Condition_operational,
 		},
 		Ports: make(map[int64]*pb.NetworkPort),
-		}
+	}
 
 	tor.Ports[0] = &pb.NetworkPort{
 		Wired: false,
@@ -373,61 +369,61 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 
 	tor.Ports[1] = &pb.NetworkPort{
 		Wired: true,
-		Item:  &pb.Hardware{
-			Type: pb.Hardware_unknown,			
+		Item: &pb.Hardware{
+			Type: pb.Hardware_unknown,
 		},
 	}
 
 	tor.Ports[2] = &pb.NetworkPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_pdu,
-			Id: 0,
+			Id:   0,
 			Port: 0,
 		},
 	}
 
 	tor.Ports[3] = &pb.NetworkPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_pdu,
-			Id: 1,
+			Id:   1,
 			Port: 0,
 		},
 	}
 
 	tor.Ports[4] = &pb.NetworkPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 0,
+			Id:   0,
 			Port: 0,
 		},
 	}
 
 	tor.Ports[5] = &pb.NetworkPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 0,
+			Id:   0,
 			Port: 1,
 		},
 	}
 
 	tor.Ports[6] = &pb.NetworkPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 1,
+			Id:   1,
 			Port: 0,
 		},
 	}
 
 	tor.Ports[7] = &pb.NetworkPort{
 		Wired: true,
-		Item:  &pb.Hardware{
+		Item: &pb.Hardware{
 			Type: pb.Hardware_blade,
-			Id: 1,
+			Id:   1,
 			Port: 1,
 		},
 	}
@@ -440,7 +436,7 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(t)
 
-	assert.Equal(tor.Details.Enabled,   t.Details.Enabled)
+	assert.Equal(tor.Details.Enabled, t.Details.Enabled)
 	assert.Equal(tor.Details.Condition, t.Details.Condition)
 	assert.Equal(len(tor.Ports), len(t.Ports))
 
@@ -455,7 +451,7 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 			require.NotNil(tp.Item)
 
 			assert.Equal(p.Item.Type, tp.Item.Type)
-			assert.Equal(p.Item.Id,   tp.Item.Id)
+			assert.Equal(p.Item.Id, tp.Item.Id)
 			assert.Equal(p.Item.Port, tp.Item.Port)
 		}
 	}
@@ -469,25 +465,25 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 
 	bladeID := int64(1)
 
-	blade := &pb.DefinitionBlade{
+	blade := &pb.Definition_Blade{
 		Details: &pb.BladeDetails{
-			Enabled: true,
+			Enabled:   true,
 			Condition: pb.Condition_operational,
 		},
 		Capacity: &pb.BladeCapacity{
-			Cores: 8,
-			MemoryInMb: 8192,
-			DiskInGb: 8192,
+			Cores:                  8,
+			MemoryInMb:             8192,
+			DiskInGb:               8192,
 			NetworkBandwidthInMbps: 1024,
-			Arch: "vax",
-			Accelerators: nil,
+			Arch:                   "vax",
+			Accelerators:           nil,
 		},
 		BootOnPowerOn: true,
 		BootInfo: &pb.BladeBootInfo{
 			Source:     pb.BladeBootInfo_local,
 			Image:      "test-image.vhdx",
 			Version:    "20201225-0000",
-			Parameters: "-param1=val1 -param2=val2",	
+			Parameters: "-param1=val1 -param2=val2",
 		},
 	}
 
@@ -499,22 +495,22 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(b)
 
-	assert.Equal(blade.Details.Enabled,   b.Details.Enabled)
+	assert.Equal(blade.Details.Enabled, b.Details.Enabled)
 	assert.Equal(blade.Details.Condition, b.Details.Condition)
-	
-	assert.Equal(blade.Capacity.Cores,                  b.Capacity.Cores)
-	assert.Equal(blade.Capacity.MemoryInMb,             b.Capacity.MemoryInMb)
-	assert.Equal(blade.Capacity.DiskInGb,               b.Capacity.DiskInGb)
+
+	assert.Equal(blade.Capacity.Cores, b.Capacity.Cores)
+	assert.Equal(blade.Capacity.MemoryInMb, b.Capacity.MemoryInMb)
+	assert.Equal(blade.Capacity.DiskInGb, b.Capacity.DiskInGb)
 	assert.Equal(blade.Capacity.NetworkBandwidthInMbps, b.Capacity.NetworkBandwidthInMbps)
-	assert.Equal(blade.Capacity.Arch,                   b.Capacity.Arch)
-	assert.Equal(blade.Capacity.Accelerators,           b.Capacity.Accelerators)
+	assert.Equal(blade.Capacity.Arch, b.Capacity.Arch)
+	assert.Equal(blade.Capacity.Accelerators, b.Capacity.Accelerators)
 
-	assert.Equal(blade.BootOnPowerOn,                   b.BootOnPowerOn)
+	assert.Equal(blade.BootOnPowerOn, b.BootOnPowerOn)
 
-	assert.Equal(blade.BootInfo.Source,                 b.BootInfo.Source)
-	assert.Equal(blade.BootInfo.Image,                  b.BootInfo.Image)
-	assert.Equal(blade.BootInfo.Version,                b.BootInfo.Version)
-	assert.Equal(blade.BootInfo.Parameters,             b.BootInfo.Parameters)
+	assert.Equal(blade.BootInfo.Source, b.BootInfo.Source)
+	assert.Equal(blade.BootInfo.Image, b.BootInfo.Image)
+	assert.Equal(blade.BootInfo.Version, b.BootInfo.Version)
+	assert.Equal(blade.BootInfo.Parameters, b.BootInfo.Parameters)
 }
 
 func TestDBInventoryTestSuite(t *testing.T) {

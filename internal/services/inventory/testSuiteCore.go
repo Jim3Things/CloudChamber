@@ -58,10 +58,10 @@ func (ts *testSuiteCore) TearDownTest() {
 	ts.utf.Close()
 }
 
-func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.ExternalRack {
-	rackDef := &pb.ExternalRack{
-		Pdu:    &pb.ExternalPdu{},
-		Tor:    &pb.ExternalTor{},
+func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.External_Rack {
+	rackDef := &pb.External_Rack{
+		Pdu:    &pb.External_Pdu{},
+		Tor:    &pb.External_Tor{},
 		Blades: make(map[int64]*pb.BladeCapacity),
 	}
 

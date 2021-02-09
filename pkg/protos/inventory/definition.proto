@@ -1,8 +1,9 @@
 // This file contains the definitions used by configuration definitions for describing the simulated
-// inventory.  These definitions describe the items, but do not define any observed or actual status for them.
+// inventory.  These definitions describe the items, but do not define any observed or actual status
+// for them.
 //
-// Note that we may, at some point, want to add an initial status definition in order to define inventory that begins
-// in a partially failed manner.
+// Note that we may, at some point, want to add an initial status definition in order to define
+// inventory that begins in a partially failed manner.
 
 syntax = "proto3";
 
@@ -12,100 +13,101 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+option csharp_namespace = "CloudChamber.Protos.Inventory";
 
-message definition {
+message Definition {
 
     // The two types here are common overhead items in a rack.  All are pure skeletons at this point.
-    // Note that all have implied connectivity with all other items in a rack.  Currently elided in the external model,
-    // but used in the other models.
+    // Note that all have implied connectivity with all other items in a rack.  Currently elided in
+    // the external model, but used in the other models.
 
     // Power distribution unit.  Network accessible power controller
     //
-    message pdu {
+    message Pdu {
 
-        pdu_details details = 1;
+        PduDetails details = 1;
 
         // Defines a power "socket" which is used to provide power to a blade. There is
         // a 1 to 1 mapping of a power port to a blade within a single rack and it is an
         // error if there fewer power ports than blades.
         //
-        map<int64, power_port> ports = 10;
+        map<int64, PowerPort> ports = 10;
     }
 
     // Rack-level network switch.
     //
-    message tor {
-        tor_details details = 1;
+    message Tor {
+        TorDetails details = 1;
 
         // Defines a network "port" which is used to provide a network connection to a
         // blade. There is a 1 to 1 mapping of a network port to a blade within a single
         // rack and it is an error if there fewer network ports than blades.
         //
-        map<int64, network_port> ports = 10;
+        map<int64, NetworkPort> ports = 10;
     }
 
     // Individual blade within the rack
     //
-    message blade {
-        blade_details details = 1;
+    message Blade {
+        BladeDetails details = 1;
 
-        blade_capacity capacity = 10;
+        BladeCapacity capacity = 10;
 
         // Defines whether or not the blade automatically begins a boot sequence when power is
-        // appplied to the blade.
+        // applied to the blade.
         //
         bool boot_on_power_on = 11;
 
         // Describes the default boot mechanism
         //
-        blade_boot_info boot_info = 12;
+        BladeBootInfo boot_info = 12;
     }
 
 
-    message rack {
-        rack_details details = 1;
+    message Rack {
+        RackDetails details = 1;
 
         // Specify the pdus in the rack.  Each pdu is defined by an integer index within
         // that rack, which is used here as the key.
         //
-        map<int64, pdu> pdus = 10;
-    
+        map<int64, Pdu> pdus = 10;
+
         // specify the tors in the rack.  Each tor is defined by an integer index within
         // that rack, which is used here as the key.
         //
-        map<int64, tor> tors = 11;
-    
+        map<int64, Tor> tors = 11;
+
         // specify the blades in the rack.  Each blade is defined by an integer index within
         // that rack, which is used here as the key.
         //
-        map<int64, blade> blades = 12;
+        map<int64, Blade> blades = 12;
     }
 
-    // A complete description of a zone internal "in-memory" usage as oppoesed to reading
+    // A complete description of a zone internal "in-memory" usage as opposed to reading
     // and/or writing individual zone records from the store, i.e. a "container" structure.
     //
-    message zone {
-        zone_details details = 1;
+    message Zone {
+        ZoneDetails details = 1;
 
         // The set of racks forming an individual zone. All racks in the zone are affected
         // by the properties of the zone or any conditions affecting the zone. Each rack is
         // defined by a string name within the zone, and that name is used here as a key.
         //
-        map<string, rack> racks = 10;
+        map<string, Rack> racks = 10;
     }
 
     // A complete description of a region internal "in-memory" usage as opposed to reading
     // and/or writing individual region records from the store, i.e. a "container" structure.
     //
-    message region {
-        region_details details = 1;
+    message Region {
+        RegionDetails details = 1;
 
-        map<string, zone> zones = 10;
+        map<string, Zone> zones = 10;
     }
 
-    message root {
-        root_details details = 1;
+    message Root {
+        RootDetails details = 1;
 
-        map<string, region> regions = 10;
+        map<string, Region> regions = 10;
     }
 }

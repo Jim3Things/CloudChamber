@@ -14,7 +14,7 @@ const maxPorts = int64(1000)
 // Validate is a method that verifies that the associated DefinitionPdu instance
 // has the expected number of ports and is semantically legal
 //
-func(x *DefinitionPdu) Validate(prefix string, ports int64) error {
+func(x *Definition_Pdu) Validate(prefix string, ports int64) error {
 
 	actual := int64(len(x.Ports))
 
@@ -35,7 +35,7 @@ func(x *DefinitionPdu) Validate(prefix string, ports int64) error {
 // For example, check for errors such as the pdu being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *DefinitionPdu) Verify() error {
+func(x *Definition_Pdu) Verify() error {
 
 	return x.check("")
 }
@@ -46,7 +46,7 @@ func(x *DefinitionPdu) Verify() error {
 // For example, check for errors such as the pdu being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *DefinitionPdu) check(prefix string) error {
+func(x *Definition_Pdu) check(prefix string) error {
 
 	prefixedPorts := prefix + "Ports"
 	prefixedItem  := prefix + "Item"
@@ -116,7 +116,7 @@ func(x *DefinitionPdu) check(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionTor instance
 // has the expected number of ports and is semantically legal
 //
-func(x *DefinitionTor) Validate(prefix string, ports int64) error {
+func(x *Definition_Tor) Validate(prefix string, ports int64) error {
 
 	actual := int64(len(x.Ports))
 
@@ -137,7 +137,7 @@ func(x *DefinitionTor) Validate(prefix string, ports int64) error {
 // For example, check for errors such as the tor being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *DefinitionTor) Verify() error {
+func(x *Definition_Tor) Verify() error {
 
 	return x.check("")
 }
@@ -148,7 +148,7 @@ func(x *DefinitionTor) Verify() error {
 // For example, check for errors such as the tor being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *DefinitionTor) check(prefix string) error {
+func(x *Definition_Tor) check(prefix string) error {
 
 	prefixedPorts := prefix + "Ports"
 	prefixedItem  := prefix + "Item"
@@ -218,7 +218,7 @@ func(x *DefinitionTor) check(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionRack instance
 // is structurally legal
 //
-func (x *DefinitionRack) Validate(prefix string) error {
+func (x *Definition_Rack) Validate(prefix string) error {
 	// Verify that rack has at least one Pdu
 	//
 	// NOTE: at present we expect there to be exactly one Pdu per-rack
@@ -288,7 +288,7 @@ func (x *DefinitionRack) Validate(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionZone instance
 // is structurally legal
 //
-func (x *DefinitionZone) Validate() error {
+func (x *Definition_Zone) Validate() error {
 	// Verify that zone has at least one rack
 	//
 	actual := int64(len(x.Racks))

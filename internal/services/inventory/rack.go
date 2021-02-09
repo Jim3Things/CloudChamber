@@ -52,7 +52,7 @@ const (
 // entries to determine its structure.  The resulting Rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
 // programmed.
-func newRack(ctx context.Context, name string, def *pb.ExternalRack, timers *timestamp.Timers) *Rack {
+func newRack(ctx context.Context, name string, def *pb.External_Rack, timers *timestamp.Timers) *Rack {
 	return newRackInternal(ctx, name, def, timers, newPdu, newTor)
 }
 
@@ -62,10 +62,10 @@ func newRack(ctx context.Context, name string, def *pb.ExternalRack, timers *tim
 func newRackInternal(
 	ctx context.Context,
 	name string,
-	def *pb.ExternalRack,
+	def *pb.External_Rack,
 	timers *timestamp.Timers,
-	pduFunc func(*pb.ExternalPdu, *Rack) *pdu,
-	torFunc func(*pb.ExternalTor, *Rack) *tor) *Rack {
+	pduFunc func(*pb.External_Pdu, *Rack) *pdu,
+	torFunc func(*pb.External_Tor, *Rack) *tor) *Rack {
 	r := &Rack{
 		name:      name,
 		ch:        make(chan sm.Envelope, rackQueueDepth),

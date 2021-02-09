@@ -12,8 +12,8 @@ import (
 	"github.com/Jim3Things/CloudChamber/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/internal/sm"
 	"github.com/Jim3Things/CloudChamber/internal/tracing"
-    "github.com/Jim3Things/CloudChamber/pkg/errors"
-    "github.com/Jim3Things/CloudChamber/test/utilities"
+	"github.com/Jim3Things/CloudChamber/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/test/utilities"
 )
 
 type RackTestSuite struct {
