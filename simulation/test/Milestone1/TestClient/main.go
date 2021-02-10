@@ -83,7 +83,7 @@ func main() {
 		panic(err)
 	}
 
-	list := &pb.ExternalZoneSummary{}
+	list := &pb.External_ZoneSummary{}
 	err = getJSONBody(resp, list)
 	if err != nil {
 		panic(err)
