@@ -52,11 +52,23 @@ PROTO_GEN_FILES = \
     pkg/protos/services/trace_sink.pb.go
 
 PROTO_CS_GEN_FILES = \
-	pkg/protos/admin/simulation.pb.cs \
+    pkg/protos/admin/simulation.pb.cs \
     pkg/protos/admin/users.pb.cs \
     pkg/protos/common/completion.pb.cs \
     pkg/protos/common/timestamp.pb.cs \
     pkg/protos/log/entry.pb.cs \
+    pkg/protos/inventory/capacity.pb.cs \
+    pkg/protos/inventory/common.pb.cs \
+    pkg/protos/inventory/actual.pb.cs \
+    pkg/protos/inventory/definition.pb.cs \
+    pkg/protos/inventory/external.pb.cs \
+    pkg/protos/inventory/internal.pb.cs \
+    pkg/protos/inventory/store.pb.cs \
+    pkg/protos/inventory/target.pb.cs \
+    pkg/protos/workload/actual.pb.cs \
+    pkg/protos/workload/external.pb.cs \
+    pkg/protos/workload/internal.pb.cs \
+    pkg/protos/workload/target.pb.cs \
     pkg/protos/services/requests.pb.cs
 
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
@@ -263,7 +275,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go test -count=1 $(PROJECT)/internal/clients/inventory
 	go test -count=1 $(PROJECT)/internal/clients/store
 	go test -count=1 $(PROJECT)/internal/clients/timestamp
-	go test -count=1 $(PROJECT)/internal/config
+	go test -count=1 $(PROJECT)/internal/common
 	go test -count=1 $(PROJECT)/internal/services/frontend
 	go test -count=1 $(PROJECT)/internal/services/inventory
 	go test -count=1 $(PROJECT)/internal/services/repair_manager/inventory

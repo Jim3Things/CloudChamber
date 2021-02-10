@@ -66,8 +66,8 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	rackCount, maxBlades, maxCapacity := dbInventory.GetMemoData()
-	res := &pb.ExternalZoneSummary{
-		Racks:         make(map[string]*pb.ExternalRackSummary, rackCount),
+	res := &pb.External_ZoneSummary{
+		Racks:         make(map[string]*pb.External_RackSummary, rackCount),
 		MaxBladeCount: maxBlades,
 		MaxCapacity:   maxCapacity,
 	}
@@ -84,7 +84,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	err = dbInventory.ScanRacks(func(name string) error {
 		target := fmt.Sprintf("%s%s/", b, name)
 
-		res.Racks[name] = &pb.ExternalRackSummary{Uri: target}
+		res.Racks[name] = &pb.External_RackSummary{Uri: target}
 
 		tracing.Info(ctx, "   Listing rack %q at %q", name, target)
 

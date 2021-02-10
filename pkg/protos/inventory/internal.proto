@@ -1,4 +1,4 @@
-// This file contains the internal definitions used by the stor to provide the
+// This file contains the internal definitions used by the store to provide the
 // internal, universal representation of the various items in the inventory. All
 // other forms can be converted into the internal format and likewise, all the
 // other forms can be generated from the internal format.
@@ -13,86 +13,87 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/definition.proto
 import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/target.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+option csharp_namespace = "CloudChamber.Protos.Inventory";
 
-message internal {
+message Internal {
 
-    message pdu {
-        definition.pdu definition = 1;
-        target.pdu target = 2;
-        actual.pdu actual = 3;
+    message Pdu {
+        Definition.Pdu definition = 1;
+        Target.Pdu target = 2;
+        Actual.Pdu actual = 3;
     }
 
-    message tor {
-        definition.tor definition = 1;
-        target.tor target = 2;
-        actual.tor actual = 3;
+    message Tor {
+        Definition.Tor definition = 1;
+        Target.Tor target = 2;
+        Actual.Tor actual = 3;
     }
 
-    message blade {
-        definition.blade definition = 1;
-        target.blade target = 2;
-        actual.blade actual = 3;
+    message Blade {
+        Definition.Blade definition = 1;
+        Target.Blade target = 2;
+        Actual.Blade actual = 3;
     }
 
-    message rack {
-        rack_details details = 1;
+    message Rack {
+        RackDetails details = 1;
 
         // Specify the pdus in the rack.  Each pdu is defined by an integer index within
         // that rack, which is used here as the key.
         //
-        map<int64, definition.pdu> pdus = 10;
-    
+        map<int64, Definition.Pdu> pdus = 10;
+
         // specify the tors in the rack.  Each tor is defined by an integer index within
         // that rack, which is used here as the key.
         //
-        map<int64, definition.tor> tors = 11;
-    
+        map<int64, Definition.Tor> tors = 11;
+
         // specify the blades in the rack.  Each blade is defined by an integer index within
         // that rack, which is used here as the key.
         //
-        map<int64, definition.blade> blades = 12;
+        map<int64, Definition.Blade> blades = 12;
     }
 
-    // A complete description of a zone internal "in-memory" usage as oppoesed to reading
+    // A complete description of a zone internal "in-memory" usage as opposed to reading
     // and/or writing individual zone records from the store, i.e. a "container" structure.
     //
-    message zone {
-        zone_details details = 1;
+    message Zone {
+        ZoneDetails details = 1;
 
         // The set of racks forming an individual zone. All racks in the zone are affected
         // by the properties of the zone or any conditions affecting the zone. Each rack is
         // defined by a string name within the zone, and that name is used here as a key.
         //
-        map<string, definition.rack> racks = 10;
+        map<string, Definition.Rack> racks = 10;
     }
 
     // A complete description of a region internal "in-memory" usage as opposed to reading
     // and/or writing individual region records from the store, i.e. a "container" structure.
     //
-    message region {
-        region_details details = 1;
+    message Region {
+        RegionDetails details = 1;
 
-        map<string, definition.zone> zones = 10;
+        map<string, Definition.Zone> zones = 10;
     }
 
     // Current tgt and act are experimental to see what they look like and how they might
     // operate. Expect changes in this area.
     //
     message record_target {
-        map<int64, target.pdu>   pdus   = 10;
-        map<int64, target.tor>   tors   = 11;
-        map<int64, target.blade> blades = 12;
+        map<int64, Target.Pdu>   pdus   = 10;
+        map<int64, Target.Tor>   tors   = 11;
+        map<int64, Target.Blade> blades = 12;
     }
 
     message record_actual {
-        map<int64, actual.pdu>   pdus   = 10;
-        map<int64, actual.tor>   tors   = 11;
-        map<int64, actual.blade> blades = 12;
+        map<int64, Actual.Pdu>   pdus   = 10;
+        map<int64, Actual.Tor>   tors   = 11;
+        map<int64, Actual.Blade> blades = 12;
     }
 
     message record_observed {
-        map<int64, actual.pdu>   pdus   = 10;
-        map<int64, actual.tor>   tors   = 11;
-        map<int64, actual.blade> blades = 12;
+        map<int64, Actual.Pdu>   pdus   = 10;
+        map<int64, Actual.Tor>   tors   = 11;
+        map<int64, Actual.Blade> blades = 12;
     }
 }

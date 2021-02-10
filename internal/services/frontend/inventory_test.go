@@ -20,9 +20,9 @@ type InventoryTestSuite struct {
 	testSuiteCore
 }
 
-func (ts *InventoryTestSuite) racksPath() string { return ts.baseURI + "/api/racks/" }
-func (ts *InventoryTestSuite) rackInPath(rack string) string { return ts.racksPath() + rack + "/"}
-func (ts *InventoryTestSuite) bladesInPath(rack string) string { return ts.rackInPath(rack) + "blades/"}
+func (ts *InventoryTestSuite) racksPath() string               { return ts.baseURI + "/api/racks/" }
+func (ts *InventoryTestSuite) rackInPath(rack string) string   { return ts.racksPath() + rack + "/" }
+func (ts *InventoryTestSuite) bladesInPath(rack string) string { return ts.rackInPath(rack) + "blades/" }
 func (ts *InventoryTestSuite) bladeInPath(rack string, bladeID int) string {
 	return fmt.Sprintf("%s%d", ts.bladesInPath(rack), bladeID)
 }
@@ -38,7 +38,7 @@ func (ts *InventoryTestSuite) TestListRacks() {
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	list := &pb.ExternalZoneSummary{}
+	list := &pb.External_ZoneSummary{}
 	err := ts.getJSONBody(response, list)
 	assert.Nilf(err, "Failed to convert racks list to valid json.  err: %v", err)
 
@@ -73,7 +73,7 @@ func (ts *InventoryTestSuite) TestRackRead() {
 
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	rack := &pb.ExternalRack{}
+	rack := &pb.External_Rack{}
 	err := ts.getJSONBody(response, rack)
 	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
@@ -183,7 +183,7 @@ func (ts *InventoryTestSuite) TestStringBlade() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	request := httptest.NewRequest("GET", ts.bladesInPath("rack1") + "Jeff", nil)
+	request := httptest.NewRequest("GET", ts.bladesInPath("rack1")+"Jeff", nil)
 	request.Header.Set("Content-Type", "application/json")
 	response = ts.doHTTP(request, response.Cookies())
 

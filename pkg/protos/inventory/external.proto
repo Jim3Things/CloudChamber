@@ -11,38 +11,40 @@ package inventory;
 import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+option csharp_namespace = "CloudChamber.Protos.Inventory";
 
-message external {
+message External {
 
     // The two types here are common overhead items in a rack.  All are pure skeletons at this point.
-    // Note that all have implied connectivity with all other items in a rack.  Currently elided in the external model,
-    // but used in the other models.
+    // Note that all have implied connectivity with all other items in a rack.  Currently elided in
+    // the external model, but used in the other models.
 
     // Power distribution unit.  Network accessible power controller
-    message pdu {
+    message Pdu {
         // Note that full internal name for a pdu is <rackname>-pdu-0
     }
 
     // Rack-level network switch.
-    message tor {
+    message Tor {
         // Note that full internal name for a tor is <rackname>-tor-0
     }
 
-    message rack {
+    message Rack {
         // This assumes a single overhead item per rack.  May want to allow multiple to handle
         // subdivisions for power or network, say.
 
-        pdu pdu = 1;
-        tor tor = 2;
+        Pdu pdu = 1;
+        Tor tor = 2;
 
-        // specify the blades in the rack.  Each blade is defined by an integer index within that rack, which is used
-        // here as the key.
-        map<int64, blade_capacity> blades = 3;
+        // specify the blades in the rack.  Each blade is defined by an integer index within that
+        // rack, which is used here as the key.
+        map<int64, BladeCapacity> blades = 3;
     }
 
-    // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in the map below.
-    message zone {
-        map<string, rack> racks = 1;
+    // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in
+    // the map below.
+    message Zone {
+        map<string, Rack> racks = 1;
     }
 
     // The following messages are used to format JSON strings for use by
@@ -50,20 +52,20 @@ message external {
     // to be needed by the common callers.
 
     // Rack list entry item
-    message rack_summary {
+    message RackSummary {
         // host relative URI that can be used to retrieve its details
         string uri = 1;
     }
 
     // Summary of the full inventory
-    message zone_summary {
+    message ZoneSummary {
         // Summary information about all known racks
-        map<string, rack_summary> racks = 1;
+        map<string, RackSummary> racks = 1;
 
         // The largest number of blades held in any rack
         int64 max_blade_count = 2;
 
         // The largest capacity values found in any blade
-        blade_capacity max_capacity = 3;
+        BladeCapacity max_capacity = 3;
     }
 }

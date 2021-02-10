@@ -3,6 +3,7 @@ syntax = "proto3";
 package workload;
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/workload";
+option csharp_namespace = "CloudChamber.Protos.Workload";
 
 message internal {
 

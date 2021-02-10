@@ -51,8 +51,8 @@ message actual {
         message blade_details {
             base_status status = 1;
 
-            inventory.blade_capacity present = 2;
-            inventory.blade_capacity used = 3;
+            inventory.BladeCapacity present = 2;
+            inventory.BladeCapacity used = 3;
 
             // TODO: We will probably want a list of the scheduling decision IDs that
             //       are represented in the used capacity.

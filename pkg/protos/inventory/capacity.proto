@@ -12,12 +12,13 @@ syntax = "proto3";
 package inventory;
 
 option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+option csharp_namespace = "CloudChamber.Protos.Inventory";
 
 // Describe the capabilities of a physical blade
 // TODO: Do we need anything about host system software, or is this purely physical attributes?
 
 // Define the set of known accelerators, such as GPUs or FPGAs.
-message accelerator {
+message Accelerator {
     message NVIDIA_V100 {}
 
     oneof accelerator_type {
@@ -26,15 +27,15 @@ message accelerator {
 }
 
 // Defines the capacity dimensions and values for a blade
-message blade_capacity {
+message BladeCapacity {
     // The number of cores on the blade.
     int64 cores = 1;
 
     // The amount of memory, in megabytes
     int64 memory_in_mb = 2;
 
-    // The amount of local disk space, in gigabytes.  Note that this assumes either one disk, or that the disks are
-    // mounted collectively as a single volume
+    // The amount of local disk space, in gigabytes.  Note that this assumes either one disk,
+    // or that the disks are mounted collectively as a single volume
     int64 disk_in_gb = 3;
 
     // The network bandwidth from the host in megabits per second
@@ -44,10 +45,10 @@ message blade_capacity {
     string arch = 5;
 
     // Supply the set of accelerators for this blade, including none.
-    repeated accelerator accelerators = 6;
+    repeated Accelerator accelerators = 6;
 }
 
-message instance_requirements {
+message InstanceRequirements {
     // The number of (potentially fractional) cores used by the instance.
     float cores = 1;
 
@@ -61,5 +62,5 @@ message instance_requirements {
     string arch = 5;
 
     // Supply the set of accelerators required by this instance, including none.
-    repeated accelerator accelerators = 6;
+    repeated Accelerator accelerators = 6;
 }
