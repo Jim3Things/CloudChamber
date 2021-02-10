@@ -90,4 +90,3 @@ func parentIsInfra(parent trace.Span) string {
 
 	return tracing.IsNotInfraSource
 }
-

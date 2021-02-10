@@ -677,7 +677,7 @@ func (store *Store) DeleteMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 			condition = ConditionUnconditional
 		}
 
-		request.Records[k]    = Record{Revision: rev}
+		request.Records[k] = Record{Revision: rev}
 		request.Conditions[k] = condition
 	}
 
@@ -754,5 +754,3 @@ func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map
 
 	return &recs, response.Revision, nil
 }
-
-

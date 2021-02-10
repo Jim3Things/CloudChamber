@@ -20,9 +20,11 @@ type InventoryTestSuite struct {
 	testSuiteCore
 }
 
-func (ts *InventoryTestSuite) racksPath() string               { return ts.baseURI + "/api/racks/" }
-func (ts *InventoryTestSuite) rackInPath(rack string) string   { return ts.racksPath() + rack + "/" }
-func (ts *InventoryTestSuite) bladesInPath(rack string) string { return ts.rackInPath(rack) + "blades/" }
+func (ts *InventoryTestSuite) racksPath() string             { return ts.baseURI + "/api/racks/" }
+func (ts *InventoryTestSuite) rackInPath(rack string) string { return ts.racksPath() + rack + "/" }
+func (ts *InventoryTestSuite) bladesInPath(rack string) string {
+	return ts.rackInPath(rack) + "blades/"
+}
 func (ts *InventoryTestSuite) bladeInPath(rack string, bladeID int) string {
 	return fmt.Sprintf("%s%d", ts.bladesInPath(rack), bladeID)
 }

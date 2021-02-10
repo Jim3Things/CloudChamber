@@ -21,4 +21,3 @@ func NewDelay(ctx context.Context, dueTime int64, ch chan *sm.Response) *Delay {
 
 	return msg
 }
-

@@ -3,9 +3,9 @@
 package inventory
 
 import (
-    "fmt"
+	"fmt"
 
-    "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
 // Validate is a method that verifies that the associated ExternalRack instance

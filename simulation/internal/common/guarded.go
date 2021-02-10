@@ -29,4 +29,3 @@ func (g *Guarded) Pass(check int64, at int64) bool {
 func (g *Guarded) AdvanceGuard(at int64) {
 	g.Guard = MaxInt64(g.Guard, at)
 }
-

@@ -2,7 +2,7 @@
 package services
 
 import (
-    "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
 // Validate is a function to ensure that the policy request values are

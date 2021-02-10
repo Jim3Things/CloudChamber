@@ -449,6 +449,7 @@ func (ts *StepperTestSuite) TestStepperResetWithActiveDelays() {
 	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
 	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Invalid, &duration.Duration{Seconds: 0}, 0)
 }
+
 // Verify the basic operations while under the 'Invalid' policy fai.
 func (ts *StepperTestSuite) TestInvalidOperations() {
 	assert := ts.Assert()

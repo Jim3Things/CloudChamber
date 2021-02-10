@@ -166,7 +166,7 @@ func (ts *timerTestSuite) TestStartExpireTwice() {
 	require.NotNil(timers.Cancel(id))
 }
 
-func (ts * timerTestSuite) validateTimerState(timers *Timers, idLen int, waiterLen int, nextID int, active bool, epoch int) {
+func (ts *timerTestSuite) validateTimerState(timers *Timers, idLen int, waiterLen int, nextID int, active bool, epoch int) {
 	assert := ts.Assert()
 
 	timers.m.Lock()

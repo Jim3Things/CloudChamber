@@ -8,7 +8,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
-    "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
 // InvalidTargetResponse constructs a failure response message with an invalid

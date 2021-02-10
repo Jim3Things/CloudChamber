@@ -1,12 +1,12 @@
 package log
 
 import (
-    "errors"
-    "fmt"
+	"errors"
+	"fmt"
 
-    "go.opentelemetry.io/otel/api/trace"
+	"go.opentelemetry.io/otel/api/trace"
 
-    errors2 "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	errors2 "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
 // Validate verifies that the various IDs are correctly structured.
@@ -21,8 +21,7 @@ func (x *Entry) Validate(prefix string) error {
 	}
 
 	// Parent ID must be legal (it can be all zeroes, though)
-	if _, err := trace.SpanIDFromHex(x.ParentID);
-		err != nil && !errors.Is(err, trace.ErrNilSpanID) {
+	if _, err := trace.SpanIDFromHex(x.ParentID); err != nil && !errors.Is(err, trace.ErrNilSpanID) {
 		return errors2.ErrInvalidID{
 			Field: fmt.Sprintf("%sParentID", prefix),
 			Type:  "parent",
@@ -48,7 +47,7 @@ func (x *Entry) Validate(prefix string) error {
 			}
 		}
 
-		if  linkTraceID, err := trace.IDFromHex(x.LinkTraceID); err != nil || !linkTraceID.IsValid() {
+		if linkTraceID, err := trace.IDFromHex(x.LinkTraceID); err != nil || !linkTraceID.IsValid() {
 			return errors2.ErrInvalidID{
 				Field: fmt.Sprintf("%sLinkTraceID", prefix),
 				Type:  "span",
@@ -126,7 +125,7 @@ func (x *Event) Validate(prefix string) error {
 
 		if len(x.LinkId) == 0 {
 			return errors2.ErrMinLenString{
-				Field: fmt.Sprintf("%sLinkID", prefix),
+				Field:    fmt.Sprintf("%sLinkID", prefix),
 				Required: 1,
 				Actual:   int64(len(x.LinkId)),
 			}

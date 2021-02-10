@@ -49,7 +49,7 @@ type Server struct {
 	handler     http.Handler
 	cookieStore *sessions.CookieStore
 
-	startTime	time.Time
+	startTime time.Time
 }
 
 var (

@@ -44,7 +44,7 @@ func DoNotCompleteWithin(ch <-chan bool, delay time.Duration) bool {
 // value will have been read from the supplied channel.
 func DoNotCompleteWithinInterface(ch <-chan interface{}, delay time.Duration) interface{} {
 	select {
-	case res := <- ch:
+	case res := <-ch:
 		return res
 
 	case <-time.After(delay):

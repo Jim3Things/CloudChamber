@@ -7,7 +7,7 @@ import (
 
 type errInMatch struct {
 	keywords []string
-	source string
+	source   string
 }
 
 func (e errInMatch) Error() string {
@@ -22,25 +22,25 @@ func (e errInMatch) Error() string {
 // - When there is no error, the boolean array describes which keywords were matched .
 //  An element in that array is true if the element with the same index in the keywords
 //  array was matched.
-func Decode(keywords []string, source string) ([]bool, error){
+func Decode(keywords []string, source string) ([]bool, error) {
 	var test []string = strings.Split(source, ",")
-		outputKeywords := make([]bool, len(keywords))
-	
-	for _, t := range test{
+	outputKeywords := make([]bool, len(keywords))
+
+	for _, t := range test {
 		t2 := strings.TrimSpace(t)
 		found := false
-		
-		for i, k := range keywords{
+
+		for i, k := range keywords {
 			if k == t2 {
 				outputKeywords[i] = true
-				found = true	
+				found = true
 			}
 		}
 
 		if found == false {
 			return nil, errInMatch{
 				keywords: keywords,
-				source: source,
+				source:   source,
 			}
 		}
 	}

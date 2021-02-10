@@ -149,8 +149,8 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 
 		assert.True(t, r.Details.Enabled)
 		assert.Equal(t, pb.Condition_operational, r.Details.Condition)
-		assert.Equal(t, "DC-PNW-0-" + name, r.Details.Location)
-		assert.Equal(t, "RackName: " + name, r.Details.Notes)
+		assert.Equal(t, "DC-PNW-0-"+name, r.Details.Location)
+		assert.Equal(t, "RackName: "+name, r.Details.Notes)
 
 		assert.Equal(t, 1, len(r.Pdus))
 		assert.Equal(t, 1, len(r.Tors))
@@ -214,11 +214,11 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		assert.True(t, b1.Details.Enabled)
 		assert.Equal(t, pb.Condition_operational, b1.Details.Condition)
 
-		assert.Equal(t, int64(16),    b1.Capacity.Cores)
+		assert.Equal(t, int64(16), b1.Capacity.Cores)
 		assert.Equal(t, int64(16834), b1.Capacity.MemoryInMb)
-		assert.Equal(t, int64(240),   b1.Capacity.DiskInGb)
-		assert.Equal(t, int64(2048),  b1.Capacity.NetworkBandwidthInMbps)
-		assert.Equal(t, "X64",        b1.Capacity.Arch)
+		assert.Equal(t, int64(240), b1.Capacity.DiskInGb)
+		assert.Equal(t, int64(2048), b1.Capacity.NetworkBandwidthInMbps)
+		assert.Equal(t, "X64", b1.Capacity.Arch)
 
 		b2, ok := r.Blades[2]
 		require.True(t, ok)
@@ -226,11 +226,11 @@ func TestReadInventoryDefinitionFromFile(t *testing.T) {
 		assert.True(t, b2.Details.Enabled)
 		assert.Equal(t, pb.Condition_operational, b2.Details.Condition)
 
-		assert.Equal(t, int64(8),     b2.Capacity.Cores)
+		assert.Equal(t, int64(8), b2.Capacity.Cores)
 		assert.Equal(t, int64(16834), b2.Capacity.MemoryInMb)
-		assert.Equal(t, int64(120),   b2.Capacity.DiskInGb)
-		assert.Equal(t, int64(2048),  b2.Capacity.NetworkBandwidthInMbps)
-		assert.Equal(t, "X64",        b2.Capacity.Arch)
+		assert.Equal(t, int64(120), b2.Capacity.DiskInGb)
+		assert.Equal(t, int64(2048), b2.Capacity.NetworkBandwidthInMbps)
+		assert.Equal(t, "X64", b2.Capacity.Arch)
 	}
 }
 

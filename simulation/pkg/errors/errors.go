@@ -65,7 +65,7 @@ var (
 
 	// ErrNullItem indicates the supplied item does not exist
 	//
-	ErrNullItem             = errors.New("item not initialized")
+	ErrNullItem = errors.New("item not initialized")
 
 	// ErrFunctionNotAvailable indicates the specified object does
 	// not have the requested method.
@@ -452,7 +452,7 @@ func (e ErrRegionStaleVersion) Error() string {
 //
 type ErrZoneAlreadyExists struct {
 	Region string
-	Zone string
+	Zone   string
 }
 
 func (e ErrZoneAlreadyExists) Error() string {
@@ -464,7 +464,7 @@ func (e ErrZoneAlreadyExists) Error() string {
 //
 type ErrZoneNotFound struct {
 	Region string
-	Zone string
+	Zone   string
 }
 
 func (e ErrZoneNotFound) Error() string {
@@ -476,7 +476,7 @@ func (e ErrZoneNotFound) Error() string {
 //
 type ErrZoneIndexNotFound struct {
 	Region string
-	Zone string
+	Zone   string
 }
 
 func (e ErrZoneIndexNotFound) Error() string {
@@ -488,7 +488,7 @@ func (e ErrZoneIndexNotFound) Error() string {
 //
 type ErrZoneChildIndexNotFound struct {
 	Region string
-	Zone string
+	Zone   string
 }
 
 func (e ErrZoneChildIndexNotFound) Error() string {
@@ -501,7 +501,7 @@ func (e ErrZoneChildIndexNotFound) Error() string {
 //
 type ErrZoneStaleVersion struct {
 	Region string
-	Zone string
+	Zone   string
 }
 
 func (e ErrZoneStaleVersion) Error() string {
@@ -513,8 +513,8 @@ func (e ErrZoneStaleVersion) Error() string {
 //
 type ErrRackAlreadyExists struct {
 	Region string
-	Zone string
-	Rack string
+	Zone   string
+	Rack   string
 }
 
 func (e ErrRackAlreadyExists) Error() string {
@@ -526,8 +526,8 @@ func (e ErrRackAlreadyExists) Error() string {
 //
 type ErrRackNotFound struct {
 	Region string
-	Zone string
-	Rack string
+	Zone   string
+	Rack   string
 }
 
 func (e ErrRackNotFound) Error() string {
@@ -539,8 +539,8 @@ func (e ErrRackNotFound) Error() string {
 //
 type ErrRackIndexNotFound struct {
 	Region string
-	Zone string
-	Rack string
+	Zone   string
+	Rack   string
 }
 
 func (e ErrRackIndexNotFound) Error() string {
@@ -552,9 +552,9 @@ func (e ErrRackIndexNotFound) Error() string {
 //
 type ErrRackPduIndexNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Pdu  int64
+	Zone   string
+	Rack   string
+	Pdu    int64
 }
 
 func (e ErrRackPduIndexNotFound) Error() string {
@@ -566,9 +566,9 @@ func (e ErrRackPduIndexNotFound) Error() string {
 //
 type ErrRackTorIndexNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Tor  int64
+	Zone   string
+	Rack   string
+	Tor    int64
 }
 
 func (e ErrRackTorIndexNotFound) Error() string {
@@ -580,8 +580,8 @@ func (e ErrRackTorIndexNotFound) Error() string {
 //
 type ErrRackBladeIndexNotFound struct {
 	Region string
-	Zone string
-	Rack string
+	Zone   string
+	Rack   string
 	Blade  int64
 }
 
@@ -594,9 +594,9 @@ func (e ErrRackBladeIndexNotFound) Error() string {
 //
 type ErrPduIndexInvalid struct {
 	Region string
-	Zone string
-	Rack string
-	Pdu string
+	Zone   string
+	Rack   string
+	Pdu    string
 }
 
 func (e ErrPduIndexInvalid) Error() string {
@@ -608,9 +608,9 @@ func (e ErrPduIndexInvalid) Error() string {
 //
 type ErrPduNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Pdu int64
+	Zone   string
+	Rack   string
+	Pdu    int64
 }
 
 func (e ErrPduNotFound) Error() string {
@@ -622,9 +622,9 @@ func (e ErrPduNotFound) Error() string {
 //
 type ErrPduIndexNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Pdu int64
+	Zone   string
+	Rack   string
+	Pdu    int64
 }
 
 func (e ErrPduIndexNotFound) Error() string {
@@ -636,9 +636,9 @@ func (e ErrPduIndexNotFound) Error() string {
 //
 type ErrPduAlreadyExists struct {
 	Region string
-	Zone string
-	Rack string
-	Pdu int64
+	Zone   string
+	Rack   string
+	Pdu    int64
 }
 
 func (e ErrPduAlreadyExists) Error() string {
@@ -650,9 +650,9 @@ func (e ErrPduAlreadyExists) Error() string {
 //
 type ErrTorIndexInvalid struct {
 	Region string
-	Zone string
-	Rack string
-	Tor string
+	Zone   string
+	Rack   string
+	Tor    string
 }
 
 func (e ErrTorIndexInvalid) Error() string {
@@ -664,9 +664,9 @@ func (e ErrTorIndexInvalid) Error() string {
 //
 type ErrTorNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Tor int64
+	Zone   string
+	Rack   string
+	Tor    int64
 }
 
 func (e ErrTorNotFound) Error() string {
@@ -678,9 +678,9 @@ func (e ErrTorNotFound) Error() string {
 //
 type ErrTorIndexNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Tor int64
+	Zone   string
+	Rack   string
+	Tor    int64
 }
 
 func (e ErrTorIndexNotFound) Error() string {
@@ -690,11 +690,11 @@ func (e ErrTorIndexNotFound) Error() string {
 // ErrTorAlreadyExists indicates the attempt to create a new zone record
 // failed as that zone already exists.
 //
-type ErrTorAlreadyExists  struct {
+type ErrTorAlreadyExists struct {
 	Region string
-	Zone string
-	Rack string
-	Tor int64
+	Zone   string
+	Rack   string
+	Tor    int64
 }
 
 func (e ErrTorAlreadyExists) Error() string {
@@ -706,9 +706,9 @@ func (e ErrTorAlreadyExists) Error() string {
 //
 type ErrBladeIndexInvalid struct {
 	Region string
-	Zone string
-	Rack string
-	Blade string
+	Zone   string
+	Rack   string
+	Blade  string
 }
 
 func (e ErrBladeIndexInvalid) Error() string {
@@ -720,9 +720,9 @@ func (e ErrBladeIndexInvalid) Error() string {
 //
 type ErrBladeNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Blade int64
+	Zone   string
+	Rack   string
+	Blade  int64
 }
 
 func (e ErrBladeNotFound) Error() string {
@@ -734,9 +734,9 @@ func (e ErrBladeNotFound) Error() string {
 //
 type ErrBladeIndexNotFound struct {
 	Region string
-	Zone string
-	Rack string
-	Blade int64
+	Zone   string
+	Rack   string
+	Blade  int64
 }
 
 func (e ErrBladeIndexNotFound) Error() string {
@@ -748,9 +748,9 @@ func (e ErrBladeIndexNotFound) Error() string {
 //
 type ErrBladeAlreadyExists struct {
 	Region string
-	Zone string
-	Rack string
-	Blade int64
+	Zone   string
+	Rack   string
+	Blade  int64
 }
 
 func (e ErrBladeAlreadyExists) Error() string {
@@ -1191,7 +1191,7 @@ func (epna ErrPortsNotAvailable) Error() string {
 	return fmt.Sprintf("CloudChamber: %q ports not available", string(epna))
 }
 
-// ErrCapacityNotAvailable indicates the requested capacity information for 
+// ErrCapacityNotAvailable indicates the requested capacity information for
 // the item have not yet been establiehed.
 //
 type ErrCapacityNotAvailable string
@@ -1221,5 +1221,3 @@ type ErrIndexKeyValueMismatch struct {
 func (ekvm ErrIndexKeyValueMismatch) Error() string {
 	return fmt.Sprintf("CloudChamber: mismatch in index key %q for returned value %q in the %q namespace", ekvm.Key, ekvm.Value, ekvm.Namespace)
 }
-
-

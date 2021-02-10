@@ -105,7 +105,6 @@ func (ts *timestampTestSuite) TestForcedError() {
 	assert.Equal(int64(0), cts.Ticks)
 }
 
-
 func TestTimestampTestSuite(t *testing.T) {
 	suite.Run(t, new(timestampTestSuite))
 }

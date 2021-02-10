@@ -25,7 +25,7 @@ func Interceptor(
 	tag := calculateTag(metadataCopy.Get(tracing.LinkTagKey))
 
 	entries, spanCtx := grpctrace.Extract(ctxIn, &metadataCopy)
-	ctx := correlation.ContextWithMap(ctxIn, correlation.NewMap(correlation.MapUpdate { MultiKV: entries }))
+	ctx := correlation.ContextWithMap(ctxIn, correlation.NewMap(correlation.MapUpdate{MultiKV: entries}))
 
 	ctx, span := tracing.StartSpan(
 		ctx,

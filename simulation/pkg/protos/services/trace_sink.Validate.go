@@ -1,7 +1,7 @@
 package services
 
 import (
-    "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
 func (x *AppendRequest) Validate() error {

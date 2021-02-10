@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
-    "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
 // TimerExpiry is the message used to notify a simulated inventory element that

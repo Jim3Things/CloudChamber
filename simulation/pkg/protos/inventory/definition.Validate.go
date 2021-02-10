@@ -3,9 +3,9 @@
 package inventory
 
 import (
-    "fmt"
+	"fmt"
 
-    "github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
 const minPorts = int64(0)
@@ -14,7 +14,7 @@ const maxPorts = int64(1000)
 // Validate is a method that verifies that the associated DefinitionPdu instance
 // has the expected number of ports and is semantically legal
 //
-func(x *Definition_Pdu) Validate(prefix string, ports int64) error {
+func (x *Definition_Pdu) Validate(prefix string, ports int64) error {
 
 	actual := int64(len(x.Ports))
 
@@ -35,7 +35,7 @@ func(x *Definition_Pdu) Validate(prefix string, ports int64) error {
 // For example, check for errors such as the pdu being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *Definition_Pdu) Verify() error {
+func (x *Definition_Pdu) Verify() error {
 
 	return x.check("")
 }
@@ -46,10 +46,10 @@ func(x *Definition_Pdu) Verify() error {
 // For example, check for errors such as the pdu being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *Definition_Pdu) check(prefix string) error {
+func (x *Definition_Pdu) check(prefix string) error {
 
 	prefixedPorts := prefix + "Ports"
-	prefixedItem  := prefix + "Item"
+	prefixedItem := prefix + "Item"
 
 	portCount := int64(len(x.Ports))
 
@@ -116,7 +116,7 @@ func(x *Definition_Pdu) check(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionTor instance
 // has the expected number of ports and is semantically legal
 //
-func(x *Definition_Tor) Validate(prefix string, ports int64) error {
+func (x *Definition_Tor) Validate(prefix string, ports int64) error {
 
 	actual := int64(len(x.Ports))
 
@@ -137,7 +137,7 @@ func(x *Definition_Tor) Validate(prefix string, ports int64) error {
 // For example, check for errors such as the tor being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *Definition_Tor) Verify() error {
+func (x *Definition_Tor) Verify() error {
 
 	return x.check("")
 }
@@ -148,10 +148,10 @@ func(x *Definition_Tor) Verify() error {
 // For example, check for errors such as the tor being wired to itself, the
 // port being wired but without an associated item etc.
 //
-func(x *Definition_Tor) check(prefix string) error {
+func (x *Definition_Tor) check(prefix string) error {
 
 	prefixedPorts := prefix + "Ports"
-	prefixedItem  := prefix + "Item"
+	prefixedItem := prefix + "Item"
 
 	portCount := int64(len(x.Ports))
 
@@ -307,7 +307,6 @@ func (x *Definition_Zone) Validate() error {
 			return err
 		}
 	}
-
 
 	// All correct
 	//

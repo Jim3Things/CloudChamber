@@ -73,7 +73,7 @@ const (
 	// retrieved from the external configuration file. It is not intended
 	// for permananet usage.
 	//
-	DefaultZone   = "DefZone"
+	DefaultZone = "DefZone"
 
 	// DefinitionTable is a constant to indicate the inventory operation should be
 	// performed against the inventory definition table for the item of interest.
@@ -81,7 +81,7 @@ const (
 	DefinitionTable = "definition"
 
 	// DefinitionTableStdTest is a constant to indicate the inventory operation should be
-	// performed against the test inventory definition table for the standard test 
+	// performed against the test inventory definition table for the standard test
 	// inventory for the item of interest.
 	//
 	DefinitionTableStdTest = "definitionstdtest"
@@ -89,17 +89,17 @@ const (
 	// ActualTable is a constant to indicate the inventory operation should be
 	// performed against the inventory actual state table for the item of interest.
 	//
-	ActualTable     = "actual"
+	ActualTable = "actual"
 
 	// ObservedTable is a constant to indicate the inventory operation should be
 	// performed against the inventory observed state table for the item of interest.
 	//
-	ObservedTable   = "observed"
+	ObservedTable = "observed"
 
 	// TargetTable is a constant to indicate the inventory operation should be
 	// performed against the inventory target state table for the item of interest.
 	//
-	TargetTable     = "target"
+	TargetTable = "target"
 
 	prefixRegion = "region"
 	prefixZone   = "zone"
@@ -108,25 +108,25 @@ const (
 	prefixPdu    = "pdu"
 	prefixTor    = "tor"
 
-	keyFormatIndexRegions  = "%s/index/" + prefixRegion + "s/"
-	keyFormatIndexZones    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "s/"
-	keyFormatIndexRacks    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "s/"
-	keyFormatIndexPdus     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "s/"
-	keyFormatIndexTors     = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "s/"
-	keyFormatIndexBlades   = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "s/"
+	keyFormatIndexRegions = "%s/index/" + prefixRegion + "s/"
+	keyFormatIndexZones   = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "s/"
+	keyFormatIndexRacks   = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "s/"
+	keyFormatIndexPdus    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu + "s/"
+	keyFormatIndexTors    = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor + "s/"
+	keyFormatIndexBlades  = "%s/index/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "s/"
 
-	keyFormatIndexEntryRegion  = keyFormatIndexRegions + "%s"
-	keyFormatIndexEntryZone    = keyFormatIndexZones   + "%s"
-	keyFormatIndexEntryRack    = keyFormatIndexRacks   + "%s"
-	keyFormatIndexEntryPdu     = keyFormatIndexPdus    + "%d"
-	keyFormatIndexEntryTor     = keyFormatIndexTors    + "%d"
-	keyFormatIndexEntryBlade   = keyFormatIndexBlades  + "%d"
+	keyFormatIndexEntryRegion = keyFormatIndexRegions + "%s"
+	keyFormatIndexEntryZone   = keyFormatIndexZones + "%s"
+	keyFormatIndexEntryRack   = keyFormatIndexRacks + "%s"
+	keyFormatIndexEntryPdu    = keyFormatIndexPdus + "%d"
+	keyFormatIndexEntryTor    = keyFormatIndexTors + "%d"
+	keyFormatIndexEntryBlade  = keyFormatIndexBlades + "%d"
 
 	keyFormatRegion = "%s/data/" + prefixRegion + "/%s"
 	keyFormatZone   = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s"
 	keyFormatRack   = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s"
-	keyFormatPdu    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu   + "/%d"
-	keyFormatTor    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor   + "/%d"
+	keyFormatPdu    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu + "/%d"
+	keyFormatTor    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor + "/%d"
 	keyFormatBlade  = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%d"
 
 	maxBladeID = int64(10 * 1000 * 1000)
@@ -135,16 +135,21 @@ const (
 )
 
 func verifyTable(table string) error {
-	switch (table) {
-	case DefinitionTable: return nil
-	case ActualTable:     return nil
-	case ObservedTable:   return nil
-	case TargetTable:     return nil
+	switch table {
+	case DefinitionTable:
+		return nil
+	case ActualTable:
+		return nil
+	case ObservedTable:
+		return nil
+	case TargetTable:
+		return nil
 
 	// Special case for a namespace only ever expected to be used
 	// in CloudChamber tests
 	//
-	case DefinitionTableStdTest: return nil
+	case DefinitionTableStdTest:
+		return nil
 
 	case "":
 		return errors.ErrTableNameMissing(table)
@@ -294,7 +299,7 @@ func verifyNamesBlade(table string, region string, zone string, rack string, ind
 
 // GetKeyForIndexRegion generates the key to discover the list of regions within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexRegion(table string) (key string, err error) {
 
 	if err = verifyTable(table); err != nil {
@@ -310,7 +315,7 @@ func GetKeyForIndexRegion(table string) (key string, err error) {
 
 // GetKeyForIndexZone generates the key to discover the list of zones within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexZone(table string, region string) (key string, err error) {
 
 	if err = verifyNamesRegion(table, region); err != nil {
@@ -327,7 +332,7 @@ func GetKeyForIndexZone(table string, region string) (key string, err error) {
 
 // GetKeyForIndexRack generates the key to discover the list of racks within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexRack(table string, region string, zone string) (key string, err error) {
 
 	if err = verifyNamesZone(table, region, zone); err != nil {
@@ -345,7 +350,7 @@ func GetKeyForIndexRack(table string, region string, zone string) (key string, e
 
 // GetKeyForIndexPdu generates the key to discover the list of pdus within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexPdu(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
@@ -364,7 +369,7 @@ func GetKeyForIndexPdu(table string, region string, zone string, rack string) (k
 
 // GetKeyForIndexTor generates the key to discover the list of tors within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexTor(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
@@ -383,7 +388,7 @@ func GetKeyForIndexTor(table string, region string, zone string, rack string) (k
 
 // GetKeyForIndexBlade generates the key to discover the list of blades within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexBlade(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
@@ -397,12 +402,12 @@ func GetKeyForIndexBlade(table string, region string, zone string, rack string) 
 		store.GetNormalizedName(zone),
 		store.GetNormalizedName(rack))
 
-		return key, nil
+	return key, nil
 }
 
 // GetKeyForIndexEntryRegion generates the key to create an index entry for a region within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexEntryRegion(table string, region string) (key string, err error) {
 
 	if err = verifyNamesRegion(table, region); err != nil {
@@ -419,7 +424,7 @@ func GetKeyForIndexEntryRegion(table string, region string) (key string, err err
 
 // GetKeyForIndexEntryZone generates the key to create an index entry for a zone within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexEntryZone(table string, region string, zone string) (key string, err error) {
 
 	if err = verifyNamesZone(table, region, zone); err != nil {
@@ -437,7 +442,7 @@ func GetKeyForIndexEntryZone(table string, region string, zone string) (key stri
 
 // GetKeyForIndexEntryRack generates the key to create an index entry for a rack within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexEntryRack(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
@@ -456,9 +461,9 @@ func GetKeyForIndexEntryRack(table string, region string, zone string, rack stri
 
 // GetKeyForIndexEntryPdu generates the key to create an index entry for a pdu within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexEntryPdu(table string, region string, zone string, rack string, pdu int64) (key string, err error) {
-	
+
 	if err = verifyNamesPdu(table, region, zone, rack, pdu); err != nil {
 		return key, err
 	}
@@ -476,7 +481,7 @@ func GetKeyForIndexEntryPdu(table string, region string, zone string, rack strin
 
 // GetKeyForIndexEntryTor generates the key to create an index entry for a tor within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexEntryTor(table string, region string, zone string, rack string, tor int64) (key string, err error) {
 
 	if err = verifyNamesTor(table, region, zone, rack, tor); err != nil {
@@ -496,7 +501,7 @@ func GetKeyForIndexEntryTor(table string, region string, zone string, rack strin
 
 // GetKeyForIndexEntryBlade generates the key to create an index entry for a blade within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForIndexEntryBlade(table string, region string, zone string, rack string, blade int64) (key string, err error) {
 
 	if err = verifyNamesBlade(table, region, zone, rack, blade); err != nil {
@@ -516,7 +521,7 @@ func GetKeyForIndexEntryBlade(table string, region string, zone string, rack str
 
 // GetKeyForRegion generates the key to operate on the record for a region within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForRegion(table string, region string) (key string, err error) {
 
 	if err = verifyNamesRegion(table, region); err != nil {
@@ -533,7 +538,7 @@ func GetKeyForRegion(table string, region string) (key string, err error) {
 
 // GetKeyForZone generates the key to operate on the record for a zone within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForZone(table string, region string, zone string) (key string, err error) {
 
 	if err = verifyNamesZone(table, region, zone); err != nil {
@@ -551,7 +556,7 @@ func GetKeyForZone(table string, region string, zone string) (key string, err er
 
 // GetKeyForRack generates the key to operate on the record for a rack within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForRack(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
@@ -570,9 +575,9 @@ func GetKeyForRack(table string, region string, zone string, rack string) (key s
 
 // GetKeyForPdu generates the key to operate on the record for a pdu within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForPdu(table string, region string, zone string, rack string, pdu int64) (key string, err error) {
-	
+
 	if err = verifyNamesPdu(table, region, zone, rack, pdu); err != nil {
 		return key, err
 	}
@@ -590,7 +595,7 @@ func GetKeyForPdu(table string, region string, zone string, rack string, pdu int
 
 // GetKeyForTor generates the key to operate on the record for a tor within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForTor(table string, region string, zone string, rack string, tor int64) (key string, err error) {
 
 	if err = verifyNamesTor(table, region, zone, rack, tor); err != nil {
@@ -610,7 +615,7 @@ func GetKeyForTor(table string, region string, zone string, rack string, tor int
 
 // GetKeyForBlade generates the key to operate on the record for a blade within a
 // specific table (definition, actual, observed, target)
-// 
+//
 func GetKeyForBlade(table string, region string, zone string, rack string, blade int64) (key string, err error) {
 
 	if err = verifyNamesBlade(table, region, zone, rack, blade); err != nil {
@@ -637,7 +642,7 @@ type inventoryRevision interface {
 	//
 	GetRevision() int64
 
-	// GetRevisionRecord returns the revision of the underlying store object as 
+	// GetRevisionRecord returns the revision of the underlying store object as
 	// determined at the time of the last Create(), Read() or Update() for the
 	// object. The record revision is not reset by a SetDetails() call and is
 	// used when performing either a conditional update or conditional delete
@@ -645,9 +650,9 @@ type inventoryRevision interface {
 	//
 	GetRevisionRecord() int64
 
-	// GetRevisionStore returns the revison of the underlying store ifself as 
+	// GetRevisionStore returns the revison of the underlying store ifself as
 	// determined at the time of the last Create() Read() for the object. The
-	// store revision is not reset by a SetDetails() call and is provided 
+	// store revision is not reset by a SetDetails() call and is provided
 	// for information only.
 	//
 	GetRevisionStore() int64
@@ -664,7 +669,7 @@ type inventoryRevision interface {
 	//
 	resetRevision() int64
 
-	// updateRevision is used to set/update the current revision information 
+	// updateRevision is used to set/update the current revision information
 	// as part of a successful invokation of a store routine.
 	//
 	updateRevisionInfo(rev int64) int64
@@ -699,7 +704,7 @@ type inventoryItem interface {
 	Create(ctx context.Context) (int64, error)
 
 	// Read issues a request to the underlying store to populate all the fields
-	// within the cursor object, including any attributes for that object or 
+	// within the cursor object, including any attributes for that object or
 	// other information specific to that object.
 	//
 	// This is not valid to call on a root object and doing so will return
@@ -707,9 +712,9 @@ type inventoryItem interface {
 	//
 	Read(ctx context.Context) (int64, error)
 
-	// Update will write a record the underlying store using the currenty 
+	// Update will write a record the underlying store using the currenty
 	// information  in the fields of the object. The update can be either
-	// unconditional by setting the unconditional parameter to true, or 
+	// unconditional by setting the unconditional parameter to true, or
 	// conditional based on the revision of the object compared to the
 	// revision of the associated record in the underlying store.
 	//
@@ -746,7 +751,7 @@ type inventoryItemNode interface {
 	// Note, this method does not populate the attributes of the new child
 	// object. To retrieve the attributes a Read() using the child must be
 	// performed.
-	// 
+	//
 	NewChild(ctx context.Context, name string) (*interface{}, error)
 
 	// ListChildren uses the current object to discover the names of all the
@@ -792,16 +797,16 @@ func (n *nullItem) updateRevisionInfo(ctx context.Context, rev int64) int64 {
 type inventoryItemRack interface {
 	inventoryItemNode
 
-	NewPdu(ctx context.Context,   name string) (*interface{}, error)
-	NewTor(ctx context.Context,   name string) (*interface{}, error)
+	NewPdu(ctx context.Context, name string) (*interface{}, error)
+	NewTor(ctx context.Context, name string) (*interface{}, error)
 	NewBlade(ctx context.Context, name string) (*interface{}, error)
 
-	ListPdus(ctx context.Context)   (int64, *map[int64]*interface{}, error)
-	ListTors(ctx context.Context)   (int64, *map[int64]*interface{}, error)
+	ListPdus(ctx context.Context) (int64, *map[int64]*interface{}, error)
+	ListTors(ctx context.Context) (int64, *map[int64]*interface{}, error)
 	ListBlades(ctx context.Context) (int64, *map[int64]*interface{}, error)
 
-	FetchPdus(ctx context.Context)   (int64, *map[int64]*interface{}, error)
-	FetchTors(ctx context.Context)   (int64, *map[int64]*interface{}, error)
+	FetchPdus(ctx context.Context) (int64, *map[int64]*interface{}, error)
+	FetchTors(ctx context.Context) (int64, *map[int64]*interface{}, error)
 	FetchBlades(ctx context.Context) (int64, *map[int64]*interface{}, error)
 }
 
@@ -829,10 +834,9 @@ type inventoryBlade interface {
 	GetBootInfo(ctx context.Context) (bool, *pb.BladeBootInfo)
 }
 
-
 // Provide a set of definitions to cope with calls to a "null" object.
 //
-type nullItem struct {}
+type nullItem struct{}
 
 func (n *nullItem) SetDetails(ctx context.Context, details *nullItem) {
 }
@@ -845,7 +849,7 @@ func (n *nullItem) Create(ctx context.Context) (int64, error) {
 	return store.RevisionInvalid, errors.ErrNullItem
 }
 
-func (n *nullItem) Read(ctx context.Context) (int64, error){
+func (n *nullItem) Read(ctx context.Context) (int64, error) {
 	return store.RevisionInvalid, errors.ErrNullItem
 }
 
@@ -859,14 +863,14 @@ func (n *nullItem) Delete(ctx context.Context) (int64, error) {
 
 // Additional functions for the node specialization of the basic inventory item
 //
-func (n *nullItem) NewChild(ctx context.Context, name string) (*interface{}, error){
+func (n *nullItem) NewChild(ctx context.Context, name string) (*interface{}, error) {
 	return nil, errors.ErrNullItem
 }
 
-func (n *nullItem) ListChildren(ctx context.Context) (int64, *[]string, error){
+func (n *nullItem) ListChildren(ctx context.Context) (int64, *[]string, error) {
 	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
-func (n *nullItem) FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error){
+func (n *nullItem) FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error) {
 	return store.RevisionInvalid, nil, errors.ErrNullItem
 }
 
@@ -910,7 +914,7 @@ func (n *nullItem) FetchBlades(ctx context.Context) (int64, *[]string, error) {
 
 // Additional functions for the pdu and tor specializations of the basic inventory item
 //
-func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{})  {
+func (n *nullItem) SetPorts(ctx context.Context, ports *map[int64]*interface{}) {
 	return
 }
 

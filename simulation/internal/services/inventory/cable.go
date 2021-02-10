@@ -28,7 +28,7 @@ func newCable(on bool, faulted bool, at int64) *cable {
 		Guarded: common.Guarded{
 			Guard: at,
 		},
-		on: on,
+		on:      on,
 		faulted: faulted,
 	}
 }

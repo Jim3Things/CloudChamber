@@ -152,9 +152,9 @@ func handlerSimSessionDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp := &pb.SessionStatus {
+	resp := &pb.SessionStatus{
 		UserName: session.name,
-		Timeout: ts,
+		Timeout:  ts,
 	}
 
 	tracing.UpdateSpanName(

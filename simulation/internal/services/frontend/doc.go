@@ -1,4 +1,3 @@
-
 // Package frontend implements the primary service front end to receive the
 // user HTTP requests, route the request to the appropriate libraries and/or
 // micro-services and then format the response.
