@@ -12,7 +12,7 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/actual.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/definition.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/target.proto";
 
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/inventory";
+option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory";
 option csharp_namespace = "CloudChamber.Protos.Inventory";
 
 message Internal {

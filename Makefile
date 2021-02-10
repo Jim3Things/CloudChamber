@@ -74,11 +74,11 @@ PROTO_CS_GEN_FILES = \
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
 
 SRC_ERRORS = \
-	$(call ProdFiles, pkg/errors)
+	$(call ProdFiles, simulation/pkg/errors)
 
 SRC_CONFIG = \
 	$(SRC_ERRORS) \
-	$(call ProdFiles, internal/config)
+	$(call ProdFiles, simulation/internal/config)
 
 SRC_FRONTEND = \
 	$(SRC_CONFIG) \
@@ -89,16 +89,16 @@ SRC_FRONTEND = \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_CLIENT) \
 	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, internal/services/frontend)
+	$(call ProdFiles, simulation/internal/services/frontend)
 
 SRC_MONITOR = \
-	$(call ProdFiles, internal/services/monitor)
+	$(call ProdFiles, simulation/internal/services/monitor)
 
 SRC_INVENTORY_SERVICE = \
 	$(SRC_TIMESTAMP) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_CLIENT) \
-	$(call ProdFiles, internal/services/inventory)
+	$(call ProdFiles, simulation/internal/services/inventory)
 
 SRC_SM = \
 	$(SRC_TRACING_SERVER) \
@@ -108,48 +108,48 @@ SRC_STEPPER_ACTOR = \
     $(SRC_SM) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, internal/services/stepper)
+	$(call ProdFiles, simulation/internal/services/stepper)
 
 SRC_INVENTORY_CLIENT = \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, internal/clients/inventory)
+	$(call ProdFiles, simulation/internal/clients/inventory)
 
 SRC_STORE = \
 	$(SRC_ERRORS) \
 	$(SRC_TRACING) \
 	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, internal/clients/store)
+	$(call ProdFiles, simulation/internal/clients/store)
 
 SRC_TIMESTAMP = \
 	$(SRC_ERRORS) \
-	$(call ProdFiles, internal/clients/timestamp)
+	$(call ProdFiles, simulation/internal/clients/timestamp)
 
 SRC_TRACING = \
-	$(call ProdFiles, internal/tracing)
+	$(call ProdFiles, simulation/internal/tracing)
 
 SRC_TRACING_EXPORTERS = \
 	$(SRC_TRACING) \
-	$(call ProdFiles, internal/tracing/exporters)
+	$(call ProdFiles, simulation/internal/tracing/exporters)
 
 SRC_TRACING_SETUP = \
 	$(SRC_TRACING_EXPORTERS) \
-	$(call ProdFiles, internal/tracing/setup)
+	$(call ProdFiles, simulation/internal/tracing/setup)
 
 SRC_TRACING_SERVER = \
 	$(SRC_TRACING) \
-	$(call ProdFiles, internal/tracing/server)
+	$(call ProdFiles, simulation/internal/tracing/server)
 
 SRC_TRACING_CLIENT = \
 	$(SRC_ERRORS) \
-	$(call ProdFiles, internal/tracing/client)
+	$(call ProdFiles, simulation/internal/tracing/client)
 
 SRC_VERSION = \
-	pkg/version/version.go
+	simulation/pkg/version/version.go
 
 
 SRC_CONTROLLER = \
-	$(call ProdFiles, cmd/controllerd) \
+	$(call ProdFiles, simulation/cmd/controllerd) \
 	$(SRC_CONFIG) \
 	$(SRC_MONITOR) \
 	$(SRC_TRACING_EXPORTERS) \
@@ -157,14 +157,14 @@ SRC_CONTROLLER = \
 	$(SRC_TRACING_SETUP)
 
 SRC_INVENTORY = \
-	$(call ProdFiles, cmd/inventoryd) \
+	$(call ProdFiles, simulation/cmd/inventoryd) \
 	$(SRC_CONFIG) \
 	$(SRC_TRACING_EXPORTERS) \
 	$(SRC_TRACING_SETUP) \
 	$(SRC_INVENTORY_SERVICE)
 
 SRC_SIMSUPPORT = \
-	$(call ProdFiles, cmd/sim_supportd) \
+	$(call ProdFiles, simulation/cmd/sim_supportd) \
 	$(SRC_CONFIG) \
 	$(SRC_STEPPER_ACTOR) \
 	$(SRC_TRACINGSINK) \
@@ -173,7 +173,7 @@ SRC_SIMSUPPORT = \
 	$(SRC_TRACING_SETUP)
 
 SRC_WEBSERVER = \
-	$(call ProdFiles, cmd/web_server) \
+	$(call ProdFiles, simulation/cmd/web_server) \
 	$(SRC_CONFIG) \
 	$(SRC_FRONTEND) \
 	$(SRC_TRACING_EXPORTERS) \
@@ -181,24 +181,24 @@ SRC_WEBSERVER = \
 
 
 SERVICES = \
-    deployments/controllerd.exe \
-    deployments/inventoryd.exe \
-    deployments/sim_supportd.exe \
-    deployments/web_server.exe
+    simulation/deployments/controllerd.exe \
+    simulation/deployments/inventoryd.exe \
+    simulation/deployments/sim_supportd.exe \
+    simulation/deployments/web_server.exe
 
 VERSION_MARKER = \
-    pkg/version/generated.go \
-    pkg/version/version_stamp.md
+    simulation/pkg/version/generated.go \
+    simulation/pkg/version/version_stamp.md
 
 ARTIFACTS = \
-    deployments/readme.md \
-    deployments/cloudchamber.yaml \
-    deployments/inventory.yaml \
-    deployments/Deploy.cmd \
-    deployments/StartAll.cmd \
-    deployments/StartCloudChamber.cmd \
-    deployments/StartEtcd.cmd \
-    deployments/MonitorEtcd.cmd
+    simulation/deployments/readme.md \
+    simulation/deployments/cloudchamber.yaml \
+    simulation/deployments/inventory.yaml \
+    simulation/deployments/Deploy.cmd \
+    simulation/deployments/StartAll.cmd \
+    simulation/deployments/StartCloudChamber.cmd \
+    simulation/deployments/StartEtcd.cmd \
+    simulation/deployments/MonitorEtcd.cmd
 
 
 
@@ -272,17 +272,17 @@ install_clean:
 .PHONY : run_tests
 
 run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
-	go test -count=1 $(PROJECT)/internal/clients/inventory
-	go test -count=1 $(PROJECT)/internal/clients/store
-	go test -count=1 $(PROJECT)/internal/clients/timestamp
-	go test -count=1 $(PROJECT)/internal/common
-	go test -count=1 $(PROJECT)/internal/services/frontend
-	go test -count=1 $(PROJECT)/internal/services/inventory
-	go test -count=1 $(PROJECT)/internal/services/repair_manager/inventory
-	go test -count=1 $(PROJECT)/internal/services/repair_manager/ruler
-	go test -count=1 $(PROJECT)/internal/services/stepper
-	go test -count=1 $(PROJECT)/internal/services/tracing_sink
-	go test -count=1 $(PROJECT)/internal/tracing/exporters
+	go test -count=1 $(PROJECT)/simulation/internal/clients/inventory
+	go test -count=1 $(PROJECT)/simulation/internal/clients/store
+	go test -count=1 $(PROJECT)/simulation/internal/clients/timestamp
+	go test -count=1 $(PROJECT)/simulation/internal/common
+	go test -count=1 $(PROJECT)/simulation/internal/services/frontend
+	go test -count=1 $(PROJECT)/simulation/internal/services/inventory
+	go test -count=1 $(PROJECT)/simulation/internal/services/repair_manager/inventory
+	go test -count=1 $(PROJECT)/simulation/internal/services/repair_manager/ruler
+	go test -count=1 $(PROJECT)/simulation/internal/services/stepper
+	go test -count=1 $(PROJECT)/simulation/internal/services/tracing_sink
+	go test -count=1 $(PROJECT)/simulation/internal/tracing/exporters
 
 
 .PHONY : clean
@@ -318,38 +318,38 @@ pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
 $(VERSION_MARKER) &: $(SRC_VERSION)
 	go generate $(PROJECT)/$<
 
-deployments/controllerd.exe:  $(SRC_CONTROLLER) $(PROTO_GEN_FILES) $(VERSION_MARKER)
+simulation/deployments/controllerd.exe:  $(SRC_CONTROLLER) $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/inventoryd.exe:   $(SRC_INVENTORY)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
+simulation/deployments/inventoryd.exe:   $(SRC_INVENTORY)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/sim_supportd.exe: $(SRC_SIMSUPPORT) $(PROTO_GEN_FILES) $(VERSION_MARKER)
+simulation/deployments/sim_supportd.exe: $(SRC_SIMSUPPORT) $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/web_server.exe:   $(SRC_WEBSERVER)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
+simulation/deployments/web_server.exe:   $(SRC_WEBSERVER)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 
-deployments/readme.md: pkg/version/version_stamp.md
+simulation/deployments/readme.md: simulation/pkg/version/version_stamp.md
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/cloudchamber.yaml: configs/cloudchamber.yaml
+simulation/deployments/cloudchamber.yaml: simulation/configs/cloudchamber.yaml
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/inventory.yaml: configs/inventory.yaml
+simulation/deployments/inventory.yaml: simulation/configs/inventory.yaml
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/Deploy.cmd: scripts/Deploy.cmd
+simulation/deployments/Deploy.cmd: simulation/scripts/Deploy.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/StartEtcd.cmd: scripts/StartEtcd.cmd
+simulation/deployments/StartEtcd.cmd: simulation/scripts/StartEtcd.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/StartAll.cmd : scripts/StartAll.cmd
+simulation/deployments/StartAll.cmd : simulation/scripts/StartAll.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/StartCloudChamber.cmd : scripts/StartCloudChamber.cmd
+simulation/deployments/StartCloudChamber.cmd : simulation/scripts/StartCloudChamber.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
 
-deployments/MonitorEtcd.cmd : scripts/MonitorEtcd.cmd
+simulation/deployments/MonitorEtcd.cmd : simulation/scripts/MonitorEtcd.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@

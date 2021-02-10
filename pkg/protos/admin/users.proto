@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package admin;
 
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/admin";
+option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/admin";
 option csharp_namespace = "CloudChamber.Protos.Admin";
 
 // User is a representation of an individual user

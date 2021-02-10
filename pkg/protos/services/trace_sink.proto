@@ -6,7 +6,7 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/services/requests.proto";
 
 import "google/protobuf/empty.proto";
 
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
+option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services";
 
 // This service is a common collection point for trace entries across
 // Cloud Chamber.
