@@ -7,7 +7,7 @@ import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
 
 import "google/protobuf/duration.proto";
 
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/services";
+option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services";
 option csharp_namespace = "CloudChamber.Protos.Services";
 
 // +++ Shared messages

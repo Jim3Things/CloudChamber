@@ -5,7 +5,7 @@ package admin;
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
-option go_package = "github.com/Jim3Things/CloudChamber/pkg/protos/admin";
+option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/admin";
 option csharp_namespace = "CloudChamber.Protos.Admin";
 
 // SessionSummary contains the key and address information for all active

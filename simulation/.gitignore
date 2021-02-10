@@ -1,0 +1,8 @@
+.exe
+.vscode
+/deployments/
+/pkg/protos/**/*pb.go
+/pkg/protos/**/*pb.cs
+/.idea/
+*~
+/**/#*#
