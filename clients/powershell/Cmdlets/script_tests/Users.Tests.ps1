@@ -8,6 +8,10 @@
     }
 
     AfterEach {
+        try {
+            Remove-CcUser -Session $sess -Name "cliTest"
+        } catch {}
+
         Disconnect-CcAccount -Session $sess
     }
 
@@ -47,29 +51,21 @@
     }
 
     It "Tries to create an already created account" {
-        try {
-            New-CcUser -Session $sess -Name "admin" -Enabled -Password "bogus"
-            $false | Should Be $true
-        } catch [System.Net.Http.HttpRequestException] {
-            $_.Exception.Message | Should Be "CloudChamber: user ""admin"" already exists`n"
-        }
+        { New-CcUser -Session $sess -Name "admin" -Enabled -Password "bogus" } | `
+            Should Throw "CloudChamber: user ""admin"" already exists`n" `
+                -ExceptionType  [System.Net.Http.HttpRequestException]
     }
 
     It "Tries to get details on a non-existent user" {
-        try {
-            Get-CcUser -Session $sess -Name "bogusUser"
-            $false | Should Be $true
-        } catch [System.Net.Http.HttpRequestException] {
-            $_.Exception.Message | Should Be "CloudChamber: user ""bogususer"" not found`n"
-        }
+        { Get-CcUser -Session $sess -Name "bogusUser" } | `
+            Should Throw "CloudChamber: user ""bogususer"" not found`n" `
+                -ExceptionType  [System.Net.Http.HttpRequestException]
     }
 
     It "Tries to delete a non-existent user" {
-        try {
-            Remove-CcUser -Session $sess -Name "bogusUser"
-            $false | Should Be $true
-        } catch [System.Net.Http.HttpRequestException] {
-            $_.Exception.Message | Should Be "CloudChamber: user ""bogususer"" not found`n"
+        { Remove-CcUser -Session $sess -Name "bogusUser"  |
+            Should Throw "CloudChamber: user ""bogususer"" not found`n" `
+                -ExceptionType  [System.Net.Http.HttpRequestException]
         }
     }
 }
