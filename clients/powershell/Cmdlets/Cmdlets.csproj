@@ -38,23 +38,47 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Compile Include="..\..\..\pkg\protos\admin\Simulation.pb.cs">
-        <Link>protos\admin\Simulation.pb.cs</Link>
-      </Compile>
-      <Compile Include="..\..\..\pkg\protos\admin\Users.pb.cs">
-        <Link>protos\admin\Users.pb.cs</Link>
-      </Compile>
-      <Compile Include="..\..\..\pkg\protos\common\Completion.pb.cs">
-        <Link>protos\common\Completion.pb.cs</Link>
-      </Compile>
-      <Compile Include="..\..\..\pkg\protos\common\Timestamp.pb.cs">
-        <Link>protos\common\Timestamp.pb.cs</Link>
-      </Compile>
-      <Compile Include="..\..\..\pkg\protos\log\Entry.pb.cs">
-        <Link>protos\log\Entry.pb.cs</Link>
-      </Compile>
+        <Compile Include="..\..\..\pkg\protos\admin\Simulation.pb.cs">
+            <Link>protos\admin\Simulation.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\admin\Users.pb.cs">
+            <Link>protos\admin\Users.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\common\Completion.pb.cs">
+            <Link>protos\common\Completion.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\common\Timestamp.pb.cs">
+            <Link>protos\common\Timestamp.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\log\Entry.pb.cs">
+            <Link>protos\log\Entry.pb.cs</Link>
+        </Compile>
         <Compile Include="..\..\..\pkg\protos\services\Requests.pb.cs">
             <Link>protos\services\Requests.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\Actual.pb.cs">
+            <Link>protos\inventory\Actual.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\Capacity.pb.cs">
+            <Link>protos\inventory\Capacity.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\Common.pb.cs">
+            <Link>protos\inventory\Common.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\Definition.pb.cs">
+            <Link>protos\inventory\Definition.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\External.pb.cs">
+            <Link>protos\inventory\External.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\Internal.pb.cs">
+            <Link>protos\inventory\Internal.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\Store.pb.cs">
+            <Link>protos\inventory\Store.pb.cs</Link>
+        </Compile>
+        <Compile Include="..\..\..\pkg\protos\inventory\Target.pb.cs">
+            <Link>protos\inventory\Target.pb.cs</Link>
         </Compile>
     </ItemGroup>
 
