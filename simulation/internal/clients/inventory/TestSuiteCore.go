@@ -29,19 +29,6 @@ type testSuiteCore struct {
 	store *store.Store
 }
 
-func runOnceRequired() bool{
-	lock.Lock()
-	defer lock.Unlock()
-
-	if initialized {
-		return false
-	}
-
-	initialized = true
-
-	return true
-}
-
 func runOnce() (*config.GlobalConfig, error) {
 	lock.Lock()
 	defer lock.Unlock()

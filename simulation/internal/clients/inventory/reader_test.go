@@ -42,7 +42,8 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinition(context.Background(), "./testdata/Basic")
-	require.Nil(err)
+	require.NoError(err)
+	require.NotNil(response)
 
 	require.Equal(2, len(response.Racks))
 
@@ -71,41 +72,36 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 }
 
 func (ts *readerTestSuite) TestReadInventoryBogusPath() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinition(context.Background(), "./missing/path")
-	require.NotNil(err)
-	assert.NotEqual("%v", response)
+	require.EqualError(err, "no inventory definition found at ./missing/path/inventory.yaml (yaml)")
+	require.Nil(response)
 }
 
 // TestInventoryUniqueRack test to check that zone always contain unique rack numbers
 func (ts *readerTestSuite) TestInventoryUniqueRack() {
-	assert := ts.Assert()
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYaml")
-	require.NotNil(err)
-	assert.Equal("Duplicate rack \"rack1\" detected", err.Error())
+	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYaml")
+	require.EqualError(err, "Duplicate rack \"rack1\" detected")
+	require.Nil(response)
 }
 
 func (ts *readerTestSuite) TestInventoryUniqueBlade() {
-	assert := ts.Assert()
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlBlade")
-	require.NotNil(err)
-	assert.Equal("Duplicate Blade 1 in Rack \"rack1\" detected", err.Error())
+	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlBlade")
+	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
+	require.Nil(response)
 }
 
 func (ts *readerTestSuite) TestInventoryValidateBlade() {
-	assert := ts.Assert()
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlValidate")
-	require.NotNil(err)
-	assert.Equal("In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid",
-				 err.Error())
+	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlValidate")
+	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
+	require.Nil(response)
 }
 
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
@@ -114,6 +110,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 
 	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Basic")
 	require.NoError(err)
+	require.NotNil(zonemap)
 
 	// There should only be a single zone.
 	//
@@ -224,42 +221,37 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 }
 
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileBogusPath() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./missing/path")
-	require.Error(err)
-	assert.NotEqual("%v", response)
+	require.EqualError(err, "no inventory definition found at ./missing/path/inventory.yaml (yaml)")
+	require.Nil(response)
 }
 
 // TestInventoryUniqueRack test to check that zone always contain unique rack numbers
 //
 func (ts *readerTestSuite) TestIReadInventoryDefinitionFromFileUniqueRack() {
-	assert := ts.Assert()
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYaml")
-	require.Error(err)
-	assert.Equal("Duplicate rack \"rack1\" detected", err.Error())
+	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYaml")
+	require.EqualError(err, "Duplicate rack \"rack1\" detected")
+	require.Nil(response)
 }
 
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileUniqueBlade() {
-	assert := ts.Assert()
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlBlade")
-	require.Error(err)
-	assert.Equal("Duplicate Blade 1 in Rack \"rack1\" detected", err.Error())
+	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlBlade")
+	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
+	require.Nil(response)
 }
 
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileValidateBlade() {
-	assert := ts.Assert()
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlValidate")
-	require.Error(err)
-	assert.Equal("In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid",
-			err.Error())
+	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlValidate")
+	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
+	require.Nil(response)
 }
 
 func TestReaderTestSuite(t *testing.T) {
