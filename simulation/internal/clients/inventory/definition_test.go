@@ -2,29 +2,18 @@ package inventory
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
-	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
-	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
-type testSuiteCore struct {
-	suite.Suite
-
-	baseURI string
-
-	utf *exporters.Exporter
-
-	cfg *config.GlobalConfig
-
-	store *store.Store
+type definitionTestSuite struct {
+	testSuiteCore
 
 	regionCount    int
 	zonesPerRegion int
@@ -37,22 +26,23 @@ type testSuiteCore struct {
 	portsPerTor int
 }
 
-func (ts *testSuiteCore) rootName(suffix string) string   { return "StandardRoot-" + suffix }
-func (ts *testSuiteCore) regionName(suffix string) string { return "REG-PNW-" + suffix }
-func (ts *testSuiteCore) zoneName(suffix string) string   { return "Zone-01-" + suffix }
-func (ts *testSuiteCore) rackName(suffix string) string   { return "Rack-01-" + suffix }
-func (ts *testSuiteCore) pduID(ID int64) int64            { return int64(ID) }
-func (ts *testSuiteCore) torID(ID int64) int64            { return int64(ID) }
-func (ts *testSuiteCore) bladeID(ID int64) int64          { return int64(ID) }
+func (ts *definitionTestSuite) rootName(suffix string)   string { return "StandardRoot-" + suffix }
+func (ts *definitionTestSuite) regionName(suffix string) string { return "REG-PNW-"      + suffix }
+func (ts *definitionTestSuite) zoneName(suffix string)   string { return "Zone-01-"      + suffix }
+func (ts *definitionTestSuite) rackName(suffix string)   string { return "Rack-01-"      + suffix }
+func (ts *definitionTestSuite) pduID(ID int64)      int64  { return int64(ID)}
+func (ts *definitionTestSuite) torID(ID int64)      int64  { return int64(ID)}
+func (ts *definitionTestSuite) bladeID(ID int64)    int64  { return int64(ID)}
 
-func (ts *testSuiteCore) stdRootDetails(suffix string) *pb.RootDetails {
+
+func (ts *definitionTestSuite) stdRootDetails(suffix string) *pb.RootDetails {
 	return &pb.RootDetails{
 		Name:  ts.rootName(suffix),
 		Notes: "root for inventory definition test",
 	}
 }
 
-func (ts *testSuiteCore) stdRegionDetails(suffix string) *pb.RegionDetails {
+func (ts *definitionTestSuite) stdRegionDetails(suffix string) *pb.RegionDetails {
 	return &pb.RegionDetails{
 		Name:     ts.regionName(suffix),
 		State:    pb.State_in_service,
@@ -61,7 +51,7 @@ func (ts *testSuiteCore) stdRegionDetails(suffix string) *pb.RegionDetails {
 	}
 }
 
-func (ts *testSuiteCore) stdZoneDetails(suffix string) *pb.ZoneDetails {
+func (ts *definitionTestSuite) stdZoneDetails(suffix string) *pb.ZoneDetails {
 	return &pb.ZoneDetails{
 		Enabled:  true,
 		State:    pb.State_in_service,
@@ -70,7 +60,7 @@ func (ts *testSuiteCore) stdZoneDetails(suffix string) *pb.ZoneDetails {
 	}
 }
 
-func (ts *testSuiteCore) stdRackDetails(suffix string) *pb.RackDetails {
+func (ts *definitionTestSuite) stdRackDetails(suffix string) *pb.RackDetails {
 	return &pb.RackDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
@@ -79,14 +69,14 @@ func (ts *testSuiteCore) stdRackDetails(suffix string) *pb.RackDetails {
 	}
 }
 
-func (ts *testSuiteCore) stdPduDetails(ID int64) *pb.PduDetails {
+func (ts *definitionTestSuite) stdPduDetails(ID int64) *pb.PduDetails {
 	return &pb.PduDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
 	}
 }
 
-func (ts *testSuiteCore) stdPowerPorts(count int) *map[int64]*pb.PowerPort {
+func (ts *definitionTestSuite) stdPowerPorts(count int) *map[int64]*pb.PowerPort {
 	ports := make(map[int64]*pb.PowerPort)
 
 	for i := 0; i < count; i++ {
@@ -103,14 +93,14 @@ func (ts *testSuiteCore) stdPowerPorts(count int) *map[int64]*pb.PowerPort {
 	return &ports
 }
 
-func (ts *testSuiteCore) stdTorDetails() *pb.TorDetails {
+func (ts *definitionTestSuite) stdTorDetails() *pb.TorDetails {
 	return &pb.TorDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
 	}
 }
 
-func (ts *testSuiteCore) stdNetworkPorts(count int) *map[int64]*pb.NetworkPort {
+func (ts *definitionTestSuite) stdNetworkPorts(count int) *map[int64]*pb.NetworkPort {
 	ports := make(map[int64]*pb.NetworkPort)
 
 	for i := 0; i < count; i++ {
@@ -127,14 +117,14 @@ func (ts *testSuiteCore) stdNetworkPorts(count int) *map[int64]*pb.NetworkPort {
 	return &ports
 }
 
-func (ts *testSuiteCore) stdBladeDetails() *pb.BladeDetails {
+func (ts *definitionTestSuite) stdBladeDetails() *pb.BladeDetails {
 	return &pb.BladeDetails{
 		Enabled:   true,
 		Condition: pb.Condition_operational,
 	}
 }
 
-func (ts *testSuiteCore) stdBladeCapacity() *pb.BladeCapacity {
+func (ts *definitionTestSuite) stdBladeCapacity() *pb.BladeCapacity {
 	return &pb.BladeCapacity{
 		Cores:                  16,
 		MemoryInMb:             1024,
@@ -144,7 +134,7 @@ func (ts *testSuiteCore) stdBladeCapacity() *pb.BladeCapacity {
 	}
 }
 
-func (ts *testSuiteCore) stdBladeBootInfo() *pb.BladeBootInfo {
+func (ts *definitionTestSuite) stdBladeBootInfo() *pb.BladeBootInfo {
 	return &pb.BladeBootInfo{
 		Source:     pb.BladeBootInfo_local,
 		Image:      "test-image.vhdx",
@@ -153,7 +143,7 @@ func (ts *testSuiteCore) stdBladeBootInfo() *pb.BladeBootInfo {
 	}
 }
 
-func (ts *testSuiteCore) createStandardInventory(ctx context.Context) error {
+func (ts *definitionTestSuite)createStandardInventory(ctx context.Context) error {
 
 	err := ts.createInventory(
 		ctx,
@@ -168,7 +158,7 @@ func (ts *testSuiteCore) createStandardInventory(ctx context.Context) error {
 	return err
 }
 
-func (ts *testSuiteCore) verifyStandardInventoryRegionDetails(name string, details *pb.RegionDetails) {
+func (ts *definitionTestSuite)verifyStandardInventoryRegionDetails(name string, details *pb.RegionDetails) {
 	assert := ts.Assert()
 
 	check := ts.stdRegionDetails(name)
@@ -179,7 +169,7 @@ func (ts *testSuiteCore) verifyStandardInventoryRegionDetails(name string, detai
 	assert.Equal(check.Notes, details.Notes)
 }
 
-func (ts *testSuiteCore) verifyStandardInventoryZoneDetails(name string, details *pb.ZoneDetails) {
+func (ts *definitionTestSuite)verifyStandardInventoryZoneDetails(name string, details *pb.ZoneDetails) {
 	assert := ts.Assert()
 
 	check := ts.stdZoneDetails(name)
@@ -190,7 +180,7 @@ func (ts *testSuiteCore) verifyStandardInventoryZoneDetails(name string, details
 	assert.Equal(check.Notes, details.Notes)
 }
 
-func (ts *testSuiteCore) verifyStandardInventoryRackDetails(name string, details *pb.RackDetails) {
+func (ts *definitionTestSuite)verifyStandardInventoryRackDetails(name string, details *pb.RackDetails) {
 	assert := ts.Assert()
 
 	check := ts.stdRackDetails(name)
@@ -201,7 +191,7 @@ func (ts *testSuiteCore) verifyStandardInventoryRackDetails(name string, details
 	assert.Equal(check.Notes, details.Notes)
 }
 
-func (ts *testSuiteCore) verifyStandardInventoryPdu(index int64, pdu Pdu) {
+func (ts *definitionTestSuite) verifyStandardInventoryPdu(index int64, pdu Pdu) {
 	assert := ts.Assert()
 
 	details := ts.stdPduDetails(index)
@@ -223,7 +213,7 @@ func (ts *testSuiteCore) verifyStandardInventoryPdu(index int64, pdu Pdu) {
 	}
 }
 
-func (ts *testSuiteCore) verifyStandardInventoryTor(index int64, tor *Tor) {
+func (ts *definitionTestSuite) verifyStandardInventoryTor(index int64, tor *Tor) {
 	assert := ts.Assert()
 
 	details := ts.stdTorDetails()
@@ -245,7 +235,7 @@ func (ts *testSuiteCore) verifyStandardInventoryTor(index int64, tor *Tor) {
 	}
 }
 
-func (ts *testSuiteCore) verifyStandardInventoryBlade(index int64, blade *Blade) {
+func (ts *definitionTestSuite) verifyStandardInventoryBlade(index int64, blade *Blade) {
 	assert := ts.Assert()
 
 	details := ts.stdTorDetails()
@@ -271,7 +261,7 @@ func (ts *testSuiteCore) verifyStandardInventoryBlade(index int64, blade *Blade)
 	assert.True(blade.bootOnPowerOn)
 }
 
-func (ts *testSuiteCore) createInventory(
+func (ts *definitionTestSuite)createInventory(
 	ctx context.Context,
 	table string,
 	regions int,
@@ -373,24 +363,12 @@ func (ts *testSuiteCore) createInventory(
 	return nil
 }
 
-func (ts *testSuiteCore) SetupSuite() {
+func (ts *definitionTestSuite) SetupSuite() {
 	require := ts.Require()
 
 	ctx := context.Background()
 
-	configPath := flag.String("config", "./testdata", "path to the configuration file")
-	flag.Parse()
-
-	cfg, err := config.ReadGlobalConfig(*configPath)
-	require.NoError(err, "failed to process the global configuration")
-
-	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.ConnectToProvider(ts.utf)
-
-	store.Initialize(cfg)
-
-	ts.cfg = cfg
-	ts.store = store.NewStore()
+	ts.testSuiteCore.SetupSuite()
 
 	// These values are relatively arbitrary. The only criteria is that different
 	// constants were chosen to help separate different multiples of different
@@ -410,14 +388,14 @@ func (ts *testSuiteCore) SetupSuite() {
 	require.NoError(ts.utf.Open(ts.T()))
 	require.NoError(ts.store.Connect())
 
-	err = ts.createStandardInventory(ctx)
+	err := ts.createStandardInventory(ctx)
 	require.NoError(err, "failed to create standard inventory")
 
 	ts.store.Disconnect()
 	ts.utf.Close()
 }
 
-func (ts *testSuiteCore) SetupTest() {
+func (ts *definitionTestSuite) SetupTest() {
 	require := ts.Require()
 
 	require.NoError(ts.utf.Open(ts.T()))
@@ -425,12 +403,12 @@ func (ts *testSuiteCore) SetupTest() {
 	require.NoError(ts.store.Connect())
 }
 
-func (ts *testSuiteCore) TearDownTest() {
+func (ts *definitionTestSuite) TearDownTest() {
 	ts.store.Disconnect()
 	ts.utf.Close()
 }
 
-func (ts *testSuiteCore) TestNewRoot() {
+func (ts *definitionTestSuite) TestNewRoot() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -496,7 +474,7 @@ func (ts *testSuiteCore) TestNewRoot() {
 	assert.Equal(store.RevisionInvalid, rev)
 }
 
-func (ts *testSuiteCore) TestNewRegion() {
+func (ts *definitionTestSuite) TestNewRegion() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -579,7 +557,7 @@ func (ts *testSuiteCore) TestNewRegion() {
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
-func (ts *testSuiteCore) TestNewZone() {
+func (ts *definitionTestSuite) TestNewZone() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -662,7 +640,7 @@ func (ts *testSuiteCore) TestNewZone() {
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
-func (ts *testSuiteCore) TestNewRack() {
+func (ts *definitionTestSuite) TestNewRack() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -752,7 +730,7 @@ func (ts *testSuiteCore) TestNewRack() {
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
-func (ts *testSuiteCore) TestNewPdu() {
+func (ts *definitionTestSuite) TestNewPdu() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -913,7 +891,7 @@ func (ts *testSuiteCore) TestNewPdu() {
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
-func (ts *testSuiteCore) TestNewTor() {
+func (ts *definitionTestSuite) TestNewTor() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1074,7 +1052,7 @@ func (ts *testSuiteCore) TestNewTor() {
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
-func (ts *testSuiteCore) TestNewBlade() {
+func (ts *definitionTestSuite) TestNewBlade() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1243,7 +1221,7 @@ func (ts *testSuiteCore) TestNewBlade() {
 	// assert.Equal(store.RevisionInvalid, rev)
 }
 
-func (ts *testSuiteCore) TestNewRegionWithCreate() {
+func (ts *definitionTestSuite) TestNewRegionWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1267,7 +1245,7 @@ func (ts *testSuiteCore) TestNewRegionWithCreate() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewZoneWithCreate() {
+func (ts *definitionTestSuite) TestNewZoneWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1291,7 +1269,7 @@ func (ts *testSuiteCore) TestNewZoneWithCreate() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewRackWithCreate() {
+func (ts *definitionTestSuite) TestNewRackWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1322,7 +1300,7 @@ func (ts *testSuiteCore) TestNewRackWithCreate() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewPduWithCreate() {
+func (ts *definitionTestSuite) TestNewPduWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1356,7 +1334,7 @@ func (ts *testSuiteCore) TestNewPduWithCreate() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewTorWithCreate() {
+func (ts *definitionTestSuite) TestNewTorWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1390,7 +1368,7 @@ func (ts *testSuiteCore) TestNewTorWithCreate() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewBladeWithCreate() {
+func (ts *definitionTestSuite) TestNewBladeWithCreate() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1427,7 +1405,7 @@ func (ts *testSuiteCore) TestNewBladeWithCreate() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestRootNewChild() {
+func (ts *definitionTestSuite) TestRootNewChild() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1456,7 +1434,7 @@ func (ts *testSuiteCore) TestRootNewChild() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewChildZone() {
+func (ts *definitionTestSuite) TestNewChildZone() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1487,7 +1465,7 @@ func (ts *testSuiteCore) TestNewChildZone() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewChildRack() {
+func (ts *definitionTestSuite) TestNewChildRack() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1522,7 +1500,7 @@ func (ts *testSuiteCore) TestNewChildRack() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewChildPdu() {
+func (ts *definitionTestSuite) TestNewChildPdu() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1562,7 +1540,7 @@ func (ts *testSuiteCore) TestNewChildPdu() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewChildTor() {
+func (ts *definitionTestSuite) TestNewChildTor() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1602,7 +1580,7 @@ func (ts *testSuiteCore) TestNewChildTor() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestNewChildBlade() {
+func (ts *definitionTestSuite) TestNewChildBlade() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1649,7 +1627,7 @@ func (ts *testSuiteCore) TestNewChildBlade() {
 	assert.Less(rev, revDel)
 }
 
-func (ts *testSuiteCore) TestRegionReadDetails() {
+func (ts *definitionTestSuite) TestRegionReadDetails() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1709,7 +1687,7 @@ func (ts *testSuiteCore) TestRegionReadDetails() {
 	assert.Less(crRev, revDel)
 }
 
-func (ts *testSuiteCore) TestZoneReadDetails() {
+func (ts *definitionTestSuite) TestZoneReadDetails() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1773,7 +1751,7 @@ func (ts *testSuiteCore) TestZoneReadDetails() {
 	assert.Less(zoneRev, revDel)
 }
 
-func (ts *testSuiteCore) TestRackReadDetails() {
+func (ts *definitionTestSuite) TestRackReadDetails() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1855,7 +1833,7 @@ func (ts *testSuiteCore) TestRackReadDetails() {
 	assert.Less(rackRev, revDel)
 }
 
-func (ts *testSuiteCore) TestPduReadDetails() {
+func (ts *definitionTestSuite) TestPduReadDetails() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -1949,7 +1927,7 @@ func (ts *testSuiteCore) TestPduReadDetails() {
 	assert.Less(pduRev, revDel)
 }
 
-func (ts *testSuiteCore) TestTorReadDetails() {
+func (ts *definitionTestSuite) TestTorReadDetails() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2043,7 +2021,7 @@ func (ts *testSuiteCore) TestTorReadDetails() {
 	assert.Less(torRev, revDel)
 }
 
-func (ts *testSuiteCore) TestBladeReadDetails() {
+func (ts *definitionTestSuite) TestBladeReadDetails() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2145,7 +2123,7 @@ func (ts *testSuiteCore) TestBladeReadDetails() {
 	assert.Less(bladeRev, revDel)
 }
 
-func (ts *testSuiteCore) TestRegionUpdateDetails() {
+func (ts *definitionTestSuite) TestRegionUpdateDetails() {
 
 	assert := ts.Assert()
 	require := ts.Require()
@@ -2212,7 +2190,7 @@ func (ts *testSuiteCore) TestRegionUpdateDetails() {
 
 }
 
-func (ts *testSuiteCore) TestZoneUpdateDetails() {
+func (ts *definitionTestSuite) TestZoneUpdateDetails() {
 
 	assert := ts.Assert()
 	require := ts.Require()
@@ -2282,7 +2260,7 @@ func (ts *testSuiteCore) TestZoneUpdateDetails() {
 	assert.Less(revUpdate, revDel)
 }
 
-func (ts *testSuiteCore) TestRackUpdateDetails() {
+func (ts *definitionTestSuite) TestRackUpdateDetails() {
 
 	assert := ts.Assert()
 	require := ts.Require()
@@ -2357,7 +2335,7 @@ func (ts *testSuiteCore) TestRackUpdateDetails() {
 	assert.Less(revUpdate, revDel)
 }
 
-func (ts *testSuiteCore) TestPduUpdateDetails() {
+func (ts *definitionTestSuite) TestPduUpdateDetails() {
 
 	assert := ts.Assert()
 	require := ts.Require()
@@ -2441,7 +2419,7 @@ func (ts *testSuiteCore) TestPduUpdateDetails() {
 	assert.Less(revUpdate, revDel)
 }
 
-func (ts *testSuiteCore) TestTorUpdateDetails() {
+func (ts *definitionTestSuite) TestTorUpdateDetails() {
 
 	assert := ts.Assert()
 	require := ts.Require()
@@ -2525,7 +2503,7 @@ func (ts *testSuiteCore) TestTorUpdateDetails() {
 	assert.Less(revUpdate, revDel)
 }
 
-func (ts *testSuiteCore) TestBladeUpdateDetails() {
+func (ts *definitionTestSuite) TestBladeUpdateDetails() {
 
 	assert := ts.Assert()
 	require := ts.Require()
@@ -2617,7 +2595,7 @@ func (ts *testSuiteCore) TestBladeUpdateDetails() {
 	assert.Less(revUpdate, revDel)
 }
 
-func (ts *testSuiteCore) TestRootListChildren() {
+func (ts *definitionTestSuite) TestRootListChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2631,7 +2609,7 @@ func (ts *testSuiteCore) TestRootListChildren() {
 	assert.Equal(ts.regionCount, len(regions))
 }
 
-func (ts *testSuiteCore) TestRegionListChildren() {
+func (ts *definitionTestSuite) TestRegionListChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2653,7 +2631,7 @@ func (ts *testSuiteCore) TestRegionListChildren() {
 	}
 }
 
-func (ts *testSuiteCore) TestZoneListChildren() {
+func (ts *definitionTestSuite) TestZoneListChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2683,7 +2661,7 @@ func (ts *testSuiteCore) TestZoneListChildren() {
 	}
 }
 
-func (ts *testSuiteCore) TestRackListChildren() {
+func (ts *definitionTestSuite) TestRackListChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2729,7 +2707,7 @@ func (ts *testSuiteCore) TestRackListChildren() {
 	}
 }
 
-func (ts *testSuiteCore) TestRootFetchChildren() {
+func (ts *definitionTestSuite) TestRootFetchChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2747,7 +2725,7 @@ func (ts *testSuiteCore) TestRootFetchChildren() {
 	}
 }
 
-func (ts *testSuiteCore) TestRegionFetchChildren() {
+func (ts *definitionTestSuite) TestRegionFetchChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2775,7 +2753,7 @@ func (ts *testSuiteCore) TestRegionFetchChildren() {
 	}
 }
 
-func (ts *testSuiteCore) TestZoneFetchChildren() {
+func (ts *definitionTestSuite) TestZoneFetchChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2813,7 +2791,7 @@ func (ts *testSuiteCore) TestZoneFetchChildren() {
 	}
 }
 
-func (ts *testSuiteCore) TestRackFetchChildren() {
+func (ts *definitionTestSuite) TestRackFetchChildren() {
 	assert := ts.Assert()
 	require := ts.Require()
 
@@ -2887,5 +2865,5 @@ func (ts *testSuiteCore) TestRackFetchChildren() {
 }
 
 func TestInventoryTestSuite(t *testing.T) {
-	suite.Run(t, new(testSuiteCore))
+	suite.Run(t, new(definitionTestSuite))
 }
