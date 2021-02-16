@@ -42,3 +42,11 @@ func torAddress(region string, zone string, rack string, tor int64) string {
 func torAddressName(region string, zone string, rack string, tor string) string {
 	return fmt.Sprintf("tor %q in region %q, zone %q, rack %q", tor, region, zone, rack)
 }
+
+func powerPortAddress(region string, zone string, rack string, pdu int64, port int64) string {
+	return fmt.Sprintf("port %d in region %q, zone %q, rack %q, pdu %d", port, region, zone, rack, pdu)
+}
+
+func networkPortAddress(region string, zone string, rack string, tor int64, port int64) string {
+	return fmt.Sprintf("port %d in region %q, zone %q, rack %q, tor %d", port, region, zone, rack, tor)
+}

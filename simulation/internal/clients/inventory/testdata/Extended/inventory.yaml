@@ -1,0 +1,116 @@
+Details:
+  Name: "test configuration"
+  Notes: "Test configuration with a basic set of components"
+Regions:
+  - Name: Region1
+    Details:
+      State: In_Service
+      Location: "Pacific NW"
+      Notes: "Test Region"
+    Zones:
+      - Name: zone1
+        Details:
+          Enabled: true
+          State: In_Service
+          Location: "Pacific NW, row 1"
+          Notes: "Simple zone definition"
+        Racks:
+          - Name: rack1
+            Details:
+              Enabled: true
+              Condition: Operational
+              Location: "Pacific NW, row 1, rack 1"
+              Notes: "Simple rack definition"
+            Pdus:
+              - Index: 0
+                Details:
+                  Enabled: true
+                  Condition: Operational
+                Ports:
+                  - Index: 1
+                    Wired: 1
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 0
+                  - Index: 2
+                    Wired: 1
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 3
+                    Wired: 1
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 1
+                  - Index: 4
+                    Wired: 1
+                    Item:
+                      Type: blade
+                      Id: 2
+                      Port: 4
+            Tors:
+              - Index: 0
+                Details:
+                  Enabled: true
+                  Condition: Operational
+                Ports:
+                  - Index: 1
+                    Wired: 1
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 0
+                  - Index: 2
+                    Wired: 1
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 3
+                    Wired: 1
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 1
+                  - Index: 4
+                    Wired: 1
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 3
+            Blades:
+              - Index: 1
+                Details:
+                  Enabled: 1
+                  Condition: Operational
+                Capacity:
+                  Cores: 16
+                  MemoryInMb: 16834
+                  DiskInGb: 240 
+                  NetworkBandwidthInMbps: 2048
+                  Arch: "X64"
+                BootInfo:
+                  Source: network
+                  Image: standard.vhdx
+                  Version: latest
+                  Parameters: -param1=v1
+                BootOnPowerOn: true
+              - Index: 2
+                Details:
+                  Enabled: 1
+                  Condition: Operational
+                Capacity:
+                  Cores: 24
+                  MemoryInMb: 32768
+                  DiskInGb: 480 
+                  NetworkBandwidthInMbps: 4096
+                  Arch: "X64"
+                BootInfo:
+                  Source: network
+                  Image: standard.vhdx
+                  Version: latest
+                  Parameters: -param1=v2
+                BootOnPowerOn: true

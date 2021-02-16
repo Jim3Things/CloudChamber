@@ -8,36 +8,39 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
-const minPorts = int64(0)
-const maxPorts = int64(1000)
+const (
+	minPortsPerPdu   = int64(1)
+	maxPortsPerPdu   = int64(128)
+	minPortsPerTor   = int64(1)
+	maxPortsPerTor   = int64(1024)
+	minPortsPerBlade = int64(1)
+	maxPortsPerBlade = int64(10000)
+	minPdusPerRack   = int64(1)
+	maxPdusPerRack   = int64(2)
+	minTorsPerRack   = int64(1)
+	maxTorsPerRack   = int64(2)
+	minBladesPerRack = int64(1)
+	maxBladesPerRack = int64(1000)
+)
 
 // Validate is a method that verifies that the associated DefinitionPdu instance
 // has the expected number of ports and is semantically legal
 //
-func (x *Definition_Pdu) Validate(prefix string, ports int64) error {
+// ports is the minimum number of ports that must be present.
+//
+func (x *Definition_Pdu) Validate(prefix string, minPorts int64) error {
 
 	actual := int64(len(x.Ports))
 
-	if actual != ports {
-		return errors.ErrMustBeEQ{
+	if actual < minPorts {
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sPorts", prefix),
 			Actual:   actual,
-			Required: 1,
+			Required: minPorts,
 		}
 	}
 
 	return x.check(prefix)
-}
-
-// Verify is a method that verifies that the associated DefinitionPdu instance
-// is semantically legal
-//
-// For example, check for errors such as the pdu being wired to itself, the
-// port being wired but without an associated item etc.
-//
-func (x *Definition_Pdu) Verify() error {
-
-	return x.check("")
 }
 
 // check is a method that verifies that the associated DefinitionPdu instance
@@ -53,19 +56,19 @@ func (x *Definition_Pdu) check(prefix string) error {
 
 	portCount := int64(len(x.Ports))
 
-	if portCount < minPorts {
+	if portCount < minPortsPerPdu {
 		return errors.ErrMinLenMap{
 			Field:    prefixedPorts,
 			Actual:   portCount,
-			Required: minPorts,
+			Required: minPortsPerPdu,
 		}
 	}
 
-	if portCount > maxPorts {
+	if portCount > maxPortsPerPdu {
 		return errors.ErrMaxLenMap{
 			Field:  prefixedPorts,
 			Actual: portCount,
-			Limit:  maxPorts,
+			Limit:  maxPortsPerPdu,
 		}
 	}
 
@@ -116,30 +119,21 @@ func (x *Definition_Pdu) check(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionTor instance
 // has the expected number of ports and is semantically legal
 //
-func (x *Definition_Tor) Validate(prefix string, ports int64) error {
+// ports is the minimum number of ports that must be present.
+//
+func (x *Definition_Tor) Validate(prefix string, minPorts int64) error {
 
 	actual := int64(len(x.Ports))
 
-	if actual != ports {
+	if actual < minPorts {
 		return errors.ErrMustBeEQ{
 			Field:    fmt.Sprintf("%sPorts", prefix),
 			Actual:   actual,
-			Required: 1,
+			Required: minPorts,
 		}
 	}
 
 	return x.check(prefix)
-}
-
-// Verify is a method that verifies that the associated DefinitionTor instance
-// is semantically legal
-//
-// For example, check for errors such as the tor being wired to itself, the
-// port being wired but without an associated item etc.
-//
-func (x *Definition_Tor) Verify() error {
-
-	return x.check("")
 }
 
 // check is a method that verifies that the associated DefinitionTor instance
@@ -155,19 +149,19 @@ func (x *Definition_Tor) check(prefix string) error {
 
 	portCount := int64(len(x.Ports))
 
-	if portCount < minPorts {
+	if portCount < minPortsPerTor {
 		return errors.ErrMinLenMap{
 			Field:    prefixedPorts,
 			Actual:   portCount,
-			Required: minPorts,
+			Required: minPortsPerTor,
 		}
 	}
 
-	if portCount > maxPorts {
+	if portCount > maxPortsPerTor {
 		return errors.ErrMaxLenMap{
 			Field:  prefixedPorts,
 			Actual: portCount,
-			Limit:  maxPorts,
+			Limit:  maxPortsPerTor,
 		}
 	}
 
@@ -215,46 +209,91 @@ func (x *Definition_Tor) check(prefix string) error {
 	return nil
 }
 
+// Validate is a method that verifies that the associated DefinitionBlade instance
+// has the expected number of cors etc and is semantically legal
+//
+func (x *Definition_Blade) Validate(prefix string) error {
+
+	// Validate that the capacity is valid
+	//
+	if err := x.Capacity.Validate(fmt.Sprintf("%s", prefix)); err != nil {
+			return err
+	}
+
+	return nil
+}
+
 // Validate is a method that verifies that the associated DefinitionRack instance
 // is structurally legal
 //
 func (x *Definition_Rack) Validate(prefix string) error {
-	// Verify that rack has at least one Pdu
-	//
-	// NOTE: at present we expect there to be exactly one Pdu per-rack
+
+	// Verify that rack has at least the minimum number of pdus..., 
 	//
 	countPdus := int64(len(x.Pdus))
-	if countPdus != 1 {
-		return errors.ErrMustBeEQ{
+
+	if countPdus < minPdusPerRack {
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sPdus", prefix),
 			Actual:   countPdus,
-			Required: 1,
+			Required: minPdusPerRack,
 		}
 	}
 
-	// Verify that rack has at least one Tor
+	// ... but no more than the maximum number of pdus
 	//
-	// NOTE: at present we expect there to be exactly one Tor per-rack
+	if countPdus > maxPdusPerRack {
+		return errors.ErrMustBeLTE{
+			Field:    fmt.Sprintf("%sPdus", prefix),
+			Actual:   countPdus,
+			Required: maxPdusPerRack,
+		}
+	}
+
+	// Verify that rack has at least the minimum number of tors..., 
 	//
 	countTors := int64(len(x.Tors))
-	if countTors != 1 {
-		return errors.ErrMustBeEQ{
+
+	if countTors < minTorsPerRack {
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sTors", prefix),
 			Actual:   countTors,
-			Required: 1,
+			Required: minTorsPerRack,
 		}
 	}
 
-	// Verify that a rack has at least one blade
+	// ... but no more than the maximum number of tors
 	//
-	countBlades := int64(len(x.Blades))
-	if countBlades < 1 {
-		return errors.ErrMinLenMap{
-			Field:    fmt.Sprintf("%sBlades", prefix),
-			Actual:   countBlades,
-			Required: 1,
+	if countTors > maxTorsPerRack {
+		return errors.ErrMustBeLTE{
+			Field:    fmt.Sprintf("%sTors", prefix),
+			Actual:   countTors,
+			Required: maxTorsPerRack,
 		}
 	}
+
+	// Verify that rack has at least the minimum number of blades..., 
+	//
+	countBlades := int64(len(x.Blades))
+
+	if countBlades < minBladesPerRack {
+		return errors.ErrMustBeGTE{
+			Field:    fmt.Sprintf("%sBlades", prefix),
+			Actual:   countBlades,
+			Required: minBladesPerRack,
+		}
+	}
+
+	// ... but no more than the maximum number of blades
+	//
+	if countBlades > maxBladesPerRack {
+		return errors.ErrMustBeLTE{
+			Field:    fmt.Sprintf("%sBlades", prefix),
+			Actual:   countBlades,
+			Required: maxBladesPerRack,
+		}
+	}
+
 
 	// Check that there is one Pdu port for each blade
 	//
@@ -275,7 +314,7 @@ func (x *Definition_Rack) Validate(prefix string) error {
 	// .. And then validate that each blade is valid
 	//
 	for k, v := range x.Blades {
-		if err := v.Capacity.Validate(fmt.Sprintf("%sBlades[%d].", prefix, k)); err != nil {
+		if err := v.Validate(fmt.Sprintf("%sBlade[%d].", prefix, k)); err != nil {
 			return err
 		}
 	}
@@ -288,7 +327,7 @@ func (x *Definition_Rack) Validate(prefix string) error {
 // Validate is a method that verifies that the associated DefinitionZone instance
 // is structurally legal
 //
-func (x *Definition_Zone) Validate() error {
+func (x *Definition_Zone) Validate(prefix string) error {
 	// Verify that zone has at least one rack
 	//
 	actual := int64(len(x.Racks))
@@ -303,7 +342,35 @@ func (x *Definition_Zone) Validate() error {
 	// .. And then validate that each rack is valid
 	//
 	for k, v := range x.Racks {
-		if err := v.Validate(fmt.Sprintf("Rack[%s].", k)); err != nil {
+		if err := v.Validate(fmt.Sprintf("%sRack[%s].", prefix, k)); err != nil {
+			return err
+		}
+	}
+
+	// All correct
+	//
+	return nil
+}
+
+// Validate is a method that verifies that the associated DefinitionZone instance
+// is structurally legal
+//
+func (x *Definition_Region) Validate(prefix string) error {
+	// Verify that zone has at least one rack
+	//
+	actual := int64(len(x.Zones))
+	if actual < 1 {
+		return errors.ErrMinLenMap{
+			Field:    "Zones",
+			Actual:   actual,
+			Required: 1,
+		}
+	}
+
+	// .. And then validate that each rack is valid
+	//
+	for k, v := range x.Zones {
+		if err := v.Validate(fmt.Sprintf("%sZone[%s].", prefix, k)); err != nil {
 			return err
 		}
 	}
