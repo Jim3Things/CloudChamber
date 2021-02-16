@@ -68,13 +68,13 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.aliceDef = &admin.UserDefinition{
 		Password:          ts.alicePassword(),
 		Enabled:           true,
-		CanManageAccounts: false,
+		Rights: &admin.Rights{CanManageAccounts: false},
 	}
 
 	ts.bobDef = &admin.UserDefinition{
 		Password:          ts.bobPassword(),
 		Enabled:           true,
-		CanManageAccounts: false,
+		Rights: &admin.Rights{CanManageAccounts: false},
 	}
 
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())

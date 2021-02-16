@@ -62,7 +62,14 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 		Name:              cfg.WebServer.SystemAccount,
 		PasswordHash:      passwordHash,
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{
+			CanManageAccounts:  true,
+			CanStepTime:        true,
+			CanModifyWorkloads: true,
+			CanModifyInventory: true,
+			CanInjectFaults:    true,
+			CanPerformRepairs:  true,
+		},
 		NeverDelete:       true})
 
 	// If the SystemAccount already exists we need to do a couple of things.
@@ -187,7 +194,7 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 		PasswordHash:      old.GetPasswordHash(),
 		UserId:            old.GetUserId(),
 		Enabled:           u.GetEnabled(),
-		CanManageAccounts: u.GetCanManageAccounts(),
+		Rights: u.GetRights(),
 		NeverDelete:       old.GetNeverDelete(),
 	}
 
@@ -234,7 +241,7 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 		PasswordHash:      hash,
 		UserId:            old.GetUserId(),
 		Enabled:           old.GetEnabled(),
-		CanManageAccounts: old.GetCanManageAccounts(),
+		Rights: old.GetRights(),
 		NeverDelete:       old.GetNeverDelete(),
 	}
 

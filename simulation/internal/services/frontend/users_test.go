@@ -364,7 +364,7 @@ func (ts *UserTestSuite) TestCreate() {
 
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(
-		"User \"Alice2\" created.  enabled: true, can manage accounts: false", string(body),
+		"User \"Alice2\" created, enabled: true, rights: ", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	ts.knownNames[path] = path
@@ -581,7 +581,7 @@ func (ts *UserTestSuite) TestRead() {
 	assert.Less(int64(1), match)
 
 	assert.True(user.Enabled)
-	assert.True(user.CanManageAccounts)
+	assert.True(user.Rights.CanManageAccounts)
 	assert.True(user.NeverDelete)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
@@ -690,7 +690,14 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{
+			CanManageAccounts:  true,
+			CanStepTime:        false,
+			CanModifyWorkloads: false,
+			CanModifyInventory: false,
+			CanInjectFaults:    false,
+			CanPerformRepairs:  false,
+		},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -724,7 +731,7 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	assert.Less(rev, match)
 
 	assert.True(user.Enabled)
-	assert.True(user.CanManageAccounts)
+	assert.True(user.Rights.CanManageAccounts)
 	assert.False(user.NeverDelete)
 
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -770,7 +777,7 @@ func (ts *UserTestSuite) TestUpdateBadMatch() {
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -805,7 +812,7 @@ func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
 	aliceUpd := &pb.UserDefinition{
 		Password:          ts.alicePassword(),
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -836,7 +843,7 @@ func (ts *UserTestSuite) TestUpdateNoUser() {
 
 	upd := &pb.UserUpdate{
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -864,7 +871,7 @@ func (ts *UserTestSuite) TestUpdateNoPrivilege() {
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -896,12 +903,12 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 	}
 
 	aliceOriginal := &pb.UserUpdate{
 		Enabled:           true,
-		CanManageAccounts: false,
+		Rights: &pb.Rights{CanManageAccounts: false},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -930,7 +937,7 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 
 	// Now verify that the entry has not been changed
 	response, user := ts.userRead(ts.alice(), response.Cookies())
-	assert.False(user.CanManageAccounts)
+	assert.False(user.Rights.CanManageAccounts)
 	assert.True(user.Enabled)
 	assert.False(user.NeverDelete)
 

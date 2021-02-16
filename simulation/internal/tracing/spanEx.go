@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"regexp"
 	"sync/atomic"
 
 	"go.opentelemetry.io/otel/api/global"
@@ -269,12 +270,14 @@ func GetAndMarkLink(parent trace.Span) (string, bool) {
 // AddTrace call.  These attributes are assumed to be key value pairs that have
 // arrays of strings for their values.
 type TraceDetail struct {
+	formatIf func(a ...interface{}) string
 	details map[string][]string
 }
 
 // newTraceDetail creates a new empty TraceDetail instance.
 func newTraceDetail() *TraceDetail {
 	return &TraceDetail{
+		formatIf: formatIf,
 		details: make(map[string][]string),
 	}
 }
@@ -291,6 +294,10 @@ func (td *TraceDetail) addEntry(key string, value string) {
 
 	item = append(item, value)
 	td.details[key] = item
+}
+
+func (td *TraceDetail) setFormatter(f func(a ...interface{}) string) {
+	td.formatIf = f
 }
 
 // toKvPairs converts the returns of the TraceDetail instance as one or more
@@ -347,9 +354,29 @@ func WithImpactUse(element string) TraceAnnotation {
 	}
 }
 
+func WithRedacted(match *regexp.Regexp, repl string) TraceAnnotation {
+	return func(cfg *TraceDetail) {
+		cfg.formatIf = func(a ...interface{}) string {
+			fs, ok := a[0].(string)
+			if !ok {
+				return ""
+			}
+
+			var s string
+			if len(a) > 1 {
+				s = fmt.Sprintf(fs, a[1:]...)
+			} else {
+				s = fs
+			}
+
+			return match.ReplaceAllString(s, repl)
+		}
+	}
+}
+
 // addAnnotations processes all recognized TraceAnnotation functions in the
 // supplied slice, stopping at the first non-TraceAnnotation entry.  The index
-// to that first non-Traceannotation entry is then returned.
+// to that first non-TraceAnnotation entry is then returned.
 func addAnnotations(cfg *TraceDetail, a []interface{}) int {
 	i := 0
 	for _, item := range a {
@@ -379,7 +406,7 @@ func Debug(ctx context.Context, a ...interface{}) {
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Debug)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a[start:]...)))
+		kv.String(MessageTextKey, cfg.formatIf(a[start:]...)))
 
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
@@ -397,7 +424,7 @@ func Info(ctx context.Context, a ...interface{}) {
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a[start:]...)))
+		kv.String(MessageTextKey, cfg.formatIf(a[start:]...)))
 
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
@@ -416,7 +443,7 @@ func OnEnter(ctx context.Context, a ...interface{}) {
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a[start:]...)))
+		kv.String(MessageTextKey, cfg.formatIf(a[start:]...)))
 
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
@@ -434,7 +461,7 @@ func Warn(ctx context.Context, a ...interface{}) {
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a[start:]...)))
+		kv.String(MessageTextKey, cfg.formatIf(a[start:]...)))
 
 	trace.SpanFromContext(ctx).AddEvent(
 		ctx,
@@ -468,14 +495,14 @@ func Error(ctx context.Context, a ...interface{}) error {
 				err = e
 
 			case string:
-				err = errors.New(e)
+				err = errors.New(cfg.formatIf(e))
 
 			default:
 				err = fmt.Errorf("unexpected values: %v", e)
 			}
 
 		default:
-			err = fmt.Errorf(a[start].(string), a[start+1:]...)
+			err = errors.New(cfg.formatIf(a...))
 		}
 	}
 

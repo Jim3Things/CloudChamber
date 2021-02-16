@@ -157,7 +157,13 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 
 	var rev int64
 
-	if rev, err = userAdd(ctx, username, u.Password, u.CanManageAccounts, u.Enabled, false); err != nil {
+	if rev, err = userAdd(
+		ctx,
+		username,
+		u.Password,
+		u.Rights,
+		u.Enabled,
+		false); err != nil {
 		postHTTPError(ctx, w, err)
 		return
 	}
@@ -167,12 +173,15 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 	tracing.Info(
 		ctx,
 		tracing.WithImpactCreate("/users/"+username),
-		"Created user %q, pwd: <redacted>, enabled: %v, accountManager: %v", username, u.Enabled, u.CanManageAccounts)
+		"Created user %q, pwd: <redacted>, enabled: %v, rights: %s",
+		username,
+		u.Enabled,
+		u.Rights.Describe())
 
 	_, err = fmt.Fprintf(
 		w,
-		"User %q created.  enabled: %v, can manage accounts: %v",
-		username, u.Enabled, u.CanManageAccounts)
+		"User %q created, enabled: %v, rights: %s",
+		username, u.Enabled, u.Rights.Describe())
 
 	httpErrorIf(ctx, w, err)
 }
@@ -212,7 +221,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 
 	ext := &pb.UserPublic{
 		Enabled:           u.Enabled,
-		CanManageAccounts: u.CanManageAccounts,
+		Rights: u.Rights,
 		NeverDelete:       u.NeverDelete,
 	}
 
@@ -304,7 +313,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 
 	ext := &pb.UserPublic{
 		Enabled:           newVer.Enabled,
-		CanManageAccounts: newVer.CanManageAccounts,
+		Rights: newVer.Rights,
 		NeverDelete:       newVer.NeverDelete,
 	}
 
@@ -556,7 +565,7 @@ func userAdd(
 	ctx context.Context,
 	name string,
 	password string,
-	accountManager bool,
+	rights *pb.Rights,
 	enabled bool,
 	neverDelete bool) (int64, error) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -569,7 +578,7 @@ func userAdd(
 		Name:              name,
 		PasswordHash:      passwordHash,
 		Enabled:           enabled,
-		CanManageAccounts: accountManager,
+		Rights: rights,
 		NeverDelete:       neverDelete})
 
 	if err == errors.ErrUserAlreadyExists(name) {
@@ -693,7 +702,7 @@ func canManageAccounts(ctx context.Context, session *sessions.Session, username 
 		return NewErrUserPermissionDenied()
 	}
 
-	if !user.CanManageAccounts && !strings.EqualFold(user.Name, username) {
+	if !user.Rights.CanManageAccounts && !strings.EqualFold(user.Name, username) {
 		return NewErrUserPermissionDenied()
 	}
 
@@ -701,15 +710,11 @@ func canManageAccounts(ctx context.Context, session *sessions.Session, username 
 }
 
 func verifyRightsAvailable(current *pb.User, upd *pb.UserUpdate) error {
-	if current.CanManageAccounts {
+	if current.Rights.StrongerThan(upd.Rights) {
 		return nil
 	}
 
-	if upd.CanManageAccounts {
-		return NewErrUserPermissionDenied()
-	}
-
-	return nil
+	return NewErrUserPermissionDenied()
 }
 
 func formatUser(name string, user *pb.UserPublic) string {
@@ -725,9 +730,10 @@ func formatUser(name string, user *pb.UserPublic) string {
 		attrs = append(attrs, "disabled")
 	}
 
-	if user.CanManageAccounts {
-		attrs = append(attrs, "can manage accounts")
-	}
+
+	attrs = append(
+		attrs,
+		fmt.Sprintf("Rights: {%s}", user.Rights.Describe()))
 
 	desc := strings.Join(attrs, ", ")
 

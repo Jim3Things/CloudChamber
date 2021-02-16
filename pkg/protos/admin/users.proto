@@ -5,6 +5,15 @@ package admin;
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/admin";
 option csharp_namespace = "CloudChamber.Protos.Admin";
 
+message Rights {
+    bool can_manage_accounts = 1;
+    bool can_step_time = 2;
+    bool can_modify_workloads = 3;
+    bool can_modify_inventory = 4;
+    bool can_inject_faults = 5;
+    bool can_perform_repairs = 6;
+}
+
 // User is a representation of an individual user
 //
 // TODO This is just a placeholder until we have proper user records held
@@ -19,7 +28,7 @@ message User {
     bool enabled = 4;
 
     // The rights this user has
-    bool can_manage_accounts = 5;
+    Rights rights = 5;
 
     // True, if this user entry can never be deleted.
     bool never_delete = 6;
@@ -31,7 +40,7 @@ message UserPublic {
     bool enabled = 1;
 
     // The rights this user has
-    bool can_manage_accounts = 2;
+    Rights rights = 2;
 
     // True, if this user entry can never be deleted.
     bool never_delete = 3;
@@ -44,16 +53,16 @@ message UserDefinition {
     bool enabled = 2;
 
     // The rights this user has
-    bool can_manage_accounts = 3;
+    Rights rights = 3;
 }
 
 // Public definition for the fields for a user that can be mutated in an
 // update operation
 message UserUpdate {
-    bool enabled = 2;
+    bool enabled = 1;
 
     // The rights this user has
-    bool can_manage_accounts = 3;
+    Rights rights = 2;
 }
 
 // Public definition for a request to set a new password for a user
