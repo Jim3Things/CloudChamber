@@ -316,6 +316,283 @@ func (edb ErrDuplicateBlade) Error() string {
 	return fmt.Sprintf("Duplicate Blade %d in Rack %q detected", edb.Blade, edb.Rack)
 }
 
+// ErrDuplicateRegion indicates duplicates region names found
+type ErrDuplicateRegion string
+
+func (e ErrDuplicateRegion) Error() string {
+	return fmt.Sprintf("Duplicate region %q detected", string(e))
+}
+
+// ErrConfigRegionDuplicate indicates duplicate region names found
+//
+type ErrConfigRegionDuplicate struct {
+	Region string
+}
+
+func (e ErrConfigRegionDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate Region %s",
+		e.Region)
+}
+
+// ErrConfigRegionBadState indicates the state for the region was unrecognized
+//
+type ErrConfigRegionBadState struct {
+	Region string
+	State  string
+}
+
+func (e ErrConfigRegionBadState) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected invalid state %q for region %q",
+		e.State,
+		e.Region)
+}
+
+// ErrConfigZoneDuplicate indicates duplicate zone names found
+//
+type ErrConfigZoneDuplicate struct {
+	Region string
+	Zone   string
+}
+
+func (e ErrConfigZoneDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate Zone %q in %s",
+		e.Zone,
+		regionAddress(e.Region))
+}
+
+// ErrConfigZoneBadState indicates the state for the zone was unrecognized
+//
+type ErrConfigZoneBadState struct {
+	Region string
+	Zone   string
+	State  string
+}
+
+func (e ErrConfigZoneBadState) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected invalid state %q for %s",
+	 	e.State,
+		zoneAddress(e.Zone, e.Region))
+}
+
+// ErrConfigRackDuplicate indicates duplicate rack names found
+//
+type ErrConfigRackDuplicate struct {
+	Region string
+	Zone   string
+	Rack   string
+}
+
+func (e ErrConfigRackDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate Rack %s in %s",
+		e.Rack,
+		zoneAddress(e.Region, e.Zone))
+}
+
+// ErrConfigRackBadCondition indicates the condition for the rack was unrecognized
+//
+type ErrConfigRackBadCondition struct {
+	Region    string
+	Zone      string
+	Rack      string
+	Condition string
+}
+
+func (e ErrConfigRackBadCondition) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected invalid condition %q for %s",
+	 	e.Condition,
+		rackAddress(e.Zone, e.Region, e.Rack))
+}
+
+// ErrConfigPduDuplicate indicates duplicate pdu indexes found
+type ErrConfigPduDuplicate struct {
+	Region string
+	Zone   string
+	Rack   string
+	Pdu    int64
+}
+
+func (e ErrConfigPduDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate Pdu %d in %s",
+		e.Pdu,
+		pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
+}
+
+// ErrConfigPduBadCondition indicates the condition for the pdu was unrecognized
+//
+type ErrConfigPduBadCondition struct {
+	Region    string
+	Zone      string
+	Rack      string
+	Pdu       int64
+	Condition string
+}
+
+func (e ErrConfigPduBadCondition) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected invalid condition %q for %s",
+	 	e.Condition,
+		pduAddress(e.Zone, e.Region, e.Rack, e.Pdu))
+}
+
+// ErrConfigTorDuplicate indicates duplicate tor indexes found
+type ErrConfigTorDuplicate struct {
+	Region string
+	Zone   string
+	Rack   string
+	Tor    int64
+}
+
+func (e ErrConfigTorDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate Tor %d in %s",
+		e.Tor,
+		torAddress(e.Region, e.Zone, e.Rack, e.Tor))
+}
+
+// ErrConfigTorBadCondition indicates the condition for the tor was unrecognized
+//
+type ErrConfigTorBadCondition struct {
+	Region    string
+	Zone      string
+	Rack      string
+	Tor       int64
+	Condition string
+}
+
+func (e ErrConfigTorBadCondition) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration file detected invalid condition %q for %s",
+	 	e.Condition,
+		torAddress(e.Region, e.Zone, e.Rack, e.Tor))
+}
+
+// ErrConfigBladeDuplicate indicates duplicate tor indexes found
+//
+type ErrConfigBladeDuplicate struct {
+	Region string
+	Zone   string
+	Rack   string
+	Blade  int64
+}
+
+func (e ErrConfigBladeDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate Blade %d in %s",
+		e.Blade,
+		bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
+}
+
+// ErrConfigBladeBadCondition indicates the state for the zone was unrecognized
+//
+type ErrConfigBladeBadCondition struct {
+	Region    string
+	Zone      string
+	Rack      string
+	Blade     int64
+	Condition string
+}
+
+func (e ErrConfigBladeBadCondition) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration file has invalid condition %q for %s",
+	 	e.Condition,
+		bladeAddress(e.Zone, e.Region, e.Rack, e.Blade))
+}
+
+// ErrConfigPowerPortDuplicate indicates duplicate pdu port indexes found
+//
+type ErrConfigPowerPortDuplicate struct {
+	Region string
+	Zone   string
+	Rack   string
+	Pdu    int64
+	Port   int64
+}
+
+func (e ErrConfigPowerPortDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate power port %d in %s",
+		e.Port,
+		pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
+}
+
+// ErrConfigNetworkPortDuplicate indicates duplicate tor port indexes found
+//
+type ErrConfigNetworkPortDuplicate struct {
+	Region string
+	Zone   string
+	Rack   string
+	Tor    int64
+	Port   int64
+}
+
+func (e ErrConfigNetworkPortDuplicate) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected duplicate network port %d in %s",
+		e.Port,
+		torAddress(e.Region, e.Zone, e.Rack, e.Tor))
+}
+
+// ErrConfigPduHwTypeInvalid indicates invalid hw type connected to a pdu port
+//
+type ErrConfigPduHwTypeInvalid struct {
+	Region string
+	Zone   string
+	Rack   string
+	Pdu    int64
+	Port   int64
+	Type   string
+}
+
+func (e ErrConfigPduHwTypeInvalid) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected invalid hardware type %q at %s",
+		e.Type,
+		powerPortAddress(e.Region, e.Zone, e.Rack, e.Pdu, e.Port))
+}
+
+// ErrConfigTorHwTypeInvalid indicates invalid hw type connected to a tor port
+//
+type ErrConfigTorHwTypeInvalid struct {
+	Region string
+	Zone   string
+	Rack   string
+	Tor    int64
+	Port   int64
+	Type   string
+}
+
+func (e ErrConfigTorHwTypeInvalid) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected invalid hardware type %q at %s",
+		e.Type,
+		networkPortAddress(e.Region, e.Zone, e.Rack, e.Tor, e.Port))
+}
+
+// ErrConfigBladeBadBootSource indicates invalid hw type connected to a tor port
+//
+type ErrConfigBladeBadBootSource struct {
+	Region     string
+	Zone       string
+	Rack       string
+	Blade      int64
+	BootSource string
+}
+
+func (e ErrConfigBladeBadBootSource) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: Configuration detected invalid boot source %q at %s",
+		e.BootSource,
+		bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
+}
+
 // ErrRackValidationFailure indicates validation failure in the attributes associated
 // with a rack.
 type ErrRackValidationFailure struct {
@@ -325,6 +602,17 @@ type ErrRackValidationFailure struct {
 
 func (evf ErrRackValidationFailure) Error() string {
 	return fmt.Sprintf("In rack %q: %v", evf.Rack, evf.Err)
+}
+
+// ErrRegionValidationFailure indicates validation failure in the attributes associated
+// with a rack.
+type ErrRegionValidationFailure struct {
+	Region string
+	Err    error
+}
+
+func (e ErrRegionValidationFailure) Error() string {
+	return fmt.Sprintf("In rack %q: %v", e.Region, e.Err)
 }
 
 // ErrUserAlreadyExists indicates the attempt to create a new user account
@@ -805,6 +1093,22 @@ func (e ErrMustBeGTE) Error() string {
 		e.Actual)
 }
 
+// ErrMustBeLTE signals that the specified field must be less than or equal
+// to a designated value.
+type ErrMustBeLTE struct {
+	Field    string
+	Actual   int64
+	Required int64
+}
+
+func (e ErrMustBeLTE) Error() string {
+	return fmt.Sprintf(
+		"the field %q must be less than or equal to %d.  It is %d, which is invalid",
+		e.Field,
+		e.Required,
+		e.Actual)
+}
+
 // ErrInvalidEnum signals that the specified field does not contain a valid
 // enum value.
 type ErrInvalidEnum struct {
@@ -1192,7 +1496,7 @@ func (epna ErrPortsNotAvailable) Error() string {
 }
 
 // ErrCapacityNotAvailable indicates the requested capacity information for
-// the item have not yet been establiehed.
+// the item has not yet been establiehed.
 //
 type ErrCapacityNotAvailable string
 

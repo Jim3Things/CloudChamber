@@ -682,7 +682,7 @@ func (m *DBInventory) CreatePdu(
 	pdu *pb.Definition_Pdu,
 	options ...InventoryOption) (int64, error) {
 
-	if err := pdu.Verify(); err != nil {
+	if err := pdu.Validate("", 0); err != nil {
 		return InvalidRev, err
 	}
 
@@ -726,7 +726,7 @@ func (m *DBInventory) CreateTor(
 	tor *pb.Definition_Tor,
 	options ...InventoryOption) (int64, error) {
 
-	if err := tor.Verify(); err != nil {
+	if err := tor.Validate("", 0); err != nil {
 		return InvalidRev, err
 	}
 
