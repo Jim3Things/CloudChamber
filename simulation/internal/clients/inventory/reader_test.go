@@ -250,7 +250,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileValidateBlade() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlValidate")
-	require.EqualError(err, "In rack \"rack1\": the field \"Blade[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
+	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
 	require.Nil(response)
 }
 

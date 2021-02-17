@@ -298,7 +298,7 @@ func (x *Definition_Rack) Validate(prefix string) error {
 	// Check that there is one Pdu port for each blade
 	//
 	for k, v := range x.Pdus {
-		if err := v.Validate(fmt.Sprintf("%sPdu[%d].", prefix, k), countBlades); err != nil {
+		if err := v.Validate(fmt.Sprintf("%sPdus[%d].", prefix, k), countBlades); err != nil {
 			return err
 		}
 	}
@@ -306,7 +306,7 @@ func (x *Definition_Rack) Validate(prefix string) error {
 	// Check that there is one Tor port for each blade
 	//
 	for k, v := range x.Tors {
-		if err := v.Validate(fmt.Sprintf("%sTor[%d].", prefix, k), countBlades); err != nil {
+		if err := v.Validate(fmt.Sprintf("%sTors[%d].", prefix, k), countBlades); err != nil {
 			return err
 		}
 	}
@@ -314,7 +314,7 @@ func (x *Definition_Rack) Validate(prefix string) error {
 	// .. And then validate that each blade is valid
 	//
 	for k, v := range x.Blades {
-		if err := v.Validate(fmt.Sprintf("%sBlade[%d].", prefix, k)); err != nil {
+		if err := v.Validate(fmt.Sprintf("%sBlades[%d].", prefix, k)); err != nil {
 			return err
 		}
 	}
@@ -342,7 +342,7 @@ func (x *Definition_Zone) Validate(prefix string) error {
 	// .. And then validate that each rack is valid
 	//
 	for k, v := range x.Racks {
-		if err := v.Validate(fmt.Sprintf("%sRack[%s].", prefix, k)); err != nil {
+		if err := v.Validate(fmt.Sprintf("%sRacks[%s].", prefix, k)); err != nil {
 			return err
 		}
 	}
@@ -370,7 +370,7 @@ func (x *Definition_Region) Validate(prefix string) error {
 	// .. And then validate that each rack is valid
 	//
 	for k, v := range x.Zones {
-		if err := v.Validate(fmt.Sprintf("%sZone[%s].", prefix, k)); err != nil {
+		if err := v.Validate(fmt.Sprintf("%sZones[%s].", prefix, k)); err != nil {
 			return err
 		}
 	}
