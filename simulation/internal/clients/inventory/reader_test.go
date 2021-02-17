@@ -433,30 +433,6 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionExtended() {
 			}
 		}
 	}
-	// require.Equal(2, len(response.Racks))
-
-	// r, ok := response.Racks["rack1"]
-	// require.True(ok)
-	// assert.Equal(2, len(r.Blades))
-
-	// b, ok := r.Blades[1]
-	// require.True(ok)
-	// assert.Equal(int64(16), b.Cores)
-	// assert.Equal(int64(16834), b.MemoryInMb)
-	// assert.Equal(int64(240), b.DiskInGb)
-	// assert.Equal(int64(2048), b.NetworkBandwidthInMbps)
-	// assert.Equal("X64", b.Arch)
-
-	// s, ok := response.Racks["rack2"]
-	// require.True(ok)
-	// assert.Equal(2, len(s.Blades))
-
-	// c, ok := r.Blades[2]
-	// require.True(ok)
-	// assert.Equal(int64(8), c.Cores)
-	// assert.Equal(int64(16834), c.MemoryInMb)
-	// assert.Equal(int64(120), c.DiskInGb)
-	// assert.Equal(int64(2048), c.NetworkBandwidthInMbps)
 }
 
 func TestReaderTestSuite(t *testing.T) {

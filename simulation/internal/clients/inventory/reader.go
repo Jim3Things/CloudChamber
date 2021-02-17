@@ -559,7 +559,7 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 			Name: xfrRoot.Details.Name,
 			Notes: xfrRoot.Details.Notes,
 		},
-		Regions: make(map[string]*pb.Definition_Region),
+		Regions: make(map[string]*pb.Definition_Region, len(xfrRoot.Regions)),
 	}
 
 	// For each rack in the supplied configuration, create rack in the
@@ -573,10 +573,10 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 			}
 		}
 		var (
-			ok		   bool
+			ok         bool
 			state      pb.State
 			condition  pb.Condition
-			hwType	   pb.Hardware_HwType
+			hwType     pb.Hardware_HwType
 			bootSource pb.BladeBootInfo_Method
 		)
 
@@ -595,7 +595,7 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 				Location: xfrRegion.Details.Location,
 				Notes:    xfrRegion.Details.Notes,
 			},
-			Zones:   make(map[string]*pb.Definition_Zone),
+			Zones:   make(map[string]*pb.Definition_Zone, len(xfrRegion.Zones)),
 		}
 	
 		// Iterate over the set of zones in the supplied configuration
@@ -626,7 +626,7 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 					Location: xfrZone.Details.Location,
 					Notes:    xfrZone.Details.Notes,
 				},
-				Racks: make(map[string]*pb.Definition_Rack),
+				Racks: make(map[string]*pb.Definition_Rack, len(xfrZone.Racks)),
 			}
 
 			// Iterate over the set of racks in the supplied configuration
@@ -659,9 +659,9 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 						Location:  xfrRack.Details.Location,
 						Notes:     xfrRack.Details.Notes,
 					},
-					Pdus:   make(map[int64]*pb.Definition_Pdu),
-					Tors:   make(map[int64]*pb.Definition_Tor),
-					Blades: make(map[int64]*pb.Definition_Blade),
+					Pdus:   make(map[int64]*pb.Definition_Pdu, len(xfrRack.Pdus)),
+					Tors:   make(map[int64]*pb.Definition_Tor, len(xfrRack.Tors)),
+					Blades: make(map[int64]*pb.Definition_Blade, len(xfrRack.Blades)),
 				}
 
 				// A rack contains sub-components for Pdus, Tors and Blades with
@@ -699,7 +699,7 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 							Condition: condition,
 							Enabled:   xfrPdu.Details.Enabled,
 						},
-						Ports: make(map[int64]*pb.PowerPort),
+						Ports: make(map[int64]*pb.PowerPort, len(xfrPdu.Ports)),
 					}
 
 					// Iterate over the set of power ports in the supplied
@@ -779,7 +779,7 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 							Condition: condition,
 							Enabled:   xfrTor.Details.Enabled,
 						},
-						Ports: make(map[int64]*pb.NetworkPort),
+						Ports: make(map[int64]*pb.NetworkPort, len(xfrTor.Ports)),
 					}
 
 					// Iterate over the set of network ports in the supplied
@@ -906,9 +906,9 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 			return nil, errors.ErrRegionValidationFailure{
 				Region: xfrRegion.Name,
 				Err:  err,
+			}
 		}
 	}
-}
 
 	return root, nil
 }

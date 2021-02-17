@@ -28,25 +28,25 @@ Regions:
                   Condition: Operational
                 Ports:
                   - Index: 1
-                    Wired: 1
+                    Wired: true
                     Item:
                       Type: blade
                       Id: 1
                       Port: 0
                   - Index: 2
-                    Wired: 1
+                    Wired: true
                     Item: 
                       Type: blade
                       Id: 1
                       Port: 1
                   - Index: 3
-                    Wired: 1
+                    Wired: true
                     Item: 
                       Type: tor
                       Id: 0
                       Port: 1
                   - Index: 4
-                    Wired: 1
+                    Wired: true
                     Item:
                       Type: blade
                       Id: 2
@@ -58,25 +58,25 @@ Regions:
                   Condition: Operational
                 Ports:
                   - Index: 1
-                    Wired: 1
+                    Wired: true
                     Item: 
                       Type: blade
                       Id: 1
                       Port: 0
                   - Index: 2
-                    Wired: 1
+                    Wired: true
                     Item: 
                       Type: blade
                       Id: 1
                       Port: 1
                   - Index: 3
-                    Wired: 1
+                    Wired: true
                     Item: 
                       Type: pdu
                       Id: 0
                       Port: 1
                   - Index: 4
-                    Wired: 1
+                    Wired: true
                     Item: 
                       Type: blade
                       Id: 2
@@ -84,7 +84,7 @@ Regions:
             Blades:
               - Index: 1
                 Details:
-                  Enabled: 1
+                  Enabled: true
                   Condition: Operational
                 Capacity:
                   Cores: 16
@@ -100,7 +100,7 @@ Regions:
                 BootOnPowerOn: true
               - Index: 2
                 Details:
-                  Enabled: 1
+                  Enabled: true
                   Condition: Operational
                 Capacity:
                   Cores: 24
