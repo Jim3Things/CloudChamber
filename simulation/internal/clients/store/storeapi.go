@@ -489,8 +489,8 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 			ctx,
 			tracing.WithRedacted(
 				regexp.MustCompile(
-					`passwordHash\\\"\:(.*),\\\"`),
-					`passwordHash\":...REDACTED...,\"`),
+					`passwordHash\\\"\:(.*?),\\\"`),
+					`passwordHash\":\"...REDACTED...\",\"`),
 			"found record for %q under prefix %q, with revision %v and value %q",
 			n,
 			prefix,

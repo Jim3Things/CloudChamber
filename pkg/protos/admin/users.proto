@@ -27,11 +27,14 @@ message User {
     int64 user_id = 3;
     bool enabled = 4;
 
-    // The rights this user has
-    Rights rights = 5;
+    // obsolete
+    bool can_manage_accounts = 5;
 
     // True, if this user entry can never be deleted.
     bool never_delete = 6;
+
+    // The rights this user has
+    Rights rights = 7;
 }
 
 // Limited exposure of user attributes for use when returning information
@@ -59,10 +62,10 @@ message UserDefinition {
 // Public definition for the fields for a user that can be mutated in an
 // update operation
 message UserUpdate {
-    bool enabled = 1;
+    bool enabled = 2;
 
     // The rights this user has
-    Rights rights = 2;
+    Rights rights = 3;
 }
 
 // Public definition for a request to set a new password for a user

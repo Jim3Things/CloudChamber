@@ -49,3 +49,21 @@ func (x *Rights) StrongerThan(r *Rights) bool {
 		x.CanModifyInventory && r.CanModifyInventory == x.CanModifyInventory &&
 		x.CanInjectFaults && r.CanInjectFaults == x.CanInjectFaults
 }
+
+func (x *User) Update() bool {
+	if x.CanManageAccounts {
+		// This is using the old form of rights, so set the rights correctly and
+		// clear this flag.
+		x.Rights.CanManageAccounts = true
+		x.Rights.CanInjectFaults = true
+		x.Rights.CanModifyInventory = true
+		x.Rights.CanModifyWorkloads = true
+		x.Rights.CanPerformRepairs = true
+		x.Rights.CanStepTime = true
+		x.CanManageAccounts = false
+
+		return true
+	}
+
+	return false
+}

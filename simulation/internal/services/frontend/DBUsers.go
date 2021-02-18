@@ -81,13 +81,33 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	// if the account is already present.
 	//
 	if err == errors.ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
-		existingUser, _, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
+		existingUser, rev, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
 
 		if err != nil {
 			return tracing.Error(ctx, errors.ErrUnableToVerifySystemAccount{
 				Name: cfg.WebServer.SystemAccount,
 				Err:  err,
 			})
+		}
+
+		if ok := existingUser.Update(); ok {
+			tracing.Info(
+				ctx,
+				"CloudChamber: old schema detected in standard %q account.  Attempting to update",
+				cfg.WebServer.SystemAccount)
+
+			upd := &pb.UserUpdate{
+				Enabled: existingUser.Enabled,
+				Rights:  existingUser.Rights,
+			}
+
+			existingUser, _, err = dbUsers.Update(ctx, cfg.WebServer.SystemAccount, upd, rev)
+			if err != nil {
+				return tracing.Error(ctx, errors.ErrUnableToUpdateSystemAccount{
+					Name: cfg.WebServer.SystemAccount,
+					Err:  err,
+				})
+			}
 		}
 
 		if err = bcrypt.CompareHashAndPassword(
