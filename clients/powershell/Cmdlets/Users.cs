@@ -113,8 +113,18 @@ namespace CloudChamber.Cmdlets
         /// <summary>
         ///     Admin is true if this user can manager other users' accounts.
         /// </summary>
-        [Parameter]
-        public SwitchParameter Admin { get; set; }
+        [Parameter] public SwitchParameter CanManageAccounts { get; set; } = false;
+
+        [Parameter] public SwitchParameter CanInjectFaults { get; set; } = false;
+
+        [Parameter] public SwitchParameter CanManageInventory { get; set; } = false;
+
+        [Parameter] public SwitchParameter CanManageWorkloads { get; set; } = false;
+
+        [Parameter] public SwitchParameter CanPerformRepairs { get; set; } = false;
+
+        [Parameter] public SwitchParameter CanStepTime { get; set; } = false;
+
 
         /// <summary>
         ///     Enabled is true if this user is allowed to login and use the
@@ -132,7 +142,15 @@ namespace CloudChamber.Cmdlets
             var json = JsonFormatter.Default.Format(new UserDefinition
             {
                 Enabled = Enabled,
-                CanManageAccounts = Admin,
+                Rights =
+                new Rights(){
+                    CanInjectFaults = CanInjectFaults,
+                    CanManageAccounts = CanManageAccounts,
+                    CanModifyInventory = CanManageInventory,
+                    CanModifyWorkloads = CanManageWorkloads,
+                    CanPerformRepairs = CanPerformRepairs,
+                    CanStepTime = CanStepTime
+                },
                 Password = Password
             });
 
@@ -146,7 +164,15 @@ namespace CloudChamber.Cmdlets
             {
                 Name = Name,
                 Enabled = Enabled,
-                CanManageAccounts = Admin,
+                Rights =
+                new Rights(){
+                    CanInjectFaults = CanInjectFaults,
+                    CanManageAccounts = CanManageAccounts,
+                    CanModifyInventory = CanManageInventory,
+                    CanModifyWorkloads = CanManageWorkloads,
+                    CanPerformRepairs = CanPerformRepairs,
+                    CanStepTime = CanStepTime
+                },
                 NeverDelete = false,
                 ETag = resp.Headers.GetHeader("ETag", "-1")
             });

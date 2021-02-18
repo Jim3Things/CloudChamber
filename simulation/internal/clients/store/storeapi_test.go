@@ -46,7 +46,7 @@ func TestCreate(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -91,7 +91,7 @@ func TestReadNew(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -142,7 +142,7 @@ func TestReadNewValue(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -196,7 +196,7 @@ func TestUpdate(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -221,7 +221,7 @@ func TestUpdate(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           false,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -244,7 +244,7 @@ func TestUpdate(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: false,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -277,7 +277,7 @@ func TestUpdateUnconditional(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -302,7 +302,7 @@ func TestUpdateUnconditional(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           false,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -325,7 +325,7 @@ func TestUpdateUnconditional(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: false,
+		Rights: &pb.Rights{CanManageAccounts: false},
 		NeverDelete:       true,
 	}
 
@@ -340,7 +340,7 @@ func TestUpdateUnconditional(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           false,
-		CanManageAccounts: false,
+		Rights: &pb.Rights{CanManageAccounts: false},
 		NeverDelete:       true,
 	}
 
@@ -374,7 +374,7 @@ func TestDelete(t *testing.T) {
 		PasswordHash:      passwordHash,
 		UserId:            1,
 		Enabled:           true,
-		CanManageAccounts: true,
+		Rights: &pb.Rights{CanManageAccounts: true},
 		NeverDelete:       true,
 	}
 
@@ -457,7 +457,7 @@ func TestList(t *testing.T) {
 			PasswordHash:      pwdHash,
 			UserId:            int64(i + 1),
 			Enabled:           true,
-			CanManageAccounts: false,
+			Rights: &pb.Rights{CanManageAccounts: false},
 			NeverDelete:       false,
 		}
 	}
