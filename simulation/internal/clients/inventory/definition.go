@@ -470,7 +470,8 @@ func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {
 // FetchChildren is used to discover all the child region objects in the
 // underlying store for the current root object and to generate a new
 // region object for each of those children. It is a convenience wrapper
-// around ListChildren() followed by a NewChild() on each name discovered.
+// around ListChildren() followed by a NewChild() and Read() on each name
+// discovered.
 //
 func (r *Root) FetchChildren(ctx context.Context) (int64, *map[string]Region, error) {
 
@@ -737,7 +738,8 @@ func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 // FetchChildren is used to discover all the child zone objects in the
 // underlying store for the current region object and to generate a new
 // zone object for each of those children. It is a convenience wrapper
-// around ListChildren() followed by a NewChild() on each name discovered.
+// around ListChildren() followed by a NewChild() and Read() on each
+// name discovered.
 //
 func (r *Region) FetchChildren(ctx context.Context) (int64, *map[string]Zone, error) {
 
@@ -1025,7 +1027,8 @@ func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 // FetchChildren is used to discover all the child rack objects in the
 // underlying store for the current zone object and to generate a new
 // rack object for each of those children. It is a convenience wrapper
-// around ListChildren() followed by a NewChild() on each name discovered.
+// around ListChildren() followed by a NewChild() and Read() on each
+// name discovered.
 //
 func (z *Zone) FetchChildren(ctx context.Context) (int64, *map[string]Rack, error) {
 
@@ -1524,7 +1527,8 @@ func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 // FetchPdus is used to discover all the child pdu objects in the
 // underlying store for the current rack object and to generate a new
 // pdu object for each of those children. It is a convenience wrapper
-// around ListPdus() followed by a NewPdu() on each name discovered.
+// around ListPdus() followed by a NewPdu() and Read() on each name
+// discovered.
 //
 func (r *Rack) FetchPdus(ctx context.Context) (int64, *map[int64]Pdu, error) {
 
@@ -1559,7 +1563,8 @@ func (r *Rack) FetchPdus(ctx context.Context) (int64, *map[int64]Pdu, error) {
 // FetchTors is used to discover all the child tor objects in the
 // underlying store for the current rack object and to generate a new
 // tor object for each of those children. It is a convenience wrapper
-// around ListTors() followed by a NewTor() on each name discovered.
+// around ListTors() followed by a NewTor() and Read() on each name
+// discovered.
 //
 func (r *Rack) FetchTors(ctx context.Context) (int64, *map[int64]Tor, error) {
 
@@ -1594,7 +1599,8 @@ func (r *Rack) FetchTors(ctx context.Context) (int64, *map[int64]Tor, error) {
 // FetchBlades is used to discover all the child blade objects in the
 // underlying store for the current rack object and to generate a new
 // blade object for each of those children. It is a convenience wrapper
-// around ListBlades() followed by a NewBlade() on each name discovered.
+// around ListBlades() followed by a NewBlade() and Read() on each name
+// discovered.
 //
 func (r *Rack) FetchBlades(ctx context.Context) (int64, *map[int64]Blade, error) {
 

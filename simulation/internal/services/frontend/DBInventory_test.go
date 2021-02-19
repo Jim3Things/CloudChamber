@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
@@ -63,97 +64,6 @@ func (ts *DBInventoryTestSuite) SetupTest() {
 
 func (ts *DBInventoryTestSuite) TearDownTest() {
 	ts.utf.Close()
-}
-
-func (ts *DBInventoryTestSuite) ensureInventoryLoaded() {
-	// require := ts.Require()
-
-	// ctx := context.Background()
-
-	// if ts.db == nil {
-
-	// err := db.Initialize(ctx, ts.cfg)
-	// require.NoError(err)
-	// require.NotNil(dbInventory)
-
-	// if ts.db == nil {
-	// 	ts.db = db
-	// }
-	// }
-}
-
-func (ts *DBInventoryTestSuite) ensureBasicZone() {
-	require := ts.Require()
-
-	ctx := context.Background()
-
-	_, err := ts.db.CreateZone(
-		ctx,
-		ts.zoneName,
-		&pb.Definition_Zone{
-			Details: &pb.ZoneDetails{
-				Enabled:  true,
-				State:    pb.State_in_service,
-				Location: "Pacific NW",
-				Notes:    "Basic Zone for test",
-			},
-		},
-	)
-
-	require.NoError(err)
-
-	_, err = ts.db.CreateRack(
-		ctx,
-		ts.zoneName,
-		ts.rackName,
-		&pb.Definition_Rack{
-			Details: &pb.RackDetails{
-				Enabled:   true,
-				Condition: pb.Condition_operational,
-				Location:  "In " + ts.zoneName,
-				Notes:     "Basic rack for test",
-			},
-		},
-	)
-
-	require.NoError(err)
-
-	pdu := pb.Definition_Pdu{
-		Details: &pb.PduDetails{
-			Enabled:   true,
-			Condition: pb.Condition_operational,
-		},
-		Ports: make(map[int64]*pb.PowerPort),
-	}
-
-	tor := pb.Definition_Tor{
-		Details: &pb.TorDetails{
-			Enabled:   true,
-			Condition: pb.Condition_operational,
-		},
-		Ports: make(map[int64]*pb.NetworkPort),
-	}
-
-	blade := pb.Definition_Blade{
-		Details: &pb.BladeDetails{
-			Enabled:   true,
-			Condition: pb.Condition_operational,
-		},
-		Capacity: &pb.BladeCapacity{
-			Cores:      8,
-			MemoryInMb: 8192,
-			DiskInGb:   8192,
-		},
-	}
-
-	_, err = ts.db.CreatePdu(ctx, ts.zoneName, ts.rackName, ts.pduID, &pdu)
-	require.NoError(err)
-
-	_, err = ts.db.CreateTor(ctx, ts.zoneName, ts.rackName, ts.torID, &tor)
-	require.NoError(err)
-
-	_, err = ts.db.CreateBlade(ctx, ts.zoneName, ts.rackName, ts.bladeID, &blade)
-	require.NoError(err)
 }
 
 func (ts *DBInventoryTestSuite) TestInitializeInventory() {
@@ -512,6 +422,44 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	assert.Equal(blade.BootInfo.Version, b.BootInfo.Version)
 	assert.Equal(blade.BootInfo.Parameters, b.BootInfo.Parameters)
 }
+
+func (ts *DBInventoryTestSuite) TestReadInventoryFromStore() {
+	require := ts.Require()
+
+	_, err := ts.db.readInventoryDefinitionFromStore(context.Background())
+	require.NoError(err)
+}
+func (ts *DBInventoryTestSuite) TestReadInventoryDefinitionExtended() {
+	require := ts.Require()
+
+	_, err := inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Extended")
+	require.NoError(err)
+}
+
+func (ts *DBInventoryTestSuite) TestLoadInventoryIntoStore() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	root, err := ts.db.readInventoryDefinitionFromStore(ctx)
+	require.NoError(err)
+
+	err = ts.db.deleteInventoryDefinitionFromStore(ctx, root)
+	require.NoError(err)
+
+	root, err = inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Extended")
+	require.NoError(err)
+
+	err = ts.db.writeInventoryDefinitionToStore(ctx, root)
+	require.NoError(err)
+
+	rootReload, err := ts.db.readInventoryDefinitionFromStore(ctx)
+	require.NoError(err)
+
+	err = ts.db.deleteInventoryDefinitionFromStore(ctx, rootReload)
+	require.NoError(err)
+}
+
 
 func TestDBInventoryTestSuite(t *testing.T) {
 	suite.Run(t, new(DBInventoryTestSuite))
