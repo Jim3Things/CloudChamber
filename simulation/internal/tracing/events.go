@@ -83,7 +83,7 @@ func (td *TraceDetail) addFilter(re *regexp.Regexp, repl string) {
 // toKvPairs converts the returns of the TraceDetail instance as one or more
 // KeyValue instances.
 func (td *TraceDetail) toKvPairs() []kv.KeyValue {
-	var res []kv.KeyValue
+	var res = make([]kv.KeyValue, 0, len(td.details))
 
 	for key, val := range td.details {
 		res = append(res, kv.Array(key, val))
