@@ -15,6 +15,7 @@ package frontend
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
@@ -81,19 +82,19 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 			dbInventory = db
 		}
 
-		// For temporary backwards compatibilities sake, need to have the older
-		// version here to allow all the current tests to run before we have a
-		// complete cut-over to the store based inventory definition.
-		//
-		zone, err := inventory.ReadInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition)
+		// // For temporary backwards compatibilities sake, need to have the older
+		// // version here to allow all the current tests to run before we have a
+		// // complete cut-over to the store based inventory definition.
+		// //
+		// zone, err := inventory.ReadInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition)
 
-		if err != nil {
-			return err
-		}
+		// if err != nil {
+		// 	return err
+		// }
 
-		dbInventory.Zone = zone
+		// dbInventory.Zone = zone
 
-		dbInventory.buildSummary(ctx)
+		// dbInventory.buildSummary(ctx)
 	}
 
 	return nil
@@ -121,9 +122,136 @@ func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) 
 		return err
 	}
 
-	if err = m.UpdateInventoryDefinition(ctx, cfg); err != nil {
+	return nil
+}
+
+// StartDBInventory is a 
+//
+func StartDBInventory(ctx context.Context, cfg *config.GlobalConfig) error {
+	return dbInventory.Start(ctx, cfg)
+}
+
+// Start is a
+//
+func (m *DBInventory) Start(ctx context.Context, cfg *config.GlobalConfig) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Start Inventory DB"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	if err := m.UpdateInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+// LoadFromStore is a method to load the currently known inventory from the store and in
+// expected to use used on service startup. Subsequent to this, once all the
+// component services are running, the inventory in the configuration file will
+// be loaded and a reconciliation pass will take place with all the appropriate
+// notifications for arrival and/or departures of various items in the inventory.
+//
+func (m *DBInventory) LoadFromStore(ctx context.Context) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Load inventory definition from store"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	return nil
+}
+
+// UpdateInventoryDefinition is a method to load a new inventory definition from
+// the configured file. Once read, the store will be updated with the differences
+// which will in turn trigger a set of previously established watch routines to
+// issue a number of arrival and/or departure notifications.
+//
+func (m *DBInventory) UpdateInventoryDefinition(ctx context.Context, path string) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Update inventory definition from file"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	// We have the basic initialization done. Now go read the current inventory
+	// from the file indicated by the configuration. Once we have that, load it
+	// into the store looking to see if there are any material changes between
+	// what is already in the store and what is now found in the file.
+	//
+	rootFile, err := inventory.ReadInventoryDefinitionFromFileEx(ctx, path)
+	if err != nil {
+		return err
+	}
+
+	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	if err = m.reconcileNewInventory(ctx, rootFile, rootStore); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DeleteInventoryDefinition is a
+//
+func (m *DBInventory) DeleteInventoryDefinition(ctx context.Context) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Delete inventory definition from store"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	root, err := m.readInventoryDefinitionFromStore(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = m.deleteInventoryDefinitionFromStore(ctx, root)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// reconcileNewInventory compares the newly loaded inventory definition,
+// presumably from a configuration file, with the currently loaded inventory
+// and updates the store accordingly. This will trigger the various watches
+// which any currently running services have previously established and deliver
+// a set of arrival and/or departure notifications as appropriate.
+//
+func (m *DBInventory) reconcileNewInventory(
+	ctx context.Context,
+	rootFile *pb.Definition_Root,
+	rootStore *pb.Definition_Root) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Reconcile current inventory with update"),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+
+	err := m.deleteInventoryDefinitionFromStore(ctx, rootStore)
+	if err != nil {
+		return err
+	}
+
+	err = m.writeInventoryDefinitionToStore(ctx, rootFile)
+	if err != nil {
+		return err
+	}
+
+	m.Root = rootFile
+
+	m.ZoneCount, m.MaxBladeCount, m.MaxCapacity =  m.buildSummaryForRoot(ctx, rootFile)
 
 	return nil
 }
@@ -234,7 +362,7 @@ func (m *DBInventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb
 
 func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root *pb.Definition_Root) error {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Read inventory definition from store"),
+		tracing.WithName("Write inventory definition to store"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
@@ -247,6 +375,12 @@ func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root 
 	storeRoot.SetDetails(ctx, root.Details)
 
 	for regionName, region := range root.Regions {
+		ctx, span := tracing.StartSpan(ctx,
+			tracing.WithName(fmt.Sprintf("Write inventory definition for region %q", regionName)),
+			tracing.WithContextValue(timestamp.EnsureTickInContext),
+			tracing.AsInternal())
+		defer span.End()
+
 		storeRegion, err := storeRoot.NewChild(ctx, regionName)
 		if err != nil {
 			return err
@@ -260,6 +394,12 @@ func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root 
 		}
 
 		for zoneName, zone := range region.Zones {
+			ctx, span := tracing.StartSpan(ctx,
+				tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q", regionName, zoneName)),
+				tracing.WithContextValue(timestamp.EnsureTickInContext),
+				tracing.AsInternal())
+			defer span.End()
+
 			storeZone, err := storeRegion.NewChild(ctx, zoneName)
 			if err != nil {
 				return err
@@ -273,6 +413,12 @@ func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root 
 			}
 
 			for rackName, rack := range zone.Racks {
+				ctx, span := tracing.StartSpan(ctx,
+					tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q", regionName, zoneName, rackName)),
+					tracing.WithContextValue(timestamp.EnsureTickInContext),
+					tracing.AsInternal())
+				defer span.End()
+
 				storeRack, err := storeZone.NewChild(ctx, rackName)
 				if err != nil {
 					return err
@@ -286,6 +432,12 @@ func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root 
 				}
 
 				for index, pdu := range rack.Pdus {
+					ctx, span := tracing.StartSpan(ctx,
+						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, pdu %d", regionName, zoneName, rackName, index)),
+						tracing.WithContextValue(timestamp.EnsureTickInContext),
+						tracing.AsInternal())
+					defer span.End()
+
 					storePdu, err := storeRack.NewPdu(ctx, index)
 					if err != nil {
 						return err
@@ -302,6 +454,12 @@ func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root 
 				}
 
 				for index, tor := range rack.Tors {
+					ctx, span := tracing.StartSpan(ctx,
+						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, tor %d", regionName, zoneName, rackName, index)),
+						tracing.WithContextValue(timestamp.EnsureTickInContext),
+						tracing.AsInternal())
+					defer span.End()
+
 					storeTor, err := storeRack.NewTor(ctx, index)
 					if err != nil {
 						return err
@@ -318,6 +476,12 @@ func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root 
 				}
 
 				for index, blade := range rack.Blades {
+					ctx, span := tracing.StartSpan(ctx,
+						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, blade %d", regionName, zoneName, rackName, index)),
+						tracing.WithContextValue(timestamp.EnsureTickInContext),
+						tracing.AsInternal())
+					defer span.End()
+
 					storeBlade, err := storeRack.NewBlade(ctx, index)
 					if err != nil {
 						return err
@@ -405,99 +569,6 @@ func (m *DBInventory) deleteInventoryDefinitionFromStore(ctx context.Context, st
 
 	region.Delete(ctx, true)
 	}
-
-	return nil
-}
-
-// LoadFromStore is a method to load the currently known inventory from the store and in
-// expected to use used on service startup. Subsequent to this, once all the
-// component services are running, the inventory in the configuration file will
-// be loaded and a reconciliation pass will take place with all the appropriate
-// notifications for arrival and/or departures of various items in the inventory.
-//
-func (m *DBInventory) LoadFromStore(ctx context.Context) error {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Load inventory definition from store"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	return nil
-}
-
-// UpdateInventoryDefinition is a method to load a new inventory definition from
-// the configured file. Once read, the store will be updated with the differences
-// which will in turn trigger a set of previously established watch routines to
-// issue a number of arrival and/or departure notifications.
-//
-func (m *DBInventory) UpdateInventoryDefinition(
-	ctx context.Context,
-	cfg *config.GlobalConfig,
-) error {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Update inventory definition from file"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	// We have the basic initialization done. Now go read the current inventory
-	// from the file indicated by the configuration. Once we have that, load it
-	// into the store looking to see if there are any material changes between
-	// what is already in the store and what is now found in the file.
-	//
-	rootFile, err := inventory.ReadInventoryDefinitionFromFileEx(ctx, cfg.Inventory.InventoryDefinition)
-	if err != nil {
-		return err
-	}
-
-
-	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
-
-	if err != nil {
-		return err
-	}
-
-	if err = m.reconcileNewInventory(ctx, rootFile, rootStore); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// reconcileNewInventory compares the newly loaded inventory definition,
-// presumably from a configuration file, with the currently loaded inventory
-// and updates the store accordingly. This will trigger the various watches
-// which any currently running services have previously established and deliver
-// a set of arrival and/or departure notifications as appropriate.
-//
-func (m *DBInventory) reconcileNewInventory(
-	ctx context.Context,
-	rootFile *pb.Definition_Root,
-	rootStore *pb.Definition_Root) error {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Reconcile current inventory with update"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-
-	err := dbInventory.deleteInventoryDefinitionFromStore(ctx, rootStore)
-	if err != nil {
-		return err
-	}
-
-
-	err = dbInventory.writeInventoryDefinitionToStore(ctx, rootFile)
-	if err != nil {
-		return err
-	}
-
-	m.Root = rootFile
-
-	m.ZoneCount, m.MaxBladeCount, m.MaxCapacity =  m.buildSummaryForRoot(ctx, rootFile)
 
 	return nil
 }

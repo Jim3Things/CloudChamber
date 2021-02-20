@@ -76,32 +76,32 @@ func InitDBInventoryActual(inven *DBInventory) error {
 			},
 		}
 
-		inven.mutex.RLock()
+		// inven.mutex.RLock()
 
-		for name, rack := range inven.Zone.Racks {
-			r := &actualRack{
-				Tor: actualTor{
-					State: torWorking,
-				},
+		// for name, rack := range inven.Zone.Racks {
+		// 	r := &actualRack{
+		// 		Tor: actualTor{
+		// 			State: torWorking,
+		// 		},
 
-				Pdu: actualPdu{
-					State: pduWorking,
-				},
+		// 		Pdu: actualPdu{
+		// 			State: pduWorking,
+		// 		},
 
-				Blades: make(map[int64]*actualBlade),
-				State:  rackWorking,
-			}
+		// 		Blades: make(map[int64]*actualBlade),
+		// 		State:  rackWorking,
+		// 	}
 
-			for bladeID := range rack.Blades {
-				r.Blades[bladeID] = &actualBlade{
-					State: bladeWorking,
-				}
-			}
+		// 	for bladeID := range rack.Blades {
+		// 		r.Blades[bladeID] = &actualBlade{
+		// 			State: bladeWorking,
+		// 		}
+		// 	}
 
-			actual.Zone.Racks[name] = r
-		}
+		// 	actual.Zone.Racks[name] = r
+		// }
 
-		inven.mutex.RUnlock()
+		// inven.mutex.RUnlock()
 
 		dbInventoryActual = actual
 	}

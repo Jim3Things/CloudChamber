@@ -126,7 +126,7 @@ func (x *Definition_Tor) Validate(prefix string, minPorts int64) error {
 	actual := int64(len(x.Ports))
 
 	if actual < minPorts {
-		return errors.ErrMustBeEQ{
+		return errors.ErrMustBeGTE{
 			Field:    fmt.Sprintf("%sPorts", prefix),
 			Actual:   actual,
 			Required: minPorts,

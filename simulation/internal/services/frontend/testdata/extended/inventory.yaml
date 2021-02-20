@@ -1,5 +1,5 @@
 Details:
-  Name: "Standard Test Inventory"
+  Name: "Standard (Extended) Test Inventory"
   Notes: "Test configuration comprising two regions, each with 3 zones, each with 4 racks. Racks in region 1 have a single pdu and tor each, with 8 blades. Racks in region 2 have two pdus and tors in each with 8 blades with higher capacities"
 Regions:
   - Name: region1
@@ -3093,7 +3093,7 @@ Regions:
     Details:
       State: In_Service
       Location: "Pacific NW"
-      Notes: "Test Region"
+      Notes: "Test Region with larger nodes, two pus and two tors per-rack"
     Zones:
       - Name: zone1
         Details:
@@ -3137,6 +3137,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -3168,9 +3227,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -3189,6 +3245,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details: 
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -3231,9 +3346,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -3398,6 +3510,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -3429,9 +3600,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -3450,6 +3618,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -3492,9 +3719,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -3659,6 +3883,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -3690,9 +3973,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -3711,6 +3991,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -3753,9 +4092,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -3920,6 +4256,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -3951,9 +4346,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -3972,6 +4364,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -4014,9 +4465,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -4188,6 +4636,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -4219,9 +4726,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -4240,6 +4744,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -4282,9 +4845,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -4449,6 +5009,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -4480,9 +5099,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -4501,6 +5117,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -4543,9 +5218,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -4710,6 +5382,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -4741,9 +5472,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -4762,6 +5490,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -4804,9 +5591,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -4971,6 +5755,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -5002,9 +5845,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -5023,6 +5863,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -5065,9 +5964,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -5239,6 +6135,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -5270,9 +6225,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -5291,6 +6243,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -5333,9 +6344,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -5500,6 +6508,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -5531,9 +6598,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -5552,6 +6616,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -5594,9 +6717,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -5761,6 +6881,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -5792,9 +6971,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -5813,6 +6989,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -5855,9 +7090,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:
@@ -6022,6 +7254,65 @@ Regions:
                     Item:
                       Type: blade
                       Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: tor
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 1
+                      Port: 1
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 1
+                  - Index: 3
+                    Wired: true
+                    Item:
+                      Type: blade
+                      Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
@@ -6053,9 +7344,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Tors:
               - Index: 0
                 Details:
@@ -6074,6 +7362,65 @@ Regions:
                       Type: blade
                       Id: 1
                       Port: 0
+                  - Index: 2
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 2
+                      Port: 0
+                  - Index: 3
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 3
+                      Port: 0
+                  - Index: 4
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 4
+                      Port: 0
+                  - Index: 5
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 5
+                      Port: 0
+                  - Index: 6
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 6
+                      Port: 0
+                  - Index: 7
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 7
+                      Port: 0
+                  - Index: 8
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 8
+                      Port: 0
+              - Index: 1
+                Details:
+                  Enabled: false
+                  Condition: Not_In_Service
+                Ports:
+                  - Index: 0
+                    Wired: true
+                    Item: 
+                      Type: pdu
+                      Id: 0
+                      Port: 2
+                  - Index: 1
+                    Wired: true
+                    Item: 
+                      Type: blade
+                      Id: 1
+                      Port: 1
                   - Index: 2
                     Wired: true
                     Item: 
@@ -6116,9 +7463,6 @@ Regions:
                       Type: blade
                       Id: 8
                       Port: 1
-              - Index: 1
-                Details: Enabled: false
-                Condition: Not_In_Service
             Blades:
               - Index: 1
                 Details:

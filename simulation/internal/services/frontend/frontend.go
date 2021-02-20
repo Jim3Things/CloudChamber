@@ -234,6 +234,10 @@ func StartService(cfg *config.GlobalConfig) error {
 		log.Fatalf("Error initializing service: %v", err)
 	}
 
+	if err := StartDBInventory(context.Background(), cfg); err != nil {
+		log.Fatalf("Error starting service: %v", err)
+	}
+
 	return http.ListenAndServe(
 		fmt.Sprintf(":%d", server.port),
 		server.handler)

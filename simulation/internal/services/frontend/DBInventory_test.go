@@ -429,10 +429,17 @@ func (ts *DBInventoryTestSuite) TestReadInventoryFromStore() {
 	_, err := ts.db.readInventoryDefinitionFromStore(context.Background())
 	require.NoError(err)
 }
-func (ts *DBInventoryTestSuite) TestReadInventoryDefinitionExtended() {
+func (ts *DBInventoryTestSuite) TestReadInventoryDefinitionFromFileExBasic() {
 	require := ts.Require()
 
-	_, err := inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Extended")
+	_, err := inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/basic")
+	require.NoError(err)
+}
+
+func (ts *DBInventoryTestSuite) TestReadInventoryDefinitionFromFileExExtended() {
+	require := ts.Require()
+
+	_, err := inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/extended")
 	require.NoError(err)
 }
 
@@ -447,7 +454,7 @@ func (ts *DBInventoryTestSuite) TestLoadInventoryIntoStore() {
 	err = ts.db.deleteInventoryDefinitionFromStore(ctx, root)
 	require.NoError(err)
 
-	root, err = inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Extended")
+	root, err = inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/extended")
 	require.NoError(err)
 
 	err = ts.db.writeInventoryDefinitionToStore(ctx, root)
@@ -457,6 +464,36 @@ func (ts *DBInventoryTestSuite) TestLoadInventoryIntoStore() {
 	require.NoError(err)
 
 	err = ts.db.deleteInventoryDefinitionFromStore(ctx, rootReload)
+	require.NoError(err)
+}
+
+func (ts *DBInventoryTestSuite) TestUpdateInventoryDefinition() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/basic")
+	require.NoError(err)
+}
+
+func (ts *DBInventoryTestSuite) TestUpdateInventoryDefinitionExtended() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/extended")
+	require.NoError(err)
+}
+
+func (ts *DBInventoryTestSuite) TestDeleteInventoryDefinition() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/basic")
+	require.NoError(err)
+
+	err = ts.db.DeleteInventoryDefinition(ctx)
 	require.NoError(err)
 }
 
