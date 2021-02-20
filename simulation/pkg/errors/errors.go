@@ -391,6 +391,9 @@ func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
 		eutvsa.Name, eutvsa.Err)
 }
 
+// ErrUnableToUpdateSystemAccount indicates that CloudChamber detected that the
+// system account existed, was in an obsolete schema format, and the attempt to
+// update the schema format failed.
 type ErrUnableToUpdateSystemAccount struct {
 	Name string
 	Err error

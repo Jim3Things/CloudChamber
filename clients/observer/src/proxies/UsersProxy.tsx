@@ -18,23 +18,39 @@ export interface JsonUserList {
     users: JsonUserListEntry[]
 }
 
+export interface JsonRights {
+    canManageAccounts: boolean
+    canStepTime: boolean
+    canModifyWorkloads: boolean
+    canModifyInventory: boolean
+    canInjectFaults: boolean
+    canPerformRepairs: boolean
+}
+
 export interface PublicUserDetails {
     enabled: boolean
-    canManageAccounts: boolean
+    rights: JsonRights
     neverDelete: boolean
     eTag: number
 }
 
 export class UserDetails implements PublicUserDetails{
     password: string;
-    canManageAccounts: boolean;
+    rights: JsonRights
     enabled: boolean;
     neverDelete: boolean
     eTag: number
 
     constructor() {
         this.password = "";
-        this.canManageAccounts = false;
+        this.rights = {
+            canInjectFaults: false,
+            canManageAccounts: false,
+            canModifyInventory: false,
+            canModifyWorkloads: false,
+            canPerformRepairs: false,
+            canStepTime: false
+        }
         this.enabled = false;
         this.neverDelete = false;
         this.eTag = -1
@@ -44,7 +60,7 @@ export class UserDetails implements PublicUserDetails{
 // Message definition for the update request body
 interface JsonUserUpdate {
     enabled: boolean
-    canManageAccounts: boolean
+    rights: JsonRights
 }
 
 // Message definition for the set password request body
@@ -84,7 +100,7 @@ export class UsersProxy {
         const path = "/api/users/" + name
         const details = {
             password: body.password,
-            canManageAccounts: body.canManageAccounts,
+            rights: body.rights,
             enabled: body.enabled
         }
 
@@ -110,8 +126,8 @@ export class UsersProxy {
     // Update the details for a user.
     public set(name: string, body: UserDetails): Promise<UserDetails> {
         const path = "/api/users/" + name
-        const details : JsonUserUpdate= {
-            canManageAccounts: body.canManageAccounts,
+        const details : JsonUserUpdate = {
+            rights: body.rights,
             enabled: body.enabled
         }
 

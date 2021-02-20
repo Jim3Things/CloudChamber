@@ -19,7 +19,7 @@ import ExpandLessIcon from "@material-ui/icons/ExpandLess"
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore"
 import {makeStyles} from "@material-ui/core/styles";
 
-import {UserDetails} from "../proxies/UsersProxy";
+import {JsonRights, UserDetails} from "../proxies/UsersProxy";
 import {PasswordTextField} from "../common/PasswordTextField";
 
 const useStyles = makeStyles(theme => ({
@@ -64,6 +64,12 @@ export function UserDetailsCard(props: {
         props.onModify({ ...props.user, [event.target.name]: event.target.checked });
     }
 
+    const handleRightsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const rights: JsonRights = {...props.user.rights, [event.target.name]: event.target.checked }
+
+        props.onModify({ ...props.user, rights: rights });
+    }
+
     return <div className={classes.area}>
         <Card variant="elevation" elevation={3} className={classes.card}>
             <CardHeader
@@ -96,8 +102,8 @@ export function UserDetailsCard(props: {
                             <Checkbox
                                 disabled={props.user.neverDelete}
                                 name="canManageAccounts"
-                                checked={props.user.canManageAccounts}
-                                onChange={handleChange}
+                                checked={props.user.rights.canManageAccounts}
+                                onChange={handleRightsChange}
                             />}
                     />
                 </FormControl>

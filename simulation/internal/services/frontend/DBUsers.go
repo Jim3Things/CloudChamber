@@ -169,6 +169,8 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 		return nil, InvalidRev, err
 	}
 
+	u.FixMissingFields()
+
 	if store.GetNormalizedName(name) != store.GetNormalizedName(u.GetName()) {
 		return nil, InvalidRev, errors.ErrUserBadRecordContent{Name: name, Value: *val}
 	}
@@ -224,6 +226,8 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 		return nil, InvalidRev, err
 	}
 
+	user.FixMissingFields()
+
 	return user, rev, nil
 }
 
@@ -253,6 +257,8 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 	if err = store.Decode(*val, old); err != nil {
 		return nil, InvalidRev, err
 	}
+
+	old.FixMissingFields()
 
 	// Update the entry, retaining all fields save the password hash
 	//
@@ -346,6 +352,8 @@ func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) e
 		if err = store.Decode(r.Value, u); err != nil {
 			return err
 		}
+
+		u.FixMissingFields()
 
 		if n != store.GetNormalizedName(u.GetName()) {
 			return errors.ErrUserBadRecordContent{Name: n, Value: r.Value}

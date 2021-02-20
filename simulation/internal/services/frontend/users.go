@@ -155,6 +155,8 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	u.FixMissingFields()
+
 	var rev int64
 
 	if rev, err = userAdd(
@@ -288,6 +290,8 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		postHTTPError(ctx, w, &HTTPError{SC: http.StatusBadRequest, Base: err})
 		return
 	}
+
+	upd.FixMissingFields()
 
 	// Finally, check that no rights are being added that the logged in user does
 	// not have.  Since a user can modify their own entries, the canManageAccounts
@@ -710,6 +714,10 @@ func canManageAccounts(ctx context.Context, session *sessions.Session, username 
 }
 
 func verifyRightsAvailable(current *pb.User, upd *pb.UserUpdate) error {
+	if current.Rights.CanManageAccounts {
+		return nil
+	}
+
 	if current.Rights.StrongerThan(upd.Rights) {
 		return nil
 	}

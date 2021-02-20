@@ -53,7 +53,8 @@ func (ts *testSuiteCore) adminAccountName() string { return "Admin" }
 func (ts *testSuiteCore) adminPassword() string    { return "AdminPassword" }
 func (ts *testSuiteCore) userPath() string         { return ts.baseURI + "/api/users/" }
 func (ts *testSuiteCore) admin() string            { return ts.userPath() + ts.adminAccountName() }
-func (ts *testSuiteCore) alice() string            { return ts.userPath() + "Alice" }
+func (ts *testSuiteCore) aliceName() string        { return "Alice" }
+func (ts *testSuiteCore) alice() string            { return ts.userPath() + ts.aliceName() }
 func (ts *testSuiteCore) bob() string              { return ts.userPath() + "Bob" }
 func (ts *testSuiteCore) alicePassword() string    { return "test" }
 func (ts *testSuiteCore) bobPassword() string      { return "test2" }

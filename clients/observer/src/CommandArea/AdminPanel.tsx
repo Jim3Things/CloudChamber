@@ -253,13 +253,7 @@ export class AdminPanel extends Component<Props & any, State> {
     // user details and new user name to their default values and opens the
     // add dialog.
     onPrepAdd = () => {
-        const user : UserDetails = {
-            canManageAccounts: false,
-            enabled: true,
-            password: "",
-            neverDelete: false,
-            eTag: -1
-        }
+        const user = new UserDetails()
 
         this.setState({
             editUser: user,
