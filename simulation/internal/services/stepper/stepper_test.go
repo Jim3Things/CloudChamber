@@ -10,16 +10,15 @@ import (
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
 
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/test/bufconn"
+
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	clienttrace "github.com/Jim3Things/CloudChamber/simulation/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
 	srvtrace "github.com/Jim3Things/CloudChamber/simulation/internal/tracing/server"
 	ct "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
-	"github.com/Jim3Things/CloudChamber/simulation/test/utilities"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/test/bufconn"
 )
 
 const bufSize = 1024 * 1024
@@ -334,6 +333,7 @@ func (ts *StepperTestSuite) TestStepper_NoWait() {
 // Verify the basic operations while under the 'Measured' policy.
 func (ts *StepperTestSuite) TestStepper_Measured() {
 	assert := ts.Assert()
+	require := ts.Require()
 	log := ts.T().Log
 
 	ctx := context.Background()
@@ -353,10 +353,16 @@ func (ts *StepperTestSuite) TestStepper_Measured() {
 	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Measured, &duration.Duration{Seconds: 1}, 0)
 
 	// Verify that simulated time moves forward as a result of wall clock time.
-	utilities.WaitForStateChange(2, func() bool {
+	compare := func() bool {
 		current := ts.callNow(ctx)
 		return current > 1
-	})
+	}
+
+	for i := 0; i < 200 && !compare(); i++ {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	require.True(compare())
 
 	log("Now subtest complete")
 	ts.testDelay(ctx, 3, 2)
@@ -395,14 +401,14 @@ func (ts *StepperTestSuite) TestStepper_Manual() {
 		res <- true
 	}(ch)
 
-	assert.True(common.DoNotCompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(common.DoNotCompleteWithin(ch, time.Second))
 	ts.testGetStatus(ctx, 1, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
 
 	ts.callStep(ctx, 2)
-	assert.True(common.DoNotCompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(common.DoNotCompleteWithin(ch, time.Second))
 
 	ts.callStep(ctx, 3)
-	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(common.CompleteWithin(ch, time.Second))
 
 	ts.testGetStatus(ctx, 3, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 0)
 }
@@ -432,21 +438,21 @@ func (ts *StepperTestSuite) TestStepperResetWithActiveDelays() {
 		res <- true
 	}(ch)
 
-	utilities.WaitForStateChange(1, func() bool {
+	assert.Eventually(func() bool {
 		require := ts.Require()
 
 		resp, err2 := ts.client.GetStatus(ctx, &pb.GetStatusRequest{})
 		require.NoError(err2)
 
 		return resp.WaiterCount == 1
-	})
+	}, time.Second, 10*time.Millisecond)
 
 	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, 1)
 
 	_, err = ts.client.Reset(ctx, &pb.ResetRequest{})
 	assert.NoError(err)
 
-	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(common.CompleteWithin(ch, time.Second))
 	ts.testGetStatus(ctx, 0, pb.StepperPolicy_Invalid, &duration.Duration{Seconds: 0}, 0)
 }
 

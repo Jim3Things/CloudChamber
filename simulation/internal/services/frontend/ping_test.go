@@ -21,7 +21,7 @@ func (ts *PingTestSuite) TestSimple() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	startTime := time.Now()
-	time.Sleep(time.Duration(1) * time.Second)
+	time.Sleep(time.Second)
 
 	request := httptest.NewRequest("GET", ts.pingPath(), nil)
 	response = ts.doHTTP(request, response.Cookies())
@@ -33,7 +33,7 @@ func (ts *PingTestSuite) TestSimple() {
 	assert.True(startTime.Before(expTime))
 
 	startTime = expTime
-	time.Sleep(time.Duration(1) * time.Second)
+	time.Sleep(time.Second)
 
 	request = httptest.NewRequest("GET", ts.pingPath()+"/", nil)
 	response = ts.doHTTP(request, response.Cookies())

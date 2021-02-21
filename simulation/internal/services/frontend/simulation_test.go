@@ -46,7 +46,7 @@ func (ts *SimulationTestSuite) TestSimulationSummary() {
 
 	inactivity, err := ptypes.Duration(status.InactivityTimeout)
 	require.NoError(err)
-	require.Equal(time.Duration(1)*time.Hour, inactivity)
+	require.Equal(time.Hour, inactivity)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }

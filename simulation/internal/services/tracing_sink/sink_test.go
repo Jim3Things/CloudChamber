@@ -537,7 +537,7 @@ func TestGetAfterWaitOneEntry(t *testing.T) {
 	_, err := client.Append(ctx, &pb.AppendRequest{Entry: entry})
 	require.Nilf(t, err, "unexpected error: %v", err)
 
-	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(t, common.CompleteWithin(ch, time.Second))
 }
 
 func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
@@ -583,5 +583,5 @@ func TestGetAfterWaitAfterInfraEntry(t *testing.T) {
 	_, err = client.Append(ctx, &pb.AppendRequest{Entry: entry})
 	require.Nilf(t, err, "unexpected error: %v", err)
 
-	assert.True(t, common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(t, common.CompleteWithin(ch, time.Second))
 }

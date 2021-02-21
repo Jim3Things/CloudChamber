@@ -13,7 +13,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
-	"github.com/Jim3Things/CloudChamber/simulation/test/utilities"
 )
 
 type BladeTestSuite struct {
@@ -34,7 +33,7 @@ func (ts *BladeTestSuite) issueSetPower(ctx context.Context, r *Rack, id int64, 
 
 	r.Receive(msg)
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 
 	return res
@@ -54,7 +53,7 @@ func (ts *BladeTestSuite) issueSetConnection(ctx context.Context, r *Rack, id in
 
 	r.Receive(msg)
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 
 	return res
@@ -71,7 +70,7 @@ func (ts *BladeTestSuite) issueGetStatus(ctx context.Context, r *Rack, id int64)
 
 	r.Receive(msg)
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 
 	return res
@@ -97,11 +96,9 @@ func (ts *BladeTestSuite) TestGetStatus() {
 	require.NotNil(p)
 	require.NoError(p.Err)
 
-	ctx, ok := ts.advanceToStateChange(ctx, 5, func() bool {
+	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
 	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	// Powered on, but disconnected, so this should do nothing
 	sres = ts.issueGetStatus(ctx, r, 0)
@@ -111,11 +108,9 @@ func (ts *BladeTestSuite) TestGetStatus() {
 	require.NotNil(c)
 	require.NoError(c.Err)
 
-	ctx, ok = ts.advanceToStateChange(ctx, 5, func() bool {
+	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeBooting
 	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	sres = ts.issueGetStatus(ctx, r, 0)
 	require.NotNil(sres)
@@ -126,11 +121,9 @@ func (ts *BladeTestSuite) TestGetStatus() {
 
 	assert.Equal(bladeBooting, status.State)
 
-	ctx, ok = ts.advanceToStateChange(ctx, 5, func() bool {
+	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeWorking
 	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	sres = ts.issueGetStatus(ctx, r, 0)
 	require.NotNil(sres)
@@ -167,11 +160,9 @@ func (ts *BladeTestSuite) TestPowerOn() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	ctx, ok := ts.advanceToStateChange(ctx, 5, func() bool {
+	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
 	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	res2 := ts.issueGetStatus(ctx, r, 0)
 	require.Nil(res2)
@@ -195,11 +186,9 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	ctx, ok := ts.advanceToStateChange(ctx, 2, func() bool {
+	ctx = ts.advanceToStateChange(ctx, 2, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
 	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	res2 := ts.issueGetStatus(ctx, r, 0)
 	require.Nil(res2)
@@ -211,11 +200,9 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	ctx, ok = ts.advanceToStateChange(ctx, 2, func() bool {
+	ctx = ts.advanceToStateChange(ctx, 2, func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeBooting
 	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
 
 	res2 = ts.issueGetStatus(ctx, r, 0)
 	require.NotNil(res2)
@@ -236,11 +223,10 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	res2 = ts.issueGetStatus(ctx, r, 0)
 	require.Nil(res2)
@@ -264,11 +250,10 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeIsolated
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 
@@ -281,11 +266,10 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeWorking
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }
@@ -306,11 +290,10 @@ func (ts *BladeTestSuite) TestWorkingToOffConn() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }
@@ -331,21 +314,23 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	doneConnTest := func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
-	})
+	}
 
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	require.Eventually(doneConnTest, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	res = ts.issueSetConnection(ctx, r, 0, false)
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ok = utilities.WaitForStateChange(1, func() bool {
+	doneTest := func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
-	})
+	}
 
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	require.Eventually(doneTest, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }
@@ -364,21 +349,19 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 	require.NotNil(res)
 	require.Equal(errors.ErrNoOperation, res.Err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	doneTest := func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
-	})
+	}
 
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	require.Eventually(doneTest, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	res = ts.issueSetConnection(ctx, r, 0, false)
 	require.NotNil(res)
 	require.Equal(errors.ErrNoOperation, res.Err)
 
-	ok = utilities.WaitForStateChange(1, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	require.Eventually(doneTest, time.Second, 10*time.Millisecond,
+		"state is %v", r.blades[0].sm.CurrentIndex)
 
 	span.End()
 }

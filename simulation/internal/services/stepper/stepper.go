@@ -260,7 +260,7 @@ func measuredEnter(ctx context.Context, machine *sm.SM) error {
 	s := machine.Parent.(*stepper)
 
 	if s.delay == 0 {
-		s.delay = time.Duration(1) * time.Second
+		s.delay = time.Second
 	}
 
 	tracing.Debug(ctx, "Starting repeating timer with an interval of %v", s.delay)

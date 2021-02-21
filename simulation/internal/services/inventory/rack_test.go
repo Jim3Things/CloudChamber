@@ -13,7 +13,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
-	"github.com/Jim3Things/CloudChamber/simulation/test/utilities"
 )
 
 type RackTestSuite struct {
@@ -61,18 +60,16 @@ func (ts *RackTestSuite) TestStartStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
-	})
-
-	require.True(ok, "state is %v", r.sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.sm.CurrentIndex == rackTerminalState
-	})
-
-	require.True(ok, "state is %v", r.sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.sm.CurrentIndex)
 
 	span.End()
 }
@@ -98,11 +95,10 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
-	})
-
-	require.True(ok, "state is %v", r.sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.sm.CurrentIndex)
 
 	err = r.start(ctx)
 	assert.Error(err)
@@ -111,11 +107,10 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.sm.CurrentIndex == rackTerminalState
-	})
-
-	require.True(ok, "state is %v", r.sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.sm.CurrentIndex)
 
 	span.End()
 }
@@ -141,18 +136,16 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
-	})
-
-	require.True(ok, "state is %v", r.sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.sm.CurrentIndex == rackTerminalState
-	})
-
-	require.True(ok, "state is %v", r.sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
 	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
@@ -205,11 +198,10 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	err := r.start(ctx)
 	assert.NoError(err)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.sm.CurrentIndex == rackWorkingState
-	})
-
-	require.True(ok, "state is %v", r.sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+		"state is %v", r.sm.CurrentIndex)
 
 	ctx = ts.advance(ctx)
 
@@ -225,7 +217,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	r.Receive(msg)
 	span.End()
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.Nil(res)
 

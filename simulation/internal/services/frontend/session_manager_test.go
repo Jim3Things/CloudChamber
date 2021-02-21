@@ -143,7 +143,7 @@ func (ts *SessionManagerTestSuite) TestTouchCollision() {
 	require.Equal(4, len(ts.sessions.timeouts))
 	require.Equal(4, ts.sessions.count())
 
-	time.Sleep(time.Duration(10) * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	s, ok = ts.sessions.touch(collisions[0])
 	require.True(ok)
@@ -166,7 +166,7 @@ func (ts *SessionManagerTestSuite) TestPurge() {
 	require.Equal(2, ts.sessions.count())
 	require.Equal(1, len(ts.sessions.timeouts))
 
-	time.Sleep(time.Duration(10) * time.Millisecond)
+	time.Sleep(10 * time.Millisecond)
 
 	newIds := ts.add(1, "base")
 	require.Equal(1, ts.sessions.count())

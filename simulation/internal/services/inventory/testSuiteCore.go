@@ -17,7 +17,6 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/simulation/test/setup"
-	"github.com/Jim3Things/CloudChamber/simulation/test/utilities"
 )
 
 type testSuiteCore struct {
@@ -120,7 +119,7 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 		true,
 		rsp))
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 	require.NoError(res.Err)
@@ -134,18 +133,14 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 		true,
 		rsp))
 
-	res, ok = ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok = ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 	require.NoError(res.Err)
 
-	ctx, ok = ts.advanceToStateChange(ctx, 10, func() bool {
+	return ts.advanceToStateChange(ctx, 10, func() bool {
 		return bladeWorking == r.blades[id].sm.CurrentIndex
 	})
-
-	require.True(ok)
-
-	return ctx
 }
 
 func (ts *testSuiteCore) completeWithin(ch <-chan *sm.Response, delay time.Duration) (*sm.Response, bool) {
@@ -172,13 +167,17 @@ func (ts *testSuiteCore) advance(ctx context.Context) context.Context {
 func (ts *testSuiteCore) advanceToStateChange(
 	ctx context.Context,
 	num int,
-	compare func() bool) (context.Context, bool) {
+	compare func() bool) context.Context {
+
+	require := ts.Require()
+
 	for i := 0; i < num; i++ {
 		ctx = ts.advance(ctx)
 		if compare() {
-			return ctx, true
+			return ctx
 		}
 	}
 
-	return ctx, utilities.WaitForStateChange(1, compare)
+	require.Eventually(compare, time.Second, 10*time.Millisecond)
+	return ctx
 }
