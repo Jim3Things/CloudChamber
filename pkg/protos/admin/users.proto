@@ -5,11 +5,34 @@ package admin;
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/admin";
 option csharp_namespace = "CloudChamber.Protos.Admin";
 
+// Rights contains the set of known action rights that a user holds.
+message Rights {
+    // can_manage_accounts indicates that this user can create, modify, or
+    // delete user accounts - both others, and its own.
+    bool can_manage_accounts = 1;
+
+    // can_step_time indicates that this user can change the simulated time and
+    // simulated time policy.
+    bool can_step_time = 2;
+
+    // can_modify_workloads indicates that this user can create, update, or
+    // delete simulated workloads.
+    bool can_modify_workloads = 3;
+
+    // can_modify_inventory indicates that this user can add, modify, or remove
+    // the definition views of simulated inventory.
+    bool can_modify_inventory = 4;
+
+    // can_inject_faults indicates that this user can inject forced faults
+    // into the running simulation.
+    bool can_inject_faults = 5;
+
+    // can_perform_repairs indicates that this used can manually repair a fault
+    // in the simulated inventory.
+    bool can_perform_repairs = 6;
+}
+
 // User is a representation of an individual user
-//
-// TODO This is just a placeholder until we have proper user records held
-//     in a persisted store (Etcd)
-//
 message User {
     // The username, held so as to preserve the original case
     string name = 1;
@@ -18,11 +41,14 @@ message User {
     int64 user_id = 3;
     bool enabled = 4;
 
-    // The rights this user has
+    // obsolete
     bool can_manage_accounts = 5;
 
     // True, if this user entry can never be deleted.
     bool never_delete = 6;
+
+    // The rights this user has
+    Rights rights = 7;
 }
 
 // Limited exposure of user attributes for use when returning information
@@ -31,7 +57,7 @@ message UserPublic {
     bool enabled = 1;
 
     // The rights this user has
-    bool can_manage_accounts = 2;
+    Rights rights = 2;
 
     // True, if this user entry can never be deleted.
     bool never_delete = 3;
@@ -44,7 +70,7 @@ message UserDefinition {
     bool enabled = 2;
 
     // The rights this user has
-    bool can_manage_accounts = 3;
+    Rights rights = 3;
 }
 
 // Public definition for the fields for a user that can be mutated in an
@@ -53,7 +79,7 @@ message UserUpdate {
     bool enabled = 2;
 
     // The rights this user has
-    bool can_manage_accounts = 3;
+    Rights rights = 3;
 }
 
 // Public definition for a request to set a new password for a user

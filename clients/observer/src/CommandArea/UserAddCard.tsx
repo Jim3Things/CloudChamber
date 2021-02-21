@@ -15,7 +15,7 @@ import {
 import PersonIcon from "@material-ui/icons/Person";
 import {makeStyles} from "@material-ui/core/styles";
 
-import {UserDetails} from "../proxies/UsersProxy";
+import {JsonRights, UserDetails} from "../proxies/UsersProxy";
 import {PasswordTextField} from "../common/PasswordTextField";
 
 const useStyles = makeStyles(theme => ({
@@ -52,6 +52,12 @@ export function UserAddCard(props: {
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
         props.onModify(props.name,{ ...props.user, [event.target.name]: event.target.checked })
+
+    const handleRightsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const rights: JsonRights = {...props.user.rights, [event.target.name]: event.target.checked }
+
+        props.onModify(props.name,{ ...props.user, rights: rights });
+    }
 
     return <div className={classes.area}>
         <Card variant="elevation" elevation={3} className={classes.card}>
@@ -99,8 +105,8 @@ export function UserAddCard(props: {
                             control={
                                 <Checkbox
                                     name="canManageAccounts"
-                                    checked={props.user.canManageAccounts}
-                                    onChange={handleChange}
+                                    checked={props.user.rights.canManageAccounts}
+                                    onChange={handleRightsChange}
                                 />}
                         />
                     </FormControl>

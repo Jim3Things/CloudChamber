@@ -679,6 +679,20 @@ func (eutvsa ErrUnableToVerifySystemAccount) Error() string {
 		eutvsa.Name, eutvsa.Err)
 }
 
+// ErrUnableToUpdateSystemAccount indicates that CloudChamber detected that the
+// system account existed, was in an obsolete schema format, and the attempt to
+// update the schema format failed.
+type ErrUnableToUpdateSystemAccount struct {
+	Name string
+	Err error
+}
+
+func (e ErrUnableToUpdateSystemAccount) Error() string {
+	return fmt.Sprintf(
+		"CloudChamber: unable to update the standard %q account to the current schema - error %v",
+		e.Name, e.Err)
+}
+
 // ErrRegionAlreadyExists indicates the attempt to create a new region record
 // failed as that region already exists.
 //

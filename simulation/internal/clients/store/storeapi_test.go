@@ -42,12 +42,12 @@ func TestCreate(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
@@ -87,12 +87,12 @@ func TestReadNew(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
@@ -138,12 +138,12 @@ func TestReadNewValue(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	userValue, err := Encode(user)
@@ -192,12 +192,12 @@ func TestUpdate(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminUpdatePassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
@@ -217,12 +217,12 @@ func TestUpdate(t *testing.T) {
 	passwordHash, err = bcrypt.GenerateFromPassword([]byte(adminUpdatePassword2), bcrypt.DefaultCost)
 
 	userUpdate := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           false,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      false,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	revUpdate, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate)
@@ -240,12 +240,12 @@ func TestUpdate(t *testing.T) {
 	// Now try to update with the wrong revision
 	//
 	userUpdate2 := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: false,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: false},
+		NeverDelete:  true,
 	}
 
 	revReadUpdate2, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate2)
@@ -273,12 +273,12 @@ func TestUpdateUnconditional(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminUpdatePassword), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
@@ -298,12 +298,12 @@ func TestUpdateUnconditional(t *testing.T) {
 	passwordHash, err = bcrypt.GenerateFromPassword([]byte(adminUpdatePassword2), bcrypt.DefaultCost)
 
 	userUpdate := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           false,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      false,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	revUpdate, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate)
@@ -321,12 +321,12 @@ func TestUpdateUnconditional(t *testing.T) {
 	// Now try to update with the wrong revision
 	//
 	userUpdate2 := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: false,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: false},
+		NeverDelete:  true,
 	}
 
 	revReadUpdate2, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, revRead, userUpdate2)
@@ -336,12 +336,12 @@ func TestUpdateUnconditional(t *testing.T) {
 	// Now try to update unconditionally
 	//
 	userUpdate3 := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           false,
-		CanManageAccounts: false,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      false,
+		Rights:       &pb.Rights{CanManageAccounts: false},
+		NeverDelete:  true,
 	}
 
 	revReadUpdate3, err := store.UpdateWithEncode(context.Background(), KeyRootUsers, userName, RevisionInvalid, userUpdate3)
@@ -370,12 +370,12 @@ func TestDelete(t *testing.T) {
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(passWord), bcrypt.DefaultCost)
 
 	user := &pb.User{
-		Name:              userName,
-		PasswordHash:      passwordHash,
-		UserId:            1,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true,
+		Name:         userName,
+		PasswordHash: passwordHash,
+		UserId:       1,
+		Enabled:      true,
+		Rights:       &pb.Rights{CanManageAccounts: true},
+		NeverDelete:  true,
 	}
 
 	revCreate, err := store.CreateWithEncode(context.Background(), KeyRootUsers, userName, user)
@@ -453,12 +453,12 @@ func TestList(t *testing.T) {
 		assert.Nilf(t, err, "Failed to create password hash for user %q - error: %v", u.name, err)
 
 		users[GetNormalizedName(u.name)] = &pb.User{
-			Name:              u.name,
-			PasswordHash:      pwdHash,
-			UserId:            int64(i + 1),
-			Enabled:           true,
-			CanManageAccounts: false,
-			NeverDelete:       false,
+			Name:         u.name,
+			PasswordHash: pwdHash,
+			UserId:       int64(i + 1),
+			Enabled:      true,
+			Rights:       &pb.Rights{CanManageAccounts: false},
+			NeverDelete:  false,
 		}
 	}
 

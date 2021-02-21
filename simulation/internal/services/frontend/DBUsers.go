@@ -59,11 +59,18 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	}
 
 	_, err = dbUsers.Create(ctx, &pb.User{
-		Name:              cfg.WebServer.SystemAccount,
-		PasswordHash:      passwordHash,
-		Enabled:           true,
-		CanManageAccounts: true,
-		NeverDelete:       true})
+		Name:         cfg.WebServer.SystemAccount,
+		PasswordHash: passwordHash,
+		Enabled:      true,
+		Rights: &pb.Rights{
+			CanManageAccounts:  true,
+			CanStepTime:        true,
+			CanModifyWorkloads: true,
+			CanModifyInventory: true,
+			CanInjectFaults:    true,
+			CanPerformRepairs:  true,
+		},
+		NeverDelete: true})
 
 	// If the SystemAccount already exists we need to do a couple of things.
 	//
@@ -74,13 +81,33 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	// if the account is already present.
 	//
 	if err == errors.ErrUserAlreadyExists(cfg.WebServer.SystemAccount) {
-		existingUser, _, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
+		existingUser, rev, err := dbUsers.Read(ctx, cfg.WebServer.SystemAccount)
 
 		if err != nil {
 			return tracing.Error(ctx, errors.ErrUnableToVerifySystemAccount{
 				Name: cfg.WebServer.SystemAccount,
 				Err:  err,
 			})
+		}
+
+		if ok := existingUser.Update(); ok {
+			tracing.Info(
+				ctx,
+				"CloudChamber: old schema detected in standard %q account.  Attempting to update",
+				cfg.WebServer.SystemAccount)
+
+			upd := &pb.UserUpdate{
+				Enabled: existingUser.Enabled,
+				Rights:  existingUser.Rights,
+			}
+
+			existingUser, _, err = dbUsers.Update(ctx, cfg.WebServer.SystemAccount, upd, rev)
+			if err != nil {
+				return tracing.Error(ctx, errors.ErrUnableToUpdateSystemAccount{
+					Name: cfg.WebServer.SystemAccount,
+					Err:  err,
+				})
+			}
 		}
 
 		if err = bcrypt.CompareHashAndPassword(
@@ -142,6 +169,8 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 		return nil, InvalidRev, err
 	}
 
+	u.FixMissingFields()
+
 	if store.GetNormalizedName(name) != store.GetNormalizedName(u.GetName()) {
 		return nil, InvalidRev, errors.ErrUserBadRecordContent{Name: name, Value: *val}
 	}
@@ -183,12 +212,12 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 	// immutable
 	//
 	user := &pb.User{
-		Name:              old.GetName(),
-		PasswordHash:      old.GetPasswordHash(),
-		UserId:            old.GetUserId(),
-		Enabled:           u.GetEnabled(),
-		CanManageAccounts: u.GetCanManageAccounts(),
-		NeverDelete:       old.GetNeverDelete(),
+		Name:         old.GetName(),
+		PasswordHash: old.GetPasswordHash(),
+		UserId:       old.GetUserId(),
+		Enabled:      u.GetEnabled(),
+		Rights:       u.GetRights(),
+		NeverDelete:  old.GetNeverDelete(),
 	}
 
 	rev, err = m.Store.UpdateWithEncode(ctx, store.KeyRootUsers, name, match, user)
@@ -196,6 +225,8 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 	if err != nil {
 		return nil, InvalidRev, err
 	}
+
+	user.FixMissingFields()
 
 	return user, rev, nil
 }
@@ -227,15 +258,17 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 		return nil, InvalidRev, err
 	}
 
+	old.FixMissingFields()
+
 	// Update the entry, retaining all fields save the password hash
 	//
 	user := &pb.User{
-		Name:              old.GetName(),
-		PasswordHash:      hash,
-		UserId:            old.GetUserId(),
-		Enabled:           old.GetEnabled(),
-		CanManageAccounts: old.GetCanManageAccounts(),
-		NeverDelete:       old.GetNeverDelete(),
+		Name:         old.GetName(),
+		PasswordHash: hash,
+		UserId:       old.GetUserId(),
+		Enabled:      old.GetEnabled(),
+		Rights:       old.GetRights(),
+		NeverDelete:  old.GetNeverDelete(),
 	}
 
 	rev, err = m.Store.UpdateWithEncode(ctx, store.KeyRootUsers, name, match, user)
@@ -319,6 +352,8 @@ func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) e
 		if err = store.Decode(r.Value, u); err != nil {
 			return err
 		}
+
+		u.FixMissingFields()
 
 		if n != store.GetNormalizedName(u.GetName()) {
 			return errors.ErrUserBadRecordContent{Name: n, Value: r.Value}

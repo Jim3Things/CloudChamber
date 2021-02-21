@@ -225,7 +225,7 @@ func (ts *UserTestSuite) TestLoginLogoutDiffAccounts() {
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// ... next we need a second account that we're sure exists
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
 	// ... and now try to logout from it, which should not succeed
 	//
@@ -364,7 +364,7 @@ func (ts *UserTestSuite) TestCreate() {
 
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 	assert.Equal(
-		"User \"Alice2\" created.  enabled: true, can manage accounts: false", string(body),
+		"User \"Alice2\" created, enabled: true, rights: ", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	ts.knownNames[path] = path
@@ -381,7 +381,7 @@ func (ts *UserTestSuite) TestCreateDup() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
 	request := httptest.NewRequest("POST", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
@@ -439,7 +439,7 @@ func (ts *UserTestSuite) TestCreateNoPrivilege() {
 	r, err := ts.toJSONReader(ts.bobDef)
 	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	response := ts.doLogin("Alice", ts.alicePassword(), nil)
+	response := ts.doLogin(ts.aliceName(), ts.alicePassword(), nil)
 
 	request := httptest.NewRequest("POST", ts.bob(), r)
 	request.Header.Set("Content-Type", "application/json")
@@ -457,7 +457,7 @@ func (ts *UserTestSuite) TestCreateNoPrivilege() {
 		"CloudChamber: permission denied\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
-	ts.doLogout("Alice", response.Cookies())
+	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestCreateNoSession() {
@@ -538,10 +538,10 @@ func (ts *UserTestSuite) TestListNoPrivilege() {
 	assert := ts.Assert()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
-	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
+	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
 
 	request := httptest.NewRequest("GET", ts.userPath(), nil)
 
@@ -581,7 +581,7 @@ func (ts *UserTestSuite) TestRead() {
 	assert.Less(int64(1), match)
 
 	assert.True(user.Enabled)
-	assert.True(user.CanManageAccounts)
+	assert.True(user.Rights.CanManageAccounts)
 	assert.True(user.NeverDelete)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
@@ -613,10 +613,10 @@ func (ts *UserTestSuite) TestReadNoPrivilege() {
 	log := ts.T().Log
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
-	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
+	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.userPath(), "BadUser"), nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -689,8 +689,15 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	assert := ts.Assert()
 
 	aliceUpd := &pb.UserUpdate{
-		Enabled:           true,
-		CanManageAccounts: true,
+		Enabled: true,
+		Rights: &pb.Rights{
+			CanManageAccounts:  true,
+			CanStepTime:        false,
+			CanModifyWorkloads: false,
+			CanModifyInventory: false,
+			CanInjectFaults:    false,
+			CanPerformRepairs:  false,
+		},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -698,7 +705,7 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	r, err := ts.toJSONReader(aliceUpd)
 	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", formatAsEtag(rev))
@@ -724,7 +731,7 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	assert.Less(rev, match)
 
 	assert.True(user.Enabled)
-	assert.True(user.CanManageAccounts)
+	assert.Equal(aliceUpd.Rights, user.Rights)
 	assert.False(user.NeverDelete)
 
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -739,7 +746,7 @@ func (ts *UserTestSuite) TestUpdateBadData() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
 	request := httptest.NewRequest(
 		"PUT",
@@ -769,8 +776,8 @@ func (ts *UserTestSuite) TestUpdateBadMatch() {
 	log := ts.T().Log
 
 	aliceUpd := &pb.UserUpdate{
-		Enabled:           true,
-		CanManageAccounts: true,
+		Enabled: true,
+		Rights:  &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -778,7 +785,7 @@ func (ts *UserTestSuite) TestUpdateBadMatch() {
 	r, err := ts.toJSONReader(aliceUpd)
 	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 
 	// Poison the revision
@@ -803,9 +810,9 @@ func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
 	log := ts.T().Log
 
 	aliceUpd := &pb.UserDefinition{
-		Password:          ts.alicePassword(),
-		Enabled:           true,
-		CanManageAccounts: true,
+		Password: ts.alicePassword(),
+		Enabled:  true,
+		Rights:   &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -813,7 +820,7 @@ func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
 	r, err := ts.toJSONReader(aliceUpd)
 	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 
 	request.Header.Set("Content-Type", "application/json")
@@ -835,8 +842,8 @@ func (ts *UserTestSuite) TestUpdateNoUser() {
 	logf := ts.T().Logf
 
 	upd := &pb.UserUpdate{
-		Enabled:           true,
-		CanManageAccounts: true,
+		Enabled: true,
+		Rights:  &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -863,12 +870,12 @@ func (ts *UserTestSuite) TestUpdateNoPrivilege() {
 	logf := ts.T().Logf
 
 	aliceUpd := &pb.UserUpdate{
-		Enabled:           true,
-		CanManageAccounts: true,
+		Enabled: true,
+		Rights:  &pb.Rights{CanManageAccounts: true},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	rev, cookies := ts.ensureAccount("Bob", ts.bobDef, cookies)
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
@@ -895,17 +902,22 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 	assert := ts.Assert()
 
 	aliceUpd := &pb.UserUpdate{
-		Enabled:           true,
-		CanManageAccounts: true,
+		Enabled: true,
+		Rights: &pb.Rights{
+			CanStepTime: true,
+		},
 	}
 
 	aliceOriginal := &pb.UserUpdate{
-		Enabled:           true,
-		CanManageAccounts: false,
+		Enabled: true,
+		Rights: &pb.Rights{
+			CanManageAccounts:  false,
+			CanModifyInventory: true,
+		},
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
-	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
 	response, rev = ts.userUpdate(ts.alice(), aliceOriginal, rev, cookies)
 	_, err := ts.getBody(response)
@@ -913,7 +925,7 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
-	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
+	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
 
 	r, err := ts.toJSONReader(aliceUpd)
 	assert.NoError(err, "Failed to format UserUpdate, err = %v", err)
@@ -930,11 +942,11 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 
 	// Now verify that the entry has not been changed
 	response, user := ts.userRead(ts.alice(), response.Cookies())
-	assert.False(user.CanManageAccounts)
+	assert.Equal(aliceOriginal.Rights, user.Rights)
 	assert.True(user.Enabled)
 	assert.False(user.NeverDelete)
 
-	ts.doLogout("Alice", response.Cookies())
+	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 // --- Update user tests
@@ -947,7 +959,7 @@ func (ts *UserTestSuite) TestDelete() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("DELETE", ts.alice(), nil)
 	request.Header.Set("Content-Type", "application/json")
 
@@ -958,7 +970,7 @@ func (ts *UserTestSuite) TestDelete() {
 	log(string(body))
 
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	delete(ts.knownNames, "Alice")
+	delete(ts.knownNames, ts.aliceName())
 
 	// Now verify the deletion by trying to get the user
 
@@ -1002,7 +1014,7 @@ func (ts *UserTestSuite) TestDeleteNoPrivilege() {
 	log := ts.T().Log
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	_, cookies = ts.ensureAccount("Bob", ts.bobDef, cookies)
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 
@@ -1061,8 +1073,8 @@ func (ts *UserTestSuite) TestSetPassword() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
-	response, match := ts.setPassword("Alice", aliceUpd, rev, cookies)
+	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
+	response, match := ts.setPassword(ts.aliceName(), aliceUpd, rev, cookies)
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
@@ -1078,14 +1090,14 @@ func (ts *UserTestSuite) TestSetPassword() {
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = ts.doLogin("Alice", aliceNewPassword, response.Cookies())
+	response = ts.doLogin(ts.aliceName(), aliceNewPassword, response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
-	response, _ = ts.setPassword("Alice", aliceRevert, match, response.Cookies())
+	response, _ = ts.setPassword(ts.aliceName(), aliceRevert, match, response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	ts.doLogout("Alice", response.Cookies())
+	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestSetPasswordForce() {
@@ -1107,8 +1119,8 @@ func (ts *UserTestSuite) TestSetPasswordForce() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
-	response, match := ts.setPassword("Alice", aliceUpd, rev, cookies)
+	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
+	response, match := ts.setPassword(ts.aliceName(), aliceUpd, rev, cookies)
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
@@ -1124,14 +1136,14 @@ func (ts *UserTestSuite) TestSetPasswordForce() {
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	// Now verify that the password was changed, by trying to log in again
-	response = ts.doLogin("Alice", aliceNewPassword, response.Cookies())
+	response = ts.doLogin(ts.aliceName(), aliceNewPassword, response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	// Now set the password back
-	response, _ = ts.setPassword("Alice", aliceRevert, match, response.Cookies())
+	response, _ = ts.setPassword(ts.aliceName(), aliceRevert, match, response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	ts.doLogout("Alice", response.Cookies())
+	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestSetPasswordBadPassword() {
@@ -1147,7 +1159,7 @@ func (ts *UserTestSuite) TestSetPasswordBadPassword() {
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
-	rev, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
 	r, err := ts.toJSONReader(aliceUpd)
 	assert.NoError(err, "Failed to format UserPassword, err = %v", err)
@@ -1165,10 +1177,10 @@ func (ts *UserTestSuite) TestSetPasswordBadPassword() {
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	// Now verify that the password was not changed, by trying to log in again
-	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
+	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
 	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	ts.doLogout("Alice", response.Cookies())
+	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
@@ -1183,10 +1195,10 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 	}
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
-	_, cookies := ts.ensureAccount("Alice", ts.aliceDef, response.Cookies())
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	response = ts.doLogout("Admin", cookies)
 
-	response = ts.doLogin("Alice", ts.alicePassword(), response.Cookies())
+	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
 
 	r, err := ts.toJSONReader(adminUpd)
 	assert.NoError(err, "Failed to format UserPassword, err = %v", err)
@@ -1201,7 +1213,7 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 
 	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
-	response = ts.doLogout("Alice", response.Cookies())
+	response = ts.doLogout(ts.aliceName(), response.Cookies())
 
 	// Now verify that the password was not changed, by trying to log in again
 	response = ts.doLogin("Admin", ts.adminPassword(), response.Cookies())
@@ -1211,6 +1223,66 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 }
 
 // --- SetPassword user tests
+
+func (ts *UserTestSuite) TestSetRights() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
+	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
+
+	response, user := ts.userRead(ts.alice(), cookies)
+
+	rev, err := parseETag(response.Header.Get("ETag"))
+	require.NoError(err)
+
+	newRights := &pb.Rights{
+		CanManageAccounts:  true,
+		CanStepTime:        false,
+		CanModifyWorkloads: true,
+		CanModifyInventory: false,
+		CanInjectFaults:    true,
+		CanPerformRepairs:  false,
+	}
+
+	upd := &pb.UserUpdate{
+		Enabled: true,
+		Rights:  newRights,
+	}
+
+	response, match := ts.userUpdate(ts.alice(), upd, rev, response.Cookies())
+
+	user = &pb.UserPublic{}
+	err = ts.getJSONBody(response, user)
+	assert.NoError(err)
+
+	require.Less(rev, match)
+	require.Equal(newRights, user.Rights)
+
+	rev = match
+
+	newRights = &pb.Rights{
+		CanManageAccounts:  false,
+		CanStepTime:        true,
+		CanModifyWorkloads: false,
+		CanModifyInventory: true,
+		CanInjectFaults:    false,
+		CanPerformRepairs:  true,
+	}
+
+	upd.Rights = newRights
+
+	response, match = ts.userUpdate(ts.alice(), upd, rev, response.Cookies())
+
+	user = &pb.UserPublic{}
+	err = ts.getJSONBody(response, user)
+	assert.NoError(err)
+
+	require.Less(rev, match)
+	require.Equal(newRights, user.Rights)
+
+	ts.doLogout(ts.adminAccountName(), response.Cookies())
+}
 
 func TestUserTestSuite(t *testing.T) {
 	suite.Run(t, new(UserTestSuite))
