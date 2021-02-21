@@ -222,9 +222,9 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("ETag", formatAsEtag(rev))
 
 	ext := &pb.UserPublic{
-		Enabled:           u.Enabled,
-		Rights: u.Rights,
-		NeverDelete:       u.NeverDelete,
+		Enabled:     u.Enabled,
+		Rights:      u.Rights,
+		NeverDelete: u.NeverDelete,
 	}
 
 	tracing.Info(
@@ -316,9 +316,9 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("ETag", formatAsEtag(rev))
 
 	ext := &pb.UserPublic{
-		Enabled:           newVer.Enabled,
-		Rights: newVer.Rights,
-		NeverDelete:       newVer.NeverDelete,
+		Enabled:     newVer.Enabled,
+		Rights:      newVer.Rights,
+		NeverDelete: newVer.NeverDelete,
 	}
 
 	tracing.Info(
@@ -579,11 +579,11 @@ func userAdd(
 	}
 
 	revision, err := dbUsers.Create(ctx, &pb.User{
-		Name:              name,
-		PasswordHash:      passwordHash,
-		Enabled:           enabled,
-		Rights: rights,
-		NeverDelete:       neverDelete})
+		Name:         name,
+		PasswordHash: passwordHash,
+		Enabled:      enabled,
+		Rights:       rights,
+		NeverDelete:  neverDelete})
 
 	if err == errors.ErrUserAlreadyExists(name) {
 		return InvalidRev, NewErrUserAlreadyExists(name)
@@ -737,7 +737,6 @@ func formatUser(name string, user *pb.UserPublic) string {
 	} else {
 		attrs = append(attrs, "disabled")
 	}
-
 
 	attrs = append(
 		attrs,

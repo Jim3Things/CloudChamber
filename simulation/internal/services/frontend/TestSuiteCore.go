@@ -67,15 +67,15 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.knownNames = make(map[string]string)
 
 	ts.aliceDef = &admin.UserDefinition{
-		Password:          ts.alicePassword(),
-		Enabled:           true,
-		Rights: &admin.Rights{CanManageAccounts: false},
+		Password: ts.alicePassword(),
+		Enabled:  true,
+		Rights:   &admin.Rights{CanManageAccounts: false},
 	}
 
 	ts.bobDef = &admin.UserDefinition{
-		Password:          ts.bobPassword(),
-		Enabled:           true,
-		Rights: &admin.Rights{CanManageAccounts: false},
+		Password: ts.bobPassword(),
+		Enabled:  true,
+		Rights:   &admin.Rights{CanManageAccounts: false},
 	}
 
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())

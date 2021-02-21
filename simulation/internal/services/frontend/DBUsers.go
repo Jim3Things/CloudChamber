@@ -59,9 +59,9 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 	}
 
 	_, err = dbUsers.Create(ctx, &pb.User{
-		Name:              cfg.WebServer.SystemAccount,
-		PasswordHash:      passwordHash,
-		Enabled:           true,
+		Name:         cfg.WebServer.SystemAccount,
+		PasswordHash: passwordHash,
+		Enabled:      true,
 		Rights: &pb.Rights{
 			CanManageAccounts:  true,
 			CanStepTime:        true,
@@ -70,7 +70,7 @@ func InitDBUsers(ctx context.Context, cfg *config.GlobalConfig) (err error) {
 			CanInjectFaults:    true,
 			CanPerformRepairs:  true,
 		},
-		NeverDelete:       true})
+		NeverDelete: true})
 
 	// If the SystemAccount already exists we need to do a couple of things.
 	//
@@ -212,12 +212,12 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 	// immutable
 	//
 	user := &pb.User{
-		Name:              old.GetName(),
-		PasswordHash:      old.GetPasswordHash(),
-		UserId:            old.GetUserId(),
-		Enabled:           u.GetEnabled(),
-		Rights: u.GetRights(),
-		NeverDelete:       old.GetNeverDelete(),
+		Name:         old.GetName(),
+		PasswordHash: old.GetPasswordHash(),
+		UserId:       old.GetUserId(),
+		Enabled:      u.GetEnabled(),
+		Rights:       u.GetRights(),
+		NeverDelete:  old.GetNeverDelete(),
 	}
 
 	rev, err = m.Store.UpdateWithEncode(ctx, store.KeyRootUsers, name, match, user)
@@ -263,12 +263,12 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 	// Update the entry, retaining all fields save the password hash
 	//
 	user := &pb.User{
-		Name:              old.GetName(),
-		PasswordHash:      hash,
-		UserId:            old.GetUserId(),
-		Enabled:           old.GetEnabled(),
-		Rights: old.GetRights(),
-		NeverDelete:       old.GetNeverDelete(),
+		Name:         old.GetName(),
+		PasswordHash: hash,
+		UserId:       old.GetUserId(),
+		Enabled:      old.GetEnabled(),
+		Rights:       old.GetRights(),
+		NeverDelete:  old.GetNeverDelete(),
 	}
 
 	rev, err = m.Store.UpdateWithEncode(ctx, store.KeyRootUsers, name, match, user)
