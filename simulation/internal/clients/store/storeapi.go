@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"regexp"
 	"strings"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -484,7 +485,17 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 	case 1:
 		rev = response.Records[k].Revision
 		val = response.Records[k].Value
-		tracing.Info(ctx, "found record for %q under prefix %q, with revision %v and value %q", n, prefix, rev, val)
+		tracing.Info(
+			ctx,
+			tracing.WithReplacement(
+				regexp.MustCompile(
+					`passwordHash\\\"\:(.*?),\\\"`),
+					`passwordHash\":\"...REDACTED...\",\"`),
+			"found record for %q under prefix %q, with revision %v and value %q",
+			n,
+			prefix,
+			rev,
+			val)
 
 		revision = rev
 		value = &val
