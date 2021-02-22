@@ -20,7 +20,7 @@ const (
 
 	sessionIDKey = "session-id"
 
-	expirationTimeout = time.Duration(1) * time.Hour
+	expirationTimeout = time.Hour
 	sessionLimit      = 100
 )
 

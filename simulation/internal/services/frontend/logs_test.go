@@ -212,7 +212,7 @@ func (ts *LogTestSuite) TestGetAfter() {
 	err = tsc.Append(context.Background(), entry)
 	require.NoError(err)
 
-	assert.True(common.CompleteWithin(ch, time.Duration(1)*time.Second))
+	assert.True(common.CompleteWithin(ch, time.Second))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies2)
 }

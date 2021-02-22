@@ -13,7 +13,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
-	"github.com/Jim3Things/CloudChamber/simulation/test/utilities"
 )
 
 type TorTestSuite struct {
@@ -65,7 +64,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 			false,
 			rsp))
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 	assert.Error(res.Err)
@@ -105,7 +104,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 
 	r.Receive(msg)
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 	require.Error(errors.ErrInventoryChangeTooLate(commandTime), res.Err)
@@ -123,17 +122,15 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
 
-	ok := utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.tor.sm.CurrentIndex == torWorkingState
-	})
+	}, time.Second, 10*time.Millisecond,
+	"state is %v", r.tor.sm.CurrentIndex)
 
-	require.True(ok, "state is %v", r.tor.sm.CurrentIndex)
-
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+	"state is %v", r.blades[0].sm.CurrentIndex)
 
 	t := r.tor
 	require.NotNil(t)
@@ -155,7 +152,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 
 	span.End()
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 
@@ -168,11 +165,10 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.True(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeOffConn
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+	"state is %v", r.blades[0].sm.CurrentIndex)
 
 	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 }
@@ -209,7 +205,7 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 
 	span.End()
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 
@@ -222,11 +218,10 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	assert.Equal(common.TickFromContext(ctx), t.cables[0].Guard)
 	assert.False(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
-	ok = utilities.WaitForStateChange(1, func() bool {
+	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == bladeIsolated
-	})
-
-	require.True(ok, "state is %v", r.blades[0].sm.CurrentIndex)
+	}, time.Second, 10*time.Millisecond,
+	"state is %v", r.blades[0].sm.CurrentIndex)
 
 	assert.Equal(torWorkingState, t.sm.CurrentIndex)
 }
@@ -252,7 +247,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 
 	r.Receive(msg)
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 
@@ -285,7 +280,7 @@ func (ts *TorTestSuite) TestWorkingGetStatus() {
 
 	r.Receive(msg)
 
-	res, ok := ts.completeWithin(rsp, time.Duration(1)*time.Second)
+	res, ok := ts.completeWithin(rsp, time.Second)
 	require.True(ok)
 	require.NotNil(res)
 
