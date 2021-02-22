@@ -38,6 +38,8 @@ const (
 	webServerFEDefaultPort    = 8080
 	webServerDefaultTraceFile = ".\\web_server_trace.txt"
 	defaultHost               = ""
+	webServerDefaultInactivity = 3600
+	webServerDefaultSessionLimit = 100
 
 	stepperDefaultPolicy = ""
 
@@ -135,6 +137,9 @@ type WebServerType struct {
 	// .. and that account's password
 	SystemAccountPassword string
 
+	SessionInactivity int
+	ActiveSessionLimit int
+
 	// External http endpoint
 	FE Endpoint
 
@@ -194,6 +199,8 @@ func newGlobalConfig() *GlobalConfig {
 			RootFilePath:          defaultRootFilePath,
 			SystemAccount:         defaultSystemAccount,
 			SystemAccountPassword: defaultSystemPassword,
+			SessionInactivity: webServerDefaultInactivity,
+			ActiveSessionLimit: webServerDefaultSessionLimit,
 			FE: Endpoint{
 				Hostname: defaultHost,
 				Port:     webServerFEDefaultPort,
@@ -288,6 +295,8 @@ func (data *GlobalConfig) String() string {
 			"  RootFilePath: %s\n"+
 			"  SystemAccount: %s\n"+
 			"  SystemAccountPassword: %s\n"+
+			"  SessionInactivity: %d\n"+
+			"  ActiveSessionLimit: %d\n"+
 			"Store:"+
 			"  ConnectTimeout: %v\n"+
 			"  RequestTimeout: %v\n"+
@@ -312,6 +321,8 @@ func (data *GlobalConfig) String() string {
 		data.WebServer.RootFilePath,
 		data.WebServer.SystemAccount,
 		data.WebServer.SystemAccountPassword,
+		data.WebServer.SessionInactivity,
+		data.WebServer.ActiveSessionLimit,
 		data.Store.ConnectTimeout,
 		data.Store.RequestTimeout,
 		data.Store.TraceLevel,

@@ -50,6 +50,8 @@ type Server struct {
 	cookieStore *sessions.CookieStore
 
 	startTime time.Time
+
+	sessions managedSessions
 }
 
 var (
@@ -195,6 +197,9 @@ func initService(cfg *config.GlobalConfig) error {
 	server.cookieStore.Options.Secure = false
 	server.cookieStore.Options.HttpOnly = false
 
+	server.sessions = newSessionTable(
+		cfg.WebServer.ActiveSessionLimit,
+		time.Duration(cfg.WebServer.SessionInactivity)*time.Second)
 	server.startTime = time.Now()
 
 	if err := initHandlers(); err != nil {

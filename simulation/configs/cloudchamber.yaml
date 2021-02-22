@@ -107,3 +107,9 @@ webServer:
 
   # .. and its password (a really bad pattern here, but we'll use it for now)
   systemAccountPassword: adminPassword
+
+  # number of seconds that a session is idle before being automatically closed.
+  sessionInactivity: 3600
+
+  # maximum number of simultaneous active sessions allowed.
+  activeSessionLimit: 100

@@ -42,7 +42,7 @@ func handlerSimStatus(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(ctx context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {
@@ -58,7 +58,7 @@ func handlerSimStatus(w http.ResponseWriter, r *http.Request) {
 
 	status := &pb.SimulationStatus{
 		FrontEndStartedAt: ts,
-		InactivityTimeout: ptypes.DurationProto(getSessionTimeout()),
+		InactivityTimeout: ptypes.DurationProto(server.sessions.inactivity()),
 	}
 
 	p := jsonpb.Marshaler{}
@@ -94,7 +94,7 @@ func handlerSimSessionList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	for _, key := range getSessionSummaryList() {
+	for _, key := range server.sessions.knownIDs() {
 		list.Sessions = append(list.Sessions, &pb.SessionSummary_Session{
 			Id:  key,
 			Uri: fmt.Sprintf("%s%d", b, key),
@@ -140,7 +140,7 @@ func handlerSimSessionDetail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, ok := getSessionById(id)
+	session, ok := server.sessions.get(id)
 	if !ok {
 		postHTTPError(ctx, w, NewErrSessionNotFound(id))
 		return
@@ -203,7 +203,7 @@ func handlerSimRemoveSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	session, ok := removeSessionById(id)
+	session, ok := server.sessions.delete(id)
 	if !ok {
 		postHTTPError(ctx, w, NewErrSessionNotFound(id))
 		return

@@ -44,7 +44,7 @@ func handleGetStatus(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-		return ensureEstablishedSession(session)
+		return server.sessions.ensureEstablishedSession(session)
 	})
 
 	if err != nil {
@@ -79,7 +79,7 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 	var count int
 
 	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-		return ensureEstablishedSession(session)
+		return server.sessions.ensureEstablishedSession(session)
 	})
 
 	if err != nil {
@@ -138,7 +138,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 	var policy pb.StepperPolicy
 
 	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-		return ensureEstablishedSession(session)
+		return server.sessions.ensureEstablishedSession(session)
 	})
 
 	if err != nil {
@@ -217,7 +217,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 		ctx, w, r,
 		func(_ context.Context, session *sessions.Session) error {
 
-			if err := ensureEstablishedSession(session); err != nil {
+			if err := server.sessions.ensureEstablishedSession(session); err != nil {
 				return err
 			}
 
@@ -259,7 +259,7 @@ func handleGetNow(w http.ResponseWriter, r *http.Request) {
 	defer span.End()
 
 	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-		return ensureEstablishedSession(session)
+		return server.sessions.ensureEstablishedSession(session)
 	})
 
 	if err != nil {

@@ -104,3 +104,6 @@ webServer:
 
   # .. and its password (a really bad pattern here, but we'll use it for now)
   systemAccountPassword: adminPassword
+
+  sessionInactivity: 3600
+  activeSessionLimit: 100

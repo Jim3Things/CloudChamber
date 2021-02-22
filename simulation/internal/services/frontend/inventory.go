@@ -55,7 +55,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {
@@ -115,7 +115,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {
@@ -149,7 +149,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {
@@ -189,7 +189,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(_ context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {
