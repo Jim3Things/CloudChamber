@@ -34,11 +34,11 @@ const (
 	simSupportDefaultPort      = 8083
 	simSupportDefaultTraceFile = ".\\sim_support_trace.txt"
 
-	webServerDefaultPort      = 8084
-	webServerFEDefaultPort    = 8080
-	webServerDefaultTraceFile = ".\\web_server_trace.txt"
-	defaultHost               = ""
-	webServerDefaultInactivity = 3600
+	webServerDefaultPort         = 8084
+	webServerFEDefaultPort       = 8080
+	webServerDefaultTraceFile    = ".\\web_server_trace.txt"
+	defaultHost                  = ""
+	webServerDefaultInactivity   = 3600
 	webServerDefaultSessionLimit = 100
 
 	stepperDefaultPolicy = ""
@@ -137,7 +137,7 @@ type WebServerType struct {
 	// .. and that account's password
 	SystemAccountPassword string
 
-	SessionInactivity int
+	SessionInactivity  int
 	ActiveSessionLimit int
 
 	// External http endpoint
@@ -199,8 +199,8 @@ func newGlobalConfig() *GlobalConfig {
 			RootFilePath:          defaultRootFilePath,
 			SystemAccount:         defaultSystemAccount,
 			SystemAccountPassword: defaultSystemPassword,
-			SessionInactivity: webServerDefaultInactivity,
-			ActiveSessionLimit: webServerDefaultSessionLimit,
+			SessionInactivity:     webServerDefaultInactivity,
+			ActiveSessionLimit:    webServerDefaultSessionLimit,
 			FE: Endpoint{
 				Hostname: defaultHost,
 				Port:     webServerFEDefaultPort,
