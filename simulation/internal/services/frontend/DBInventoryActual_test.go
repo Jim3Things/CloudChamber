@@ -21,7 +21,7 @@ func (ts *InventoryActualTestSuite) ensureInventoryLoaded() error {
 	ctx := context.Background()
 
 	if !ts.inventoryDefinitionLoaded {
-		if err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/standard"); err != nil {
+		if err := ts.db.inventory.UpdateInventoryDefinition(ctx, "./testdata/standard"); err != nil {
 			return err
 		}
 
@@ -66,7 +66,7 @@ func (ts *InventoryActualTestSuite) TestLoadInventoryActual() {
 
 	ctx := context.Background()
 
-	zone, err := inventory.NewZone(ctx, ts.db.Store, inventory.DefinitionTable, defaultRegion, defaultZone)
+	zone, err := ts.db.inventory.NewZone(inventory.DefinitionTable, inventory.DefaultRegion, inventory.DefaultZone)
 	require.NoError(err)
 	require.NotNil(zone)
 
@@ -78,7 +78,7 @@ func (ts *InventoryActualTestSuite) TestLoadInventoryActual() {
 		r, ok := ts.db.Actual.Racks[rackName]
 		require.True(ok)
 
-		rack, err := zone.NewChild(ctx, rackName)
+		rack, err := zone.NewChild(rackName)
 		require.NoError(err)
 		require.NotNil(rack)
 

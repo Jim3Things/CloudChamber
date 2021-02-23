@@ -254,7 +254,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileValidateBlade() {
 	require.Nil(response)
 }
 
-func (ts *readerTestSuite) TestReadInventoryDefinitionExtended() {
+func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 	assert := ts.Assert()
 	require := ts.Require()
 

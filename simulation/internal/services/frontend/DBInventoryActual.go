@@ -76,7 +76,7 @@ func (m *DBInventory) LoadInventoryActual(force bool) error {
 
 		actual := &actualZone{Racks: make(map[string]*actualRack)}
 
-		zone, err := inventory.NewZone(ctx, m.Store, inventory.DefinitionTable, defaultRegion, defaultZone)
+		zone, err := m.inventory.NewZone(inventory.DefinitionTable, inventory.DefaultRegion, inventory.DefaultZone)
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func (m *DBInventory) LoadInventoryActual(force bool) error {
 				State:  rackWorking,
 			}
 
-			rack, err := zone.NewChild(ctx, rackName)
+			rack, err := zone.NewChild(rackName)
 			if err != nil {
 				return err
 			}

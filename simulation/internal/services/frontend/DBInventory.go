@@ -21,7 +21,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
-	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
@@ -49,65 +48,15 @@ type DBInventory struct {
 
 	Store              *store.Store
 	cfg                *config.GlobalConfig
-	RootSummary        *RootSummary
-	DefaultZoneSummary *ZoneSummary
+	inventory          *inventory.Inventory
+	RootSummary        *inventory.RootSummary
+	DefaultZoneSummary *inventory.ZoneSummary
 	actualLoaded       bool
 	Actual             *actualZone
 }
 
-// ZoneSummary contains the summary data for a single zone. The contents
-// are either zero or are (re-)computed whenever the inventory definitions
-// are loaded from file. They are a cache of data in the store to avoid
-// having to scan the entire zone whenever a simple query for the basic
-// data is being handled.
-//
-type ZoneSummary struct {
-	RackCount     int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
-}
-
-// RegionSummary contains the summary data for a single region. The contents
-// are either zero or are (re-)computed whenever the inventory definitions
-// are loaded from file. They are a cache of data in the store to avoid
-// having to scan the entire region whenever a simple query for the basic
-// data is being handled.
-//
-type RegionSummary struct {
-	ZoneCount     int
-	MaxRackCount  int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
-}
-
-// RootSummary contains the summary data for the entire invnetory. The contents
-// are either zero or are (re-)computed whenever the inventory definitions
-// are loaded from file. They are a cache of data in the store to avoid
-// having to scan the entire zone whenever a simple query for the basic
-// data is being handled.
-//
-type RootSummary struct {
-	RegionCount   int
-	MaxZoneCount  int
-	MaxRackCount  int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
-}
-
 var dbInventory *DBInventory
 
-// While the transition to the new inventory extended schemaa continues, the 
-// underlying store records use the following constants for determining values
-// for the previously non-existent fields. Eventually these will dissapear as
-// the front-end and higher layers learn abouts regions, zones, multiple pdus
-// and tors.
-//
-const (
-	defaultRegion = "standard"
-	defaultZone   = "standard"
-	defaultPdu    = int64(0)
-	defaultTor    = int64(0)
-)
 
 // InitDBInventory initializes the base state for the inventory.
 //
@@ -136,12 +85,6 @@ func NewDbInventory() *DBInventory {
 		Started:            false,
 		Store:              store.NewStore(),
 		cfg:                &config.GlobalConfig{},
-		RootSummary:        &RootSummary{},
-		DefaultZoneSummary: &ZoneSummary{
-			MaxCapacity:   &pb.BladeCapacity{
-				Accelerators: []*pb.Accelerator{},
-			},
-		},
 		actualLoaded:       false,
 		Actual:             &actualZone{Racks: make(map[string]*actualRack)},
 	}
@@ -203,7 +146,7 @@ func (m *DBInventory) Start(ctx context.Context) error {
 	defer m.mutex.Unlock()
 
 	if !m.Started {
-		if err := m.UpdateInventoryDefinition(ctx, m.cfg.Inventory.InventoryDefinition); err != nil {
+		if err := m.inventory.UpdateInventoryDefinition(ctx, m.cfg.Inventory.InventoryDefinition); err != nil {
 			return err
 		}
 	}
@@ -215,449 +158,11 @@ func (m *DBInventory) Start(ctx context.Context) error {
 	return nil
 }
 
-// UpdateInventoryDefinition is a method to load a new inventory definition from
-// the configured file. Once read, the store will be updated with the differences
-// which will in turn trigger a set of previously established watch routines to
-// issue a number of arrival and/or departure notifications.
-//
-func (m *DBInventory) UpdateInventoryDefinition(ctx context.Context, path string) error {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Update inventory definition from file"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	// We have the basic initialization done. Now go read the current inventory
-	// from the file indicated by the configuration. Once we have that, load it
-	// into the store looking to see if there are any material changes between
-	// what is already in the store and what is now found in the file.
-	//
-	rootFile, err := inventory.ReadInventoryDefinitionFromFileEx(ctx, path)
-	if err != nil {
-		return err
-	}
-
-	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
-
-	if err != nil {
-		return err
-	}
-
-	if err = m.reconcileNewInventory(ctx, rootFile, rootStore); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// DeleteInventoryDefinition is a
-//
-func (m *DBInventory) DeleteInventoryDefinition(ctx context.Context) error {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Delete inventory definition from store"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	root, err := m.readInventoryDefinitionFromStore(ctx)
-	if err != nil {
-		return err
-	}
-
-	err = m.deleteInventoryDefinitionFromStore(ctx, root)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// reconcileNewInventory compares the newly loaded inventory definition,
-// presumably from a configuration file, with the currently loaded inventory
-// and updates the store accordingly. This will trigger the various watches
-// which any currently running services have previously established and deliver
-// a set of arrival and/or departure notifications as appropriate.
-//
-// NOTE: As a temporary measure, reconciliation just deletes the old inventory
-//       from the store and completely replaces it with the newly read inventory
-//       from the configured file
-//
-func (m *DBInventory) reconcileNewInventory(
-	ctx context.Context,
-	rootFile *pb.Definition_Root,
-	rootStore *pb.Definition_Root) error {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Reconcile current inventory with update"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
-	err := m.deleteInventoryDefinitionFromStore(ctx, rootStore)
-	if err != nil {
-		return err
-	}
-
-	err = m.writeInventoryDefinitionToStore(ctx, rootFile)
-	if err != nil {
-		return err
-	}
-
-	m.RootSummary = m.buildSummaryForRoot(rootFile)
-
-	tracing.Info(
-		ctx,
-		"   Updated inventory summary - RegionCount: %d MaxZoneCount: %d MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v",
-		m.RootSummary.RegionCount,
-		m.RootSummary.MaxZoneCount,
-		m.RootSummary.MaxRackCount,
-		m.RootSummary.MaxBladeCount,
-		&m.RootSummary.MaxCapacity)
-
-
-	zone, err := m.getDefaultZone(rootFile)
-
-	if err != nil {
-		m.DefaultZoneSummary = &ZoneSummary{}
-	
-		tracing.Error(
-			ctx,
-			"   Reset DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v - %v",
-			m.DefaultZoneSummary.RackCount,
-			m.DefaultZoneSummary.MaxBladeCount,
-			&m.DefaultZoneSummary.MaxCapacity,
-			err,
-		)
-	} else {
-		m.DefaultZoneSummary = m.buildSummaryForZone(zone)
-
-		tracing.Info(
-			ctx,
-			"   Updated DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v",
-			m.DefaultZoneSummary.RackCount,
-			m.DefaultZoneSummary.MaxBladeCount,
-			&m.DefaultZoneSummary.MaxCapacity,
-		)
-	}
-
-	return nil
-}
-
-func (m *DBInventory) getDefaultZone(root *pb.Definition_Root) (*pb.Definition_Zone, error) {
-
-	region, ok := root.Regions[defaultRegion]
-
-	if !ok {
-		return nil, errors.ErrRegionNotFound{Region: defaultRegion}
-	}
-
-	zone, ok := region.Zones[defaultZone]
-
-	if !ok {
-		return nil, errors.ErrZoneNotFound{Region: defaultRegion, Zone: defaultZone}
-	}
-
-	return zone, nil
-}
-
-// readInventoryDefinitionFromStore is used to read all the inventory
-// definitions from the store, regardless of how they got there and 
-// return them in the hierarchical in-memory form.
-//
-func (m *DBInventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.Definition_Root, error) {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Read inventory definition from store"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	root, err := inventory.NewRoot(ctx, m.Store, inventory.DefinitionTable)
-	if err != nil {
-		return nil, err
-	}
-
-	_, regions, err := root.FetchChildren(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	defRoot := &pb.Definition_Root{
-		Details: root.GetDetails(ctx),
-		Regions: make(map[string]*pb.Definition_Region, len(*regions)),
-	}
-
-	for regionName, region := range *regions {
-		_, zones, err := region.FetchChildren(ctx)
-		if err != nil {
-			return nil, err
-		}
-
-		defRegion := &pb.Definition_Region{
-			Details: region.GetDetails(ctx),
-			Zones:   make(map[string]*pb.Definition_Zone, len(*zones)),
-		}
-
-		for zoneName, zone := range *zones {
-			_, racks, err := zone.FetchChildren(ctx)
-			if err != nil {
-				return nil, err
-			}
-
-			defZone := &pb.Definition_Zone{
-				Details: zone.GetDetails(ctx),
-				Racks:   make(map[string]*pb.Definition_Rack, len(*racks)),
-			}
-
-			for rackName, rack := range *racks {
-				defRack, err := rack.Copy(ctx)
-				if err != nil {
-					return nil, err
-				}
-	
-				defZone.Racks[rackName] = defRack
-			}
-
-			defRegion.Zones[zoneName] = defZone
-		}
-
-		defRoot.Regions[regionName] = defRegion
-	}
-
-	return defRoot, nil
-}
-
-// writeInventoryDefinitionToStore will use the supplied root parameter and 
-// persist a record for each item in the supplied Definition_Root contents.
-//
-// In the case of collisions, the routine will fail with an "already exists"
-// error.
-//
-func (m *DBInventory) writeInventoryDefinitionToStore(ctx context.Context, root *pb.Definition_Root) error {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Write inventory definition to store"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	storeRoot, err := inventory.NewRoot(ctx, m.Store, inventory.DefinitionTable)
-	if err != nil {
-		return err
-	}
-
-	storeRoot.SetDetails(ctx, root.Details)
-
-	for regionName, region := range root.Regions {
-		ctx, span := tracing.StartSpan(ctx,
-			tracing.WithName(fmt.Sprintf("Write inventory definition for region %q", regionName)),
-			tracing.WithContextValue(timestamp.EnsureTickInContext),
-			tracing.AsInternal())
-		defer span.End()
-
-		storeRegion, err := storeRoot.NewChild(ctx, regionName)
-		if err != nil {
-			return err
-		}
-
-		storeRegion.SetDetails(ctx, region.GetDetails())
-
-		_, err = storeRegion.Create(ctx)
-		if err != nil {
-			return err
-		}
-
-		for zoneName, zone := range region.Zones {
-			ctx, span := tracing.StartSpan(ctx,
-				tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q", regionName, zoneName)),
-				tracing.WithContextValue(timestamp.EnsureTickInContext),
-				tracing.AsInternal())
-			defer span.End()
-
-			storeZone, err := storeRegion.NewChild(ctx, zoneName)
-			if err != nil {
-				return err
-			}
-	
-			storeZone.SetDetails(ctx, zone.GetDetails())
-	
-			_, err = storeZone.Create(ctx)
-			if err != nil {
-				return err
-			}
-
-			for rackName, rack := range zone.Racks {
-				ctx, span := tracing.StartSpan(ctx,
-					tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q", regionName, zoneName, rackName)),
-					tracing.WithContextValue(timestamp.EnsureTickInContext),
-					tracing.AsInternal())
-				defer span.End()
-
-				storeRack, err := storeZone.NewChild(ctx, rackName)
-				if err != nil {
-					return err
-				}
-		
-				storeRack.SetDetails(ctx, rack.GetDetails())
-		
-				_, err = storeRack.Create(ctx)
-				if err != nil {
-					return err
-				}
-
-				for index, pdu := range rack.Pdus {
-					ctx, span := tracing.StartSpan(ctx,
-						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, pdu %d", regionName, zoneName, rackName, index)),
-						tracing.WithContextValue(timestamp.EnsureTickInContext),
-						tracing.AsInternal())
-					defer span.End()
-
-					storePdu, err := storeRack.NewPdu(ctx, index)
-					if err != nil {
-						return err
-					}
-					ports := pdu.GetPorts()
-
-					storePdu.SetDetails(ctx, pdu.GetDetails())
-					storePdu.SetPorts(ctx, &ports)
-
-					_, err = storePdu.Create(ctx)
-					if err != nil {
-						return err
-					}
-				}
-
-				for index, tor := range rack.Tors {
-					ctx, span := tracing.StartSpan(ctx,
-						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, tor %d", regionName, zoneName, rackName, index)),
-						tracing.WithContextValue(timestamp.EnsureTickInContext),
-						tracing.AsInternal())
-					defer span.End()
-
-					storeTor, err := storeRack.NewTor(ctx, index)
-					if err != nil {
-						return err
-					}
-
-					ports := tor.GetPorts()
-					storeTor.SetDetails(ctx, tor.GetDetails())
-					storeTor.SetPorts(ctx, &ports)
-
-					_, err = storeTor.Create(ctx)
-					if err != nil {
-						return err
-					}
-				}
-
-				for index, blade := range rack.Blades {
-					ctx, span := tracing.StartSpan(ctx,
-						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, blade %d", regionName, zoneName, rackName, index)),
-						tracing.WithContextValue(timestamp.EnsureTickInContext),
-						tracing.AsInternal())
-					defer span.End()
-
-					storeBlade, err := storeRack.NewBlade(ctx, index)
-					if err != nil {
-						return err
-					}
-
-					storeBlade.SetDetails(ctx, blade.GetDetails())
-					storeBlade.SetCapacity(ctx, blade.GetCapacity())
-					storeBlade.SetBootInfo(ctx, blade.BootOnPowerOn, blade.GetBootInfo())
-
-					_, err = storeBlade.Create(ctx)
-					if err != nil {
-						return err
-					}
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// deleteInventoryDefinitionFromStore is used to completely remove all
-// inventory definitions from the store as identified by the storeRoot
-// parameter, regardless of how they got there.
-//
-func (m *DBInventory) deleteInventoryDefinitionFromStore(ctx context.Context, storeRoot *pb.Definition_Root) error {
-
-	root, err := inventory.NewRoot(ctx, m.Store, inventory.DefinitionTable)
-	if err != nil {
-		return err
-	}
-
-	for regionName, storeRegion := range storeRoot.Regions {
-
-		region, err := root.NewChild(ctx, regionName)
-		if err != nil {
-			return err
-		}
-
-		for zoneName, storeZone := range storeRegion.Zones {
-
-			zone, err := region.NewChild(ctx, zoneName)
-			if err != nil {
-				return err
-			}
-
-			for rackName, storeRack := range storeZone.Racks {
-
-				rack, err := zone.NewChild(ctx, rackName)
-				if err != nil {
-					return err
-				}
-
-				for i := range storeRack.Pdus {
-
-					pdu, err := rack.NewPdu(ctx, i)
-					if err != nil {
-						return err
-					}
-
-					pdu.Delete(ctx, true)
-				}
-
-				for i := range storeRack.Tors {
-
-					tor, err := rack.NewTor(ctx, i)
-					if err != nil {
-						return err
-					}
-
-					tor.Delete(ctx, true)
-				}
-
-				for i := range storeRack.Blades {
-
-					blade, err := rack.NewBlade(ctx, i)
-					if err != nil {
-						return err
-					}
-
-					blade.Delete(ctx, true)
-				}
-
-			rack.Delete(ctx, true)
-			}
-
-		zone.Delete(ctx, true)
-		}
-
-	region.Delete(ctx, true)
-	}
-
-	return nil
-}
-
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
-func (m *DBInventory) GetMemoData() *ZoneSummary {
-	m.mutex.RLock()
-	defer m.mutex.RUnlock()
+func (m *DBInventory) GetMemoData() *inventory.ZoneSummary {
 
-	return m.DefaultZoneSummary
+	return m.inventory.GetDefaultZoneSummary()
 }
 
 // ScanRegions scans the set of known regions in the store, invoking the supplied
@@ -667,7 +172,7 @@ func (m *DBInventory) ScanRegions(action func(entry string) error) error {
 
 	ctx := context.Background()
 
-	root, err := inventory.NewRoot(ctx, m.Store, inventory.DefinitionTable)
+	root, err := m.inventory.NewRoot(inventory.DefinitionTable)
 	if err != nil {
 		return m.transformError(err, "", "", "", 0)
 	}
@@ -692,7 +197,7 @@ func (m *DBInventory) GetRegion(regionName string) (*pb.Definition_Region, error
 
 	ctx := context.Background()
 
-	region, err := inventory.NewRegion(ctx, m.Store, inventory.DefinitionTable, regionName)
+	region, err := m.inventory.NewRegion(inventory.DefinitionTable, regionName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, "", "", 0)
 	}
@@ -703,7 +208,7 @@ func (m *DBInventory) GetRegion(regionName string) (*pb.Definition_Region, error
 	}
 
 	r := &pb.Definition_Region{
-		Details: region.GetDetails(ctx),
+		Details: region.GetDetails(),
 		Zones: make(map[string]*pb.Definition_Zone),
 	}
 
@@ -717,12 +222,12 @@ func (m *DBInventory) ScanZonesInRegion(regionName string, action func(entry str
 
 	ctx := context.Background()
 
-	root, err := inventory.NewRoot(ctx, m.Store, inventory.DefinitionTable)
+	root, err := m.inventory.NewRoot(inventory.DefinitionTable)
 	if err != nil {
 		return m.transformError(err, regionName, "", "", 0)
 	}
 
-	region, err := root.NewChild(ctx, regionName)
+	region, err := root.NewChild(regionName)
 	if err != nil {
 		return m.transformError(err, regionName, "", "", 0)
 	}
@@ -747,7 +252,7 @@ func (m *DBInventory) GetZone(regionName string, zoneName string) (*pb.Definitio
 
 	ctx := context.Background()
 
-	zone, err := inventory.NewZone(ctx, m.Store, inventory.DefinitionTable, regionName, zoneName)
+	zone, err := m.inventory.NewZone(inventory.DefinitionTable, regionName, zoneName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, "", 0)
 	}
@@ -758,7 +263,7 @@ func (m *DBInventory) GetZone(regionName string, zoneName string) (*pb.Definitio
 	}
 
 	z := &pb.Definition_Zone{
-		Details: zone.GetDetails(ctx),
+		Details: zone.GetDetails(),
 		Racks: make(map[string]*pb.Definition_Rack),
 	}
 
@@ -773,7 +278,7 @@ func (m *DBInventory) ScanRacksInZone(regionName string, zoneName string, action
 	
 	ctx := context.Background()
 
-	zone, err := inventory.NewZone(ctx, m.Store, inventory.DefinitionTable, regionName, zoneName)
+	zone, err := m.inventory.NewZone(inventory.DefinitionTable, regionName, zoneName)
 
 	if err != nil {
 		return m.transformError(err, regionName, zoneName, "", 0)
@@ -799,7 +304,7 @@ func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName
 
 	ctx := context.Background()
 
-	rack, err := inventory.NewRack(ctx, m.Store, inventory.DefinitionTable, regionName, zoneName, rackName)
+	rack, err := m.inventory.NewRack(inventory.DefinitionTable, regionName, zoneName, rackName)
 
 	_, err = rack.Read(ctx)
 	if err != nil {
@@ -822,22 +327,22 @@ func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName
 	}
 
 	r := &pb.Definition_Rack{
-		Details: rack.GetDetails(ctx),
+		Details: rack.GetDetails(),
 		Pdus:    make(map[int64]*pb.Definition_Pdu),
 		Tors:    make(map[int64]*pb.Definition_Tor),
 		Blades:  make(map[int64]*pb.Definition_Blade),
 	}
 
 	for index, pdu := range *pdus {
-		r.Pdus[index] = pdu.Copy(ctx)
+		r.Pdus[index] = pdu.Copy()
 	}
 
 	for index, tor := range *tors {
-		r.Tors[index] = tor.Copy(ctx)
+		r.Tors[index] = tor.Copy()
 	}
 
 	for index, blade := range *blades {
-		r.Blades[index] = blade.Copy(ctx)
+		r.Blades[index] = blade.Copy()
 	}
 
 	return r, nil
@@ -856,25 +361,30 @@ func (m *DBInventory) GetRack(rackName string) (*pb.External_Rack, error) {
 
 	ctx := context.Background()
 
-	rack, err := inventory.NewRack(ctx, m.Store, inventory.DefinitionTable, defaultRegion, defaultZone, rackName)
+	rack, err := m.inventory.NewRack(
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		inventory.DefaultZone,
+		rackName)
+
 	if err != nil {
-		return nil, m.transformError(err, defaultRegion, defaultZone, rackName, 0)
+		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
 	}
 
 	_, err = rack.Read(ctx)
 	if err != nil {
-		return nil, m.transformError(err, defaultRegion, defaultZone, rackName, 0)
+		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
 	}
 
 	_, blades, err := rack.FetchBlades(ctx)
 	if err != nil {
-		return nil, m.transformError(err, defaultRegion, defaultZone, rackName, 0)
+		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
 	}
 
 	bladeMap := make(map[int64]*pb.BladeCapacity)
 
 	for index, blade := range *blades {
-		bladeMap[index] = blade.GetCapacity(ctx)
+		bladeMap[index] = blade.GetCapacity()
 	}
 
 	r := &pb.External_Rack{
@@ -893,14 +403,19 @@ func (m *DBInventory) ScanBladesInRack(rackName string, action func(bladeID int6
 
 	ctx := context.Background()
 
-	rack, err := inventory.NewRack(ctx, m.Store, inventory.DefinitionTable, defaultRegion, defaultZone, rackName)
+	rack, err := m.inventory.NewRack(
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		inventory.DefaultZone,
+		rackName)
+
 	if err != nil {
-		return m.transformError(err, defaultRegion, defaultZone, rackName, 0)
+		return m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
 	}
 
 	_, IDs, err := rack.ListBlades(ctx)
 	if err != nil {
-		return m.transformError(err, defaultRegion, defaultZone, rackName, 0)
+		return m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
 	}
 
 	for _, index := range IDs {
@@ -918,57 +433,23 @@ func (m *DBInventory) GetBlade(rackName string, bladeID int64) (*pb.BladeCapacit
 
 	ctx := context.Background()
 
-	blade, err := inventory.NewBlade(ctx, m.Store, inventory.DefinitionTable, defaultRegion, defaultZone, rackName, bladeID)
+	blade, err := m.inventory.NewBlade(
+		inventory.DefinitionTable,
+		inventory.DefaultRegion,
+		inventory.DefaultZone,
+		rackName,
+		bladeID)
+
 	if err != nil {
-		return nil, m.transformError(err, defaultRegion, defaultZone, rackName, bladeID)
+		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, bladeID)
 	}
 
 	_, err = blade.Read(ctx)
 	if err != nil {
-		return nil, m.transformError(err, defaultRegion, defaultZone, rackName, bladeID)
+		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, bladeID)
 	}
 
-	return blade.GetCapacity(ctx), nil
-}
-
-func (m *DBInventory) buildSummaryForRack(rack *pb.Definition_Rack) (int, *pb.BladeCapacity) {
-
-	memo := &pb.BladeCapacity{}
-
-	for _, blade := range rack.Blades {
-		memo.Cores = common.MaxInt64(memo.Cores, blade.Capacity.Cores)
-		memo.DiskInGb = common.MaxInt64(memo.DiskInGb, blade.Capacity.DiskInGb)
-		memo.MemoryInMb = common.MaxInt64(memo.MemoryInMb, blade.Capacity.MemoryInMb)
-		memo.NetworkBandwidthInMbps = common.MaxInt64(
-			memo.NetworkBandwidthInMbps,
-			blade.Capacity.NetworkBandwidthInMbps)
-	}
-
-	return len(rack.Blades), memo
-}
-
-func (m *DBInventory) buildSummaryForZone(zone *pb.Definition_Zone) *ZoneSummary {
-
-	maxCapacity := &pb.BladeCapacity{}
-	maxBladeCount := int(0)
-
-	for _, rack := range zone.Racks {
-		bladeCount, capacity := m.buildSummaryForRack(rack)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, bladeCount)
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, capacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, capacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, capacity.MemoryInMb)
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-			maxCapacity.NetworkBandwidthInMbps,
-			capacity.NetworkBandwidthInMbps)
-	}
-
-	return &ZoneSummary{
-		RackCount:     len(zone.Racks),
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
-	}
+	return blade.GetCapacity(), nil
 }
 
 func (m *DBInventory) transformError(err error, region string, zone string, rack string, index int64) error {
@@ -1020,85 +501,6 @@ func (m *DBInventory) transformError(err error, region string, zone string, rack
 
 	default:
 		return err
-	}
-}
-
-// buildSummary constructs the memo-ed summary data for the zone.  This should
-// be called whenever the configured inventory changes. This includes
-//
-// - the zone count
-// - the maximum number of blades in a rack
-// - the memo data itself
-//
-func (m *DBInventory) buildSummaryForRegion(
-	region *pb.Definition_Region) *RegionSummary {
-
-	maxCapacity := &pb.BladeCapacity{}
-	maxRackCount := int(0)
-	maxBladeCount := int(0)
-
-	for _, zone := range region.Zones {
-		zoneSummary := m.buildSummaryForZone(zone)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, zoneSummary.MaxBladeCount)
-		maxRackCount = common.MaxInt(maxRackCount, zoneSummary.RackCount)
-
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, zoneSummary.MaxCapacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, zoneSummary.MaxCapacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, zoneSummary.MaxCapacity.MemoryInMb)
-
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-				maxCapacity.NetworkBandwidthInMbps,
-				zoneSummary.MaxCapacity.NetworkBandwidthInMbps)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, zoneSummary.MaxBladeCount)
-	}
-
-	return &RegionSummary{
-		ZoneCount:     len(region.Zones),
-		MaxRackCount:  maxRackCount,
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
-	}
-}
-
-// buildSummaryForRoot constructs the memo-ed summary data for the root. This should
-// be called whenever the configured inventory changes. This includes
-//
-// - the zone count
-// - the maximum number of blades in a rack
-// - the memo data itself
-//
-func (m *DBInventory) buildSummaryForRoot(
-	root *pb.Definition_Root) *RootSummary {
-
-	maxCapacity := &pb.BladeCapacity{}
-	maxZoneCount := int(0)
-	maxRackCount := int(0)
-	maxBladeCount := int(0)
-
-	for _, region := range root.Regions {
-		regionSummary := m.buildSummaryForRegion(region)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, regionSummary.MaxBladeCount)
-		maxRackCount = common.MaxInt(maxRackCount, regionSummary.MaxRackCount)
-		maxZoneCount = common.MaxInt(maxZoneCount, regionSummary.ZoneCount)
-
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, regionSummary.MaxCapacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, regionSummary.MaxCapacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, regionSummary.MaxCapacity.MemoryInMb)
-
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-				maxCapacity.NetworkBandwidthInMbps,
-				regionSummary.MaxCapacity.NetworkBandwidthInMbps)
-	}
-
-	return &RootSummary{
-		RegionCount:   len(root.Regions),
-		MaxZoneCount:  maxZoneCount,
-		MaxRackCount:  maxRackCount,
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
 	}
 }
 
@@ -1353,9 +755,7 @@ func (m *DBInventory) CreateZone(
 	zone *pb.Definition_Zone,
 	options ...InventoryZoneOption) (int64, error) {
 
-	z, err := inventory.NewZone(
-		ctx,
-		m.Store,
+	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		name)
@@ -1364,7 +764,7 @@ func (m *DBInventory) CreateZone(
 		return InvalidRev, err
 	}
 
-	z.SetDetails(ctx, zone.Details)
+	z.SetDetails(zone.Details)
 
 	rev, err := z.Create(ctx)
 
@@ -1388,9 +788,7 @@ func (m *DBInventory) CreateRack(
 	rack *pb.Definition_Rack,
 	options ...InventoryRackOption) (int64, error) {
 
-	r, err := inventory.NewRack(
-		ctx,
-		m.Store,
+	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1400,7 +798,7 @@ func (m *DBInventory) CreateRack(
 		return InvalidRev, err
 	}
 
-	r.SetDetails(ctx, rack.Details)
+	r.SetDetails(rack.Details)
 
 	rev, err := r.Create(ctx)
 
@@ -1429,9 +827,7 @@ func (m *DBInventory) CreatePdu(
 		return InvalidRev, err
 	}
 
-	p, err := inventory.NewPdu(
-		ctx,
-		m.Store,
+	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1443,8 +839,8 @@ func (m *DBInventory) CreatePdu(
 		return InvalidRev, err
 	}
 
-	p.SetDetails(ctx, pdu.Details)
-	p.SetPorts(ctx, &pdu.Ports)
+	p.SetDetails(pdu.Details)
+	p.SetPorts(&pdu.Ports)
 
 	rev, err := p.Create(ctx)
 
@@ -1473,9 +869,7 @@ func (m *DBInventory) CreateTor(
 		return InvalidRev, err
 	}
 
-	t, err := inventory.NewTor(
-		ctx,
-		m.Store,
+	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1487,8 +881,8 @@ func (m *DBInventory) CreateTor(
 		return InvalidRev, err
 	}
 
-	t.SetDetails(ctx, tor.Details)
-	t.SetPorts(ctx, &tor.Ports)
+	t.SetDetails(tor.Details)
+	t.SetPorts(&tor.Ports)
 
 	rev, err := t.Create(ctx)
 
@@ -1513,9 +907,7 @@ func (m *DBInventory) CreateBlade(
 	blade *pb.Definition_Blade,
 	options ...InventoryOption) (int64, error) {
 
-	b, err := inventory.NewBlade(
-		ctx,
-		m.Store,
+	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1527,9 +919,9 @@ func (m *DBInventory) CreateBlade(
 		return InvalidRev, err
 	}
 
-	b.SetDetails(ctx, blade.Details)
-	b.SetCapacity(ctx, blade.Capacity)
-	b.SetBootInfo(ctx, blade.BootOnPowerOn, blade.BootInfo)
+	b.SetDetails(blade.Details)
+	b.SetCapacity(blade.Capacity)
+	b.SetBootInfo(blade.BootOnPowerOn, blade.BootInfo)
 
 	rev, err := b.Create(ctx)
 
@@ -1549,9 +941,7 @@ func (m *DBInventory) ReadZone(
 	name string,
 	options ...InventoryZoneOption) (*pb.Definition_Zone, int64, error) {
 
-	z, err := inventory.NewZone(
-		ctx,
-		m.Store,
+	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		name)
@@ -1566,7 +956,7 @@ func (m *DBInventory) ReadZone(
 		return nil, InvalidRev, err
 	}
 
-	details := z.GetDetails(ctx)
+	details := z.GetDetails()
 
 	return &pb.Definition_Zone{Details: details}, rev, nil
 }
@@ -1580,9 +970,7 @@ func (m *DBInventory) ReadRack(
 	name string,
 	options ...InventoryRackOption) (*pb.Definition_Rack, int64, error) {
 
-	r, err := inventory.NewRack(
-		ctx,
-		m.Store,
+	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1598,7 +986,7 @@ func (m *DBInventory) ReadRack(
 		return nil, InvalidRev, err
 	}
 
-	details := r.GetDetails(ctx)
+	details := r.GetDetails()
 
 	return &pb.Definition_Rack{Details: details}, rev, nil
 }
@@ -1612,9 +1000,7 @@ func (m *DBInventory) ReadPdu(
 	index int64,
 	options ...InventoryOption) (*pb.Definition_Pdu, int64, error) {
 
-	p, err := inventory.NewPdu(
-		ctx,
-		m.Store,
+	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1631,8 +1017,8 @@ func (m *DBInventory) ReadPdu(
 		return nil, InvalidRev, err
 	}
 
-	details := p.GetDetails(ctx)
-	ports := p.GetPorts(ctx)
+	details := p.GetDetails()
+	ports := p.GetPorts()
 
 	return &pb.Definition_Pdu{Details: details, Ports: *ports}, rev, nil
 }
@@ -1646,9 +1032,7 @@ func (m *DBInventory) ReadTor(
 	index int64,
 	options ...InventoryOption) (*pb.Definition_Tor, int64, error) {
 
-	t, err := inventory.NewTor(
-		ctx,
-		m.Store,
+	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1665,8 +1049,8 @@ func (m *DBInventory) ReadTor(
 		return nil, InvalidRev, err
 	}
 
-	details := t.GetDetails(ctx)
-	ports := t.GetPorts(ctx)
+	details := t.GetDetails()
+	ports := t.GetPorts()
 
 	return &pb.Definition_Tor{Details: details, Ports: *ports}, rev, nil
 }
@@ -1680,9 +1064,7 @@ func (m *DBInventory) ReadBlade(
 	index int64,
 	options ...InventoryOption) (*pb.Definition_Blade, int64, error) {
 
-	b, err := inventory.NewBlade(
-		ctx,
-		m.Store,
+	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1699,9 +1081,9 @@ func (m *DBInventory) ReadBlade(
 		return nil, InvalidRev, err
 	}
 
-	details := b.GetDetails(ctx)
-	capacity := b.GetCapacity(ctx)
-	bootOnPowerOn, bootInfo := b.GetBootInfo(ctx)
+	details := b.GetDetails()
+	capacity := b.GetCapacity()
+	bootOnPowerOn, bootInfo := b.GetBootInfo()
 
 	blade := &pb.Definition_Blade{
 		Details:       details,
@@ -1725,9 +1107,7 @@ func (m *DBInventory) UpdateZone(
 	zone *pb.Definition_Zone,
 	options ...InventoryZoneOption) (int64, error) {
 
-	z, err := inventory.NewZone(
-		ctx,
-		m.Store,
+	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		name)
@@ -1736,7 +1116,7 @@ func (m *DBInventory) UpdateZone(
 		return InvalidRev, err
 	}
 
-	z.SetDetails(ctx, zone.Details)
+	z.SetDetails(zone.Details)
 
 	rev, err := z.Update(ctx, true)
 
@@ -1759,9 +1139,7 @@ func (m *DBInventory) UpdateRack(
 	name string,
 	rack *pb.Definition_Rack, options ...InventoryRackOption) (int64, error) {
 
-	r, err := inventory.NewRack(
-		ctx,
-		m.Store,
+	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1771,7 +1149,7 @@ func (m *DBInventory) UpdateRack(
 		return InvalidRev, err
 	}
 
-	r.SetDetails(ctx, rack.Details)
+	r.SetDetails(rack.Details)
 
 	rev, err := r.Update(ctx, true)
 
@@ -1792,9 +1170,7 @@ func (m *DBInventory) UpdatePdu(
 	pdu *pb.Definition_Pdu,
 	options ...InventoryOption) (int64, error) {
 
-	p, err := inventory.NewPdu(
-		ctx,
-		m.Store,
+	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1806,8 +1182,8 @@ func (m *DBInventory) UpdatePdu(
 		return InvalidRev, err
 	}
 
-	p.SetDetails(ctx, pdu.Details)
-	p.SetPorts(ctx, &pdu.Ports)
+	p.SetDetails(pdu.Details)
+	p.SetPorts(&pdu.Ports)
 
 	rev, err := p.Update(ctx, true)
 
@@ -1828,9 +1204,7 @@ func (m *DBInventory) UpdateTor(
 	tor *pb.Definition_Tor,
 	options ...InventoryOption) (int64, error) {
 
-	t, err := inventory.NewTor(
-		ctx,
-		m.Store,
+	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1842,8 +1216,8 @@ func (m *DBInventory) UpdateTor(
 		return InvalidRev, err
 	}
 
-	t.SetDetails(ctx, tor.Details)
-	t.SetPorts(ctx, &tor.Ports)
+	t.SetDetails(tor.Details)
+	t.SetPorts(&tor.Ports)
 
 	rev, err := t.Update(ctx, true)
 
@@ -1864,9 +1238,7 @@ func (m *DBInventory) UpdateBlade(
 	blade *pb.Definition_Blade,
 	options ...InventoryOption) (int64, error) {
 
-	b, err := inventory.NewBlade(
-		ctx,
-		m.Store,
+	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1878,9 +1250,9 @@ func (m *DBInventory) UpdateBlade(
 		return InvalidRev, err
 	}
 
-	b.SetDetails(ctx, blade.Details)
-	b.SetCapacity(ctx, blade.Capacity)
-	b.SetBootInfo(ctx, blade.BootOnPowerOn, blade.BootInfo)
+	b.SetDetails(blade.Details)
+	b.SetCapacity(blade.Capacity)
+	b.SetBootInfo(blade.BootOnPowerOn, blade.BootInfo)
 
 	rev, err := b.Update(ctx, true)
 
@@ -1900,9 +1272,7 @@ func (m *DBInventory) DeleteZone(
 	name string,
 	options ...InventoryOption) (int64, error) {
 
-	z, err := inventory.NewZone(
-		ctx,
-		m.Store,
+	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		name)
@@ -1930,9 +1300,7 @@ func (m *DBInventory) DeleteRack(
 	name string,
 	options ...InventoryOption) (int64, error) {
 
-	r, err := inventory.NewRack(
-		ctx,
-		m.Store,
+	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -1966,9 +1334,7 @@ func (m *DBInventory) DeletePdu(
 	index int64,
 	options ...InventoryOption) (int64, error) {
 
-	p, err := inventory.NewPdu(
-		ctx,
-		m.Store,
+	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -2004,9 +1370,7 @@ func (m *DBInventory) DeleteTor(
 	index int64,
 	options ...InventoryOption) (int64, error) {
 
-	t, err := inventory.NewTor(
-		ctx,
-		m.Store,
+	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,
@@ -2042,9 +1406,7 @@ func (m *DBInventory) DeleteBlade(
 	index int64,
 	options ...InventoryOption) (int64, error) {
 
-	b, err := inventory.NewBlade(
-		ctx,
-		m.Store,
+	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
 		inventory.DefaultRegion,
 		zone,

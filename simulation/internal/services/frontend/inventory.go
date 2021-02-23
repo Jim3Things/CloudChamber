@@ -15,6 +15,7 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
@@ -86,7 +87,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.ScanRacksInZone(defaultRegion, defaultZone, func(name string) error {
+	err = dbInventory.ScanRacksInZone(inventory.DefaultRegion, inventory.DefaultZone, func(name string) error {
 		target := fmt.Sprintf("%s%s/", b, name)
 
 		res.Racks[name] = &pb.External_RackSummary{Uri: target}

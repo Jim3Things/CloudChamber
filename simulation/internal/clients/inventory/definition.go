@@ -24,9 +24,14 @@ import (
 //	- ObservedTable
 //	- TargetTable
 //
-func NewRoot(_ context.Context, store *store.Store, table string) (*Root, error) {
+func (m *Inventory) NewRoot(table string) (*Root, error) {
 
-	k, err := GetKeyForIndexRegion(table)
+	return newRoot(m.Store, table)
+}
+
+func newRoot(store *store.Store, table string) (*Root, error) {
+
+	k, err := getKeyForIndexRegion(table)
 
 	if err != nil {
 		return nil, err
@@ -44,21 +49,26 @@ func NewRoot(_ context.Context, store *store.Store, table string) (*Root, error)
 // NewRegion is a convenience function used to construct a Region object
 // from scratch rather than relative to its parent.
 //
-func NewRegion(_ context.Context, store *store.Store, table string, region string) (*Region, error) {
+func (m *Inventory) NewRegion(table string, region string) (*Region, error) {
 
-	keyIndex, err := GetKeyForIndexZone(table, region)
+	return newRegion(m.Store, table, region)
+}
+
+func newRegion(store *store.Store, table string, region string) (*Region, error) {
+
+	keyIndex, err := getKeyForIndexZone(table, region)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexEntry, err := GetKeyForIndexEntryRegion(table, region)
+	keyIndexEntry, err := getKeyForIndexEntryRegion(table, region)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := GetKeyForRegion(table, region)
+	key, err := getKeyForRegion(table, region)
 
 	if nil != err {
 		return nil, err
@@ -79,21 +89,25 @@ func NewRegion(_ context.Context, store *store.Store, table string, region strin
 // NewZone is a convenience function used to construct a Zone object
 // from scratch rather than relative to its parent.
 //
-func NewZone(_ context.Context, store *store.Store, table string, region string, zone string) (*Zone, error) {
+func (m *Inventory) NewZone(table string, region string, zone string) (*Zone, error) {
+	return newZone(m.Store, table, region, zone)
+}
 
-	keyIndex, err := GetKeyForIndexRack(table, region, zone)
+func newZone(store *store.Store, table string, region string, zone string) (*Zone, error) {
+
+	keyIndex, err := getKeyForIndexRack(table, region, zone)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexEntry, err := GetKeyForIndexEntryZone(table, region, zone)
+	keyIndexEntry, err := getKeyForIndexEntryZone(table, region, zone)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := GetKeyForZone(table, region, zone)
+	key, err := getKeyForZone(table, region, zone)
 
 	if nil != err {
 		return nil, err
@@ -115,39 +129,47 @@ func NewZone(_ context.Context, store *store.Store, table string, region string,
 // NewRack is a convenience function used to construct a Rack object
 // from scratch rather than relative to its parent.
 //
-func NewRack(
-	_ context.Context,
+func (m *Inventory) NewRack(
+	table string,
+	region string,
+	zone string,
+	rack string) (*Rack, error) {
+
+	return newRack(m.Store, table, region, zone, rack)
+}
+
+func newRack(
 	store *store.Store,
 	table string,
 	region string,
 	zone string,
 	rack string) (*Rack, error) {
 
-	keyIndexPdu, err := GetKeyForIndexPdu(table, region, zone, rack)
+	keyIndexPdu, err := getKeyForIndexPdu(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexTor, err := GetKeyForIndexTor(table, region, zone, rack)
+	keyIndexTor, err := getKeyForIndexTor(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexBlade, err := GetKeyForIndexBlade(table, region, zone, rack)
+	keyIndexBlade, err := getKeyForIndexBlade(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexEntry, err := GetKeyForIndexEntryRack(table, region, zone, rack)
+	keyIndexEntry, err := getKeyForIndexEntryRack(table, region, zone, rack)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := GetKeyForRack(table, region, zone, rack)
+	key, err := getKeyForRack(table, region, zone, rack)
 
 	if nil != err {
 		return nil, err
@@ -172,8 +194,17 @@ func NewRack(
 // NewPdu is a convenience function used to construct a Pdu object
 // from scratch rather than relative to its parent.
 //
-func NewPdu(
-	_ context.Context,
+func (m *Inventory) NewPdu(
+	table string,
+	region string,
+	zone string,
+	rack string,
+	id int64) (*Pdu, error) {
+
+	return newPdu(m.Store, table, region, zone, rack, id)
+}
+
+func newPdu(
 	store *store.Store,
 	table string,
 	region string,
@@ -181,13 +212,13 @@ func NewPdu(
 	rack string,
 	id int64) (*Pdu, error) {
 
-	keyIndexEntry, err := GetKeyForIndexEntryPdu(table, region, zone, rack, id)
+	keyIndexEntry, err := getKeyForIndexEntryPdu(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := GetKeyForPdu(table, region, zone, rack, id)
+	key, err := getKeyForPdu(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -210,8 +241,17 @@ func NewPdu(
 // NewTor is a convenience function used to construct a Tor object
 // from scratch rather than relative to its parent.
 //
-func NewTor(
-	_ context.Context,
+func (m *Inventory) NewTor(
+	table string,
+	region string,
+	zone string,
+	rack string,
+	id int64) (*Tor, error) {
+
+	return newTor(m.Store, table, region, zone, rack, id)
+	}
+
+func newTor(
 	store *store.Store,
 	table string,
 	region string,
@@ -219,13 +259,13 @@ func NewTor(
 	rack string,
 	id int64) (*Tor, error) {
 
-	keyIndexEntry, err := GetKeyForIndexEntryTor(table, region, zone, rack, id)
+	keyIndexEntry, err := getKeyForIndexEntryTor(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := GetKeyForTor(table, region, zone, rack, id)
+	key, err := getKeyForTor(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -248,8 +288,17 @@ func NewTor(
 // NewBlade is a convenience function used to construct a Blade object
 // from scratch rather than relative to its parent.
 //
-func NewBlade(
-	_ context.Context,
+func (m *Inventory) NewBlade(
+	table string,
+	region string,
+	zone string,
+	rack string,
+	id int64) (*Blade, error) {
+
+	return newBlade(m.Store, table, region, zone, rack, id)
+}
+
+func newBlade(
 	store *store.Store,
 	table string,
 	region string,
@@ -257,13 +306,13 @@ func NewBlade(
 	rack string,
 	id int64) (*Blade, error) {
 
-	keyIndexEntry, err := GetKeyForIndexEntryBlade(table, region, zone, rack, id)
+	keyIndexEntry, err := getKeyForIndexEntryBlade(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := GetKeyForBlade(table, region, zone, rack, id)
+	key, err := getKeyForBlade(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -375,7 +424,7 @@ type Root struct {
 //
 // The current revision of the region object is reset
 //
-func (r *Root) SetDetails(_ context.Context, details *pb.RootDetails) {
+func (r *Root) SetDetails(details *pb.RootDetails) {
 	r.details = details
 	r.resetRevision()
 }
@@ -385,7 +434,7 @@ func (r *Root) SetDetails(_ context.Context, details *pb.RootDetails) {
 // As the Root object is not persisted, the attribute information will either
 // be the initialisation value, or whatever was last set using SetDetails()
 //
-func (r *Root) GetDetails(_ context.Context) *pb.RootDetails {
+func (r *Root) GetDetails() *pb.RootDetails {
 	return r.details
 }
 
@@ -425,9 +474,9 @@ func (r *Root) Delete(_ context.Context, _ bool) (int64, error) {
 // No information is fetched from the underlying store so the attribute
 // and revisions fields within the object are not valid.
 //
-func (r *Root) NewChild(ctx context.Context, name string) (*Region, error) {
+func (r *Root) NewChild(name string) (*Region, error) {
 
-	return NewRegion(ctx, r.Store, r.Table, name)
+	return newRegion(r.Store, r.Table, name)
 }
 
 // ListChildren uses the current object to discover the names of all the
@@ -485,7 +534,7 @@ func (r *Root) FetchChildren(ctx context.Context) (int64, *map[string]Region, er
 
 	for _, v := range names {
 
-		child, err := r.NewChild(ctx, v)
+		child, err := r.NewChild(v)
 
 		if err != nil {
 			return store.RevisionInvalid, nil, err
@@ -530,7 +579,7 @@ type Region struct {
 //
 // The current revision of the region object is reset
 //
-func (r *Region) SetDetails(_ context.Context, details *pb.RegionDetails) {
+func (r *Region) SetDetails(details *pb.RegionDetails) {
 	r.details = details
 	r.resetRevision()
 }
@@ -541,7 +590,7 @@ func (r *Region) SetDetails(_ context.Context, details *pb.RegionDetails) {
 //
 // May return nil if there are no attributes currently held in the object.
 //
-func (r *Region) GetDetails(_ context.Context) *pb.RegionDetails {
+func (r *Region) GetDetails() *pb.RegionDetails {
 	return r.details
 }
 
@@ -701,9 +750,9 @@ func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) 
 // No information is fetched from the underlying store so the attribute
 // and revisions fields within the object are not valid.
 //
-func (r *Region) NewChild(ctx context.Context, name string) (*Zone, error) {
+func (r *Region) NewChild(name string) (*Zone, error) {
 
-	return NewZone(ctx, r.Store, r.Table, r.Region, name)
+	return newZone(r.Store, r.Table, r.Region, name)
 }
 
 // ListChildren uses the current object to discover the names of all the
@@ -755,7 +804,7 @@ func (r *Region) FetchChildren(ctx context.Context) (int64, *map[string]Zone, er
 	//
 	for _, v := range names {
 
-		child, err := r.NewChild(ctx, v)
+		child, err := r.NewChild(v)
 
 		if err != nil {
 			return store.RevisionInvalid, nil, err
@@ -819,7 +868,7 @@ type Zone struct {
 //
 // The current revision of the zone object is reset
 //
-func (z *Zone) SetDetails(_ context.Context, details *pb.ZoneDetails) {
+func (z *Zone) SetDetails(details *pb.ZoneDetails) {
 	z.details = details
 	z.resetRevision()
 }
@@ -830,7 +879,7 @@ func (z *Zone) SetDetails(_ context.Context, details *pb.ZoneDetails) {
 //
 // May return nil if there are no attributes currently held in the object.
 //
-func (z *Zone) GetDetails(_ context.Context) *pb.ZoneDetails {
+func (z *Zone) GetDetails() *pb.ZoneDetails {
 	return z.details
 }
 
@@ -990,9 +1039,9 @@ func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 // No information is fetched from the underlying store so the attribute
 // and revisions fields within the object are not valid.
 //
-func (z *Zone) NewChild(ctx context.Context, name string) (*Rack, error) {
+func (z *Zone) NewChild(name string) (*Rack, error) {
 
-	return NewRack(ctx, z.Store, z.Table, z.Region, z.Zone, name)
+	return newRack(z.Store, z.Table, z.Region, z.Zone, name)
 }
 
 // ListChildren uses the current object to discover the names of all the
@@ -1042,7 +1091,7 @@ func (z *Zone) FetchChildren(ctx context.Context) (int64, *map[string]Rack, erro
 
 	for _, v := range names {
 
-		child, err := z.NewChild(ctx, v)
+		child, err := z.NewChild(v)
 
 		if err != nil {
 			return store.RevisionInvalid, nil, err
@@ -1109,7 +1158,7 @@ type Rack struct {
 //
 // The current revision of the rack object is reset
 //
-func (r *Rack) SetDetails(_ context.Context, details *pb.RackDetails) {
+func (r *Rack) SetDetails(details *pb.RackDetails) {
 	r.details = details
 	r.resetRevision()
 }
@@ -1120,7 +1169,7 @@ func (r *Rack) SetDetails(_ context.Context, details *pb.RackDetails) {
 //
 // May return nil if there are no attributes currently held in the object.
 //
-func (r *Rack) GetDetails(_ context.Context) *pb.RackDetails {
+func (r *Rack) GetDetails() *pb.RackDetails {
 	return r.details
 }
 
@@ -1145,22 +1194,22 @@ func (r *Rack) Copy(ctx context.Context) (*pb.Definition_Rack, error) {
 	}
 
 	rack := &pb.Definition_Rack{
-		Details: r.GetDetails(ctx),
+		Details: r.GetDetails(),
 		Pdus:    make(map[int64]*pb.Definition_Pdu, len(*pdus)),
 		Tors:    make(map[int64]*pb.Definition_Tor, len(*tors)),
 		Blades:  make(map[int64]*pb.Definition_Blade, len(*blades)),
 	}
 
 	for pduIndex, pdu := range *pdus {
-		rack.Pdus[pduIndex] = pdu.Copy(ctx)
+		rack.Pdus[pduIndex] = pdu.Copy()
 	}
 
 	for torIndex, tor := range *tors {
-		rack.Tors[torIndex] = tor.Copy(ctx)
+		rack.Tors[torIndex] = tor.Copy()
 	}
 
 	for bladeIndex, blade := range *blades {
-		rack.Blades[bladeIndex] = blade.Copy(ctx)
+		rack.Blades[bladeIndex] = blade.Copy()
 	}
 
 	return rack, nil
@@ -1324,7 +1373,7 @@ func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 // should be called to construct an object for the appropriate specialized
 // child.
 //
-func (r *Rack) NewChild(_ context.Context, _ string) (*Zone, error) {
+func (r *Rack) NewChild(_ string) (*Zone, error) {
 	return nil, errors.ErrFunctionNotAvailable
 }
 
@@ -1336,9 +1385,9 @@ func (r *Rack) NewChild(_ context.Context, _ string) (*Zone, error) {
 // No information is fetched from the underlying store so the attribute
 // and revisions fields within the object are not valid.
 //
-func (r *Rack) NewPdu(ctx context.Context, ID int64) (*Pdu, error) {
+func (r *Rack) NewPdu(ID int64) (*Pdu, error) {
 
-	return NewPdu(ctx, r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
+	return newPdu(r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
 }
 
 // NewTor creates a new child object for the tor within the current
@@ -1349,9 +1398,9 @@ func (r *Rack) NewPdu(ctx context.Context, ID int64) (*Pdu, error) {
 // No information is fetched from the underlying store so the attribute
 // and revisions fields within the object are not valid.
 //
-func (r *Rack) NewTor(ctx context.Context, ID int64) (*Tor, error) {
+func (r *Rack) NewTor(ID int64) (*Tor, error) {
 
-	return NewTor(ctx, r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
+	return newTor(r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
 }
 
 // NewBlade creates a new child object for the blade within the current
@@ -1362,9 +1411,9 @@ func (r *Rack) NewTor(ctx context.Context, ID int64) (*Tor, error) {
 // No information is fetched from the underlying store so the attribute
 // and revisions fields within the object are not valid.
 //
-func (r *Rack) NewBlade(ctx context.Context, ID int64) (*Blade, error) {
+func (r *Rack) NewBlade(ID int64) (*Blade, error) {
 
-	return NewBlade(ctx, r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
+	return newBlade(r.Store, r.Table, r.Region, r.Zone, r.Rack, ID)
 }
 
 // ListChildren is a stub function for rack objects as there are no
@@ -1584,7 +1633,7 @@ func (r *Rack) FetchPdus(ctx context.Context) (int64, *map[int64]Pdu, error) {
 
 	for _, v := range names {
 
-		pdu, err := r.NewPdu(ctx, v)
+		pdu, err := r.NewPdu(v)
 
 		if err != nil {
 			return store.RevisionInvalid, nil, err
@@ -1620,7 +1669,7 @@ func (r *Rack) FetchTors(ctx context.Context) (int64, *map[int64]Tor, error) {
 
 	for _, v := range names {
 
-		tor, err := r.NewTor(ctx, v)
+		tor, err := r.NewTor(v)
 
 		if err != nil {
 			return store.RevisionInvalid, nil, err
@@ -1656,7 +1705,7 @@ func (r *Rack) FetchBlades(ctx context.Context) (int64, *map[int64]Blade, error)
 
 	for _, v := range names {
 
-		blade, err := r.NewBlade(ctx, v)
+		blade, err := r.NewBlade(v)
 
 		if err != nil {
 			return store.RevisionInvalid, nil, err
@@ -1729,7 +1778,7 @@ type Pdu struct {
 //
 // The current revision of the pdu object is reset
 //
-func (p *Pdu) SetDetails(_ context.Context, details *pb.PduDetails) {
+func (p *Pdu) SetDetails(details *pb.PduDetails) {
 	p.details = details
 	p.resetRevision()
 }
@@ -1740,7 +1789,7 @@ func (p *Pdu) SetDetails(_ context.Context, details *pb.PduDetails) {
 //
 // May return nil if there are no attributes currently held in the object.
 //
-func (p *Pdu) GetDetails(_ context.Context) *pb.PduDetails {
+func (p *Pdu) GetDetails() *pb.PduDetails {
 	return p.details
 }
 
@@ -1751,7 +1800,7 @@ func (p *Pdu) GetDetails(_ context.Context) *pb.PduDetails {
 //
 // The current revision of the pdu object is reset
 //
-func (p *Pdu) SetPorts(_ context.Context, ports *map[int64]*pb.PowerPort) {
+func (p *Pdu) SetPorts(ports *map[int64]*pb.PowerPort) {
 	p.ports = ports
 	p.resetRevision()
 }
@@ -1763,17 +1812,17 @@ func (p *Pdu) SetPorts(_ context.Context, ports *map[int64]*pb.PowerPort) {
 // May return nil if there are no power port information currently held
 // in the object.
 //
-func (p *Pdu) GetPorts(_ context.Context) *map[int64]*pb.PowerPort {
+func (p *Pdu) GetPorts() *map[int64]*pb.PowerPort {
 	return p.ports
 }
 
 // Copy returns a copy of the pdu definition based on the contents of the
 // current object.
 //
-func (p *Pdu) Copy(ctx context.Context) *pb.Definition_Pdu {
+func (p *Pdu) Copy() *pb.Definition_Pdu {
 	pdu := &pb.Definition_Pdu{
-		Details: p.GetDetails(ctx),
-		Ports:   *p.GetPorts(ctx),
+		Details: p.GetDetails(),
+		Ports:   *p.GetPorts(),
 	}
 
 	return pdu
@@ -1984,7 +2033,7 @@ type Tor struct {
 //
 // The current revision of the tor object is reset
 //
-func (t *Tor) SetDetails(_ context.Context, details *pb.TorDetails) {
+func (t *Tor) SetDetails(details *pb.TorDetails) {
 	t.details = details
 	t.resetRevision()
 }
@@ -1995,7 +2044,7 @@ func (t *Tor) SetDetails(_ context.Context, details *pb.TorDetails) {
 //
 // May return nil if there are no attributes currently held in the object.
 //
-func (t *Tor) GetDetails(_ context.Context) *pb.TorDetails {
+func (t *Tor) GetDetails() *pb.TorDetails {
 	return t.details
 }
 
@@ -2006,7 +2055,7 @@ func (t *Tor) GetDetails(_ context.Context) *pb.TorDetails {
 //
 // The current revision of the tor object is reset
 //
-func (t *Tor) SetPorts(_ context.Context, ports *map[int64]*pb.NetworkPort) {
+func (t *Tor) SetPorts(ports *map[int64]*pb.NetworkPort) {
 	t.ports = ports
 	t.resetRevision()
 }
@@ -2018,17 +2067,17 @@ func (t *Tor) SetPorts(_ context.Context, ports *map[int64]*pb.NetworkPort) {
 // May return nil if there are no network port information currently held
 // in the object.
 //
-func (t *Tor) GetPorts(_ context.Context) *map[int64]*pb.NetworkPort {
+func (t *Tor) GetPorts() *map[int64]*pb.NetworkPort {
 	return t.ports
 }
 
 // Copy returns a copy of the tor definition based on the contents of the
 // current object.
 //
-func (t *Tor) Copy(ctx context.Context) *pb.Definition_Tor {
+func (t *Tor) Copy() *pb.Definition_Tor {
 	tor := &pb.Definition_Tor{
-		Details: t.GetDetails(ctx),
-		Ports:   *t.GetPorts(ctx),
+		Details: t.GetDetails(),
+		Ports:   *t.GetPorts(),
 	}
 
 	return tor
@@ -2241,7 +2290,7 @@ type Blade struct {
 //
 // The current revision of the blade object is reset
 //
-func (b *Blade) SetDetails(_ context.Context, details *pb.BladeDetails) {
+func (b *Blade) SetDetails(details *pb.BladeDetails) {
 	b.details = details
 	b.resetRevision()
 }
@@ -2252,7 +2301,7 @@ func (b *Blade) SetDetails(_ context.Context, details *pb.BladeDetails) {
 //
 // May return nil if there are no attributes currently held in the object.
 //
-func (b *Blade) GetDetails(_ context.Context) *pb.BladeDetails {
+func (b *Blade) GetDetails() *pb.BladeDetails {
 	return b.details
 }
 
@@ -2263,7 +2312,7 @@ func (b *Blade) GetDetails(_ context.Context) *pb.BladeDetails {
 //
 // The current revision of the blade object is reset
 //
-func (b *Blade) SetCapacity(_ context.Context, capacity *pb.BladeCapacity) {
+func (b *Blade) SetCapacity(capacity *pb.BladeCapacity) {
 	b.capacity = capacity
 	b.resetRevision()
 }
@@ -2275,7 +2324,7 @@ func (b *Blade) SetCapacity(_ context.Context, capacity *pb.BladeCapacity) {
 //
 // The current revision of the blade object is reset
 //
-func (b *Blade) SetBootInfo(_ context.Context, bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) {
+func (b *Blade) SetBootInfo(bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) {
 	b.bootOnPowerOn = bootOnPowerOn
 	b.bootInfo = bootInfo
 	b.resetRevision()
@@ -2288,7 +2337,7 @@ func (b *Blade) SetBootInfo(_ context.Context, bootOnPowerOn bool, bootInfo *pb.
 // May return nil if there are no capacity information currently held
 // in the object.
 //
-func (b *Blade) GetCapacity(_ context.Context) *pb.BladeCapacity {
+func (b *Blade) GetCapacity() *pb.BladeCapacity {
 	return b.capacity
 }
 
@@ -2299,19 +2348,19 @@ func (b *Blade) GetCapacity(_ context.Context) *pb.BladeCapacity {
 // May return nil if there are no boot information currently held
 // in the object.
 //
-func (b *Blade) GetBootInfo(_ context.Context) (bool, *pb.BladeBootInfo) {
+func (b *Blade) GetBootInfo() (bool, *pb.BladeBootInfo) {
 	return b.bootOnPowerOn, b.bootInfo
 }
 
 // Copy returns a copy of the blade definition based on the contents of the
 // current object.
 //
-func (b *Blade) Copy(ctx context.Context) *pb.Definition_Blade {
-	bootOnPowerOn, bootInfo := b.GetBootInfo(ctx)
+func (b *Blade) Copy() *pb.Definition_Blade {
+	bootOnPowerOn, bootInfo := b.GetBootInfo()
 
 	blade := &pb.Definition_Blade{
-		Details:       b.GetDetails(ctx),
-		Capacity:      b.GetCapacity(ctx),
+		Details:       b.GetDetails(),
+		Capacity:      b.GetCapacity(),
 		BootInfo:      bootInfo,
 		BootOnPowerOn: bootOnPowerOn,
 	}
