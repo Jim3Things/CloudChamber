@@ -21,7 +21,7 @@ inventory:
   TraceFile: stdout
 
   # Directory holding the inventory definition file
-  InventoryDefinition: ./testdata
+  InventoryDefinition: ./testdata/standard
 
 # simulation support services (sim_supportd)
 simSupport:

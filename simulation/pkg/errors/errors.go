@@ -71,6 +71,11 @@ var (
 	// not have the requested method.
 	//
 	ErrFunctionNotAvailable = errors.New("function not available")
+
+	// ErrInventoryNotAvailable indicates the inventory is empty or has
+	// not yet been loaded.
+	//
+	ErrInventoryNotAvailable = errors.New("CloudChamber: Inventory empty or not yet loaded")
 )
 
 // ErrInventoryChangeTooLate indicates that an attempt to modify an inventory

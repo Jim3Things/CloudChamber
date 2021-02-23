@@ -187,6 +187,26 @@ func NewErrUserProtected(name string) *HTTPError {
 	}
 }
 
+// NewErrRegionNotFound indicates the specified region does not exist and the http
+// request (http.statusNotFound) determines to be the request was made against
+// a non-existing region.
+func NewErrRegionNotFound(name string) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusNotFound,
+		Base: fmt.Errorf("CloudChamber: region %q not found", name),
+	}
+}
+
+// NewErrZoneNotFound indicates the specified zone does not exist and the http
+// request (http.statusNotFound) determines to be the request was made against
+// a non-existing zone.
+func NewErrZoneNotFound(name string) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusNotFound,
+		Base: fmt.Errorf("CloudChamber: zone %q not found", name),
+	}
+}
+
 // NewErrRackNotFound indicates the specified rack do not exist and the http
 // request (http.statusNotFound) determines to be the request was made against
 // a non-existing rack.
@@ -194,6 +214,24 @@ func NewErrRackNotFound(name string) *HTTPError {
 	return &HTTPError{
 		SC:   http.StatusNotFound,
 		Base: fmt.Errorf("CloudChamber: rack %q not found", name),
+	}
+}
+
+// NewErrPduNotFound indicates that the rack was found but no pdu was found
+//
+func NewErrPduNotFound(rackid string, pduID int64) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusNotFound,
+		Base: fmt.Errorf("CloudChamber: pdu %d not found in rack %q", pduID, rackid),
+	}
+}
+
+// NewErrTorNotFound indicates that the rack was found but no tor was found
+//
+func NewErrTorNotFound(rackid string, torID int64) *HTTPError {
+	return &HTTPError{
+		SC:   http.StatusNotFound,
+		Base: fmt.Errorf("CloudChamber: blade %d not found in rack %q", torID, rackid),
 	}
 }
 

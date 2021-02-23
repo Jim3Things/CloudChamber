@@ -129,9 +129,9 @@ const (
 	keyFormatTor    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor + "/%d"
 	keyFormatBlade  = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%d"
 
-	maxBladeID = int64(10 * 1000 * 1000)
-	maxPduID   = int64(2)
-	maxTorID   = int64(2)
+	MaxBladeID = int64(10 * 1000 * 1000)
+	MaxPduID   = int64(2)
+	MaxTorID   = int64(2)
 )
 
 func verifyTable(table string) error {
@@ -194,8 +194,8 @@ func verifyRack(val string) error {
 
 func verifyPdu(val int64) error {
 
-	if val < 0 || val > maxPduID {
-		return errors.ErrPduIDInvalid{Value: val, Limit: maxPduID}
+	if val < 0 || val > MaxPduID {
+		return errors.ErrPduIDInvalid{Value: val, Limit: MaxPduID}
 	}
 
 	return nil
@@ -203,8 +203,8 @@ func verifyPdu(val int64) error {
 
 func verifyTor(val int64) error {
 
-	if val < 0 || val > maxTorID {
-		return errors.ErrTorIDInvalid{Value: val, Limit: maxTorID}
+	if val < 0 || val > MaxTorID {
+		return errors.ErrTorIDInvalid{Value: val, Limit: MaxTorID}
 	}
 
 	return nil
@@ -212,8 +212,8 @@ func verifyTor(val int64) error {
 
 func verifyBlade(val int64) error {
 
-	if val < 0 || val > maxBladeID {
-		return errors.ErrBladeIDInvalid{Value: val, Limit: maxBladeID}
+	if val < 0 || val > MaxBladeID {
+		return errors.ErrBladeIDInvalid{Value: val, Limit: MaxBladeID}
 	}
 
 	return nil

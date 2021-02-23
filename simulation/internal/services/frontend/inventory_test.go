@@ -29,9 +29,14 @@ func (ts *InventoryTestSuite) bladeInPath(rack string, bladeID int) string {
 	return fmt.Sprintf("%s%d", ts.bladesInPath(rack), bladeID)
 }
 
+//func (ts *InventoryTestSuite) SetupSuite() {
+//	ts.testSuiteCore.SetupSuite()
+//}
+
 // First DBInventory unit test
 func (ts *InventoryTestSuite) TestListRacks() {
 	assert := ts.Assert()
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -49,6 +54,8 @@ func (ts *InventoryTestSuite) TestListRacks() {
 	assert.Equal(int64(16834), list.MaxCapacity.MemoryInMb)
 	assert.Equal(int64(240), list.MaxCapacity.DiskInGb)
 	assert.Equal(int64(2*1024), list.MaxCapacity.NetworkBandwidthInMbps)
+
+	require.NotNil(list.Racks)
 	assert.Equal(8, len(list.Racks))
 
 	r, ok := list.Racks["rack1"]
@@ -65,6 +72,7 @@ func (ts *InventoryTestSuite) TestListRacks() {
 // Inventory rack read test
 func (ts *InventoryTestSuite) TestRackRead() {
 	assert := ts.Assert()
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -80,6 +88,7 @@ func (ts *InventoryTestSuite) TestRackRead() {
 	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
 
 	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	require.NotNil(rack.Blades)
 	assert.Equal(8, len(rack.Blades))
 	_, ok := rack.Blades[1]
 	assert.True(ok, "Blade 1 not found")

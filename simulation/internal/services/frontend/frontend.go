@@ -216,10 +216,6 @@ func initService(cfg *config.GlobalConfig) error {
 		return err
 	}
 
-	if err := InitDBInventoryActual(dbInventory); err != nil {
-		return err
-	}
-
 	// Finally, initialize the user store
 	return InitDBUsers(ctx, cfg)
 }
@@ -234,7 +230,7 @@ func StartService(cfg *config.GlobalConfig) error {
 		log.Fatalf("Error initializing service: %v", err)
 	}
 
-	if err := StartDBInventory(context.Background(), cfg); err != nil {
+	if err := StartDBInventory(context.Background()); err != nil {
 		log.Fatalf("Error starting service: %v", err)
 	}
 

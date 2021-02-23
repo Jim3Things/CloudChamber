@@ -18,6 +18,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
@@ -65,23 +66,27 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	rackCount, maxBlades, maxCapacity := dbInventory.GetMemoData()
+	memoData := dbInventory.GetMemoData()
+	if memoData == nil {
+		postHTTPError(ctx, w, errors.ErrInventoryNotAvailable)
+	}
+
 	res := &pb.External_ZoneSummary{
-		Racks:         make(map[string]*pb.External_RackSummary, rackCount),
-		MaxBladeCount: maxBlades,
-		MaxCapacity:   maxCapacity,
+		Racks:         make(map[string]*pb.External_RackSummary, memoData.RackCount),
+		MaxBladeCount: int64(memoData.MaxBladeCount),
+		MaxCapacity:   memoData.MaxCapacity,
 	}
 
 	tracing.Info(
 		ctx,
 		"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
-		rackCount,
-		res.MaxBladeCount,
-		res.MaxCapacity)
+		memoData.RackCount,
+		memoData.MaxBladeCount,
+		&memoData.MaxCapacity)
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.ScanRacks(func(name string) error {
+	err = dbInventory.ScanRacksInZone(defaultRegion, defaultZone, func(name string) error {
 		target := fmt.Sprintf("%s%s/", b, name)
 
 		res.Racks[name] = &pb.External_RackSummary{Uri: target}

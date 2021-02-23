@@ -1124,6 +1124,48 @@ func (r *Rack) GetDetails(_ context.Context) *pb.RackDetails {
 	return r.details
 }
 
+// Copy returns a copy of the rack definition based on the contents of the
+// current object.
+//
+func (r *Rack) Copy(ctx context.Context) (*pb.Definition_Rack, error) {
+
+	_, pdus, err := r.FetchPdus(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, tors, err := r.FetchTors(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	_, blades, err := r.FetchBlades(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	rack := &pb.Definition_Rack{
+		Details: r.GetDetails(ctx),
+		Pdus:    make(map[int64]*pb.Definition_Pdu, len(*pdus)),
+		Tors:    make(map[int64]*pb.Definition_Tor, len(*tors)),
+		Blades:  make(map[int64]*pb.Definition_Blade, len(*blades)),
+	}
+
+	for pduIndex, pdu := range *pdus {
+		rack.Pdus[pduIndex] = pdu.Copy(ctx)
+	}
+
+	for torIndex, tor := range *tors {
+		rack.Tors[torIndex] = tor.Copy(ctx)
+	}
+
+	for bladeIndex, blade := range *blades {
+		rack.Blades[bladeIndex] = blade.Copy(ctx)
+	}
+
+	return rack, nil
+}
+
 // Create is used to create a record in the underlying store for the
 // object along with the associated index information.
 //
@@ -1725,6 +1767,18 @@ func (p *Pdu) GetPorts(_ context.Context) *map[int64]*pb.PowerPort {
 	return p.ports
 }
 
+// Copy returns a copy of the pdu definition based on the contents of the
+// current object.
+//
+func (p *Pdu) Copy(ctx context.Context) *pb.Definition_Pdu {
+	pdu := &pb.Definition_Pdu{
+		Details: p.GetDetails(ctx),
+		Ports:   *p.GetPorts(ctx),
+	}
+
+	return pdu
+}
+
 // Create is used to create a record in the underlying store for the
 // object along with the associated index information.
 //
@@ -1966,6 +2020,18 @@ func (t *Tor) SetPorts(_ context.Context, ports *map[int64]*pb.NetworkPort) {
 //
 func (t *Tor) GetPorts(_ context.Context) *map[int64]*pb.NetworkPort {
 	return t.ports
+}
+
+// Copy returns a copy of the tor definition based on the contents of the
+// current object.
+//
+func (t *Tor) Copy(ctx context.Context) *pb.Definition_Tor {
+	tor := &pb.Definition_Tor{
+		Details: t.GetDetails(ctx),
+		Ports:   *t.GetPorts(ctx),
+	}
+
+	return tor
 }
 
 // Create is used to create a record in the underlying store for the
@@ -2235,6 +2301,22 @@ func (b *Blade) GetCapacity(_ context.Context) *pb.BladeCapacity {
 //
 func (b *Blade) GetBootInfo(_ context.Context) (bool, *pb.BladeBootInfo) {
 	return b.bootOnPowerOn, b.bootInfo
+}
+
+// Copy returns a copy of the blade definition based on the contents of the
+// current object.
+//
+func (b *Blade) Copy(ctx context.Context) *pb.Definition_Blade {
+	bootOnPowerOn, bootInfo := b.GetBootInfo(ctx)
+
+	blade := &pb.Definition_Blade{
+		Details:       b.GetDetails(ctx),
+		Capacity:      b.GetCapacity(ctx),
+		BootInfo:      bootInfo,
+		BootOnPowerOn: bootOnPowerOn,
+	}
+
+	return blade
 }
 
 // Create is used to create a record in the underlying store for the

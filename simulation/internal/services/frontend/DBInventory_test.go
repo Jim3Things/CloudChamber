@@ -2,13 +2,11 @@ package frontend
 
 import (
 	"context"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
@@ -25,18 +23,8 @@ type DBInventoryTestSuite struct {
 }
 
 func (ts *DBInventoryTestSuite) SetupSuite() {
-	//	require := ts.Require()
 
 	ts.testSuiteCore.SetupSuite()
-
-	//	configPath := flag.String("config", "./testdata", "path to the configuration file")
-	//	flag.Parse()
-
-	//	cfg, err := config.ReadGlobalConfig(*configPath)
-	//	require.NoError(err)
-	//	require.NotNil(cfg)
-
-	//	ts.cfg = cfg
 
 	ts.zoneName = "zoneBasic"
 	ts.rackName = "rackBasic"
@@ -50,38 +38,28 @@ func (ts *DBInventoryTestSuite) SetupTest() {
 
 	_ = ts.utf.Open(ts.T())
 
-	ts.db = &DBInventory{
-		mutex:         sync.RWMutex{},
-		Zone:          nil,
-		MaxBladeCount: 0,
-		MaxCapacity:   &pb.BladeCapacity{},
-		Store:         store.NewStore(),
-	}
+	ts.db = NewDbInventory()
 
-	err := ts.db.Store.Connect()
+	err := ts.db.Initialize(context.Background(), ts.cfg)
 	require.NoError(err)
 }
 
 func (ts *DBInventoryTestSuite) TearDownTest() {
+	ts.db.Store.Disconnect()
 	ts.utf.Close()
 }
 
 func (ts *DBInventoryTestSuite) TestInitializeInventory() {
 	assert := ts.Assert()
+	require := ts.Require()
 
-	db := &DBInventory{
-		mutex:         sync.RWMutex{},
-		Zone:          nil,
-		MaxBladeCount: 0,
-		MaxCapacity:   &pb.BladeCapacity{},
-		Store:         store.NewStore(),
-	}
+	dbInventory := NewDbInventory()
+	require.NotNil(dbInventory)
+	assert.NotNil(dbInventory.Store)
 
-	assert.NotNil(db.Store)
-
-	// err := db.Initialize(context.Background(), ts.cfg)
-	// assert.NoError(err)
-	// assert.NotNil(dbInventory)
+	err := dbInventory.Initialize(context.Background(), ts.cfg)
+	require.NoError(err)
+	assert.NotNil(dbInventory.cfg)
 }
 
 func (ts *DBInventoryTestSuite) TestCreateZone() {
@@ -429,6 +407,7 @@ func (ts *DBInventoryTestSuite) TestReadInventoryFromStore() {
 	_, err := ts.db.readInventoryDefinitionFromStore(context.Background())
 	require.NoError(err)
 }
+
 func (ts *DBInventoryTestSuite) TestReadInventoryDefinitionFromFileExBasic() {
 	require := ts.Require()
 
@@ -443,6 +422,13 @@ func (ts *DBInventoryTestSuite) TestReadInventoryDefinitionFromFileExExtended() 
 	require.NoError(err)
 }
 
+func (ts *DBInventoryTestSuite) TestReadInventoryDefinitionFromFileExStandard() {
+	require := ts.Require()
+
+	_, err := inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/standard")
+	require.NoError(err)
+}
+
 func (ts *DBInventoryTestSuite) TestLoadInventoryIntoStore() {
 	require := ts.Require()
 
@@ -454,25 +440,42 @@ func (ts *DBInventoryTestSuite) TestLoadInventoryIntoStore() {
 	err = ts.db.deleteInventoryDefinitionFromStore(ctx, root)
 	require.NoError(err)
 
-	root, err = inventory.ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/extended")
+	root, err = inventory.ReadInventoryDefinitionFromFileEx(ctx, "./testdata/extended")
 	require.NoError(err)
+	require.NotNil(root)
 
 	err = ts.db.writeInventoryDefinitionToStore(ctx, root)
 	require.NoError(err)
 
 	rootReload, err := ts.db.readInventoryDefinitionFromStore(ctx)
 	require.NoError(err)
+	require.NotNil(rootReload)
 
 	err = ts.db.deleteInventoryDefinitionFromStore(ctx, rootReload)
 	require.NoError(err)
 }
 
-func (ts *DBInventoryTestSuite) TestUpdateInventoryDefinition() {
+func (ts *DBInventoryTestSuite) TestUpdateInventoryDefinitionBasic() {
 	require := ts.Require()
 
 	ctx := context.Background()
 
 	err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/basic")
+	require.NoError(err)
+
+	err = ts.db.UpdateInventoryDefinition(ctx, "./testdata/basic")
+	require.NoError(err)
+}
+
+func (ts *DBInventoryTestSuite) TestUpdateInventoryDefinitionStandard() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/standard")
+	require.NoError(err)
+
+	err = ts.db.UpdateInventoryDefinition(ctx, "./testdata/standard")
 	require.NoError(err)
 }
 
@@ -483,9 +486,12 @@ func (ts *DBInventoryTestSuite) TestUpdateInventoryDefinitionExtended() {
 
 	err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/extended")
 	require.NoError(err)
+
+	err = ts.db.UpdateInventoryDefinition(ctx, "./testdata/extended")
+	require.NoError(err)
 }
 
-func (ts *DBInventoryTestSuite) TestDeleteInventoryDefinition() {
+func (ts *DBInventoryTestSuite) TestDeleteInventoryDefinitionBasic() {
 	require := ts.Require()
 
 	ctx := context.Background()
@@ -497,6 +503,17 @@ func (ts *DBInventoryTestSuite) TestDeleteInventoryDefinition() {
 	require.NoError(err)
 }
 
+func (ts *DBInventoryTestSuite) TestDeleteInventoryDefinitionExtended() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.db.UpdateInventoryDefinition(ctx, "./testdata/extended")
+	require.NoError(err)
+
+	err = ts.db.DeleteInventoryDefinition(ctx)
+	require.NoError(err)
+}
 
 func TestDBInventoryTestSuite(t *testing.T) {
 	suite.Run(t, new(DBInventoryTestSuite))
