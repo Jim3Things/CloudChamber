@@ -258,7 +258,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionExtended() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	root, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Extended")
+	root, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Basic")
 	require.NoError(err)
 	require.NotNil(root)
 
