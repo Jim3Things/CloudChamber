@@ -36,7 +36,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(ctx context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {
@@ -84,7 +84,7 @@ func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(ctx context.Context, session *sessions.Session) error {
-			return ensureEstablishedSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {

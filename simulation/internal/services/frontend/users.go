@@ -256,7 +256,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	err := doSessionHeader(
 		ctx, w, r,
 		func(ctx context.Context, session *sessions.Session) (err error) {
-			caller, err = getLoggedInUser(ctx, session)
+			caller, err = server.sessions.getLoggedInUser(ctx, session)
 			if err != nil {
 				return err
 			}
@@ -395,7 +395,7 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err != nil {
-			_ = tracing.Error(ctx, dumpSessionState(session))
+			_ = tracing.Error(ctx, server.sessions.dumpSessionState(session))
 		}
 		return err
 	})
@@ -492,7 +492,7 @@ func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ s
 	username := vars["username"]
 
 	// Verify that there is no logged in user
-	if _, ok := getSession(session); ok {
+	if _, ok := server.sessions.getSession(session); ok {
 		return "", &HTTPError{
 			SC:   http.StatusBadRequest,
 			Base: errors.ErrUserAlreadyLoggedIn,
@@ -530,7 +530,7 @@ func login(ctx context.Context, session *sessions.Session, r *http.Request) (_ s
 
 	// .. all passed.  So finally mark the session as logged in
 	//
-	if err = newSession(session, sessionState{name: username}); err != nil {
+	if err = server.sessions.newSession(session, sessionState{name: username}); err != nil {
 		return "", &HTTPError{
 			SC:   http.StatusBadRequest,
 			Base: err,
@@ -547,12 +547,13 @@ func logout(_ context.Context, session *sessions.Session, r *http.Request) (_ st
 
 	// Verify that there is a logged in user on this session
 	// .. and that it is the user we're trying to logout
-	if state, ok := getSession(session); !ok || !strings.EqualFold(state.name, username) {
+	if state, ok := server.sessions.getSession(session);
+		!ok || !strings.EqualFold(state.name, username) {
 		return "", NewErrNoLoginActive(username)
 	}
 
 	// .. and now log the user out
-	removeSession(session)
+	server.sessions.removeSession(session)
 
 	return fmt.Sprintf("User %q logged out", username), nil
 }
@@ -701,7 +702,7 @@ func userSetPassword(ctx context.Context, name string, changes *pb.UserPassword,
 // Determine if this session's active login has permission to change or
 // manage the targeted account.  Note that any account may manage itself.
 func canManageAccounts(ctx context.Context, session *sessions.Session, username string) error {
-	user, err := getLoggedInUser(ctx, session)
+	user, err := server.sessions.getLoggedInUser(ctx, session)
 	if err != nil {
 		return NewErrUserPermissionDenied()
 	}

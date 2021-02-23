@@ -40,8 +40,8 @@ func handlerPing(w http.ResponseWriter, r *http.Request) {
 			// We get the cloud chamber session state.  We can ignore the ok
 			// flag, as we only look at it if the next call succeeds, which
 			// can only happen if there is a session...
-			ccSession, _ = getSession(session)
-			return ensureEstablishedSession(session)
+			ccSession, _ = server.sessions.getSession(session)
+			return server.sessions.ensureEstablishedSession(session)
 		})
 
 	if err != nil {

@@ -19,126 +19,7 @@ const (
 	sessionCookieName = "CC-Session"
 
 	sessionIDKey = "session-id"
-
-	expirationTimeout = time.Hour
-	sessionLimit      = 100
 )
-
-var activeSessions = newSessionTable(sessionLimit, expirationTimeout)
-
-// sessionState holds the current state for the session
-//
-type sessionState struct {
-	name    string
-	timeout time.Time
-}
-
-// managedSessions defines the functions that support a collection of sessions
-// that can expire over time.
-type managedSessions interface {
-	add(state sessionState) (int64, error)
-	delete(id int64) (sessionState, bool)
-	get(id int64) (sessionState, bool)
-	touch(id int64) (sessionState, bool)
-
-	knownIDs() []int64
-	count() int
-
-	limit() int
-	inactivity() time.Duration
-}
-
-// getSessionSummaryList returns the list of session IDs for all currently
-// active sessions.
-func getSessionSummaryList() []int64 {
-	return activeSessions.knownIDs()
-}
-
-// getSessionTimeout returns the inactivity timer used to determine when a
-// session should be removed due to lack of incoming requests.
-func getSessionTimeout() time.Duration {
-	return activeSessions.inactivity()
-}
-
-// newSession is a function that creates a new login session, so long as
-// one is not currently active
-func newSession(session *sessions.Session, state sessionState) error {
-	// Fail if there is already a valid active session
-	if id, ok := session.Values[sessionIDKey].(int64); ok {
-		if _, ok2 := activeSessions.get(id); ok2 {
-			return errors.ErrUserAlreadyLoggedIn
-		}
-	}
-
-	// Create the new session
-	id, err := activeSessions.add(state)
-	if err != nil {
-		return err
-	}
-
-	session.Values[sessionIDKey] = id
-	return nil
-}
-
-// removeSession is a function to remove the designated session, or
-// silently proceed if there is no active session
-func removeSession(session *sessions.Session) {
-	if id, ok := session.Values[sessionIDKey].(int64); ok {
-		if _, ok2 := activeSessions.delete(id); ok2 {
-			delete(session.Values, sessionIDKey)
-		}
-	}
-}
-
-// removeSessionById removes the active session specified by the id, if it is
-// active.  It returns a copy of the deleted session state for informational
-// use by the caller.
-func removeSessionById(id int64) (sessionState, bool) {
-	return activeSessions.delete(id)
-}
-
-// getSession is a function that returns the state associated with the current
-// session.  It also returns a true/false flag indicating if the state was
-// found in the active sessions, much like map lookup does.
-func getSession(session *sessions.Session) (sessionState, bool) {
-	if id, ok := session.Values[sessionIDKey].(int64); ok {
-		// Bump timeout to account for the usage of the session
-		if entry, ok2 := activeSessions.touch(id); ok2 {
-			// .. and return the resulting entry
-			return entry, true
-		}
-
-		// We have a key in the cookie, but that key is invalid, so
-		// delete it.
-		delete(session.Values, sessionIDKey)
-	}
-
-	return sessionState{}, false
-}
-
-// getSessionById returns the session state for an active session specified by
-// the id.  This lookup does not count as an attempt to use the session, so does
-// not reset the inactivity timer.  The second return value is true iff an
-// active session with the specified id is found.
-func getSessionById(id int64) (sessionState, bool) {
-	entry, ok := activeSessions.get(id)
-	return entry, ok
-}
-
-// getLoggedInUser returns the user definition for the current session,
-// or an error, if no user can be found.
-func getLoggedInUser(ctx context.Context, session *sessions.Session) (*pb.User, error) {
-	entry, ok := getSession(session)
-	if !ok {
-		return nil, &HTTPError{
-			SC:   http.StatusBadRequest,
-			Base: http.ErrNoCookie,
-		}
-	}
-
-	user, _, err := dbUsers.Read(ctx, entry.name)
-	return user, err
-}
 
 // doSessionHeader wraps a handler action with the necessary code to retrieve any existing session state,
 // and to attach that state to the response prior to returning.
@@ -162,47 +43,36 @@ func doSessionHeader(
 	return err
 }
 
-// ensureEstablishedSession verifies that the session is not new, and triggers
-// an error if it is.
-func ensureEstablishedSession(session *sessions.Session) error {
-	if session.IsNew {
-		return NewErrNoSessionActive()
-	}
-
-	if _, ok := getSession(session); !ok {
-		return NewErrNoSessionActive()
-	}
-
-	return nil
+// sessionState holds the current state for the session
+//
+type sessionState struct {
+	name    string
+	timeout time.Time
 }
 
-// +++ logging helpers
+// managedSessions defines the functions that support a collection of sessions
+// that can expire over time.
+type managedSessions interface {
+	add(state sessionState) (int64, error)
+	delete(id int64) (sessionState, bool)
+	get(id int64) (sessionState, bool)
+	touch(id int64) (sessionState, bool)
 
-// dumpSessionState returns a string that has the current session's state
-// formatted.  This is intended for use by tracing calls.
-func dumpSessionState(session *sessions.Session) string {
-	stateString := "session state not found"
-	idString := "session ID not found"
+	knownIDs() []int64
+	count() int
 
-	if id, ok := session.Values[sessionIDKey].(int64); ok {
-		idString = fmt.Sprintf("ID: %d", id)
-	}
+	limit() int
+	inactivity() time.Duration
 
-	if state, ok := getSession(session); ok {
-		stateString = fmt.Sprintf(
-			"[Username: %s, expiry: %v",
-			state.name,
-			state.timeout)
-	}
+	newSession(session *sessions.Session, state sessionState) error
+	removeSession(session *sessions.Session)
+	getSession(session *sessions.Session) (sessionState, bool)
 
-	return fmt.Sprintf(
-		"Session state: [%s, %s], active session count: %d",
-		idString,
-		stateString,
-		activeSessions.count())
+	getLoggedInUser(ctx context.Context, session *sessions.Session) (*pb.User, error)
+	ensureEstablishedSession(session *sessions.Session) error
+
+	dumpSessionState(session *sessions.Session) string
 }
-
-// --- logging helpers
 
 // +++ managed session implementation
 
@@ -425,3 +295,113 @@ func (st *sessionTable) removeFromTimeoutList(id int64, expiry time.Time) {
 }
 
 // --- internal sessionTable functions
+
+// +++ higher level sessionTable functions
+
+// newSession is a function that creates a new login session, so long as
+// one is not currently active
+func (st *sessionTable) newSession(session *sessions.Session, state sessionState) error {
+	// Fail if there is already a valid active session
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
+		if _, ok2 := st.get(id); ok2 {
+			return errors.ErrUserAlreadyLoggedIn
+		}
+	}
+
+	// Create the new session
+	id, err := st.add(state)
+	if err != nil {
+		return err
+	}
+
+	session.Values[sessionIDKey] = id
+	return nil
+}
+
+// removeSession is a function to remove the designated session, or
+// silently proceed if there is no active session
+func (st *sessionTable) removeSession(session *sessions.Session) {
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
+		if _, ok2 := st.delete(id); ok2 {
+			delete(session.Values, sessionIDKey)
+		}
+	}
+}
+
+// getSession is a function that returns the state associated with the current
+// session.  It also returns a true/false flag indicating if the state was
+// found in the active sessions, much like map lookup does.
+func (st *sessionTable) getSession(session *sessions.Session) (sessionState, bool) {
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
+		// Bump timeout to account for the usage of the session
+		if entry, ok2 := st.touch(id); ok2 {
+			// .. and return the resulting entry
+			return entry, true
+		}
+
+		// We have a key in the cookie, but that key is invalid, so
+		// delete it.
+		delete(session.Values, sessionIDKey)
+	}
+
+	return sessionState{}, false
+}
+
+// getLoggedInUser returns the user definition for the current session,
+// or an error, if no user can be found.
+func (st *sessionTable) getLoggedInUser(ctx context.Context, session *sessions.Session) (*pb.User, error) {
+	entry, ok := st.getSession(session)
+	if !ok {
+		return nil, &HTTPError{
+			SC:   http.StatusBadRequest,
+			Base: http.ErrNoCookie,
+		}
+	}
+
+	user, _, err := dbUsers.Read(ctx, entry.name)
+	return user, err
+}
+
+// ensureEstablishedSession verifies that the session is not new, and triggers
+// an error if it is.
+func (st *sessionTable) ensureEstablishedSession(session *sessions.Session) error {
+	if session.IsNew {
+		return NewErrNoSessionActive()
+	}
+
+	if _, ok := st.getSession(session); !ok {
+		return NewErrNoSessionActive()
+	}
+
+	return nil
+}
+
+// --- higher level sessionTable functions
+
+// +++ logging helpers
+
+// dumpSessionState returns a string that has the current session's state
+// formatted.  This is intended for use by tracing calls.
+func (st *sessionTable) dumpSessionState(session *sessions.Session) string {
+	stateString := "session state not found"
+	idString := "session ID not found"
+
+	if id, ok := session.Values[sessionIDKey].(int64); ok {
+		idString = fmt.Sprintf("ID: %d", id)
+	}
+
+	if state, ok := st.getSession(session); ok {
+		stateString = fmt.Sprintf(
+			"[Username: %s, expiry: %v",
+			state.name,
+			state.timeout)
+	}
+
+	return fmt.Sprintf(
+		"Session state: [%s, %s], active session count: %d",
+		idString,
+		stateString,
+		st.count())
+}
+
+// --- logging helpers

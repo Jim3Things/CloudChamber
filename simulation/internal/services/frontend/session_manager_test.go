@@ -10,6 +10,11 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
 )
 
+const (
+	expirationTimeout = time.Hour
+	sessionLimit      = 100
+)
+
 type SessionManagerTestSuite struct {
 	suite.Suite
 
@@ -26,7 +31,7 @@ func (ts *SessionManagerTestSuite) SetupSuite() {
 func (ts *SessionManagerTestSuite) SetupTest() {
 	_ = ts.utf.Open(ts.T())
 
-	ts.sessions = newSessionTable(100, expirationTimeout).(*sessionTable)
+	ts.sessions = newSessionTable(sessionLimit, expirationTimeout).(*sessionTable)
 }
 
 func (ts *SessionManagerTestSuite) TearDownTest() {
