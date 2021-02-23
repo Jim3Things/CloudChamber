@@ -41,7 +41,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/Basic")
+	response, err := ReadInventoryDefinition(context.Background(), "./testdata/Simple")
 	require.NoError(err)
 	require.NotNil(response)
 
@@ -108,7 +108,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Basic")
+	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Simple")
 	require.NoError(err)
 	require.NotNil(zonemap)
 
