@@ -30,35 +30,24 @@ func (ts *DBInventoryTestSuite) SetupSuite() {
 	ts.pduID = int64(17)
 	ts.torID = int64(31)
 	ts.bladeID = int64(100)
+
+	// The standard "frontend" initialisation will create a dbInventory structure
+	// which will lead to the initialization of the inventory within the store.
+	// This means we can just use the global store as long as we remember that
+	// any records written here will persist for this test session and so the
+	// names use should not conflict with those being used in the standard
+	// inventory definition file.
+	//
+	ts.db = dbInventory
 }
 
 func (ts *DBInventoryTestSuite) SetupTest() {
-	require := ts.Require()
-
 	_ = ts.utf.Open(ts.T())
 
-	ts.db = NewDbInventory()
-
-	err := ts.db.Initialize(context.Background(), ts.cfg)
-	require.NoError(err)
 }
 
 func (ts *DBInventoryTestSuite) TearDownTest() {
-	ts.db.Store.Disconnect()
 	ts.utf.Close()
-}
-
-func (ts *DBInventoryTestSuite) TestInitializeInventory() {
-	assert := ts.Assert()
-	require := ts.Require()
-
-	dbInventory := NewDbInventory()
-	require.NotNil(dbInventory)
-	assert.NotNil(dbInventory.Store)
-
-	err := dbInventory.Initialize(context.Background(), ts.cfg)
-	require.NoError(err)
-	assert.NotNil(dbInventory.cfg)
 }
 
 func (ts *DBInventoryTestSuite) TestCreateZone() {

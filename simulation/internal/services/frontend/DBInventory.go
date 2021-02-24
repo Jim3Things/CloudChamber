@@ -46,7 +46,6 @@ type DBInventory struct {
 
 	Started       bool
 
-	Store              *store.Store
 	cfg                *config.GlobalConfig
 	inventory          *inventory.Inventory
 	RootSummary        *inventory.RootSummary
@@ -60,12 +59,12 @@ var dbInventory *DBInventory
 
 // InitDBInventory initializes the base state for the inventory.
 //
-func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) {
+func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig, store *store.Store) (err error) {
 	if dbInventory == nil {
-		db := NewDbInventory()
+		db := NewDbInventory(cfg, store)
 
-		if err = db.Initialize(ctx, cfg); err != nil {
-			return err
+		if err := db.Start(ctx); err != nil {
+			return tracing.Error(ctx, "unable to start inventory: error: %v", err)
 		}
 
 		if dbInventory == nil {
@@ -79,50 +78,17 @@ func InitDBInventory(ctx context.Context, cfg *config.GlobalConfig) (err error) 
 // NewDbInventory is a helper routine to construct an empty DBInventory structure
 // as a convenience to avoid clients having to do all the details themselves.
 //
-func NewDbInventory() *DBInventory {
+func NewDbInventory(cfg *config.GlobalConfig, store *store.Store) *DBInventory {
 	return  &DBInventory{
 		mutex:              sync.RWMutex{},
 		Started:            false,
-		Store:              store.NewStore(),
-		cfg:                &config.GlobalConfig{},
+		cfg:                cfg,
+		inventory:          inventory.NewInventory(cfg, store),
 		actualLoaded:       false,
 		Actual:             &actualZone{Racks: make(map[string]*actualRack)},
 	}
 }
 
-// Initialize initializes an existing, but currently un-initialized DB Inventory
-// structure. This involves connecting to the store.
-//
-// The inventory is not loaded here as the loading process triggers a large
-// number of trace spans to be created and sent to the trace channel but it's
-// possible that the trace sink is not yet available. While this is unlikely
-// to be a big problem in the production code as the trace sink will show
-// up soon, for testing it definitily creates an issue as the trace sink is
-// often not opened up until the per-test setup phase rather than the suite
-// setup (when using the Testify package) leading to the test stalling
-// during initialization.
-//
-func (m *DBInventory) Initialize(ctx context.Context, cfg *config.GlobalConfig) (err error) {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName("Initialize Inventory DB state"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
-	m.cfg = cfg
-
-	if err = m.Store.Connect(); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// StartDBInventory is a 
-//
-func StartDBInventory(ctx context.Context) error {
-	return dbInventory.Start(ctx)
-}
 
 // Start is a method used to start the inventory service as a part of normal
 // product code paths loading the current inventory definition from the
@@ -142,17 +108,18 @@ func (m *DBInventory) Start(ctx context.Context) error {
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-	m.mutex.Lock()
-	defer m.mutex.Unlock()
-
+	
 	if !m.Started {
-		if err := m.inventory.UpdateInventoryDefinition(ctx, m.cfg.Inventory.InventoryDefinition); err != nil {
+		if err := m.inventory.Start(ctx); err != nil {
 			return err
 		}
-	}
 
-	if err := m.LoadInventoryActual(true); err != nil {
-		return err
+		if err := m.LoadInventoryActual(true); err != nil {
+			return err
+		}
+
+		m.DefaultZoneSummary = m.GetMemoData()
+		m.Started = true
 	}
 
 	return nil

@@ -372,7 +372,7 @@ func (ts *definitionTestSuite) SetupSuite() {
 
 	ts.testSuiteCore.SetupSuite()
 
-	ts.inventory = NewInventory(ts.cfg , ts.store)
+	ts.inventory = NewInventory(ts.cfg, ts.store)
 
 	// These values are relatively arbitrary. The only criteria is that different
 	// constants were chosen to help separate different multiples of different

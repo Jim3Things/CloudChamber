@@ -212,7 +212,7 @@ func initService(cfg *config.GlobalConfig) error {
 
 	// initialize the inventory store and apply any updates from the configuration.
 	//
-	if err := InitDBInventory(ctx, cfg); err != nil {
+	if err := InitDBInventory(ctx, cfg, store.NewStore()); err != nil {
 		return err
 	}
 
@@ -228,10 +228,6 @@ func StartService(cfg *config.GlobalConfig) error {
 
 	if err := initService(cfg); err != nil {
 		log.Fatalf("Error initializing service: %v", err)
-	}
-
-	if err := StartDBInventory(context.Background()); err != nil {
-		log.Fatalf("Error starting service: %v", err)
 	}
 
 	return http.ListenAndServe(

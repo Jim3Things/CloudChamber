@@ -12,49 +12,25 @@ import (
 type InventoryActualTestSuite struct {
 	testSuiteCore
 
-	inventoryDefinitionLoaded bool
-
 	db *DBInventory
 }
 
-func (ts *InventoryActualTestSuite) ensureInventoryLoaded() error {
-	ctx := context.Background()
-
-	if !ts.inventoryDefinitionLoaded {
-		if err := ts.db.inventory.UpdateInventoryDefinition(ctx, "./testdata/standard"); err != nil {
-			return err
-		}
-
-		ts.inventoryDefinitionLoaded = true
-
-		if err := ts.db.LoadInventoryActual(true); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (ts *InventoryActualTestSuite) SetupSuite() {
-	require := ts.Require()
-
-	ctx := context.Background()
-
 	ts.testSuiteCore.SetupSuite()
 
-	ts.db = NewDbInventory()
-
-	err := ts.db.Initialize(ctx, ts.cfg)
-	require.NoError(err)
+	// The standard "frontend" initialisation will create a dbInventory structure
+	// which will lead to the initialization of the inventory within the store.
+	// This means we can just use the global store as long as we remember that
+	// any records written here will persist for this test session and so the
+	// names use should not conflict with those being used in the standard
+	// inventory definition file.
+	//
+	ts.db = dbInventory
 }
 
 func (ts *InventoryActualTestSuite) SetupTest() {
-	require := ts.Require()
-
 	_ = ts.utf.Open(ts.T())
-
-	err := ts.ensureInventoryLoaded()
-	require.NoError(err)}
+}
 
 func (ts *InventoryActualTestSuite) TearDownTest() {
 	ts.utf.Close()

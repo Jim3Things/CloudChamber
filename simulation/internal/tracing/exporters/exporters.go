@@ -19,7 +19,7 @@ import (
 const (
 	// maxBuffer is the number of trace entries that can be pending before
 	// a new ExportSpan event will block
-	maxBuffer = 100
+	maxBuffer = 1000
 )
 
 // forwarder defines the interface that a particular trace forwarder

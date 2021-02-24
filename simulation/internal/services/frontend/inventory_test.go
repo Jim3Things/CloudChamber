@@ -29,9 +29,17 @@ func (ts *InventoryTestSuite) bladeInPath(rack string, bladeID int) string {
 	return fmt.Sprintf("%s%d", ts.bladesInPath(rack), bladeID)
 }
 
-//func (ts *InventoryTestSuite) SetupSuite() {
-//	ts.testSuiteCore.SetupSuite()
-//}
+func (ts *InventoryTestSuite) SetupSuite() {
+	ts.testSuiteCore.SetupSuite()
+}
+
+func (ts *InventoryTestSuite) SetupTest() {
+	_ = ts.utf.Open(ts.T())
+}
+
+func (ts *InventoryTestSuite) TearDownTest() {
+	ts.utf.Close()
+}
 
 // First DBInventory unit test
 func (ts *InventoryTestSuite) TestListRacks() {

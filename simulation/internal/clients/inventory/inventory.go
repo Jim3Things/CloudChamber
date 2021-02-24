@@ -73,14 +73,14 @@ const (
 	// Eventually these will dissapear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
-	DefaultRegion = "DefaultRegion"
+	DefaultRegion = "standard"
 
 	// DefaultZone is used to provide a value for the non-existing zone name
 	// while the transition to the new inventory extended schemaa continues.
 	// Eventually these will dissapear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
-	DefaultZone   = "DefaultZone"
+	DefaultZone   = "standard"
 
 	// DefaultPdu is used to provide a value for the non-existing pdu ID
 	// while the transition to the new inventory extended schemaa continues.
@@ -1017,9 +1017,8 @@ type RootSummary struct {
 //
 type Inventory struct {
 	mutex              sync.RWMutex
-
+	cfg                *config.GlobalConfig	
 	Store              *store.Store
-	cfg                *config.GlobalConfig
 	RootSummary        *RootSummary
 	DefaultZoneSummary *ZoneSummary
 }
@@ -1030,8 +1029,8 @@ type Inventory struct {
 func NewInventory(cfg *config.GlobalConfig, store *store.Store) *Inventory {
 	return &Inventory{
 		mutex:              sync.RWMutex{},
-		Store:              store,
 		cfg:                cfg,
+		Store:              store,
 		RootSummary:        &RootSummary{},
 		DefaultZoneSummary: &ZoneSummary{
 			MaxCapacity:   &pb.BladeCapacity{
@@ -1039,6 +1038,21 @@ func NewInventory(cfg *config.GlobalConfig, store *store.Store) *Inventory {
 			},
 		},
 	}
+}
+
+// Start is a function to get the inventory ready for use.
+//
+func (m *Inventory) Start(ctx context.Context) error {
+
+	if err := m.Store.Connect(); err != nil {
+		return err
+	}
+
+	if err := m.UpdateInventoryDefinition(ctx, m.cfg.Inventory.InventoryDefinition); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // GetDefaultZoneSummary returns the maximum number of blades held in any rack
