@@ -59,7 +59,7 @@ func (ts *InventoryTestSuite) TestListRacks() {
 
 	assert.Equal(int64(8), list.MaxBladeCount)
 	assert.Equal(int64(32), list.MaxCapacity.Cores)
-	assert.Equal(int64(16834), list.MaxCapacity.MemoryInMb)
+	assert.Equal(int64(16384), list.MaxCapacity.MemoryInMb)
 	assert.Equal(int64(240), list.MaxCapacity.DiskInGb)
 	assert.Equal(int64(2*1024), list.MaxCapacity.NetworkBandwidthInMbps)
 
@@ -245,7 +245,7 @@ func (ts *InventoryTestSuite) TestBladeRead() {
 
 	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(int64(16), blade.Cores)
-	assert.Equal(int64(16834), blade.MemoryInMb)
+	assert.Equal(int64(16384), blade.MemoryInMb)
 	assert.Equal("X64", blade.Arch)
 	assert.Equal(int64(240), blade.DiskInGb)
 	assert.Equal(int64(2048), blade.NetworkBandwidthInMbps)
@@ -271,7 +271,7 @@ func (ts *InventoryTestSuite) TestBlade2Read() {
 
 	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(int64(32), blade.Cores)
-	assert.Equal(int64(16834), blade.MemoryInMb)
+	assert.Equal(int64(16384), blade.MemoryInMb)
 	assert.Equal("X64", blade.Arch)
 	assert.Equal(int64(120), blade.DiskInGb)
 	assert.Equal(int64(2048), blade.NetworkBandwidthInMbps)

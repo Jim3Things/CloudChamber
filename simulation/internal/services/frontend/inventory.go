@@ -129,7 +129,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rack, err := dbInventory.GetRack(rackID)
+	rack, err := dbInventory.GetRack(inventory.DefaultRegion, inventory.DefaultZone, rackID)
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return
@@ -173,7 +173,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
+	err = dbInventory.ScanBladesInRack(inventory.DefaultRegion, inventory.DefaultZone, rackID, func(bladeID int64) error {
 
 		target := fmt.Sprintf("%s%d", b, bladeID)
 		tracing.Info(ctx, " Listing blades '%d' at %q", bladeID, target)
@@ -219,7 +219,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blade, err := dbInventory.GetBlade(rackID, bladeID)
+	blade, err := dbInventory.GetBlade(inventory.DefaultRegion, inventory.DefaultZone, rackID, bladeID)
 
 	if err != nil {
 		postHTTPError(ctx, w, err)

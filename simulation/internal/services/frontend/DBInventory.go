@@ -324,28 +324,28 @@ func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName
 //
 // All other regions, zones, pdus and tors will be ignored.
 //
-func (m *DBInventory) GetRack(rackName string) (*pb.External_Rack, error) {
+func (m *DBInventory) GetRack(regionName string, zoneName string, rackName string) (*pb.External_Rack, error) {
 
 	ctx := context.Background()
 
 	rack, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
-		inventory.DefaultZone,
+		regionName,
+		zoneName,
 		rackName)
 
 	if err != nil {
-		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
+		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
 	_, err = rack.Read(ctx)
 	if err != nil {
-		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
+		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
 	_, blades, err := rack.FetchBlades(ctx)
 	if err != nil {
-		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
+		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
 	bladeMap := make(map[int64]*pb.BladeCapacity)
@@ -366,23 +366,23 @@ func (m *DBInventory) GetRack(rackName string) (*pb.External_Rack, error) {
 // ScanBladesInRack enumerates over all the blades in a rack of the given
 // rackID, and invokes the supplied action on each discovered bladeID in
 // turn.
-func (m *DBInventory) ScanBladesInRack(rackName string, action func(bladeID int64) error) error {
+func (m *DBInventory) ScanBladesInRack(regionName string, zoneName string, rackName string, action func(bladeID int64) error) error {
 
 	ctx := context.Background()
 
 	rack, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
-		inventory.DefaultZone,
+		regionName,
+		zoneName,
 		rackName)
 
 	if err != nil {
-		return m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
+		return m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
 	_, IDs, err := rack.ListBlades(ctx)
 	if err != nil {
-		return m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, 0)
+		return m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
 	for _, index := range IDs {
@@ -396,24 +396,24 @@ func (m *DBInventory) ScanBladesInRack(rackName string, action func(bladeID int6
 
 // GetBlade returns the details of a blade matching the supplied rackID and
 // bladeID
-func (m *DBInventory) GetBlade(rackName string, bladeID int64) (*pb.BladeCapacity, error) {
+func (m *DBInventory) GetBlade(regionName string, zoneName string, rackName string, bladeID int64) (*pb.BladeCapacity, error) {
 
 	ctx := context.Background()
 
 	blade, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
-		inventory.DefaultZone,
+		regionName,
+		zoneName,
 		rackName,
 		bladeID)
 
 	if err != nil {
-		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, bladeID)
+		return nil, m.transformError(err, regionName, zoneName, rackName, bladeID)
 	}
 
 	_, err = blade.Read(ctx)
 	if err != nil {
-		return nil, m.transformError(err, inventory.DefaultRegion, inventory.DefaultZone, rackName, bladeID)
+		return nil, m.transformError(err, regionName, zoneName, rackName, bladeID)
 	}
 
 	return blade.GetCapacity(), nil
@@ -718,13 +718,14 @@ func (m *DBInventory) ListBlades(
 //
 func (m *DBInventory) CreateZone(
 	ctx context.Context,
+	region string,
 	name string,
 	zone *pb.Definition_Zone,
 	options ...InventoryZoneOption) (int64, error) {
 
 	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		name)
 
 	if err != nil {
@@ -750,6 +751,7 @@ func (m *DBInventory) CreateZone(
 //
 func (m *DBInventory) CreateRack(
 	ctx context.Context,
+	region string,
 	zone string,
 	name string,
 	rack *pb.Definition_Rack,
@@ -757,7 +759,7 @@ func (m *DBInventory) CreateRack(
 
 	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		name)
 
@@ -784,6 +786,7 @@ func (m *DBInventory) CreateRack(
 //
 func (m *DBInventory) CreatePdu(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -796,7 +799,7 @@ func (m *DBInventory) CreatePdu(
 
 	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -826,6 +829,7 @@ func (m *DBInventory) CreatePdu(
 //
 func (m *DBInventory) CreateTor(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -838,7 +842,7 @@ func (m *DBInventory) CreateTor(
 
 	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -868,6 +872,7 @@ func (m *DBInventory) CreateTor(
 //
 func (m *DBInventory) CreateBlade(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -876,7 +881,7 @@ func (m *DBInventory) CreateBlade(
 
 	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -905,12 +910,13 @@ func (m *DBInventory) CreateBlade(
 //
 func (m *DBInventory) ReadZone(
 	ctx context.Context,
+	region string,
 	name string,
 	options ...InventoryZoneOption) (*pb.Definition_Zone, int64, error) {
 
 	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		name)
 
 	if err != nil {
@@ -933,13 +939,14 @@ func (m *DBInventory) ReadZone(
 //
 func (m *DBInventory) ReadRack(
 	ctx context.Context,
+	region string,
 	zone string,
 	name string,
 	options ...InventoryRackOption) (*pb.Definition_Rack, int64, error) {
 
 	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		name)
 
@@ -962,6 +969,7 @@ func (m *DBInventory) ReadRack(
 //
 func (m *DBInventory) ReadPdu(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -969,7 +977,7 @@ func (m *DBInventory) ReadPdu(
 
 	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index)
@@ -994,6 +1002,7 @@ func (m *DBInventory) ReadPdu(
 //
 func (m *DBInventory) ReadTor(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1001,7 +1010,7 @@ func (m *DBInventory) ReadTor(
 
 	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index)
@@ -1026,6 +1035,7 @@ func (m *DBInventory) ReadTor(
 //
 func (m *DBInventory) ReadBlade(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1033,7 +1043,7 @@ func (m *DBInventory) ReadBlade(
 
 	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index)
@@ -1070,13 +1080,14 @@ func (m *DBInventory) ReadBlade(
 //
 func (m *DBInventory) UpdateZone(
 	ctx context.Context,
+	region string,
 	name string,
 	zone *pb.Definition_Zone,
 	options ...InventoryZoneOption) (int64, error) {
 
 	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		name)
 
 	if err != nil {
@@ -1102,13 +1113,14 @@ func (m *DBInventory) UpdateZone(
 //
 func (m *DBInventory) UpdateRack(
 	ctx context.Context,
+	region string,
 	zone string,
 	name string,
 	rack *pb.Definition_Rack, options ...InventoryRackOption) (int64, error) {
 
 	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		name)
 
@@ -1131,6 +1143,7 @@ func (m *DBInventory) UpdateRack(
 //
 func (m *DBInventory) UpdatePdu(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1139,7 +1152,7 @@ func (m *DBInventory) UpdatePdu(
 
 	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -1165,6 +1178,7 @@ func (m *DBInventory) UpdatePdu(
 //
 func (m *DBInventory) UpdateTor(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1173,7 +1187,7 @@ func (m *DBInventory) UpdateTor(
 
 	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -1199,6 +1213,7 @@ func (m *DBInventory) UpdateTor(
 //
 func (m *DBInventory) UpdateBlade(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1207,7 +1222,7 @@ func (m *DBInventory) UpdateBlade(
 
 	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -1236,12 +1251,13 @@ func (m *DBInventory) UpdateBlade(
 //
 func (m *DBInventory) DeleteZone(
 	ctx context.Context,
+	region string,
 	name string,
 	options ...InventoryOption) (int64, error) {
 
 	z, err := m.inventory.NewZone(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		name)
 
 	if err != nil {
@@ -1263,13 +1279,14 @@ func (m *DBInventory) DeleteZone(
 //
 func (m *DBInventory) DeleteRack(
 	ctx context.Context,
+	region string,
 	zone string,
 	name string,
 	options ...InventoryOption) (int64, error) {
 
 	r, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		name)
 
@@ -1296,6 +1313,7 @@ func (m *DBInventory) DeleteRack(
 //
 func (m *DBInventory) DeletePdu(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1303,7 +1321,7 @@ func (m *DBInventory) DeletePdu(
 
 	p, err := m.inventory.NewPdu(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -1332,6 +1350,7 @@ func (m *DBInventory) DeletePdu(
 //
 func (m *DBInventory) DeleteTor(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1339,7 +1358,7 @@ func (m *DBInventory) DeleteTor(
 
 	t, err := m.inventory.NewTor(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,
@@ -1349,7 +1368,7 @@ func (m *DBInventory) DeleteTor(
 		return InvalidRev, err
 	}
 
-	rev, err := t.Create(ctx)
+	rev, err := t.Delete(ctx, true)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1368,6 +1387,7 @@ func (m *DBInventory) DeleteTor(
 //
 func (m *DBInventory) DeleteBlade(
 	ctx context.Context,
+	region string,
 	zone string,
 	rack string,
 	index int64,
@@ -1375,7 +1395,7 @@ func (m *DBInventory) DeleteBlade(
 
 	b, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
-		inventory.DefaultRegion,
+		region,
 		zone,
 		rack,
 		index,

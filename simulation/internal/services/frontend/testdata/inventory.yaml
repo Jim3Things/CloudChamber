@@ -34,7 +34,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -50,7 +50,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -66,7 +66,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -82,7 +82,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -98,7 +98,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -114,7 +114,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -130,7 +130,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -146,7 +146,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -289,7 +289,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -305,7 +305,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -321,7 +321,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -337,7 +337,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -353,7 +353,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -369,7 +369,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -385,7 +385,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -401,7 +401,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -544,7 +544,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -560,7 +560,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -576,7 +576,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -592,7 +592,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -608,7 +608,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -624,7 +624,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -640,7 +640,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -656,7 +656,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -799,7 +799,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -815,7 +815,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -831,7 +831,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -847,7 +847,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -863,7 +863,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -879,7 +879,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -895,7 +895,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -911,7 +911,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1054,7 +1054,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -1070,7 +1070,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1086,7 +1086,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1102,7 +1102,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1118,7 +1118,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1134,7 +1134,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1150,7 +1150,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1166,7 +1166,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1309,7 +1309,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -1325,7 +1325,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1341,7 +1341,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1357,7 +1357,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1373,7 +1373,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1389,7 +1389,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1405,7 +1405,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1421,7 +1421,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1564,7 +1564,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -1580,7 +1580,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1596,7 +1596,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1612,7 +1612,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1628,7 +1628,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1644,7 +1644,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1660,7 +1660,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1676,7 +1676,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1819,7 +1819,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 16
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 240 
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
@@ -1835,7 +1835,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1851,7 +1851,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1867,7 +1867,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1883,7 +1883,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1899,7 +1899,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1915,7 +1915,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
@@ -1931,7 +1931,7 @@ Regions:
                 BootOnPowerOn: true
                 Capacity:
                   Cores: 32
-                  MemoryInMb: 16834
+                  MemoryInMb: 16384
                   DiskInGb: 120
                   NetworkBandwidthInMbps: 2048
                   Arch: X64
