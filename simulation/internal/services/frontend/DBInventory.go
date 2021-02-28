@@ -434,25 +434,25 @@ func (m *DBInventory) transformError(err error, region string, zone string, rack
 		return NewErrPduNotFound(rack, index)
 
 	case err == errors.ErrPduIndexNotFound{Region: region, Zone: zone, Rack: rack, Pdu: index}:
-		return NewErrBladeNotFound(rack, index)
+		return NewErrPduNotFound(rack, index)
 
 	case err == errors.ErrPduIDInvalid{Value: index, Limit: inventory.MaxPduID}:
-		return NewErrBladeNotFound(rack, index)
+		return NewErrPduNotFound(rack, index)
 
 	case err == errors.ErrPduIndexInvalid{Region: region, Zone: zone, Rack: rack, Pdu: fmt.Sprintf("%d", index)}:
-		return NewErrBladeNotFound(rack, index)
+		return NewErrPduNotFound(rack, index)
 
 	case err == errors.ErrTorNotFound{Region: region, Zone: zone, Rack: rack, Tor: index}:
 		return NewErrTorNotFound(rack, index)
 
 	case err == errors.ErrTorIndexNotFound{Region: region, Zone: zone, Rack: rack, Tor: index}:
-		return NewErrBladeNotFound(rack, index)
+		return NewErrTorNotFound(rack, index)
 
 	case err == errors.ErrTorIDInvalid{Value: index, Limit: inventory.MaxTorID}:
-		return NewErrBladeNotFound(rack, index)
+		return NewErrTorNotFound(rack, index)
 
 	case err == errors.ErrTorIndexInvalid{Region: region, Zone: zone, Rack: rack, Tor: fmt.Sprintf("%d", index)}:
-		return NewErrBladeNotFound(rack, index)
+		return NewErrTorNotFound(rack, index)
 
 	case err == errors.ErrBladeNotFound{Region: region, Zone: zone, Rack: rack, Blade: index}:
 		return NewErrBladeNotFound(rack, index)

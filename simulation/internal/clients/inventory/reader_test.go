@@ -54,7 +54,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 	b, ok := r.Blades[1]
 	require.True(ok)
 	assert.Equal(int64(16), b.Cores)
-	assert.Equal(int64(16834), b.MemoryInMb)
+	assert.Equal(int64(16384), b.MemoryInMb)
 	assert.Equal(int64(240), b.DiskInGb)
 	assert.Equal(int64(2048), b.NetworkBandwidthInMbps)
 	assert.Equal("X64", b.Arch)
@@ -66,7 +66,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 	c, ok := r.Blades[2]
 	require.True(ok)
 	assert.Equal(int64(8), c.Cores)
-	assert.Equal(int64(16834), c.MemoryInMb)
+	assert.Equal(int64(16384), c.MemoryInMb)
 	assert.Equal(int64(120), c.DiskInGb)
 	assert.Equal(int64(2048), c.NetworkBandwidthInMbps)
 }
@@ -201,7 +201,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		assert.Equal(pb.Condition_operational, b1.Details.Condition)
 
 		assert.Equal(int64(16),    b1.Capacity.Cores)
-		assert.Equal(int64(16834), b1.Capacity.MemoryInMb)
+		assert.Equal(int64(16384), b1.Capacity.MemoryInMb)
 		assert.Equal(int64(240),   b1.Capacity.DiskInGb)
 		assert.Equal(int64(2048),  b1.Capacity.NetworkBandwidthInMbps)
 		assert.Equal("X64",        b1.Capacity.Arch)
@@ -213,7 +213,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		assert.Equal(pb.Condition_operational, b2.Details.Condition)
 
 		assert.Equal(int64(8),     b2.Capacity.Cores)
-		assert.Equal(int64(16834), b2.Capacity.MemoryInMb)
+		assert.Equal(int64(16384), b2.Capacity.MemoryInMb)
 		assert.Equal(int64(120),   b2.Capacity.DiskInGb)
 		assert.Equal(int64(2048),  b2.Capacity.NetworkBandwidthInMbps)
 		assert.Equal("X64",        b2.Capacity.Arch)
@@ -414,7 +414,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 				assert.Equal(pb.Condition_operational, b1.Details.Condition)
 
 				assert.Equal(int64(16),    b1.Capacity.Cores)
-				assert.Equal(int64(16834), b1.Capacity.MemoryInMb)
+				assert.Equal(int64(16384), b1.Capacity.MemoryInMb)
 				assert.Equal(int64(240),   b1.Capacity.DiskInGb)
 				assert.Equal(int64(2048),  b1.Capacity.NetworkBandwidthInMbps)
 				assert.Equal("X64",        b1.Capacity.Arch)

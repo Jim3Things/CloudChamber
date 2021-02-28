@@ -31,7 +31,7 @@ func (m *Inventory) NewRoot(table string) (*Root, error) {
 
 func newRoot(store *store.Store, table string) (*Root, error) {
 
-	k, err := getKeyForIndexRegion(table)
+	k, err := getKeyForIndexRegions(table)
 
 	if err != nil {
 		return nil, err
@@ -56,7 +56,7 @@ func (m *Inventory) NewRegion(table string, region string) (*Region, error) {
 
 func newRegion(store *store.Store, table string, region string) (*Region, error) {
 
-	keyIndex, err := getKeyForIndexZone(table, region)
+	keyIndex, err := getKeyForIndexZones(table, region)
 
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (m *Inventory) NewZone(table string, region string, zone string) (*Zone, er
 
 func newZone(store *store.Store, table string, region string, zone string) (*Zone, error) {
 
-	keyIndex, err := getKeyForIndexRack(table, region, zone)
+	keyIndex, err := getKeyForIndexRacks(table, region, zone)
 
 	if err != nil {
 		return nil, err
@@ -145,19 +145,19 @@ func newRack(
 	zone string,
 	rack string) (*Rack, error) {
 
-	keyIndexPdu, err := getKeyForIndexPdu(table, region, zone, rack)
+	keyIndexPdu, err := getKeyForIndexPdus(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexTor, err := getKeyForIndexTor(table, region, zone, rack)
+	keyIndexTor, err := getKeyForIndexTors(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexBlade, err := getKeyForIndexBlade(table, region, zone, rack)
+	keyIndexBlade, err := getKeyForIndexBlades(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err

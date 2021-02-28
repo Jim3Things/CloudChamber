@@ -329,10 +329,10 @@ func verifyNamesBlade(table string, region string, zone string, rack string, ind
 	return nil
 }
 
-// getKeyForIndexRegion generates the key to discover the list of regions within a
+// getKeyForIndexRegions generates the key to discover the list of regions within a
 // specific table (definition, actual, observed, target)
 //
-func getKeyForIndexRegion(table string) (key string, err error) {
+func getKeyForIndexRegions(table string) (key string, err error) {
 
 	if err = verifyTable(table); err != nil {
 		return key, err
@@ -345,10 +345,10 @@ func getKeyForIndexRegion(table string) (key string, err error) {
 	return key, nil
 }
 
-// getKeyForIndexZone generates the key to discover the list of zones within a
+// getKeyForIndexZones generates the key to discover the list of zones within a
 // specific table (definition, actual, observed, target)
 //
-func getKeyForIndexZone(table string, region string) (key string, err error) {
+func getKeyForIndexZones(table string, region string) (key string, err error) {
 
 	if err = verifyNamesRegion(table, region); err != nil {
 		return key, err
@@ -362,10 +362,10 @@ func getKeyForIndexZone(table string, region string) (key string, err error) {
 	return key, nil
 }
 
-// getKeyForIndexRack generates the key to discover the list of racks within a
+// getKeyForIndexRacks generates the key to discover the list of racks within a
 // specific table (definition, actual, observed, target)
 //
-func getKeyForIndexRack(table string, region string, zone string) (key string, err error) {
+func getKeyForIndexRacks(table string, region string, zone string) (key string, err error) {
 
 	if err = verifyNamesZone(table, region, zone); err != nil {
 		return key, err
@@ -383,7 +383,7 @@ func getKeyForIndexRack(table string, region string, zone string) (key string, e
 // GetKeyForIndexPdu generates the key to discover the list of pdus within a
 // specific table (definition, actual, observed, target)
 //
-func getKeyForIndexPdu(table string, region string, zone string, rack string) (key string, err error) {
+func getKeyForIndexPdus(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
 		return key, err
@@ -399,10 +399,10 @@ func getKeyForIndexPdu(table string, region string, zone string, rack string) (k
 	return key, nil
 }
 
-// getKeyForIndexTor generates the key to discover the list of tors within a
+// getKeyForIndexTors generates the key to discover the list of tors within a
 // specific table (definition, actual, observed, target)
 //
-func getKeyForIndexTor(table string, region string, zone string, rack string) (key string, err error) {
+func getKeyForIndexTors(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
 		return key, err
@@ -418,10 +418,10 @@ func getKeyForIndexTor(table string, region string, zone string, rack string) (k
 	return key, nil
 }
 
-// getKeyForIndexBlade generates the key to discover the list of blades within a
+// getKeyForIndexBlades generates the key to discover the list of blades within a
 // specific table (definition, actual, observed, target)
 //
-func getKeyForIndexBlade(table string, region string, zone string, rack string) (key string, err error) {
+func getKeyForIndexBlades(table string, region string, zone string, rack string) (key string, err error) {
 
 	if err = verifyNamesRack(table, region, zone, rack); err != nil {
 		return key, err
@@ -1113,12 +1113,7 @@ func (m *Inventory) DeleteInventoryDefinition(ctx context.Context) error {
 		return err
 	}
 
-	err = m.deleteInventoryDefinitionFromStore(ctx, root)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return m.deleteInventoryDefinitionFromStore(ctx, root)
 }
 
 // reconcileNewInventory compares the newly loaded inventory definition,

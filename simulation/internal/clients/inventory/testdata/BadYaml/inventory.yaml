@@ -4,13 +4,13 @@ Racks:
     Blades:
     - Index: 1
       Cores: 16
-      MemoryInMb: 16834
+      MemoryInMb: 16384
       DiskInGb: 240 
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
       Cores: 8
-      MemoryInMb: 16834
+      MemoryInMb: 16384
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
       Arch: X64
@@ -20,13 +20,13 @@ Racks:
     Blades:
     - Index: 1
       Cores: 16
-      MemoryInMb: 16834
+      MemoryInMb: 16384
       DiskInGb: 240 
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
     - Index: 2
       Cores: 8
-      MemoryInMb: 16834
+      MemoryInMb: 16384
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
       Arch: X64
