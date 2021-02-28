@@ -2864,6 +2864,13 @@ func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExStandard() {
 	require.NoError(err)
 }
 
+func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExReference() {
+	require := ts.Require()
+
+	_, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/reference")
+	require.NoError(err)
+}
+
 func (ts *definitionTestSuite) TestLoadInventoryIntoStore() {
 	require := ts.Require()
 

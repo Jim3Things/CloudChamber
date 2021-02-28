@@ -52,9 +52,66 @@ type pdu struct {
 }
 
 type rootEx struct {
-	Details rootExDetails
-	Regions []regionEx
+	ZoneTypes   []catZone
+	RackTypes   []catRack
+	PduTypes    []catPdu
+	TorTypes    []catTor
+	BladeTypes  []catBlade
+	Details     rootExDetails
+	Regions     []regionEx
 }
+
+// ++++++++++
+//
+// The folowing catXxx structs are used as throwaway data fields to enable
+// the Viper package to both read and process a yaml configuration file
+// while making use of anchors and aliases to limit the amount of repitition
+// within the file.
+//
+// The values held in this set of structs after unmarshalling the contents of
+// the configuration file have no value and should just be discarded.
+//
+// NOTE: Cannot extend the scheme to include complete regions to be defined
+//       with an achor and used as an alias as the file read function returns
+//       an error for "excessive aliasing"
+//
+type catZone struct {
+	Name    string
+	Details zoneExDetails
+	Racks   []rackEx
+}
+
+type catRack struct {
+	Name    string
+	Details rackExDetails
+	Pdus    []pduEx
+	Tors    []torEx
+	Blades  []bladeEx
+}
+type catPdu struct {
+	Details pduExDetails
+	Ports   []portEx
+}
+
+type catTor struct {
+	Details torExDetails
+	Ports   []portEx
+}
+
+type catBlade struct {
+	Details       bladeExDetails
+	Capacity      bladeExCapacity
+	BootInfo      bladeExBootinfo
+	BootOnPowerOn bool
+}
+
+type catPort struct {
+	Wired bool
+	Item  portExTarget
+}
+
+// ----------
+
 
 type rootExDetails struct {
 	Name  string
@@ -126,7 +183,7 @@ type pduExDetails struct {
 
 type torEx struct {
 	Index   int64
-	Details pduExDetails
+	Details torExDetails
 	Ports   []portEx
 }
 
