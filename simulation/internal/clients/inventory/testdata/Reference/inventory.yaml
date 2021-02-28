@@ -39,60 +39,15 @@ TorTypes:
       Enabled: true
       Condition: Operational
     Ports:
-      - Index: 0
-        Wired: true
-        Item: 
-          Type: pdu
-          Id: 0
-          Port: 1
-      - Index: 1
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 1
-          Port: 0
-      - Index: 2
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 2
-          Port: 1
-      - Index: 3
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 3
-          Port: 1
-      - Index: 4
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 4
-          Port: 1
-      - Index: 5
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 5
-          Port: 1
-      - Index: 6
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 6
-          Port: 1
-      - Index: 7
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 7
-          Port: 1
-      - Index: 8
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 8
-          Port: 1
+      - {Index:  0, Wired: true, Item: {Type:   pdu, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+      - {Index:  3, Wired: true, Item: {Type: blade, Id:  3, Port: 1}}
+      - {Index:  4, Wired: true, Item: {Type: blade, Id:  4, Port: 1}}
+      - {Index:  5, Wired: true, Item: {Type: blade, Id:  5, Port: 1}}
+      - {Index:  6, Wired: true, Item: {Type: blade, Id:  6, Port: 1}}
+      - {Index:  7, Wired: true, Item: {Type: blade, Id:  7, Port: 1}}
+      - {Index:  8, Wired: true, Item: {Type: blade, Id:  8, Port: 1}}
 
 PduTypes:
   - &pduType1
@@ -100,60 +55,15 @@ PduTypes:
       Enabled: true
       Condition: Operational
     Ports:
-      - Index: 0
-        Wired: true
-        Item: 
-          Type: tor
-          Id: 0
-          Port: 1
-      - Index: 1
-        Wired: true
-        Item:
-          Type: blade
-          Id: 1
-          Port: 0
-      - Index: 2
-        Wired: true
-        Item: 
-          Type: blade
-          Id: 2
-          Port: 0
-      - Index: 3
-        Wired: true
-        Item:
-          Type: blade
-          Id: 3
-          Port: 1
-      - Index: 4
-        Wired: true
-        Item:
-          Type: blade
-          Id: 4
-          Port: 1
-      - Index: 5
-        Wired: true
-        Item:
-          Type: blade
-          Id: 5
-          Port: 1
-      - Index: 6
-        Wired: true
-        Item:
-          Type: blade
-          Id: 6
-          Port: 1
-      - Index: 7
-        Wired: true
-        Item:
-          Type: blade
-          Id: 7
-          Port: 1
-      - Index: 8
-        Wired: true
-        Item:
-          Type: blade
-          Id: 8
-          Port: 1
+      - {Index:  0, Wired: true, Item: {Type:   tor, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+      - {Index:  3, Wired: true, Item: {Type: blade, Id:  3, Port: 1}}
+      - {Index:  4, Wired: true, Item: {Type: blade, Id:  4, Port: 1}}
+      - {Index:  5, Wired: true, Item: {Type: blade, Id:  5, Port: 1}}
+      - {Index:  6, Wired: true, Item: {Type: blade, Id:  6, Port: 1}}
+      - {Index:  7, Wired: true, Item: {Type: blade, Id:  7, Port: 1}}
+      - {Index:  8, Wired: true, Item: {Type: blade, Id:  8, Port: 1}}
 
 
 RackTypes:
