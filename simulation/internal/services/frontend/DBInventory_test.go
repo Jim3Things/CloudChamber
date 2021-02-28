@@ -67,9 +67,9 @@ func (ts *DBInventoryTestSuite) cleanRegion(regionName string) error {
 		_, err = ts.db.DeleteZone(ctx, regionName, zoneName)
 		return err
 	})
-	
-	// Currently DeleteRegion() not implemented.
-	//
+
+	_, err = ts.db.DeleteRegion(ctx, regionName)
+
 	return err
 }
 
@@ -109,36 +109,33 @@ func (ts *DBInventoryTestSuite) cleanRack(regionName string, zoneName string, ra
 	return err
 }
 
-// Currently no implementation of CreateRegion() which will be 
-// added in a future checkin
-//
-// func (ts *DBInventoryTestSuite) TestCreateRegion() {
-// 	assert := ts.Assert()
-// 	require := ts.Require()
+func (ts *DBInventoryTestSuite) TestCreateRegion() {
+	assert := ts.Assert()
+	require := ts.Require()
 
-// 	ctx := context.Background()
+	ctx := context.Background()
 
-// 	region := &pb.Definition_Region{
-// 		Details: &pb.RegionDetails{
-// 			State:    pb.State_in_service,
-// 			Location: "Nowhere in particular",
-// 			Notes:    "empty notes for region",
-// 		},
-// 	}
+	region := &pb.Definition_Region{
+		Details: &pb.RegionDetails{
+			State:    pb.State_in_service,
+			Location: "Nowhere in particular",
+			Notes:    "empty notes for region",
+		},
+	}
 
-// 	revCreate, err := ts.db.CreateRegion(ctx, ts.regionName, region)
-// 	require.NoError(err)
-// 	assert.Less(int64(0), revCreate)
+	revCreate, err := ts.db.CreateRegion(ctx, ts.regionName, region)
+	require.NoError(err)
+	assert.Less(int64(0), revCreate)
 
-// 	r, revRead, err := ts.db.ReadZone(ctx, ts.regionName, ts.zoneName)
-// 	assert.NoError(err)
-// 	assert.Equal(revCreate, revRead)
-// 	require.NotNil(r)
+	r, revRead, err := ts.db.ReadRegion(ctx, ts.regionName)
+	assert.NoError(err)
+	assert.Equal(revCreate, revRead)
+	require.NotNil(r)
 
-// 	assert.Equal(region.Details.State, r.Details.State)
-// 	assert.Equal(region.Details.Location, r.Details.Location)
-// 	assert.Equal(region.Details.Notes, r.Details.Notes)
-// }
+	assert.Equal(region.Details.State, r.Details.State)
+	assert.Equal(region.Details.Location, r.Details.Location)
+	assert.Equal(region.Details.Notes, r.Details.Notes)
+}
 
 func (ts *DBInventoryTestSuite) TestCreateZone() {
 	assert := ts.Assert()
@@ -644,6 +641,18 @@ func (ts *DBInventoryTestSuite) equalNetworkPort(expected *pb.NetworkPort, actua
 	return expected.Wired == actual.Wired && ts.equalHwItem(expected.Item, actual.Item)
 }
 
+func (ts *DBInventoryTestSuite) equalRegionDetails(expected *pb.RegionDetails, actual *pb.RegionDetails) bool {
+	assert := ts.Assert()
+
+	if !assert.Equal(expected.State, actual.State) ||
+	!assert.Equal(expected.Location, actual.Location) ||
+	!assert.Equal(expected.Notes, actual.Notes) {
+		return false
+	}
+
+	return true
+}
+
 func (ts *DBInventoryTestSuite) equalZoneDetails(expected *pb.ZoneDetails, actual *pb.ZoneDetails) bool {
 	assert := ts.Assert()
 
@@ -940,6 +949,51 @@ func (ts *DBInventoryTestSuite) TestGetRack() {
 	}
 }
 
+func (ts *DBInventoryTestSuite) TestUpdateRegion() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	region1 := &pb.Definition_Region{
+		Details: &pb.RegionDetails{
+			State:    pb.State_in_service,
+			Location: "Nowhere in particular",
+			Notes:    "empty notes",
+		},
+	}
+
+	region2 := &pb.Definition_Region{
+		Details: &pb.RegionDetails{
+			State:    pb.State_decommissioning,
+			Location: "Nowhere in particular - still",
+			Notes:    "About to be removed",
+		},
+	}
+
+	revCreate, err := ts.db.CreateRegion(ctx, ts.regionName, region1)
+	require.NoError(err)
+	assert.Less(int64(0), revCreate)
+
+	r1, revRead1, err := ts.db.ReadRegion(ctx, ts.regionName)
+	assert.NoError(err)
+	assert.Equal(revCreate, revRead1)
+	require.NotNil(r1)
+
+	assert.True(ts.equalRegionDetails(region1.Details, r1.Details))
+
+	revUpdate, err := ts.db.UpdateRegion(ctx, ts.regionName, region2)
+	require.NoError(err)
+	assert.Less(revCreate, revUpdate)
+
+	r2, revRead2, err := ts.db.ReadRegion(ctx, ts.regionName)
+	assert.NoError(err)
+	assert.Equal(revUpdate, revRead2)
+	require.NotNil(r1)
+
+	assert.True(ts.equalRegionDetails(region2.Details, r2.Details))
+}
+
 func (ts *DBInventoryTestSuite) TestUpdateZone() {
 	assert := ts.Assert()
 	require := ts.Require()
@@ -1169,6 +1223,43 @@ func (ts *DBInventoryTestSuite) TestUpdateBlade() {
 	require.NotNil(b1)
 
 	assert.True(ts.equalBlade(blade2, b2))
+}
+
+func (ts *DBInventoryTestSuite) TestDeleteRegion() {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	regionName := "regionDeleteRegion"
+
+	region1 := &pb.Definition_Region{
+		Details: &pb.RegionDetails{
+			State:    pb.State_in_service,
+			Location: "Nowhere in particular",
+			Notes:    "empty notes",
+		},
+	}
+
+	revCreate, err := ts.db.CreateRegion(ctx, regionName, region1)
+	require.NoError(err)
+	assert.Less(int64(0), revCreate)
+
+	r1, revRead1, err := ts.db.ReadRegion(ctx, regionName)
+	assert.NoError(err)
+	assert.Equal(revCreate, revRead1)
+	require.NotNil(r1)
+
+	assert.True(ts.equalRegionDetails(region1.Details, r1.Details))
+
+	revDelete, err := ts.db.DeleteRegion(ctx, regionName)
+	require.NoError(err)
+	assert.Less(revCreate, revDelete)
+
+	r2, revRead2, err := ts.db.ReadRegion(ctx, regionName)
+	require.Equal(err, errors.ErrRegionNotFound{Region: regionName})
+	assert.Equal(int64(InvalidRev), revRead2)
+	assert.Nil(r2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeleteZone() {
