@@ -1,7 +1,9 @@
 package frontend
 
 import (
-	"sync"
+	"context"
+
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
 )
 
 type rackStatus int
@@ -56,29 +58,32 @@ type actualZone struct {
 	Racks map[string]*actualRack
 }
 
-// DBInventoryActual holds the actual state of the defined inventory.
-type DBInventoryActual struct {
-	Mutex sync.Mutex
+// LoadInventoryActual creates the starting actual state for the defined inventory.
+//
+// This uses the existing inventory definition entries from the store to create an
+// in-memory "actual" state. Eventually, we expect this to move to the store once
+// all the required store features are in place, primarily Watch().
+//
+func (m *DBInventory) LoadInventoryActual(force bool) error {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
 
-	Zone *actualZone
-}
+	ctx := context.Background()
 
-var dbInventoryActual *DBInventoryActual
+	if !m.actualLoaded || force  {
 
-// InitDBInventoryActual creates the starting actual state for the defined inventory.
-func InitDBInventoryActual(inven *DBInventory) error {
+		m.mutex.Unlock()
 
-	if dbInventoryActual == nil {
-		actual := &DBInventoryActual{
-			Mutex: sync.Mutex{},
-			Zone: &actualZone{
-				Racks: make(map[string]*actualRack),
-			},
+		actual := &actualZone{Racks: make(map[string]*actualRack)}
+
+		zone, err := m.inventory.NewZone(inventory.DefinitionTable, inventory.DefaultRegion, inventory.DefaultZone)
+		if err != nil {
+			return err
 		}
 
-		inven.mutex.RLock()
+		_, rackNames, err := zone.ListChildren(ctx)
 
-		for name, rack := range inven.Zone.Racks {
+		for _, rackName := range rackNames {
 			r := &actualRack{
 				Tor: actualTor{
 					State: torWorking,
@@ -92,18 +97,28 @@ func InitDBInventoryActual(inven *DBInventory) error {
 				State:  rackWorking,
 			}
 
-			for bladeID := range rack.Blades {
+			rack, err := zone.NewChild(rackName)
+			if err != nil {
+				return err
+			}
+	
+			_, bladeIDs, err := rack.ListBlades(ctx)
+
+			for _, bladeID := range bladeIDs {
 				r.Blades[bladeID] = &actualBlade{
 					State: bladeWorking,
 				}
 			}
 
-			actual.Zone.Racks[name] = r
+			actual.Racks[rackName] = r
 		}
 
-		inven.mutex.RUnlock()
+		m.mutex.Lock()
 
-		dbInventoryActual = actual
+		if !m.actualLoaded {
+			m.Actual = actual
+			m.actualLoaded = true
+		}
 	}
 
 	return nil

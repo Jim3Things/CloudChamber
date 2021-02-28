@@ -212,9 +212,13 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 	if !initServiceDone {
 		require := ts.Require()
 
+		_ = ts.utf.Open(ts.T())
+
 		// Start the test web service, which all tests will use
 		require.NoError(initService(ts.cfg))
 		initServiceDone = true
+
+		ts.utf.Close()
 	}
 }
 

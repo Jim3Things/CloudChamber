@@ -29,7 +29,7 @@
         $list.MaxBladeCount | Should Be 8
         $capacity = $list.MaxCapacity
         $capacity.Cores | Should Be 32
-        $capacity.MemoryInMb | Should Be 16834
+        $capacity.MemoryInMb | Should Be 16384
         $capacity.DiskInGb | Should Be 240
         $capacity.NetworkBandwidthInMbps | Should Be 2048
         $capacity.Accelerators.Count | Should Be 0
@@ -44,7 +44,7 @@
         $rack.Blades.Count | Should Be 8
         $blade = $rack.Blades[1]
         $blade.Cores | Should Be 16
-        $blade.MemoryInMb | Should Be 16834
+        $blade.MemoryInMb | Should Be 16384
         $blade.DiskInGb | Should Be 240
         $blade.NetworkBandWidthInMbps | Should be 2048
         $blade.Arch | Should Be "X64"
@@ -60,7 +60,7 @@
         $blade = Get-CcBlade -Session $sess -Name rack1 -Id 1
 
         $blade.Cores | Should Be 16
-        $blade.MemoryInMb | Should Be 16834
+        $blade.MemoryInMb | Should Be 16384
         $blade.DiskInGb | Should Be 240
         $blade.NetworkBandWidthInMbps | Should be 2048
         $blade.Arch | Should Be "X64"

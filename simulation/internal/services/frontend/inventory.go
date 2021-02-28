@@ -15,9 +15,11 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/gorilla/mux"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
@@ -65,23 +67,27 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	rackCount, maxBlades, maxCapacity := dbInventory.GetMemoData()
+	memoData := dbInventory.GetMemoData()
+	if memoData == nil {
+		postHTTPError(ctx, w, errors.ErrInventoryNotAvailable)
+	}
+
 	res := &pb.External_ZoneSummary{
-		Racks:         make(map[string]*pb.External_RackSummary, rackCount),
-		MaxBladeCount: maxBlades,
-		MaxCapacity:   maxCapacity,
+		Racks:         make(map[string]*pb.External_RackSummary, memoData.RackCount),
+		MaxBladeCount: int64(memoData.MaxBladeCount),
+		MaxCapacity:   memoData.MaxCapacity,
 	}
 
 	tracing.Info(
 		ctx,
 		"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
-		rackCount,
-		res.MaxBladeCount,
-		res.MaxCapacity)
+		memoData.RackCount,
+		memoData.MaxBladeCount,
+		&memoData.MaxCapacity)
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.ScanRacks(func(name string) error {
+	err = dbInventory.ScanRacksInZone(inventory.DefaultRegion, inventory.DefaultZone, func(name string) error {
 		target := fmt.Sprintf("%s%s/", b, name)
 
 		res.Racks[name] = &pb.External_RackSummary{Uri: target}
@@ -123,7 +129,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rack, err := dbInventory.GetRack(rackID)
+	rack, err := dbInventory.GetRack(inventory.DefaultRegion, inventory.DefaultZone, rackID)
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return
@@ -167,7 +173,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.ScanBladesInRack(rackID, func(bladeID int64) error {
+	err = dbInventory.ScanBladesInRack(inventory.DefaultRegion, inventory.DefaultZone, rackID, func(bladeID int64) error {
 
 		target := fmt.Sprintf("%s%d", b, bladeID)
 		tracing.Info(ctx, " Listing blades '%d' at %q", bladeID, target)
@@ -213,7 +219,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blade, err := dbInventory.GetBlade(rackID, bladeID)
+	blade, err := dbInventory.GetBlade(inventory.DefaultRegion, inventory.DefaultZone, rackID, bladeID)
 
 	if err != nil {
 		postHTTPError(ctx, w, err)

@@ -212,11 +212,7 @@ func initService(cfg *config.GlobalConfig) error {
 
 	// initialize the inventory store and apply any updates from the configuration.
 	//
-	if err := InitDBInventory(ctx, cfg); err != nil {
-		return err
-	}
-
-	if err := InitDBInventoryActual(dbInventory); err != nil {
+	if err := InitDBInventory(ctx, cfg, store.NewStore()); err != nil {
 		return err
 	}
 

@@ -22,10 +22,8 @@ type testSuiteCore struct {
 
 	baseURI string
 
-	utf *exporters.Exporter
-
-	cfg *config.GlobalConfig
-
+	utf   *exporters.Exporter
+	cfg   *config.GlobalConfig
 	store *store.Store
 }
 

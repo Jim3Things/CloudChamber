@@ -16,7 +16,7 @@ Racks:
       Arch: X64
     Tor:
     Pdu:
-  - Name: rack1
+  - Name: rack2
     Blades:
     - Index: 1
       Cores: 16
