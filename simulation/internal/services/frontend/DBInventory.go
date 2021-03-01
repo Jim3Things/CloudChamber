@@ -1196,7 +1196,7 @@ func (m *DBInventory) UpdateRegion(
 	region *pb.Definition_Region,
 	options ...InventoryRegionOption) (int64, error) {
 
-	z, err := m.inventory.NewRegion(
+	r, err := m.inventory.NewRegion(
 		inventory.DefinitionTable,
 		name)
 
@@ -1204,9 +1204,9 @@ func (m *DBInventory) UpdateRegion(
 		return InvalidRev, err
 	}
 
-	z.SetDetails(region.Details)
+	r.SetDetails(region.Details)
 
-	rev, err := z.Update(ctx, true)
+	rev, err := r.Update(ctx, true)
 
 	if err != nil {
 		return InvalidRev, err
