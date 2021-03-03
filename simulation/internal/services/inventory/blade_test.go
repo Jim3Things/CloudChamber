@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/jsonpb"
 	"github.com/stretchr/testify/suite"
 
 	tsc "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
@@ -13,6 +14,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
 type BladeTestSuite struct {
@@ -89,40 +91,38 @@ func (ts *BladeTestSuite) TestGetStatus() {
 	require.NoError(r.start(context.Background()))
 
 	// Powered off, so this should fail
-	sres := ts.issueGetStatus(ctx, r, 0)
-	require.Nil(sres)
+	require.Nil(ts.issueGetStatus(ctx, r, 0))
 
 	p := ts.issueSetPower(ctx, r, 0, true)
 	require.NotNil(p)
 	require.NoError(p.Err)
 
 	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_powered_disconnected
 	})
 
 	// Powered on, but disconnected, so this should do nothing
-	sres = ts.issueGetStatus(ctx, r, 0)
-	require.Nil(sres)
+	require.Nil(ts.issueGetStatus(ctx, r, 0))
 
 	c := ts.issueSetConnection(ctx, r, 0, true)
 	require.NotNil(c)
 	require.NoError(c.Err)
 
 	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeBooting
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_booting
 	})
 
-	sres = ts.issueGetStatus(ctx, r, 0)
+	sres := ts.issueGetStatus(ctx, r, 0)
 	require.NotNil(sres)
 	require.NoError(sres.Err)
 
 	status, ok := sres.Msg.(*messages.BladeStatus)
 	require.True(ok)
 
-	assert.Equal(bladeBooting, status.State)
+	assert.Equal(pb.Actual_Blade_booting.String(), status.State)
 
 	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeWorking
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_working
 	})
 
 	sres = ts.issueGetStatus(ctx, r, 0)
@@ -132,7 +132,7 @@ func (ts *BladeTestSuite) TestGetStatus() {
 	status, ok = sres.Msg.(*messages.BladeStatus)
 	require.True(ok)
 
-	assert.Equal(bladeWorking, status.State)
+	assert.Equal(pb.Actual_Blade_working.String(), status.State)
 }
 
 func (ts *BladeTestSuite) TestPowerOn() {
@@ -161,11 +161,61 @@ func (ts *BladeTestSuite) TestPowerOn() {
 	assert.Nil(res.Msg)
 
 	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_powered_disconnected
 	})
 
 	res2 := ts.issueGetStatus(ctx, r, 0)
 	require.Nil(res2)
+}
+
+func (ts *BladeTestSuite) TestPowerOnPersistence() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	rackDef := ts.createDummyRack(2)
+
+	r := newRack(context.Background(), ts.rackName(), rackDef, ts.timers)
+	require.NotNil(r)
+	ctx := ts.advance(context.Background())
+
+	ctx, span := tracing.StartSpan(
+		ctx,
+		tracing.WithName("test powering on a blade"),
+		tracing.WithContextValue(tsc.EnsureTickInContext))
+
+	require.NoError(r.start(context.Background()))
+
+	res := ts.issueSetPower(ctx, r, 0, true)
+	span.End()
+
+	require.NotNil(res)
+	require.NoError(res.Err)
+	assert.Equal(common.TickFromContext(ctx), res.At)
+	assert.Nil(res.Msg)
+
+	ctx = ts.advanceToStateChange(ctx, 5, func() bool {
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_powered_disconnected
+	})
+
+	res2 := ts.issueGetStatus(ctx, r, 0)
+	require.Nil(res2)
+
+	saved, err := r.blades[0].Save()
+	require.NoError(err)
+
+	m := jsonpb.Marshaler{}
+	s, err := m.MarshalToString(saved)
+	require.NoError(err)
+
+	require.JSONEq(
+		`{`+
+			`"condition":"operational",`+
+			`"smState":"powered_disconnected",`+
+			`"core":{"enteredAt":"1", "guard":"1"}`+
+			`}`,
+		s,
+	)
+
 }
 
 func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
@@ -187,7 +237,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	assert.Nil(res.Msg)
 
 	ctx = ts.advanceToStateChange(ctx, 2, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladePoweredDiscon
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_powered_disconnected
 	})
 
 	res2 := ts.issueGetStatus(ctx, r, 0)
@@ -201,7 +251,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	assert.Nil(res.Msg)
 
 	ctx = ts.advanceToStateChange(ctx, 2, func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeBooting
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_booting
 	})
 
 	res2 = ts.issueGetStatus(ctx, r, 0)
@@ -209,7 +259,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	require.NoError(res2.Err)
 	require.NotNil(res2.Msg)
 	status := res2.Msg.(*messages.BladeStatus)
-	assert.Equal(bladeBooting, status.State)
+	assert.Equal(pb.Actual_Blade_booting.String(), status.State)
 
 	span.End()
 
@@ -224,7 +274,7 @@ func (ts *BladeTestSuite) TestPowerOnOffWhileBooting() {
 	require.NoError(res.Err)
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeOffConn
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_off_connected
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
@@ -251,7 +301,7 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 	require.NoError(res.Err)
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeIsolated
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_isolated
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
@@ -267,7 +317,7 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 	require.NoError(res.Err)
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeWorking
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_working
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
@@ -291,7 +341,7 @@ func (ts *BladeTestSuite) TestWorkingToOffConn() {
 	require.NoError(res.Err)
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeOffConn
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_off_connected
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
@@ -315,7 +365,7 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 	require.NoError(res.Err)
 
 	doneConnTest := func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeOffConn
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_off_connected
 	}
 
 	require.Eventually(doneConnTest, time.Second, 10*time.Millisecond,
@@ -326,7 +376,7 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 	require.NoError(res.Err)
 
 	doneTest := func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_off_disconnected
 	}
 
 	require.Eventually(doneTest, time.Second, 10*time.Millisecond,
@@ -350,7 +400,7 @@ func (ts *BladeTestSuite) TestDuplicateOffDiscon() {
 	require.Equal(errors.ErrNoOperation, res.Err)
 
 	doneTest := func() bool {
-		return r.blades[0].sm.CurrentIndex == bladeOffDiscon
+		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_off_disconnected
 	}
 
 	require.Eventually(doneTest, time.Second, 10*time.Millisecond,

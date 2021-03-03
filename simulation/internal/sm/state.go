@@ -2,12 +2,13 @@ package sm
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 )
 
-// SmState defines the methods used for state actions and transitions.
-type SmState interface {
+// State defines the methods used for state actions and transitions.
+type State interface {
 
 	// Enter is called when a state transition moves to this state
 	Enter(ctx context.Context, sm *SM) error
@@ -17,7 +18,7 @@ type SmState interface {
 	Receive(ctx context.Context, machine *SM, msg Envelope)
 
 	// Leave is called when a state transition moves away from this state
-	Leave(ctx context.Context, sm *SM, nextState string)
+	Leave(ctx context.Context, sm *SM, nextState fmt.Stringer)
 }
 
 // NullState is the default implementation of an SM state

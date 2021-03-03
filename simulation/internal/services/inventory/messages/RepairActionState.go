@@ -9,7 +9,7 @@ import (
 // RepairActionState is the abstract definition that all inventory state
 // machines must implement.
 type RepairActionState interface {
-	sm.SmState
+	sm.State
 
 	// Power is the function that responds to a setPower message.
 	Power(ctx context.Context, sm *sm.SM, msg *SetPower)

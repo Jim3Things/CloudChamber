@@ -3,6 +3,8 @@ package inventory
 import (
 	"context"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
@@ -24,19 +26,6 @@ type pdu struct {
 	sm *sm.SM
 }
 
-const (
-	// pduWorkingState is the state ID for the PDU powered on and working
-	// state.
-	pduWorkingState = "working"
-
-	// pduOffState is the state ID for the PDU powered off state.
-	pduOffState = "off"
-
-	// pduStuckState is the state ID for a PDU faulted state where the PDU is
-	// unresponsive, but some power may still be on.
-	pduStuckState = "stuck"
-)
-
 // newPdu creates a new pdu instance from the definition structure and the
 // containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
@@ -50,17 +39,17 @@ func newPdu(_ *pb.External_Pdu, r *Rack) *pdu {
 
 	p.sm = sm.NewSM(p,
 		sm.WithFirstState(
-			pduWorkingState,
+			pb.Actual_Pdu_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetPower, workingSetPower, sm.Stay, pduOffState},
+				{messages.TagSetPower, workingSetPower, sm.Stay, pb.Actual_Pdu_off},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pduOffState,
+			pb.Actual_Pdu_off,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
@@ -69,7 +58,7 @@ func newPdu(_ *pb.External_Pdu, r *Rack) *pdu {
 			sm.NullLeave),
 
 		sm.WithState(
-			pduStuckState,
+			pb.Actual_Pdu_stuck,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
@@ -79,6 +68,29 @@ func newPdu(_ *pb.External_Pdu, r *Rack) *pdu {
 	)
 
 	return p
+}
+
+// Save returns a protobuf message that contains the data sufficient to persist
+// and later restore this state machine to a logically equivalent state.
+func (p *pdu) Save() (proto.Message, error) {
+	cur, entered, terminal, guard := p.sm.Savable()
+
+	state := &pb.Actual_Pdu{
+		Condition: pb.Actual_operational,
+		Cables:    make(map[int64]*pb.Actual_Cable),
+		SmState:   cur.(pb.Actual_Pdu_State),
+		Core: &pb.Actual_MachineCore{
+			EnteredAt: entered,
+			Terminal:  terminal,
+			Guard:     guard,
+		},
+	}
+
+	for i, c := range p.cables {
+		state.Cables[i] = c.save()
+	}
+
+	return state, nil
 }
 
 // fixConnection updates the PDU with presumed cable definitions to match up
@@ -127,7 +139,7 @@ func pduGetStatus(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 
 	pduStatus := &messages.PduStatus{
 		StatusBody: messages.StatusBody{
-			State:     p.sm.CurrentIndex,
+			State:     p.sm.CurrentIndex.String(),
 			EnteredAt: p.sm.EnteredAt,
 		},
 		Cables: make(map[int64]*messages.CableState),

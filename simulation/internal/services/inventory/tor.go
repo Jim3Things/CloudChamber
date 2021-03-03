@@ -3,6 +3,8 @@ package inventory
 import (
 	"context"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
@@ -28,15 +30,6 @@ type tor struct {
 	sm *sm.SM
 }
 
-const (
-	// torWorkingState is the ID for when the TOR is fully operational.
-	torWorkingState = "working"
-
-	// torStuckState is the ID for when the TOR is faulted and unresponsive.
-	// Note that programmed cables may or may not continue to be programmed.
-	torStuckState = "stuck"
-)
-
 // newTor creates a new simulated TOR instance from the definition structure
 // and the containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
@@ -50,7 +43,7 @@ func newTor(_ *pb.External_Tor, r *Rack) *tor {
 
 	t.sm = sm.NewSM(t,
 		sm.WithFirstState(
-			torWorkingState,
+			pb.Actual_Tor_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, torGetStatus, sm.Stay, sm.Stay},
@@ -60,7 +53,7 @@ func newTor(_ *pb.External_Tor, r *Rack) *tor {
 			sm.NullLeave),
 
 		sm.WithState(
-			torStuckState,
+			pb.Actual_Tor_stuck,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, torOnlyGetStatus, sm.Stay, sm.Stay},
@@ -70,6 +63,29 @@ func newTor(_ *pb.External_Tor, r *Rack) *tor {
 	)
 
 	return t
+}
+
+// Save returns a protobuf message that contains the data sufficient to persist
+// and later restore this state machine to a logically equivalent state.
+func (p *tor) Save() (proto.Message, error) {
+	cur, entered, terminal, guard := p.sm.Savable()
+
+	state := &pb.Actual_Tor{
+		Condition: pb.Actual_operational,
+		Cables:    make(map[int64]*pb.Actual_Cable),
+		SmState:   cur.(pb.Actual_Tor_State),
+		Core: &pb.Actual_MachineCore{
+			EnteredAt: entered,
+			Terminal:  terminal,
+			Guard:     guard,
+		},
+	}
+
+	for i, c := range p.cables {
+		state.Cables[i] = c.save()
+	}
+
+	return state, nil
 }
 
 // fixConnection updates the TOR with presumed cable definitions to match up
@@ -177,7 +193,7 @@ func torOnlyGetStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool
 
 	torStatus := &messages.TorStatus{
 		StatusBody: messages.StatusBody{
-			State:     t.sm.CurrentIndex,
+			State:     t.sm.CurrentIndex.String(),
 			EnteredAt: t.sm.EnteredAt,
 		},
 		Cables: make(map[int64]*messages.CableState),

@@ -104,6 +104,43 @@ message StatusResponse {
 
 // --- Stepper specific messages
 
+// +++ Stepper persisted state
+
+// StepperState contains the state machine internal state necessary to restore
+// the current simulated time on restart.
+// NB: This is currently mostly latent - only the state machine state values are
+// provided, in order to support the changes in the common state machine
+// internals.
+message StepperState {
+    enum State {
+        // This is the state when no legal policy is in force.
+        invalid = 0;
+
+        // This is the state prior to initialization.
+        awaiting_start = 1;
+
+        // This state manages the policy where the simulated time is either
+        // manually stepped forward, or, if a Delay operation is called, it jumps
+        // forward to immediately complete any waiter.
+        no_wait = 2;
+
+        // This is the state where simulated time only moves forward due to
+        // specific Step operations.
+        manual = 3;
+
+        // This is the state where simulated time moves forward by one tick per
+        // the designated real time interval (e.g. 1 tick / second).
+        measured = 4;
+
+        // An internal fault has occurred.  This is a terminal state.
+        faulted = 5;
+    }
+
+    State sm_state = 1;
+}
+
+// --- Stepper persisted state
+
 // +++ trace sink specific messages
 
 // Specify the trace entry to append to the trace sink's store

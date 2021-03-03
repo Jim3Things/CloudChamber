@@ -3,6 +3,7 @@ package inventory
 import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
 // cable describes the active state of a connecting cable from the one element
@@ -85,4 +86,17 @@ func (c *cable) force(offOn bool, guard int64, at int64) (bool, error) {
 
 	c.on = offOn
 	return c.on != startState, nil
+}
+
+// save returns the protobuf structure that contains the cable state.
+func (c *cable) save() *pb.Actual_Cable {
+	on := pb.Actual_Cable_off
+	if c.on {
+		on = pb.Actual_Cable_on
+	}
+
+	return &pb.Actual_Cable{
+		State:   on,
+		Faulted: c.faulted,
+	}
 }

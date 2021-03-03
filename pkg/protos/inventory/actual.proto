@@ -17,22 +17,179 @@ message Actual {
         faulted = 2;
     }
 
-    message Pdu {
+    // Cable represents the operational state of a simulated wire between a
+    // component and a blade.  The target blade and port is determined by the
+    // definition view, as it does not change.
+    message Cable {
+        // Determine if the cable is on (working) or off (disabled).
+        enum State {
+            invalid = 0;
+            on = 1;
+            off = 2;
+        }
+        State state = 1;
 
+        // This is true if the cable is faulted such that it cannot be
+        // controlled, and the on/off state is externally uncertain.
+        bool faulted = 2;
+    }
+
+    // MachineCore holds the common state needed by the core state machine
+    // infrastructure.
+    message MachineCore {
+
+        // This is the simulated time when the current state was entered.
+        int64 entered_at = 1;
+
+        // This is true if the state machine execution has completed.
+        bool terminal = 2;
+
+        // This is the guard time, used for handling of message overrun or
+        // other external state change.
+        int64 guard = 3;
+    }
+
+    message Pdu {
+        // This indicates whether this element in operational, or in some other
+        // lifecycle state.
         Condition condition = 1;
 
+        // this holds the simulated cables attached to this element.
+        map<int64, Cable> cables = 2;
+
+        // This defines the state machine states
+        enum State {
+            invalid = 0;
+
+            // This is the state where the PDU is powered on and working.
+            working = 1;
+
+            // This is the state where the PDU is powered off.
+            off = 2;
+
+            // This is the state where the PDU is unresponsive, but power may or
+            // may not still be on.
+            stuck = 3;
+        }
+        State sm_state = 3;
+
+        // This is the stored core state machine recovery state.
+        MachineCore core = 4;
     }
 
     message Tor {
-
+        // This indicates whether this element in operational, or in some other
+        // lifecycle state.
         Condition condition = 1;
 
+        // this holds the simulated cables attached to this element.
+        map<int64, Cable> cables = 2;
+
+        // This defines the state machine states
+        enum State {
+            invalid = 0;
+
+            working = 1;
+
+            // The TOR is faulted and unresponsive. Note that programmed cables
+            // may or may not continue to be programmed.
+            stuck = 2;
+        }
+        State sm_state = 3;
+
+        // This is the stored core state machine recovery state.
+        MachineCore core = 4;
     }
 
     message Blade {
-
+        // This indicates whether this element in operational, or in some other
+        // lifecycle state.
         Condition condition = 1;
 
+        // This defines the state machine states
+        enum State {
+            invalid = 0;
+
+            // This is the state where initialization of the state machine
+            // begins.
+            start = 1;
+
+            // This is the state when the blade has neither simulated power
+            // nor simulated network connectivity.
+            off_disconnected = 2;
+
+            // This is the state when the blade does not have power, but does
+            // have simulated network connectivity.
+            off_connected = 3;
+
+            // This is the state when the blade has simulated power, but does
+            // not have simulated network connectivity.
+            powered_disconnected = 4;
+
+            // This is the state when the blade has power and simulated network
+            // connectivity.  If auto-boot is enabled, this state will
+            // automatically transition to the booting state.
+            powered_connected = 5;
+
+            // This is the state when the blade is waiting for the simulated
+            // boot delay to complete.
+            booting = 6;
+
+            // This is the state when the blade is powered on, booted, and
+            // able to handle workload requests.
+            working = 7;
+
+            // This is the state when the blade is powered on and booted, but
+            // has not simulated network connectivity.  Existing workloads are
+            // informed the connectivity has been lost, but are otherwise
+            // undisturbed.
+            isolated = 8;
+
+            // This is a transitional state to clean up when the blade is
+            // finally shutting down.  This may involve notifying any active
+            // workloads that they have been forcibly stopped.
+            stopping = 9;
+
+            // This is a transitional state parallel to the stopping state, but
+            // where simulated network connectivity has been lost.
+            stopping_isolated = 10;
+
+            // This is the state when the blade has either had a processing
+            // fault, such as a timer failure, or an injected fault that leaves
+            // it in a position that requires an external reset/fix.
+            faulted = 11;
+        }
+        State sm_state = 2;
+
+        // This is the stored core state machine recovery state.
+        MachineCore core = 3;
+
+        bool state_expires = 4;
+        int64 expiration = 5;
+    }
+
+    // NB: Given the rack's rather different lifecycle needs, this is mostly
+    // latent at this time.
+    message Rack {
+        // This defines the state machine states
+        enum State {
+            invalid = 0;
+
+            // This is the state when the rack is awaiting the start simulation
+            // command.
+            awaiting_start = 1;
+
+            // This is the state during normal simulation operation.
+            working = 2;
+
+            // This is the state when the rack has processed a stop simulation
+            // command.
+            terminated = 3;
+        }
+        State sm_state = 1;
+
+        // This is the stored core state machine recovery state.
+        MachineCore core = 2;
     }
 }
 
