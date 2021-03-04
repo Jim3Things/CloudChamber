@@ -4,7 +4,6 @@ package stepper
 
 import (
 	"context"
-	"fmt"
 	"sync"
 	"time"
 
@@ -279,7 +278,7 @@ func measuredEnter(ctx context.Context, machine *sm.SM) error {
 
 // measuredLeave cancels the recurring timer and the associated background
 // goroutine.
-func measuredLeave(_ context.Context, machine *sm.SM, _ fmt.Stringer) {
+func measuredLeave(_ context.Context, machine *sm.SM, _ sm.StateIndex) {
 	s := machine.Parent.(*stepper)
 
 	s.stopTicker <- true
@@ -579,7 +578,7 @@ func checkForExpiry(ctx context.Context, machine *sm.SM) {
 
 // convertFromState translates the current state into a policy enum value that
 // can be used in the GetStatus response message.
-func convertFromState(state fmt.Stringer) int {
+func convertFromState(state sm.StateIndex) int {
 	switch state {
 	case pb.StepperState_manual:
 		return messages.PolicyManual

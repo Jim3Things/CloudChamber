@@ -2,7 +2,6 @@ package sm
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 )
@@ -18,7 +17,7 @@ type State interface {
 	Receive(ctx context.Context, machine *SM, msg Envelope)
 
 	// Leave is called when a state transition moves away from this state
-	Leave(ctx context.Context, sm *SM, nextState fmt.Stringer)
+	Leave(ctx context.Context, sm *SM, nextState StateIndex)
 }
 
 // NullState is the default implementation of an SM state

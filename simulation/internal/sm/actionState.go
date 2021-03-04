@@ -2,7 +2,6 @@ package sm
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
@@ -17,7 +16,7 @@ var (
 
 	// Stay is used in an ActionEntry as shorthand to indicate that there is
 	// no state transition to process.
-	Stay fmt.Stringer = nil
+	Stay StateIndex = nil
 )
 
 // ActionState is the common definition for how to process incoming requests
@@ -49,7 +48,7 @@ type EnterFunc func(ctx context.Context, machine *SM) error
 // parameter contains the state ID for the state being transitioned to.  This
 // allows for special processing when, for instance, the transition is from
 // the current state back into the current state.
-type LeaveFunc func(ctx context.Context, machine *SM, nextState fmt.Stringer)
+type LeaveFunc func(ctx context.Context, machine *SM, nextState StateIndex)
 
 // ActionFunc is the signature definition for a message processing function
 // listed in an ActionEntry.
@@ -64,10 +63,10 @@ type ActionEntry struct {
 	Action ActionFunc
 
 	// TrueState is the state ID to change to if Action returns true.
-	TrueState fmt.Stringer
+	TrueState StateIndex
 
 	// FalseState is the state ID to change to if Action returns false.
-	FalseState fmt.Stringer
+	FalseState StateIndex
 }
 
 // NewActionState creates a new ActionState instance with the supplied match
@@ -99,7 +98,7 @@ func (s *ActionState) Receive(ctx context.Context, machine *SM, msg Envelope) {
 	}
 }
 
-func (s *ActionState) Leave(ctx context.Context, sm *SM, nextState fmt.Stringer) {
+func (s *ActionState) Leave(ctx context.Context, sm *SM, nextState StateIndex) {
 	if s.OnLeave != nil {
 		s.OnLeave(ctx, sm, nextState)
 	}

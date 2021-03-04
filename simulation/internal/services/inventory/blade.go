@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 
 	"github.com/golang/protobuf/proto"
@@ -264,7 +263,7 @@ func bootingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) bool
 
 // bootingOnLeave ensures that any active boot delay timer is canceled before
 // proceeding to a non-booting state.
-func bootingOnLeave(ctx context.Context, machine *sm.SM, nextState fmt.Stringer) {
+func bootingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
 	if nextState != pb.Actual_Blade_booting {
 		cancelTimer(ctx, machine, "boot")
 	}
@@ -279,7 +278,7 @@ func stoppingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) boo
 
 // stoppingOnLeave ensures that any active time is canceled before proceeding
 // to a non-stopping state.
-func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState fmt.Stringer) {
+func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
 	if nextState != pb.Actual_Blade_stopping &&
 		nextState != pb.Actual_Blade_stopping_isolated {
 		cancelTimer(ctx, machine, "shutdown")
