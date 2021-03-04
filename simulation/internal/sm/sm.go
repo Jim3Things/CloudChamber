@@ -11,6 +11,8 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
+// StateIndex denotes that the value is used as an index into the state machine
+// action states.
 type StateIndex interface {
 	fmt.Stringer
 }
