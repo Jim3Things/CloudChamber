@@ -2,14 +2,49 @@ package exporters
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/protos/log"
 )
 
-func TestSingleRoot(t *testing.T) {
+type ioSpanTestSuite struct {
+	suite.Suite
+}
+
+func (ts *ioSpanTestSuite) newTraceEvent(i int, tick int64, s log.Severity) *log.Event {
+	return &log.Event{
+		Tick:        tick,
+		Severity:    s,
+		Name:        fmt.Sprintf("test%d", i),
+		Text:        fmt.Sprintf("text%d", i),
+		StackTrace:  fmt.Sprintf("stack%d", i),
+		Impacted:    nil,
+		EventAction: log.Action_Trace,
+		SpanId:      "",
+		LinkId:      "",
+	}
+}
+
+func (ts *ioSpanTestSuite) newSpanStartEvent(i int, tick int64, spanId string) *log.Event {
+	return &log.Event{
+		Tick:        tick,
+		Severity:    0,
+		Name:        fmt.Sprintf("test%d", i),
+		Text:        fmt.Sprintf("text%d", i),
+		StackTrace:  fmt.Sprintf("stack%d", i),
+		Impacted:    nil,
+		EventAction: log.Action_SpanStart,
+		SpanId:      spanId,
+		LinkId:      "",
+	}
+}
+
+func (ts *ioSpanTestSuite) TestSingleRoot() {
+	assert := ts.Assert()
+
 	s := newSpans()
 
 	io := bytes.Buffer{}
@@ -22,33 +57,15 @@ func TestSingleRoot(t *testing.T) {
 		Status:     "ok",
 		StackTrace: "stacks",
 		Event: []*log.Event{
-			{
-				Tick:        0,
-				Severity:    0,
-				Name:        "test1",
-				Text:        "text1",
-				StackTrace:  "stack1",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
-			{
-				Tick:        1,
-				Severity:    0,
-				Name:        "test2",
-				Text:        "text2",
-				StackTrace:  "stack2",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
+			ts.newTraceEvent(1, 0, 0),
+			ts.newTraceEvent(2, 1, 0),
 		},
 		Infrastructure: false,
 	}
 
 	s.add(entry, &io)
 
-	assert.Equal(t,
+	assert.Equal(
 		"\n[0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
@@ -56,11 +73,13 @@ func TestSingleRoot(t *testing.T) {
 			"      @   1: [D] (test2) text2\n"+
 			"        stack2\n", io.String())
 
-	assert.Equal(t, 0, len(s.known))
-	assert.Equal(t, 0, len(s.active))
+	assert.Equal(0, len(s.known))
+	assert.Equal(0, len(s.active))
 }
 
-func TestDoubleRoot(t *testing.T) {
+func (ts *ioSpanTestSuite) TestDoubleRoot() {
+	assert := ts.Assert()
+
 	s := newSpans()
 
 	io := bytes.Buffer{}
@@ -73,26 +92,8 @@ func TestDoubleRoot(t *testing.T) {
 		Status:     "ok",
 		StackTrace: "stacks",
 		Event: []*log.Event{
-			{
-				Tick:        0,
-				Severity:    0,
-				Name:        "test1",
-				Text:        "text1",
-				StackTrace:  "stack1",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
-			{
-				Tick:        1,
-				Severity:    0,
-				Name:        "test2",
-				Text:        "text2",
-				StackTrace:  "stack2",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
+			ts.newTraceEvent(1, 0, 0),
+			ts.newTraceEvent(2, 1, 0),
 		},
 		Infrastructure: false,
 	}
@@ -105,33 +106,15 @@ func TestDoubleRoot(t *testing.T) {
 		Status:     "ok",
 		StackTrace: "stacks",
 		Event: []*log.Event{
-			{
-				Tick:        2,
-				Severity:    0,
-				Name:        "test3",
-				Text:        "text3",
-				StackTrace:  "stack3",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
-			{
-				Tick:        3,
-				Severity:    0,
-				Name:        "test4",
-				Text:        "text4",
-				StackTrace:  "stack4",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
+			ts.newTraceEvent(3, 2, 0),
+			ts.newTraceEvent(4, 3, 0),
 		},
 		Infrastructure: false,
 	}
 
 	s.add(entry, &io)
 
-	assert.Equal(t,
+	assert.Equal(
 		"\n[0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
@@ -139,13 +122,13 @@ func TestDoubleRoot(t *testing.T) {
 			"      @   1: [D] (test2) text2\n"+
 			"        stack2\n", io.String())
 
-	assert.Equal(t, 0, len(s.known))
-	assert.Equal(t, 0, len(s.active))
+	assert.Equal(0, len(s.known))
+	assert.Equal(0, len(s.active))
 
 	io = bytes.Buffer{}
 	s.add(entry2, &io)
 
-	assert.Equal(t,
+	assert.Equal(
 		"\n[1102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
 			"      @   2: [D] (test3) text3\n"+
@@ -154,11 +137,13 @@ func TestDoubleRoot(t *testing.T) {
 			"        stack4\n",
 		io.String())
 
-	assert.Equal(t, 0, len(s.known))
-	assert.Equal(t, 0, len(s.active))
+	assert.Equal(0, len(s.known))
+	assert.Equal(0, len(s.active))
 }
 
-func TestSimpleChildFirst(t *testing.T) {
+func (ts *ioSpanTestSuite) TestSimpleChildFirst() {
+	assert := ts.Assert()
+
 	traceID := "11020304050607080102030405060708"
 	s := newSpans()
 
@@ -172,36 +157,9 @@ func TestSimpleChildFirst(t *testing.T) {
 		Status:     "ok",
 		StackTrace: "stacks",
 		Event: []*log.Event{
-			{
-				Tick:        0,
-				Severity:    0,
-				Name:        "test1",
-				Text:        "text1",
-				StackTrace:  "stack1",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
-			{
-				Tick:        1,
-				Severity:    0,
-				Name:        "test2",
-				Text:        "text2",
-				StackTrace:  "stack2",
-				Impacted:    nil,
-				EventAction: log.Action_SpanStart,
-				SpanId:      "1102030405060708",
-			},
-			{
-				Tick:        1,
-				Severity:    0,
-				Name:        "test2",
-				Text:        "text2",
-				StackTrace:  "stack2",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
+			ts.newTraceEvent(1, 0, 0),
+			ts.newSpanStartEvent(2, 1, "1102030405060708"),
+			ts.newTraceEvent(2, 1, 0),
 		},
 		Infrastructure: false,
 	}
@@ -214,44 +172,26 @@ func TestSimpleChildFirst(t *testing.T) {
 		Status:     "ok",
 		StackTrace: "stacks",
 		Event: []*log.Event{
-			{
-				Tick:        2,
-				Severity:    0,
-				Name:        "test3",
-				Text:        "text3",
-				StackTrace:  "stack3",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
-			{
-				Tick:        3,
-				Severity:    0,
-				Name:        "test4",
-				Text:        "text4",
-				StackTrace:  "stack4",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
+			ts.newTraceEvent(3, 2, 0),
+			ts.newTraceEvent(4, 3, 0),
 		},
 		Infrastructure: false,
 	}
 
 	s.add(entry2, &io)
 
-	assert.Equal(t, 0, len(io.String()))
-	assert.Equal(t, 1, len(s.known))
-	assert.Equal(t, 1, len(s.active))
+	assert.Equal(0, len(io.String()))
+	assert.Equal(1, len(s.known))
+	assert.Equal(1, len(s.active))
 
 	a := s.active[traceID]
-	assert.Equal(t, 1, len(a.open))
-	assert.Equal(t, 1, len(a.closed))
+	assert.Equal(1, len(a.open))
+	assert.Equal(1, len(a.closed))
 
 	io = bytes.Buffer{}
 	s.add(entry, &io)
 
-	assert.Equal(t,
+	assert.Equal(
 		"\n[0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
@@ -266,12 +206,14 @@ func TestSimpleChildFirst(t *testing.T) {
 			"        stack2\n",
 		io.String())
 
-	assert.Equal(t, 0, len(s.known))
-	assert.Equal(t, 0, len(s.active))
+	assert.Equal(0, len(s.known))
+	assert.Equal(0, len(s.active))
 
 }
 
-func TestSimpleChildLast(t *testing.T) {
+func (ts *ioSpanTestSuite) TestSimpleChildLast() {
+	assert := ts.Assert()
+
 	traceID := "11020304050607080102030405060708"
 	s := newSpans()
 
@@ -285,36 +227,9 @@ func TestSimpleChildLast(t *testing.T) {
 		Status:     "ok",
 		StackTrace: "stacks",
 		Event: []*log.Event{
-			{
-				Tick:        0,
-				Severity:    0,
-				Name:        "test1",
-				Text:        "text1",
-				StackTrace:  "stack1",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
-			{
-				Tick:        1,
-				Severity:    0,
-				Name:        "test2",
-				Text:        "text2",
-				StackTrace:  "stack2",
-				Impacted:    nil,
-				EventAction: log.Action_SpanStart,
-				SpanId:      "1102030405060708",
-			},
-			{
-				Tick:        1,
-				Severity:    0,
-				Name:        "test2",
-				Text:        "text2",
-				StackTrace:  "stack2",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
+			ts.newTraceEvent(1, 0, 0),
+			ts.newSpanStartEvent(2, 1, "1102030405060708"),
+			ts.newTraceEvent(2, 1, 0),
 		},
 		Infrastructure: false,
 	}
@@ -327,44 +242,26 @@ func TestSimpleChildLast(t *testing.T) {
 		Status:     "ok",
 		StackTrace: "stacks",
 		Event: []*log.Event{
-			{
-				Tick:        2,
-				Severity:    0,
-				Name:        "test3",
-				Text:        "text3",
-				StackTrace:  "stack3",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
-			{
-				Tick:        3,
-				Severity:    0,
-				Name:        "test4",
-				Text:        "text4",
-				StackTrace:  "stack4",
-				Impacted:    nil,
-				EventAction: log.Action_Trace,
-				SpanId:      "",
-			},
+			ts.newTraceEvent(3, 2, 0),
+			ts.newTraceEvent(4, 3, 0),
 		},
 		Infrastructure: false,
 	}
 
 	s.add(entry, &io)
 
-	assert.Equal(t, 0, len(io.String()))
-	assert.Equal(t, 1, len(s.known))
-	assert.Equal(t, 1, len(s.active))
+	assert.Equal(0, len(io.String()))
+	assert.Equal(1, len(s.known))
+	assert.Equal(1, len(s.active))
 
 	a := s.active[traceID]
-	assert.Equal(t, 1, len(a.open))
-	assert.Equal(t, 1, len(a.closed))
+	assert.Equal(1, len(a.open))
+	assert.Equal(1, len(a.closed))
 
 	io = bytes.Buffer{}
 	s.add(entry2, &io)
 
-	assert.Equal(t,
+	assert.Equal(
 		"\n[0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
 			"      @   0: [D] (test1) text1\n"+
@@ -379,6 +276,10 @@ func TestSimpleChildLast(t *testing.T) {
 			"        stack2\n",
 		io.String())
 
-	assert.Equal(t, 0, len(s.known))
-	assert.Equal(t, 0, len(s.active))
+	assert.Equal(0, len(s.known))
+	assert.Equal(0, len(s.active))
+}
+
+func TestIoSpans(t *testing.T) {
+	suite.Run(t, new(ioSpanTestSuite))
 }

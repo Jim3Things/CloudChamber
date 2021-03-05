@@ -1,102 +1,104 @@
 package common
 
 import (
-	"fmt"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
-func TestDecode(t *testing.T) {
-	var keywords []string = []string{"Defined", "Actual", "Target", "Observed"}
-	var views = "Defined, Observed"
-	var expected []bool = []bool{true, false, false, true}
-
-	got, err := Decode(keywords, views)
-	require.NoError(t, err)
-	assert.Equal(t, expected, got)
+type decodeTestSuite struct {
+	suite.Suite
 }
 
-func TestDecodeBadView(t *testing.T) {
-	var keywords []string = []string{"Defined", "Actual", "Target", "Observed"}
-	var badView = "AbaddefinedobservedValue"
-	var badexpected []bool = nil
-
-	got, err := Decode(keywords, badView)
-
-	require.Error(t, err)
-	var s = err.Error()
-	fmt.Printf(s)
-	assert.Equal(t, badexpected, got)
+func (ts *decodeTestSuite) keywords() []string {
+	return []string{"Defined", "Actual", "Target", "Observed"}
 }
 
-func TestDecodeMultipleView(t *testing.T) {
-	var keywords []string = []string{"Defined", "Actual", "Target", "Observed"}
-	var multipleView = "Defined, Defined, Observed, Actual"
-	var expected []bool = []bool{true, true, false, true}
+func (ts *decodeTestSuite) doSuccess(
+	keywords []string,
+	view string,
+	results []bool) {
+	require := ts.Require()
 
-	got, err := Decode(keywords, multipleView)
-	require.NoError(t, err)
-	assert.Equal(t, expected, got)
+	got, err := Decode(keywords, view)
+	require.NoError(err)
+	require.Equal(results, got)
 }
 
-func TestDecodeBlankSource(t *testing.T) {
-	var keywords []string = []string{"Defined", "Actual", "Target", "Observed"}
-	var blankSource = ""
-	var expected []bool = nil
+func (ts *decodeTestSuite) doFail(
+	keywords []string,
+	view string,
+	errString string) {
+	require := ts.Require()
 
-	got, err := Decode(keywords, blankSource)
-	require.Error(t, err)
-	assert.Equal(t, expected, got)
+	got, err := Decode(keywords, view)
+	require.EqualError(err, errString)
+	require.Nil(got)
 }
 
-func TestDecodeMultipleCopiesSource(t *testing.T) {
-	var source string = "Defined"
-	var keyword2 []string = []string{"Defined", "Defined", "Observed", "Defined"}
-	var expected []bool = []bool{true, true, false, true}
-
-	got, err := Decode(keyword2, source)
-	require.NoError(t, err)
-	assert.Equal(t, expected, got)
+func (ts *decodeTestSuite) TestDecode() {
+	ts.doSuccess(
+		ts.keywords(),
+		"Defined, Observed",
+		[]bool{true, false, false, true})
 }
 
-func TestDecodeEmptyArraySource(t *testing.T) {
-	emptyArray := make([]string, 0, 4)
-	var someString = "Defined"
-	var expected []bool = nil
-
-	got, err := Decode(emptyArray, someString)
-	require.Error(t, err)
-	assert.Equal(t, expected, got)
+func (ts *decodeTestSuite) TestDecodeBadView() {
+	ts.doFail(
+		ts.keywords(),
+		"AbaddefinedobservedValue",
+		`The source "AbaddefinedobservedValue" was not found in keywords [Defined Actual Target Observed].`)
 }
 
-func TestDecodeNilKeyword(t *testing.T) {
-	var source string = "Defined"
-	var keyword2 []string = nil
-	var expected []bool = nil
-
-	got, err := Decode(keyword2, source)
-	require.Error(t, err)
-	assert.Equal(t, expected, got)
+func (ts *decodeTestSuite) TestDecodeMultipleView() {
+	ts.doSuccess(
+		ts.keywords(),
+		"Defined, Defined, Observed, Actual",
+		[]bool{true, true, false, true})
 }
 
-func TestDecodeKeywordNil(t *testing.T) {
-	var keywords []string = nil
-	var views = "Defined, Observed"
-	var expected []bool = nil
-
-	got, err := Decode(keywords, views)
-	require.Error(t, err)
-	assert.Equal(t, expected, got)
+func (ts *decodeTestSuite) TestDecodeBlankSource() {
+	ts.doFail(
+		ts.keywords(),
+		"",
+		`The source "" was not found in keywords [Defined Actual Target Observed].`)
 }
 
-func TestDecodeBestView(t *testing.T) {
-	var keywords []string = []string{"Defined", "Actual", "Target", "Observed"}
-	var views = "Defined, Actual, Target, Observed"
-	var expected []bool = []bool{true, true, true, true}
+func (ts *decodeTestSuite) TestDecodeMultipleCopiesSource() {
+	ts.doSuccess(
+		[]string{"Defined", "Defined", "Observed", "Defined"},
+		"Defined",
+		[]bool{true, true, false, true})
+}
 
-	got, err := Decode(keywords, views)
-	require.NoError(t, err)
-	assert.Equal(t, expected, got)
+func (ts *decodeTestSuite) TestDecodeEmptyArraySource() {
+	ts.doFail(
+		make([]string, 0, 4),
+		"Defined",
+		`The source "Defined" was not found in keywords [].`)
+}
+
+func (ts *decodeTestSuite) TestDecodeNilKeyword() {
+	ts.doFail(
+		nil,
+		"Defined",
+		`The source "Defined" was not found in keywords [].`)
+}
+
+func (ts *decodeTestSuite) TestDecodeKeywordNil() {
+	ts.doFail(
+		nil,
+		"Defined, Observed",
+		`The source "Defined, Observed" was not found in keywords [].`)
+}
+
+func (ts *decodeTestSuite) TestDecodeBestView() {
+	ts.doSuccess(
+		ts.keywords(),
+		"Defined, Actual, Target, Observed",
+		[]bool{true, true, true, true})
+}
+
+func TestDecodeSuite(t *testing.T) {
+	suite.Run(t, new(decodeTestSuite))
 }

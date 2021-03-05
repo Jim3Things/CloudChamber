@@ -17,28 +17,26 @@ type timestampTestSuite struct {
 	stepperTestClientSuite
 }
 
+func (ts *timestampTestSuite) verifyNow(ctx context.Context, tick int64) {
+	require := ts.Require()
+
+	now, err := Now(ctx)
+	require.NoError(err)
+	require.Equal(tick, now.Ticks)
+}
+
 func (ts *timestampTestSuite) TestNow() {
 	require := ts.Require()
-	assert := ts.Assert()
 
 	ctx := context.Background()
 
-	now, err := Now(ctx)
-	require.Nil(err)
-	assert.Equal(int64(0), now.Ticks)
+	ts.verifyNow(ctx, 0)
+	ts.verifyNow(ctx, 0)
 
-	now, err = Now(ctx)
-	require.Nil(err)
-	assert.Equal(int64(0), now.Ticks)
+	require.NoError(Advance(ctx))
 
-	assert.Nil(Advance(ctx))
-	now, err = Now(ctx)
-	require.Nil(err)
-	assert.Equal(int64(1), now.Ticks)
-
-	now, err = Now(ctx)
-	require.Nil(err)
-	assert.Equal(int64(1), now.Ticks)
+	ts.verifyNow(ctx, 1)
+	ts.verifyNow(ctx, 1)
 }
 
 func (ts *timestampTestSuite) TestTimestamp_After() {
@@ -47,28 +45,24 @@ func (ts *timestampTestSuite) TestTimestamp_After() {
 
 	ctx := context.Background()
 
-	now, err := Now(ctx)
-	require.Nil(err)
-	assert.Equal(int64(0), now.Ticks)
+	ts.verifyNow(ctx, 0)
 
 	ch := make(chan bool)
 
 	go func(deadline int64, res chan<- bool) {
 		data := <-After(ctx, &ct.Timestamp{Ticks: deadline})
 
-		require.Nil(data.Err)
+		require.NoError(data.Err)
 		assert.GreaterOrEqual(deadline, data.Time.Ticks)
 		res <- true
 	}(3, ch)
 
-	require.Nil(Advance(ctx))
-	assert.True(common.DoNotCompleteWithin(ch, time.Duration(2)*time.Second))
+	require.NoError(Advance(ctx))
+	require.NoError(Advance(ctx))
+	assert.True(common.DoNotCompleteWithin(ch, 2*time.Second))
 
-	require.Nil(Advance(ctx))
-	assert.True(common.DoNotCompleteWithin(ch, time.Duration(2)*time.Second))
-
-	require.Nil(Advance(ctx))
-	assert.True(common.CompleteWithin(ch, time.Duration(2)*time.Second))
+	require.NoError(Advance(ctx))
+	assert.True(common.CompleteWithin(ch, 2*time.Second))
 }
 
 func (ts *timestampTestSuite) TestForcedError() {
@@ -87,9 +81,7 @@ func (ts *timestampTestSuite) TestForcedError() {
 	// Test serial cleanup & reuse
 	require.Equal(testErr, acl.cleanup(client, testErr))
 
-	now, err := Now(ctx)
-	require.Nil(err)
-	assert.Equal(int64(0), now.Ticks)
+	ts.verifyNow(ctx, 0)
 
 	// Test overlapping cleanup and reuse
 	client2, err := acl.dial()
@@ -100,8 +92,8 @@ func (ts *timestampTestSuite) TestForcedError() {
 	require.Equal(testErr, acl.cleanup(client, testErr))
 
 	cts, err := client2.Now(ctx, &pb.NowRequest{})
-	now, err = Now(ctx)
-	require.Nil(err)
+	_, err = Now(ctx)
+	require.NoError(err)
 	assert.Equal(int64(0), cts.Ticks)
 }
 
