@@ -549,7 +549,7 @@ var nodeTests = []struct {
 			}},
 		},
 	}, {
-		"a:\n  # HM\n  - # HB1\n    # HB2\n    b: # IB\n      c # IC\n",
+		"[decode]a:\n  # HM\n  - # HB1\n    # HB2\n    b: # IB\n      c # IC\n",
 		yaml.Node{
 			Kind:   yaml.DocumentNode,
 			Line:   1,
@@ -598,6 +598,142 @@ var nodeTests = []struct {
 			}},
 		},
 	}, {
+		// When encoding the value above, it loses b's inline comment.
+		"[encode]a:\n  # HM\n  - # HB1\n    # HB2\n    b: c # IC\n",
+		yaml.Node{
+			Kind:   yaml.DocumentNode,
+			Line:   1,
+			Column: 1,
+			Content: []*yaml.Node{{
+				Kind:   yaml.MappingNode,
+				Tag:    "!!map",
+				Line:   1,
+				Column: 1,
+				Content: []*yaml.Node{{
+					Kind:   yaml.ScalarNode,
+					Style:  0x0,
+					Tag:    "!!str",
+					Value:  "a",
+					Line:   1,
+					Column: 1,
+				}, {
+					Kind:   yaml.SequenceNode,
+					Tag:    "!!seq",
+					Line:   3,
+					Column: 3,
+					Content: []*yaml.Node{{
+						Kind:        yaml.MappingNode,
+						Tag:         "!!map",
+						HeadComment: "# HM",
+						Line:        5,
+						Column:      5,
+						Content: []*yaml.Node{{
+							Kind:        yaml.ScalarNode,
+							Tag:         "!!str",
+							Value:       "b",
+							HeadComment: "# HB1\n# HB2",
+							LineComment: "# IB",
+							Line:        5,
+							Column:      5,
+						}, {
+							Kind:        yaml.ScalarNode,
+							Tag:         "!!str",
+							Value:       "c",
+							LineComment: "# IC",
+							Line:        6,
+							Column:      7,
+						}},
+					}},
+				}},
+			}},
+		},
+	}, {
+		// Multiple cases of comment inlining next to mapping keys.
+		"a: | # IA\n  str\nb: >- # IB\n  str\nc: # IC\n  - str\nd: # ID\n  str:\n",
+		yaml.Node{
+			Kind:   yaml.DocumentNode,
+			Line:   1,
+			Column: 1,
+			Content: []*yaml.Node{{
+				Kind:   yaml.MappingNode,
+				Tag:    "!!map",
+				Line:   1,
+				Column: 1,
+				Content: []*yaml.Node{{
+					Kind:   yaml.ScalarNode,
+					Tag:    "!!str",
+					Value:  "a",
+					Line:   1,
+					Column: 1,
+				}, {
+					Kind:        yaml.ScalarNode,
+					Style:       yaml.LiteralStyle,
+					Tag:         "!!str",
+					Value:       "str\n",
+					LineComment: "# IA",
+					Line:        1,
+					Column:      4,
+				}, {
+					Kind:   yaml.ScalarNode,
+					Tag:    "!!str",
+					Value:  "b",
+					Line:   3,
+					Column: 1,
+				}, {
+					Kind:        yaml.ScalarNode,
+					Style:       yaml.FoldedStyle,
+					Tag:         "!!str",
+					Value:       "str",
+					LineComment: "# IB",
+					Line:        3,
+					Column:      4,
+				}, {
+					Kind:   yaml.ScalarNode,
+					Tag:    "!!str",
+					Value:  "c",
+					LineComment: "# IC",
+					Line:   5,
+					Column: 1,
+				}, {
+					Kind:        yaml.SequenceNode,
+					Tag:         "!!seq",
+					Line:        6,
+					Column:      3,
+					Content: []*yaml.Node{{
+						Kind:   yaml.ScalarNode,
+						Tag:    "!!str",
+						Value:  "str",
+						Line:   6,
+						Column: 5,
+					}},
+				}, {
+					Kind:   yaml.ScalarNode,
+					Tag:    "!!str",
+					Value:  "d",
+					LineComment: "# ID",
+					Line:   7,
+					Column: 1,
+				}, {
+					Kind:        yaml.MappingNode,
+					Tag:         "!!map",
+					Line:        8,
+					Column:      3,
+					Content: []*yaml.Node{{
+						Kind:   yaml.ScalarNode,
+						Tag:    "!!str",
+						Value:  "str",
+						Line:   8,
+						Column: 3,
+					}, {
+						Kind:   yaml.ScalarNode,
+						Tag:    "!!null",
+						Line:   8,
+						Column: 7,
+					}},
+				}},
+			}},
+		},
+	}, {
 		// Indentless sequence.
 		"[decode]a:\n# HM\n- # HB1\n  # HB2\n  b: # IB\n    c # IC\n",
 		yaml.Node{
@@ -611,7 +747,6 @@ var nodeTests = []struct {
 				Column: 1,
 				Content: []*yaml.Node{{
 					Kind:   yaml.ScalarNode,
-					Style:  0x0,
 					Tag:    "!!str",
 					Value:  "a",
 					Line:   1,
@@ -1559,8 +1694,7 @@ var nodeTests = []struct {
 						Column: 7,
 					}},
 				}},
-			},
-			},
+			}},
 		},
 	}, {
 		// Same as above, but with newline at the end.
@@ -1603,8 +1737,7 @@ var nodeTests = []struct {
 						Column: 7,
 					}},
 				}},
-			},
-			},
+			}},
 		},
 	}, {
 		// Same as above, but without FB1.
@@ -1646,8 +1779,7 @@ var nodeTests = []struct {
 						Column: 7,
 					}},
 				}},
-			},
-			},
+			}},
 		},
 	}, {
 		// Same as above, but with two newlines at the end. Decode-only for that.
@@ -1690,8 +1822,49 @@ var nodeTests = []struct {
 						Column: 7,
 					}},
 				}},
-			},
-			},
+			}},
+		},
+	}, {
+		// Similar to above, but make HB1 look more like a footer of ka.
+		"[decode]# HA1\nka:\n# HB1\n\n  kb: vb\n# FA1\n",
+		yaml.Node{
+			Kind:   yaml.DocumentNode,
+			Line:   2,
+			Column: 1,
+			Content: []*yaml.Node{{
+				Kind:   yaml.MappingNode,
+				Tag:    "!!map",
+				Line:   2,
+				Column: 1,
+				Content: []*yaml.Node{{
+					Kind:        yaml.ScalarNode,
+					Tag:         "!!str",
+					Value:       "ka",
+					HeadComment: "# HA1",
+					FootComment: "# FA1",
+					Line:        2,
+					Column:      1,
+				}, {
+					Kind:   yaml.MappingNode,
+					Tag:    "!!map",
+					Line:   5,
+					Column: 3,
+					Content: []*yaml.Node{{
+						Kind:        yaml.ScalarNode,
+						Tag:         "!!str",
+						Value:       "kb",
+						HeadComment: "# HB1\n",
+						Line:        5,
+						Column:      3,
+					}, {
+						Kind:   yaml.ScalarNode,
+						Tag:    "!!str",
+						Value:  "vb",
+						Line:   5,
+						Column: 7,
+					}},
+				}},
+			}},
 		},
 	}, {
 		"ka:\n  kb: vb\n# FA1\n\nkc: vc\n",
@@ -2117,6 +2290,44 @@ var nodeTests = []struct {
 			}},
 		},
 	}, {
+		// Same as above, but with extra newlines before FB1 and FB2
+		"[decode]# DH1\n\n# SH1\n[\n  # HA1\n  la, # IA\n  # FA1\n\n  # HB1\n  lb, # IB\n\n\n  # FB1\n\n# FB2\n]\n# SF1\n\n# DF1\n",
+		yaml.Node{
+			Kind:        yaml.DocumentNode,
+			Line:        4,
+			Column:      1,
+			HeadComment: "# DH1",
+			FootComment: "# DF1",
+			Content: []*yaml.Node{{
+				Kind:        yaml.SequenceNode,
+				Tag:         "!!seq",
+				Style:       yaml.FlowStyle,
+				Line:        4,
+				Column:      1,
+				HeadComment: "# SH1",
+				FootComment: "# SF1",
+				Content: []*yaml.Node{{
+					Kind:        yaml.ScalarNode,
+					Tag:         "!!str",
+					Line:        6,
+					Column:      3,
+					Value:       "la",
+					HeadComment: "# HA1",
+					LineComment: "# IA",
+					FootComment: "# FA1",
+				}, {
+					Kind:        yaml.ScalarNode,
+					Tag:         "!!str",
+					Line:        10,
+					Column:      3,
+					Value:       "lb",
+					HeadComment: "# HB1",
+					LineComment: "# IB",
+					FootComment: "# FB1\n\n# FB2",
+				}},
+			}},
+		},
+	}, {
 		"# DH1\n\n# SH1\n[\n  # HA1\n  la,\n  # FA1\n\n  # HB1\n  lb,\n  # FB1\n]\n# SF1\n\n# DF1\n",
 		yaml.Node{
 			Kind:        yaml.DocumentNode,
@@ -2376,7 +2587,7 @@ func (s *S) TestNodeRoundtrip(c *C) {
 				fprintComments(&buf, &node, "    ")
 				c.Logf("  obtained comments:\n%s", buf.Bytes())
 			}
-			c.Assert(node, DeepEquals, item.node)
+			c.Assert(&node, DeepEquals, &item.node)
 		}
 		if encode {
 			node := deepCopyNode(&item.node, nil)
@@ -2611,6 +2822,9 @@ func (s *S) TestNodeZeroEncodeDecode(c *C) {
 	var v *struct{} = &struct{}{}
 	c.Assert(n.Decode(&v), IsNil)
 	c.Assert(v, IsNil)
+
+	// ... and even when looking for its tag.
+	c.Assert(n.ShortTag(), Equals, "!!null")
 
 	// Kind zero is still unknown, though.
 	n.Line = 1
