@@ -132,9 +132,7 @@ func (ts *DBInventoryTestSuite) TestCreateRegion() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(r)
 
-	assert.Equal(region.Details.State, r.Details.State)
-	assert.Equal(region.Details.Location, r.Details.Location)
-	assert.Equal(region.Details.Notes, r.Details.Notes)
+	assert.Equal(region.Details, r.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestCreateZone() {
@@ -161,10 +159,7 @@ func (ts *DBInventoryTestSuite) TestCreateZone() {
 	assert.Equal(revCreate, revRead)
 	require.NotNil(z)
 
-	assert.Equal(zone.Details.Enabled, z.Details.Enabled)
-	assert.Equal(zone.Details.State, z.Details.State)
-	assert.Equal(zone.Details.Location, z.Details.Location)
-	assert.Equal(zone.Details.Notes, z.Details.Notes)
+	assert.Equal(zone.Details, z.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestCreateRack() {
@@ -613,204 +608,6 @@ func (ts *DBInventoryTestSuite) TestScanBladesInRack() {
 	assert.ElementsMatch(expected, actual)
 }
 
-
-
-func (ts *DBInventoryTestSuite) equalHwItem(expected *pb.Hardware, actual *pb.Hardware) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Type, actual.Type) ||
-	!assert.Equal(expected.Id, actual.Id) ||
-	!assert.Equal(expected.Port, actual.Port) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalPowerPort(expected *pb.PowerPort, actual *pb.PowerPort) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Wired, actual.Wired) || !assert.True(ts.equalHwItem(expected.Item, actual.Item)) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalNetworkPort(expected *pb.NetworkPort, actual *pb.NetworkPort) bool {
-	return expected.Wired == actual.Wired && ts.equalHwItem(expected.Item, actual.Item)
-}
-
-func (ts *DBInventoryTestSuite) equalRegionDetails(expected *pb.RegionDetails, actual *pb.RegionDetails) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.State, actual.State) ||
-	!assert.Equal(expected.Location, actual.Location) ||
-	!assert.Equal(expected.Notes, actual.Notes) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalZoneDetails(expected *pb.ZoneDetails, actual *pb.ZoneDetails) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Enabled, actual.Enabled) ||
-	!assert.Equal(expected.State, actual.State) ||
-	!assert.Equal(expected.Location, actual.Location) ||
-	!assert.Equal(expected.Notes, actual.Notes) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalRackDetails(expected *pb.RackDetails, actual *pb.RackDetails) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Enabled, actual.Enabled) ||
-	!assert.Equal(expected.Condition, actual.Condition) ||
-	!assert.Equal(expected.Location, actual.Location) ||
-	!assert.Equal(expected.Notes, actual.Notes) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalPduDetails(expected *pb.PduDetails, actual *pb.PduDetails) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Condition, actual.Condition) || !assert.Equal(expected.Enabled, actual.Enabled) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalTorDetails(expected *pb.TorDetails, actual *pb.TorDetails) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Condition, actual.Condition) || !assert.Equal(expected.Enabled, actual.Enabled) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalBladeDetails(expected *pb.BladeDetails, actual *pb.BladeDetails) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Condition, actual.Condition) || !assert.Equal(expected.Enabled, actual.Enabled) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalPdu(expected *pb.Definition_Pdu, actual *pb.Definition_Pdu) bool {
-	assert := ts.Assert()
-
-	if !assert.True(ts.equalPduDetails(expected.Details, actual.Details)) || !assert.Equal(len(expected.Ports), len(actual.Ports)) {
-		return false
-	}
-
-	for i, v := range expected.Ports {
-		if !assert.True(ts.equalPowerPort(v, actual.Ports[i])) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalTor(expected *pb.Definition_Tor, actual *pb.Definition_Tor) bool {
-	assert := ts.Assert()
-
-	if !assert.True(ts.equalTorDetails(expected.Details, actual.Details)) || !assert.Equal(len(expected.Ports), len(actual.Ports)) {
-		return false
-	}
-
-	for i, v := range expected.Ports {
-		if !assert.True(ts.equalNetworkPort(v, actual.Ports[i])) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalBladeBootInfo(expected *pb.BladeBootInfo, actual *pb.BladeBootInfo) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Source, actual.Source) ||
-	!assert.Equal(expected.Image, actual.Image) ||
-	!assert.Equal(expected.Version, actual.Version) ||
-	!assert.Equal(expected.Parameters, actual.Parameters) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalBladeCapacity(expected *pb.BladeCapacity, actual *pb.BladeCapacity) bool {
-	assert := ts.Assert()
-
-	if !assert.Equal(expected.Cores, actual.Cores) ||
-	!assert.Equal(expected.MemoryInMb, actual.MemoryInMb) ||
-	!assert.Equal(expected.DiskInGb, actual.DiskInGb) ||
-	!assert.Equal(expected.Arch, actual.Arch) ||
-	!assert.Equal(expected.NetworkBandwidthInMbps, actual.NetworkBandwidthInMbps) {
-		return false
-	}
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalBlade(expected *pb.Definition_Blade, actual *pb.Definition_Blade) bool {
-	assert := ts.Assert()
-
-	if !assert.True(ts.equalBladeDetails(expected.Details, actual.Details)) ||
-	!assert.True(ts.equalBladeCapacity(expected.Capacity, actual.Capacity)) ||
-	!assert.True(ts.equalBladeBootInfo(expected.BootInfo, actual.BootInfo)) ||
-	!assert.Equal(expected.BootOnPowerOn, actual.BootOnPowerOn) {
-		return false
-	}
-
-	return true
-}
-
-func (ts *DBInventoryTestSuite) equalRack(expected *pb.Definition_Rack, actual *pb.Definition_Rack) bool {
-	assert := ts.Assert()
-
-	if !assert.True(ts.equalRackDetails(expected.Details, actual.Details)) ||
-	!assert.Equal(len(expected.Pdus), len(actual.Pdus)) ||
-	!assert.Equal(len(expected.Tors), len(actual.Tors)) ||
-	!assert.Equal(len(expected.Blades), len(actual.Blades)) {
-		return false
-	}
-
-	for i, v := range expected.Pdus {
-		if !assert.True(ts.equalPdu(v, actual.Pdus[i])) {
-			return false
-		}
-	}
-
-	for i, v := range expected.Tors {
-		if !assert.True(ts.equalTor(v, actual.Tors[i])) {
-			return false
-		}
-	}
-
-	for i, v := range expected.Blades {
-		if !assert.True(ts.equalBlade(v, actual.Blades[i])) {
-			return false
-		}
-	}
-
-	return true
-}
-
 func (ts *DBInventoryTestSuite) TestGetRackInZone() {
 	assert := ts.Assert()
 	require := ts.Require()
@@ -923,7 +720,7 @@ func (ts *DBInventoryTestSuite) TestGetRackInZone() {
 	require.NotNil(rack.Tors)
 	require.NotNil(rack.Blades)
 
-	assert.True(ts.equalRack(expectedRack, rack))
+	assert.Equal(expectedRack, rack)
 }
 
 func (ts *DBInventoryTestSuite) TestGetRack() {
@@ -941,10 +738,10 @@ func (ts *DBInventoryTestSuite) TestGetRack() {
 
 	for i, v := range rack.Blades {
 		if i == 1 {
-			assert.True(ts.equalBladeCapacity(expectedCapacityBlade1, v))
+			assert.Equal(expectedCapacityBlade1, v)
 
 		} else {
-			assert.True(ts.equalBladeCapacity(expectedCapacity, v))
+			assert.Equal(expectedCapacity, v)
 		}
 	}
 }
@@ -980,7 +777,7 @@ func (ts *DBInventoryTestSuite) TestUpdateRegion() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
-	assert.True(ts.equalRegionDetails(region1.Details, r1.Details))
+	require.Equal(region1.Details, r1.Details)
 
 	revUpdate, err := ts.db.UpdateRegion(ctx, ts.regionName, region2)
 	require.NoError(err)
@@ -991,7 +788,7 @@ func (ts *DBInventoryTestSuite) TestUpdateRegion() {
 	assert.Equal(revUpdate, revRead2)
 	require.NotNil(r1)
 
-	assert.True(ts.equalRegionDetails(region2.Details, r2.Details))
+	assert.Equal(region2.Details, r2.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateZone() {
@@ -1027,7 +824,7 @@ func (ts *DBInventoryTestSuite) TestUpdateZone() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(z1)
 
-	assert.True(ts.equalZoneDetails(zone1.Details, z1.Details))
+	require.Equal(zone1.Details, z1.Details)
 
 	revUpdate, err := ts.db.UpdateZone(ctx, ts.regionName, ts.zoneName, zone2)
 	require.NoError(err)
@@ -1038,7 +835,7 @@ func (ts *DBInventoryTestSuite) TestUpdateZone() {
 	assert.Equal(revUpdate, revRead2)
 	require.NotNil(z1)
 
-	assert.True(ts.equalZoneDetails(zone2.Details, z2.Details))
+	assert.Equal(zone2.Details, z2.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateRack() {
@@ -1076,7 +873,7 @@ func (ts *DBInventoryTestSuite) TestUpdateRack() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
-	assert.True(ts.equalRackDetails(rack1.Details, r1.Details))
+	require.Equal(rack1.Details, r1.Details)
 
 	revUpdate, err := ts.db.UpdateRack(ctx, ts.regionName, ts.zoneName, rackName, rack2)
 	require.NoError(err)
@@ -1087,7 +884,7 @@ func (ts *DBInventoryTestSuite) TestUpdateRack() {
 	assert.Equal(revUpdate, revRead2)
 	require.NotNil(r1)
 
-	assert.True(ts.equalRackDetails(rack2.Details, r2.Details))
+	assert.Equal(rack2.Details, r2.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdatePdu() {
@@ -1121,7 +918,7 @@ func (ts *DBInventoryTestSuite) TestUpdatePdu() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(p1)
 
-	assert.True(ts.equalPdu(pdu1, p1))
+	require.Equal(pdu1, p1)
 
 	revUpdate, err := ts.db.UpdatePdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID, pdu2)
 	require.NoError(err)
@@ -1132,7 +929,7 @@ func (ts *DBInventoryTestSuite) TestUpdatePdu() {
 	assert.Equal(revUpdate, revRead2)
 	require.NotNil(p1)
 
-	assert.True(ts.equalPdu(pdu2, p2))
+	assert.Equal(pdu2, p2)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateTor() {
@@ -1166,7 +963,7 @@ func (ts *DBInventoryTestSuite) TestUpdateTor() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(t1)
 
-	assert.True(ts.equalTor(tor1, t1))
+	require.Equal(tor1, t1)
 
 	revUpdate, err := ts.db.UpdateTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID, tor2)
 	require.NoError(err)
@@ -1177,7 +974,7 @@ func (ts *DBInventoryTestSuite) TestUpdateTor() {
 	assert.Equal(revUpdate, revRead2)
 	require.NotNil(t1)
 
-	assert.True(ts.equalTor(tor2, t2))
+	assert.Equal(tor2, t2)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateBlade() {
@@ -1197,9 +994,9 @@ func (ts *DBInventoryTestSuite) TestUpdateBlade() {
 
 	blade2 := &pb.Definition_Blade{
 		Details:       &pb.BladeDetails{Enabled: true, Condition: pb.Condition_retiring},
-		Capacity:      &pb.BladeCapacity{Cores: 16, MemoryInMb: 16384, DiskInGb: 240, NetworkBandwidthInMbps: 2048, Arch: "X64"},
+		Capacity:      &pb.BladeCapacity{Cores: 24, MemoryInMb: 32768, DiskInGb: 240, NetworkBandwidthInMbps: 2048, Arch: "X64"},
 		BootInfo:      &pb.BladeBootInfo{Source: pb.BladeBootInfo_network, Image: "standard.vhdx", Version: "latest", Parameters: "-version=1 -node=R1Z1R1B1"},
-		BootOnPowerOn: true,
+		BootOnPowerOn: false,
 	}
 
 	revCreate, err := ts.db.CreateBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID, blade1)
@@ -1211,7 +1008,7 @@ func (ts *DBInventoryTestSuite) TestUpdateBlade() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(b1)
 
-	assert.True(ts.equalBlade(blade1, b1))
+	require.Equal(blade1, b1)
 
 	revUpdate, err := ts.db.UpdateBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID, blade2)
 	require.NoError(err)
@@ -1222,7 +1019,7 @@ func (ts *DBInventoryTestSuite) TestUpdateBlade() {
 	assert.Equal(revUpdate, revRead2)
 	require.NotNil(b1)
 
-	assert.True(ts.equalBlade(blade2, b2))
+	assert.Equal(blade2, b2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeleteRegion() {
@@ -1250,7 +1047,7 @@ func (ts *DBInventoryTestSuite) TestDeleteRegion() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
-	assert.True(ts.equalRegionDetails(region1.Details, r1.Details))
+	assert.Equal(region1.Details, r1.Details)
 
 	revDelete, err := ts.db.DeleteRegion(ctx, regionName)
 	require.NoError(err)
@@ -1288,7 +1085,7 @@ func (ts *DBInventoryTestSuite) TestDeleteZone() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(z1)
 
-	assert.True(ts.equalZoneDetails(zone1.Details, z1.Details))
+	assert.Equal(zone1.Details, z1.Details)
 
 	revDelete, err := ts.db.DeleteZone(ctx, ts.regionName, zoneName)
 	require.NoError(err)
@@ -1326,7 +1123,7 @@ func (ts *DBInventoryTestSuite) TestDeleteRack() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
-	assert.True(ts.equalRackDetails(rack.Details, r1.Details))
+	assert.Equal(rack.Details, r1.Details)
 
 	revDelete, err := ts.db.DeleteRack(ctx, ts.regionName, ts.zoneName, rackName)
 	require.NoError(err)
@@ -1362,7 +1159,7 @@ func (ts *DBInventoryTestSuite) TestDeletePdu() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(p1)
 
-	assert.True(ts.equalPduDetails(pdu.Details, p1.Details))
+	assert.Equal(pdu.Details, p1.Details)
 
 	revDelete, err := ts.db.DeletePdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID)
 	require.NoError(err)
@@ -1398,7 +1195,7 @@ func (ts *DBInventoryTestSuite) TestDeleteTor() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(t1)
 
-	assert.True(ts.equalTorDetails(tor.Details, t1.Details))
+	assert.Equal(tor.Details, t1.Details)
 
 	revDelete, err := ts.db.DeleteTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID)
 	require.NoError(err)
@@ -1434,7 +1231,7 @@ func (ts *DBInventoryTestSuite) TestDeleteBlade() {
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(b1)
 
-	assert.True(ts.equalBlade(blade1, b1))
+	assert.Equal(blade1, b1)
 
 	revDelete, err := ts.db.DeleteBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID)
 	require.NoError(err)

@@ -295,21 +295,21 @@ func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName
 
 	r := &pb.Definition_Rack{
 		Details: rack.GetDetails(),
-		Pdus:    make(map[int64]*pb.Definition_Pdu),
-		Tors:    make(map[int64]*pb.Definition_Tor),
-		Blades:  make(map[int64]*pb.Definition_Blade),
+		Pdus:    make(map[int64]*pb.Definition_Pdu, len(*pdus)),
+		Tors:    make(map[int64]*pb.Definition_Tor, len(*tors)),
+		Blades:  make(map[int64]*pb.Definition_Blade, len(*blades)),
 	}
 
 	for index, pdu := range *pdus {
-		r.Pdus[index] = pdu.Copy()
+		r.Pdus[index] = pdu.GetDefinitionPdu()
 	}
 
 	for index, tor := range *tors {
-		r.Tors[index] = tor.Copy()
+		r.Tors[index] = tor.GetDefinitionTor()
 	}
 
 	for index, blade := range *blades {
-		r.Blades[index] = blade.Copy()
+		r.Blades[index] = blade.GetDefinitionBlade()
 	}
 
 	return r, nil
@@ -348,7 +348,7 @@ func (m *DBInventory) GetRack(regionName string, zoneName string, rackName strin
 		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
-	bladeMap := make(map[int64]*pb.BladeCapacity)
+	bladeMap := make(map[int64]*pb.BladeCapacity, len(*blades))
 
 	for index, blade := range *blades {
 		bladeMap[index] = blade.GetCapacity()
@@ -977,7 +977,8 @@ func (m *DBInventory) CreateBlade(
 
 	b.SetDetails(blade.Details)
 	b.SetCapacity(blade.Capacity)
-	b.SetBootInfo(blade.BootOnPowerOn, blade.BootInfo)
+	b.SetBootInfo(blade.BootInfo)
+	b.SetBootPowerOn(blade.BootOnPowerOn)
 
 	rev, err := b.Create(ctx)
 
@@ -1011,9 +1012,7 @@ func (m *DBInventory) ReadRegion(
 		return nil, InvalidRev, err
 	}
 
-	details := r.GetDetails()
-
-	return &pb.Definition_Region{Details: details}, rev, nil
+	return r.GetDefinitionRegion(), rev, nil
 }
 
 // ReadZone returns the zone information with optionally additional
@@ -1041,9 +1040,7 @@ func (m *DBInventory) ReadZone(
 		return nil, InvalidRev, err
 	}
 
-	details := z.GetDetails()
-
-	return &pb.Definition_Zone{Details: details}, rev, nil
+	return z.GetDefinitionZone(), rev, nil
 }
 
 // ReadRack returns the rack information with optionally additional
@@ -1072,9 +1069,7 @@ func (m *DBInventory) ReadRack(
 		return nil, InvalidRev, err
 	}
 
-	details := r.GetDetails()
-
-	return &pb.Definition_Rack{Details: details}, rev, nil
+	return r.GetDefinitionRack(), rev, nil
 }
 
 // ReadPdu returns the PDU information for an optionally specified revision.
@@ -1104,10 +1099,7 @@ func (m *DBInventory) ReadPdu(
 		return nil, InvalidRev, err
 	}
 
-	details := p.GetDetails()
-	ports := p.GetPorts()
-
-	return &pb.Definition_Pdu{Details: details, Ports: *ports}, rev, nil
+	return p.GetDefinitionPdu(), rev, nil
 }
 
 // ReadTor returns the TOR information for an optionally specified revision.
@@ -1137,10 +1129,7 @@ func (m *DBInventory) ReadTor(
 		return nil, InvalidRev, err
 	}
 
-	details := t.GetDetails()
-	ports := t.GetPorts()
-
-	return &pb.Definition_Tor{Details: details, Ports: *ports}, rev, nil
+	return t.GetDefinitionTor(), rev, nil
 }
 
 // ReadBlade returns the blade information for an optionally specified revision.
@@ -1170,18 +1159,7 @@ func (m *DBInventory) ReadBlade(
 		return nil, InvalidRev, err
 	}
 
-	details := b.GetDetails()
-	capacity := b.GetCapacity()
-	bootOnPowerOn, bootInfo := b.GetBootInfo()
-
-	blade := &pb.Definition_Blade{
-		Details:       details,
-		Capacity:      capacity,
-		BootOnPowerOn: bootOnPowerOn,
-		BootInfo:      bootInfo,
-	}
-
-	return blade, rev, nil
+	return b.GetDefinitionBlade(), rev, nil
 }
 
 // UpdateRegion is used to update the Region basic details record.
@@ -1377,7 +1355,8 @@ func (m *DBInventory) UpdateBlade(
 
 	b.SetDetails(blade.Details)
 	b.SetCapacity(blade.Capacity)
-	b.SetBootInfo(blade.BootOnPowerOn, blade.BootInfo)
+	b.SetBootInfo(blade.BootInfo)
+	b.SetBootPowerOn(blade.BootOnPowerOn)
 
 	rev, err := b.Update(ctx, true)
 

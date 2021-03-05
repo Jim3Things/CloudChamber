@@ -418,6 +418,17 @@ type Root struct {
 	details *pb.RootDetails
 }
 
+func cloneRootDetails(details *pb.RootDetails) *pb.RootDetails {
+	if details == nil {
+		return nil
+	}
+
+	return &pb.RootDetails{
+		Name:  details.Name,
+		Notes: details.Notes,
+	}
+}
+
 // SetDetails is used to attach some attribute information to the object.
 //
 // For a Root object, the information is not persisted.
@@ -425,7 +436,7 @@ type Root struct {
 // The current revision of the region object is reset
 //
 func (r *Root) SetDetails(details *pb.RootDetails) {
-	r.details = details
+	r.details = cloneRootDetails(details)
 	r.resetRevision()
 }
 
@@ -435,7 +446,7 @@ func (r *Root) SetDetails(details *pb.RootDetails) {
 // be the initialisation value, or whatever was last set using SetDetails()
 //
 func (r *Root) GetDetails() *pb.RootDetails {
-	return r.details
+	return cloneRootDetails(r.details)
 }
 
 // Create is not used for a Root object as there is no persistence for this
@@ -572,6 +583,19 @@ type Region struct {
 	record  *pb.Store_RecordDefinition_Region
 }
 
+func cloneRegionDetails(details *pb.RegionDetails) *pb.RegionDetails {
+	if details == nil {
+		return nil
+	}
+
+	return &pb.RegionDetails{
+		Name:     details.Name,
+		State:    details.State,
+		Location: details.Location,
+		Notes:    details.Notes,
+	}
+}
+
 // SetDetails is used to attach some attribute information to the object.
 //
 // The attribute information is not persisted to the store until an Update()
@@ -580,7 +604,7 @@ type Region struct {
 // The current revision of the region object is reset
 //
 func (r *Region) SetDetails(details *pb.RegionDetails) {
-	r.details = details
+	r.details = cloneRegionDetails(details)
 	r.resetRevision()
 }
 
@@ -591,7 +615,18 @@ func (r *Region) SetDetails(details *pb.RegionDetails) {
 // May return nil if there are no attributes currently held in the object.
 //
 func (r *Region) GetDetails() *pb.RegionDetails {
-	return r.details
+	return cloneRegionDetails(r.details)
+}
+
+// GetDefinitionRegion returns a copy of the rack definition based on the contents of the
+// current object.
+//
+func (r *Region) GetDefinitionRegion() *pb.Definition_Region {
+
+	return &pb.Definition_Region{
+		Details: r.GetDetails(),
+		Zones:   make(map[string]*pb.Definition_Zone),
+	}
 }
 
 // Create is used to create a record in the underlying store for the
@@ -861,6 +896,19 @@ type Zone struct {
 	record  *pb.Store_RecordDefinition_Zone
 }
 
+func cloneZoneDetails(details *pb.ZoneDetails) *pb.ZoneDetails {
+	if details == nil {
+		return nil
+	}
+
+	return &pb.ZoneDetails{
+		Enabled:  details.Enabled,
+		State:    details.State,
+		Location: details.Location,
+		Notes:    details.Notes,
+	}
+}
+
 // SetDetails is used to attach some attribute information to the object.
 //
 // The attribute information is not persisted to the store until an Update()
@@ -869,7 +917,7 @@ type Zone struct {
 // The current revision of the zone object is reset
 //
 func (z *Zone) SetDetails(details *pb.ZoneDetails) {
-	z.details = details
+	z.details = cloneZoneDetails(details)
 	z.resetRevision()
 }
 
@@ -880,7 +928,18 @@ func (z *Zone) SetDetails(details *pb.ZoneDetails) {
 // May return nil if there are no attributes currently held in the object.
 //
 func (z *Zone) GetDetails() *pb.ZoneDetails {
-	return z.details
+	return cloneZoneDetails(z.details)
+}
+
+// GetDefinitionZone returns a copy of the rack definition based on the contents of the
+// current object.
+//
+func (z *Zone) GetDefinitionZone() *pb.Definition_Zone {
+
+	return &pb.Definition_Zone{
+		Details: z.GetDetails(),
+		Racks:   make(map[string]*pb.Definition_Rack),
+	}
 }
 
 // Create is used to create a record in the underlying store for the
@@ -1151,6 +1210,19 @@ type Rack struct {
 	record  *pb.Store_RecordDefinition_Rack
 }
 
+func cloneRackDetails(details *pb.RackDetails) *pb.RackDetails {
+	if details == nil {
+		return nil
+	}
+
+	return &pb.RackDetails{
+		Enabled:   details.Enabled,
+		Condition: details.Condition,
+		Location:  details.Location,
+		Notes:     details.Notes,
+	}
+}
+
 // SetDetails is used to attach some attribute information to the object.
 //
 // The attribute information is not persisted to the store until an Update()
@@ -1159,7 +1231,7 @@ type Rack struct {
 // The current revision of the rack object is reset
 //
 func (r *Rack) SetDetails(details *pb.RackDetails) {
-	r.details = details
+	r.details = cloneRackDetails(details)
 	r.resetRevision()
 }
 
@@ -1170,13 +1242,26 @@ func (r *Rack) SetDetails(details *pb.RackDetails) {
 // May return nil if there are no attributes currently held in the object.
 //
 func (r *Rack) GetDetails() *pb.RackDetails {
-	return r.details
+	return cloneRackDetails(r.details)
 }
 
-// Copy returns a copy of the rack definition based on the contents of the
+// GetDefinitionRack returns a copy of the rack definition based on the contents of the
 // current object.
 //
-func (r *Rack) Copy(ctx context.Context) (*pb.Definition_Rack, error) {
+func (r *Rack) GetDefinitionRack() *pb.Definition_Rack {
+
+	return &pb.Definition_Rack{
+		Details: r.GetDetails(),
+		Pdus:    make(map[int64]*pb.Definition_Pdu),
+		Tors:    make(map[int64]*pb.Definition_Tor),
+		Blades:  make(map[int64]*pb.Definition_Blade),
+	}
+}
+
+// GetDefinitionRackWithChildren returns a copy of the rack definition based on the contents of the
+// current object and fully populates all the child maps..
+//
+func (r *Rack) GetDefinitionRackWithChildren(ctx context.Context) (*pb.Definition_Rack, error) {
 
 	_, pdus, err := r.FetchPdus(ctx)
 	if err != nil {
@@ -1201,15 +1286,15 @@ func (r *Rack) Copy(ctx context.Context) (*pb.Definition_Rack, error) {
 	}
 
 	for pduIndex, pdu := range *pdus {
-		rack.Pdus[pduIndex] = pdu.Copy()
+		rack.Pdus[pduIndex] = pdu.GetDefinitionPdu()
 	}
 
 	for torIndex, tor := range *tors {
-		rack.Tors[torIndex] = tor.Copy()
+		rack.Tors[torIndex] = tor.GetDefinitionTor()
 	}
 
 	for bladeIndex, blade := range *blades {
-		rack.Blades[bladeIndex] = blade.Copy()
+		rack.Blades[bladeIndex] = blade.GetDefinitionBlade()
 	}
 
 	return rack, nil
@@ -1771,6 +1856,45 @@ type Pdu struct {
 	record  *pb.Store_RecordDefinition_Pdu
 }
 
+func clonePduDetails(details *pb.PduDetails) *pb.PduDetails {
+	if details == nil {
+		return nil
+	}
+
+	return &pb.PduDetails {
+		Enabled:   details.Enabled,
+		Condition: details.Condition,
+	}
+}
+
+func clonePowerPorts(ports *map[int64]*pb.PowerPort) *map[int64]*pb.PowerPort {
+
+	if ports == nil {
+		return nil
+	}
+
+	portMap := make(map[int64]*pb.PowerPort, len(*ports))
+
+	for k, p := range *ports {
+		var item *pb.Hardware
+
+		if p.Item != nil {
+			item =  &pb.Hardware{
+				Type: p.Item.Type,
+				Id:   p.Item.Id,
+				Port: p.Item.Port,
+			}
+		}
+
+		portMap[k] = &pb.PowerPort{
+			Wired: p.Wired,
+			Item:  item,
+		}
+	}
+
+	return &portMap
+}
+
 // SetDetails is used to attach some attribute information to the object.
 //
 // The attribute information is not persisted to the store until an Update()
@@ -1779,7 +1903,7 @@ type Pdu struct {
 // The current revision of the pdu object is reset
 //
 func (p *Pdu) SetDetails(details *pb.PduDetails) {
-	p.details = details
+	p.details = clonePduDetails(details)
 	p.resetRevision()
 }
 
@@ -1790,7 +1914,7 @@ func (p *Pdu) SetDetails(details *pb.PduDetails) {
 // May return nil if there are no attributes currently held in the object.
 //
 func (p *Pdu) GetDetails() *pb.PduDetails {
-	return p.details
+	return clonePduDetails(p.details)
 }
 
 // SetPorts is used to attach some power port information to the object.
@@ -1801,7 +1925,7 @@ func (p *Pdu) GetDetails() *pb.PduDetails {
 // The current revision of the pdu object is reset
 //
 func (p *Pdu) SetPorts(ports *map[int64]*pb.PowerPort) {
-	p.ports = ports
+	p.ports = clonePowerPorts(ports)
 	p.resetRevision()
 }
 
@@ -1813,13 +1937,13 @@ func (p *Pdu) SetPorts(ports *map[int64]*pb.PowerPort) {
 // in the object.
 //
 func (p *Pdu) GetPorts() *map[int64]*pb.PowerPort {
-	return p.ports
+	return clonePowerPorts(p.ports)
 }
 
-// Copy returns a copy of the pdu definition based on the contents of the
+// GetDefinitionPdu returns a copy of the pdu definition based on the contents of the
 // current object.
 //
-func (p *Pdu) Copy() *pb.Definition_Pdu {
+func (p *Pdu) GetDefinitionPdu() *pb.Definition_Pdu {
 	pdu := &pb.Definition_Pdu{
 		Details: p.GetDetails(),
 		Ports:   *p.GetPorts(),
@@ -2026,6 +2150,45 @@ type Tor struct {
 	record  *pb.Store_RecordDefinition_Tor
 }
 
+func cloneTorDetails(details *pb.TorDetails) *pb.TorDetails {
+	if details == nil {
+		return nil
+	}
+
+	return &pb.TorDetails{
+		Enabled:   details.Enabled,
+		Condition: details.Condition,
+	}
+}
+
+func cloneNetworkPorts(ports *map[int64]*pb.NetworkPort) *map[int64]*pb.NetworkPort {
+
+	if ports == nil {
+		return nil
+	}
+
+	portMap := make(map[int64]*pb.NetworkPort, len(*ports))
+
+	for k, p := range *ports {
+		var item *pb.Hardware
+
+		if p.Item != nil {
+			item =  &pb.Hardware{
+				Type: p.Item.Type,
+				Id:   p.Item.Id,
+				Port: p.Item.Port,
+			}
+		}
+
+		portMap[k] = &pb.NetworkPort{
+			Wired: p.Wired,
+			Item:  item,
+		}
+	}
+
+	return &portMap
+}
+
 // SetDetails is used to attach some attribute information to the object.
 //
 // The attribute information is not persisted to the store until an Update()
@@ -2034,7 +2197,7 @@ type Tor struct {
 // The current revision of the tor object is reset
 //
 func (t *Tor) SetDetails(details *pb.TorDetails) {
-	t.details = details
+	t.details = cloneTorDetails(details)
 	t.resetRevision()
 }
 
@@ -2045,7 +2208,7 @@ func (t *Tor) SetDetails(details *pb.TorDetails) {
 // May return nil if there are no attributes currently held in the object.
 //
 func (t *Tor) GetDetails() *pb.TorDetails {
-	return t.details
+	return cloneTorDetails(t.details)
 }
 
 // SetPorts is used to attach some network port information to the object.
@@ -2056,7 +2219,7 @@ func (t *Tor) GetDetails() *pb.TorDetails {
 // The current revision of the tor object is reset
 //
 func (t *Tor) SetPorts(ports *map[int64]*pb.NetworkPort) {
-	t.ports = ports
+	t.ports = cloneNetworkPorts(ports)
 	t.resetRevision()
 }
 
@@ -2068,13 +2231,13 @@ func (t *Tor) SetPorts(ports *map[int64]*pb.NetworkPort) {
 // in the object.
 //
 func (t *Tor) GetPorts() *map[int64]*pb.NetworkPort {
-	return t.ports
+	return cloneNetworkPorts(t.ports)
 }
 
-// Copy returns a copy of the tor definition based on the contents of the
+// GetDefinitionTor returns a copy of the tor definition based on the contents of the
 // current object.
 //
-func (t *Tor) Copy() *pb.Definition_Tor {
+func (t *Tor) GetDefinitionTor() *pb.Definition_Tor {
 	tor := &pb.Definition_Tor{
 		Details: t.GetDetails(),
 		Ports:   *t.GetPorts(),
@@ -2283,6 +2446,51 @@ type Blade struct {
 	record        *pb.Store_RecordDefinition_Blade
 }
 
+func cloneBladeDetails(details *pb.BladeDetails) *pb.BladeDetails {
+	if details == nil {
+		return nil
+	}
+
+	return &pb.BladeDetails{
+		Enabled:   details.Enabled,
+		Condition: details.Condition,
+	}
+}
+
+func cloneBladeCpacity(capacity *pb.BladeCapacity) *pb.BladeCapacity {
+	if capacity == nil {
+		return nil
+	}
+
+	var accelerators []*pb.Accelerator = nil
+
+	if capacity.Accelerators != nil {
+		accelerators = make([]*pb.Accelerator, len(capacity.Accelerators))
+	}
+
+	return &pb.BladeCapacity{
+		Cores:                  capacity.Cores,
+		MemoryInMb:             capacity.MemoryInMb,
+		DiskInGb:               capacity.DiskInGb,
+		NetworkBandwidthInMbps: capacity.NetworkBandwidthInMbps,
+		Arch:                   capacity.Arch,
+		Accelerators:           accelerators,
+	}
+}
+
+func cloneBootInfo(bootInfo *pb.BladeBootInfo) *pb.BladeBootInfo {
+	if bootInfo == nil {
+		return nil
+	}
+
+	return &pb.BladeBootInfo{
+		Source:     bootInfo.Source,
+		Image:      bootInfo.Image,
+		Version:    bootInfo.Version,
+		Parameters: bootInfo.Parameters,
+	}
+}
+
 // SetDetails is used to attach some attribute information to the object.
 //
 // The attribute information is not persisted to the store until an Update()
@@ -2291,7 +2499,7 @@ type Blade struct {
 // The current revision of the blade object is reset
 //
 func (b *Blade) SetDetails(details *pb.BladeDetails) {
-	b.details = details
+	b.details = cloneBladeDetails(details)
 	b.resetRevision()
 }
 
@@ -2302,7 +2510,7 @@ func (b *Blade) SetDetails(details *pb.BladeDetails) {
 // May return nil if there are no attributes currently held in the object.
 //
 func (b *Blade) GetDetails() *pb.BladeDetails {
-	return b.details
+	return cloneBladeDetails(b.details)
 }
 
 // SetCapacity is used to attach some capacity information to the object.
@@ -2313,20 +2521,7 @@ func (b *Blade) GetDetails() *pb.BladeDetails {
 // The current revision of the blade object is reset
 //
 func (b *Blade) SetCapacity(capacity *pb.BladeCapacity) {
-	b.capacity = capacity
-	b.resetRevision()
-}
-
-// SetBootInfo is used to attach some boot information to the object.
-//
-// The boot information is not persisted to the store until an Update()
-// call is made.
-//
-// The current revision of the blade object is reset
-//
-func (b *Blade) SetBootInfo(bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) {
-	b.bootOnPowerOn = bootOnPowerOn
-	b.bootInfo = bootInfo
+	b.capacity = cloneBladeCpacity(capacity)
 	b.resetRevision()
 }
 
@@ -2338,7 +2533,19 @@ func (b *Blade) SetBootInfo(bootOnPowerOn bool, bootInfo *pb.BladeBootInfo) {
 // in the object.
 //
 func (b *Blade) GetCapacity() *pb.BladeCapacity {
-	return b.capacity
+	return cloneBladeCpacity(b.capacity)
+}
+
+// SetBootInfo is used to attach some boot information to the object.
+//
+// The boot information is not persisted to the store until an Update()
+// call is made.
+//
+// The current revision of the blade object is reset
+//
+func (b *Blade) SetBootInfo(bootInfo *pb.BladeBootInfo) {
+	b.bootInfo = cloneBootInfo(bootInfo)
+	b.resetRevision()
 }
 
 // GetBootInfo is used to extract the boot information from the object.
@@ -2348,24 +2555,34 @@ func (b *Blade) GetCapacity() *pb.BladeCapacity {
 // May return nil if there are no boot information currently held
 // in the object.
 //
-func (b *Blade) GetBootInfo() (bool, *pb.BladeBootInfo) {
-	return b.bootOnPowerOn, b.bootInfo
+func (b *Blade) GetBootInfo() *pb.BladeBootInfo {
+	return cloneBootInfo(b.bootInfo)
 }
 
-// Copy returns a copy of the blade definition based on the contents of the
+// SetBootPowerOn is used to set the boot power on flag
+//
+func (b *Blade) SetBootPowerOn(bootOnPowerOn bool) {
+	b.bootOnPowerOn = bootOnPowerOn
+	b.resetRevision()
+}
+
+// GetBootOnPowerOn returns a new copy of the BootOnPowerOn field
+// within the blade object.
+//
+func (b *Blade) GetBootOnPowerOn() bool {
+	return b.bootOnPowerOn
+}
+
+// GetDefinitionBlade returns a copy of the blade definition based on the contents of the
 // current object.
 //
-func (b *Blade) Copy() *pb.Definition_Blade {
-	bootOnPowerOn, bootInfo := b.GetBootInfo()
-
-	blade := &pb.Definition_Blade{
+func (b *Blade) GetDefinitionBlade() *pb.Definition_Blade {
+	return &pb.Definition_Blade{
 		Details:       b.GetDetails(),
 		Capacity:      b.GetCapacity(),
-		BootInfo:      bootInfo,
-		BootOnPowerOn: bootOnPowerOn,
+		BootInfo:      b.GetBootInfo(),
+		BootOnPowerOn: b.GetBootOnPowerOn(),
 	}
-
-	return blade
 }
 
 // Create is used to create a record in the underlying store for the
