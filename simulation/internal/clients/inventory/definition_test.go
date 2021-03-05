@@ -240,7 +240,7 @@ func (ts *definitionTestSuite) verifyStandardInventoryTor(index int64, tor *Tor)
 func (ts *definitionTestSuite) verifyStandardInventoryBlade(index int64, blade *Blade) {
 	assert := ts.Assert()
 
-	details := ts.stdTorDetails()
+	details := ts.stdBladeDetails()
 
 	assert.Equal(details.Enabled, blade.details.Enabled)
 	assert.Equal(details.Condition, blade.details.Condition)
@@ -351,7 +351,8 @@ func (ts *definitionTestSuite)createInventory(
 
 					blade.SetDetails(ts.stdBladeDetails())
 					blade.SetCapacity(ts.stdBladeCapacity())
-					blade.SetBootInfo(true, ts.stdBladeBootInfo())
+					blade.SetBootInfo(ts.stdBladeBootInfo())
+					blade.SetBootPowerOn(true)
 
 					_, err = blade.Create(ctx)
 					if err != nil {
@@ -1093,9 +1094,11 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	capacity := blade.GetCapacity()
 	require.Nil(capacity)
 
-	bootOnPowerOn, bootInfo := blade.GetBootInfo()
-	assert.False(bootOnPowerOn)
+	bootInfo := blade.GetBootInfo()
 	require.Nil(bootInfo)
+
+	bootOnPowerOn := blade.GetBootOnPowerOn()
+	assert.False(bootOnPowerOn)
 
 	// Now set just the details
 	//
@@ -1108,8 +1111,10 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	capacity = blade.GetCapacity()
 	require.Nil(capacity)
 
-	bootOnPowerOn, bootInfo = blade.GetBootInfo()
+	bootInfo = blade.GetBootInfo()
 	require.Nil(bootInfo)
+
+	bootOnPowerOn = blade.GetBootOnPowerOn()
 	assert.False(bootOnPowerOn)
 
 	// Then set the capacity
@@ -1124,13 +1129,16 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	require.NotNil(capacity)
 	assert.Equal(stdCapacity, capacity)
 
-	bootOnPowerOn, bootInfo = blade.GetBootInfo()
+	bootInfo = blade.GetBootInfo()
 	require.Nil(bootInfo)
+
+	bootOnPowerOn = blade.GetBootOnPowerOn()
 	assert.False(bootOnPowerOn)
 
 	// Finally, also set the bootInfo
 	//
-	blade.SetBootInfo(stdBootOnPowerOn, stdBootInfo)
+	blade.SetBootInfo(stdBootInfo)
+	blade.SetBootPowerOn(stdBootOnPowerOn)
 
 	details = blade.GetDetails()
 	require.NotNil(details)
@@ -1140,10 +1148,12 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	require.NotNil(capacity)
 	assert.Equal(stdCapacity, capacity)
 
-	bootOnPowerOn, bootInfo = blade.GetBootInfo()
+	bootInfo = blade.GetBootInfo()
 	require.NotNil(bootInfo)
-	assert.Equal(stdBootOnPowerOn, bootOnPowerOn)
 	assert.Equal(stdBootInfo, bootInfo)
+
+	bootOnPowerOn = blade.GetBootOnPowerOn()
+	assert.Equal(stdBootOnPowerOn, bootOnPowerOn)
 
 	// This will actually attempt to read the blade from the store. Since
 	// we have yet to create the blade, we expect to see a "not found"
@@ -1161,7 +1171,8 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	//       checking for the capacity or bootInfo being present. Any
 	//	     change in the ordering may result in the tests neding amendment.
 	//
-	blade.SetBootInfo(false, nil)
+	blade.SetBootInfo(nil)
+	blade.SetBootPowerOn(false)
 
 	rev, err = blade.Update(ctx, false)
 	require.Equal(errors.ErrBootInfoNotAvailable("blade"), err)
@@ -1381,7 +1392,8 @@ func (ts *definitionTestSuite) TestNewBladeWithCreate() {
 
 	blade.SetDetails(stdDetails)
 	blade.SetCapacity(stdCapacity)
-	blade.SetBootInfo(stdBootOnPowerOn, stdBootInfo)
+	blade.SetBootInfo(stdBootInfo)
+	blade.SetBootPowerOn(stdBootOnPowerOn)
 
 	rev, err := blade.Create(ctx)
 
@@ -1604,7 +1616,8 @@ func (ts *definitionTestSuite) TestNewChildBlade() {
 
 	blade.SetDetails(stdDetails)
 	blade.SetCapacity(stdCapacity)
-	blade.SetBootInfo(stdBootOnPowerOn, stdBootInfo)
+	blade.SetBootInfo(stdBootInfo)
+	blade.SetBootPowerOn(stdBootOnPowerOn)
 
 	rev, err := blade.Create(ctx)
 	require.NoError(err)
@@ -2026,7 +2039,8 @@ func (ts *definitionTestSuite) TestBladeReadDetails() {
 
 	b.SetDetails(stdDetails)
 	b.SetCapacity(stdCapacity)
-	b.SetBootInfo(stdBootOnPowerOn, stdBootInfo)
+	b.SetBootInfo(stdBootInfo)
+	b.SetBootPowerOn(stdBootOnPowerOn)
 
 	rev, err := b.Create(ctx)
 	require.NoError(err)
@@ -2078,17 +2092,19 @@ func (ts *definitionTestSuite) TestBladeReadDetails() {
 	assert.Equal(bladeRev, blade.GetRevision())
 
 	bladeDet := blade.GetDetails()
-	require.NoError(err)
+	require.NotNil(bladeDet)
 	assert.Equal(stdDetails, bladeDet)
 
 	bladeCapacity := blade.GetCapacity()
-	require.NoError(err)
+	require.NotNil(bladeCapacity)
 	assert.Equal(stdCapacity, bladeCapacity)
 
-	bladeBootOnPowerOn, bladeBootInfo := blade.GetBootInfo()
-	require.NoError(err)
-	assert.Equal(stdBootOnPowerOn, bladeBootOnPowerOn)
+	bladeBootInfo := blade.GetBootInfo()
+	require.NotNil(bladeBootInfo)
 	assert.Equal(stdBootInfo, bladeBootInfo)
+
+	bladeBootOnPowerOn := blade.GetBootOnPowerOn()
+	assert.Equal(stdBootOnPowerOn, bladeBootOnPowerOn)
 
 	revDel, err := blade.Delete(ctx, false)
 	require.NoError(err)
@@ -2499,7 +2515,8 @@ func (ts *definitionTestSuite) TestBladeUpdateDetails() {
 
 	b.SetDetails(stdDetails)
 	b.SetCapacity(stdCapacity)
-	b.SetBootInfo(stdBootOnPowerOn, stdBootInfo)
+	b.SetBootInfo(stdBootInfo)
+	b.SetBootPowerOn(stdBootOnPowerOn)
 
 	revCreate, err := b.Create(ctx)
 	require.NoError(err)
@@ -2550,10 +2567,12 @@ func (ts *definitionTestSuite) TestBladeUpdateDetails() {
 	require.NotNil(detailsVerify)
 
 	capacityVerify := cb.GetCapacity()
-	require.NotNil(detailsVerify)
+	require.NotNil(capacityVerify)
 
-	bootOnPowerOnVerify, bootInfoVerify := cb.GetBootInfo()
-	require.NotNil(detailsVerify)
+	bootInfoVerify := cb.GetBootInfo()
+	require.NotNil(bootInfoVerify)
+
+	bootOnPowerOnVerify := cb.GetBootOnPowerOn()
 
 	// Compare new details with original + deltas
 	//

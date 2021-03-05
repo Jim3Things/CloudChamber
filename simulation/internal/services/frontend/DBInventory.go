@@ -295,21 +295,21 @@ func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName
 
 	r := &pb.Definition_Rack{
 		Details: rack.GetDetails(),
-		Pdus:    make(map[int64]*pb.Definition_Pdu),
-		Tors:    make(map[int64]*pb.Definition_Tor),
-		Blades:  make(map[int64]*pb.Definition_Blade),
+		Pdus:    make(map[int64]*pb.Definition_Pdu, len(*pdus)),
+		Tors:    make(map[int64]*pb.Definition_Tor, len(*tors)),
+		Blades:  make(map[int64]*pb.Definition_Blade, len(*blades)),
 	}
 
 	for index, pdu := range *pdus {
-		r.Pdus[index] = pdu.Copy()
+		r.Pdus[index] = pdu.GetDefinitionPdu()
 	}
 
 	for index, tor := range *tors {
-		r.Tors[index] = tor.Copy()
+		r.Tors[index] = tor.GetDefinitionTor()
 	}
 
 	for index, blade := range *blades {
-		r.Blades[index] = blade.Copy()
+		r.Blades[index] = blade.GetDefinitionBlade()
 	}
 
 	return r, nil
@@ -348,7 +348,7 @@ func (m *DBInventory) GetRack(regionName string, zoneName string, rackName strin
 		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
-	bladeMap := make(map[int64]*pb.BladeCapacity)
+	bladeMap := make(map[int64]*pb.BladeCapacity, len(*blades))
 
 	for index, blade := range *blades {
 		bladeMap[index] = blade.GetCapacity()
@@ -547,6 +547,59 @@ func WithRevision(rev int64) InventoryZoneOption {
 	return func(options *InventoryZoneOptions) { options.revision = rev }
 }
 
+// Region options
+
+// InventoryRegionOption is a
+//
+type InventoryRegionOption func(*InventoryRegionOptions)
+
+// InventoryRegionOptions is a struct
+//
+type InventoryRegionOptions struct {
+	revision      int64
+	includeZones  bool
+	includeRacks  bool
+	includePdus   bool
+	includeTors   bool
+	includeBlades bool
+}
+
+func (options *InventoryRegionOptions) applyRegionOpts(optionsArray []InventoryRegionOption) {
+	for _, option := range optionsArray {
+		option(options)
+	}
+}
+
+// WithRegionRevision is a
+//
+func WithRegionRevision(rev int64) InventoryRegionOption {
+	return func(options *InventoryRegionOptions) { options.revision = rev }
+}
+
+// WithRegionRacks is a
+//
+func WithRegionRacks() InventoryRegionOption {
+	return func(options *InventoryRegionOptions) { options.includeRacks = true }
+}
+
+// WithRegionTors is a
+//
+func WithRegionTors() InventoryRegionOption {
+	return func(options *InventoryRegionOptions) { options.includeTors = true }
+}
+
+// WithRegionPdus is a
+//
+func WithRegionPdus() InventoryRegionOption {
+	return func(options *InventoryRegionOptions) { options.includePdus = true }
+}
+
+// WithRegionBlades is a
+//
+func WithRegionBlades() InventoryRegionOption {
+	return func(options *InventoryRegionOptions) { options.includeBlades = true }
+}
+
 // Zone options
 
 // InventoryZoneOption is a
@@ -708,6 +761,37 @@ func (m *DBInventory) ListBlades(
 	rack string,
 	options ...InventoryOption) (map[string]*DefinitionBlade, int64, error) {
 	return nil, InvalidRev, nil
+}
+
+// CreateRegion is used to create a basic region record in the store.
+//
+// This record created will contain just the region level details
+// and any additional zone, rack, blade, tor or pdu data will be ignored
+// and not included in the stored record.
+//
+func (m *DBInventory) CreateRegion(
+	ctx context.Context,
+	name string,
+	region *pb.Definition_Region,
+	options ...InventoryRegionOption) (int64, error) {
+
+	r, err := m.inventory.NewRegion(
+		inventory.DefinitionTable,
+		name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	r.SetDetails(region.Details)
+
+	rev, err := r.Create(ctx)
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	return rev, nil
 }
 
 // CreateZone is used to create a basic zone record in the store.
@@ -893,7 +977,8 @@ func (m *DBInventory) CreateBlade(
 
 	b.SetDetails(blade.Details)
 	b.SetCapacity(blade.Capacity)
-	b.SetBootInfo(blade.BootOnPowerOn, blade.BootInfo)
+	b.SetBootInfo(blade.BootInfo)
+	b.SetBootPowerOn(blade.BootOnPowerOn)
 
 	rev, err := b.Create(ctx)
 
@@ -902,6 +987,32 @@ func (m *DBInventory) CreateBlade(
 	}
 
 	return rev, nil
+}
+
+// ReadRegion returns the region information with optionally additional
+// zone, rack, blade, tor and pdu details for an optionally specified
+// revision.
+//
+func (m *DBInventory) ReadRegion(
+	ctx context.Context,
+	name string,
+	options ...InventoryRegionOption) (*pb.Definition_Region, int64, error) {
+
+	r, err := m.inventory.NewRegion(
+		inventory.DefinitionTable,
+		name)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
+
+	rev, err := r.Read(ctx)
+
+	if err != nil {
+		return nil, InvalidRev, err
+	}
+
+	return r.GetDefinitionRegion(), rev, nil
 }
 
 // ReadZone returns the zone information with optionally additional
@@ -929,9 +1040,7 @@ func (m *DBInventory) ReadZone(
 		return nil, InvalidRev, err
 	}
 
-	details := z.GetDetails()
-
-	return &pb.Definition_Zone{Details: details}, rev, nil
+	return z.GetDefinitionZone(), rev, nil
 }
 
 // ReadRack returns the rack information with optionally additional
@@ -960,9 +1069,7 @@ func (m *DBInventory) ReadRack(
 		return nil, InvalidRev, err
 	}
 
-	details := r.GetDetails()
-
-	return &pb.Definition_Rack{Details: details}, rev, nil
+	return r.GetDefinitionRack(), rev, nil
 }
 
 // ReadPdu returns the PDU information for an optionally specified revision.
@@ -992,10 +1099,7 @@ func (m *DBInventory) ReadPdu(
 		return nil, InvalidRev, err
 	}
 
-	details := p.GetDetails()
-	ports := p.GetPorts()
-
-	return &pb.Definition_Pdu{Details: details, Ports: *ports}, rev, nil
+	return p.GetDefinitionPdu(), rev, nil
 }
 
 // ReadTor returns the TOR information for an optionally specified revision.
@@ -1025,10 +1129,7 @@ func (m *DBInventory) ReadTor(
 		return nil, InvalidRev, err
 	}
 
-	details := t.GetDetails()
-	ports := t.GetPorts()
-
-	return &pb.Definition_Tor{Details: details, Ports: *ports}, rev, nil
+	return t.GetDefinitionTor(), rev, nil
 }
 
 // ReadBlade returns the blade information for an optionally specified revision.
@@ -1058,18 +1159,38 @@ func (m *DBInventory) ReadBlade(
 		return nil, InvalidRev, err
 	}
 
-	details := b.GetDetails()
-	capacity := b.GetCapacity()
-	bootOnPowerOn, bootInfo := b.GetBootInfo()
+	return b.GetDefinitionBlade(), rev, nil
+}
 
-	blade := &pb.Definition_Blade{
-		Details:       details,
-		Capacity:      capacity,
-		BootOnPowerOn: bootOnPowerOn,
-		BootInfo:      bootInfo,
+// UpdateRegion is used to update the Region basic details record.
+//
+// Only the Region level details will be updated and any
+// additional rack, blade, tor or pdu data will be ignored
+// and not included in the updated record.
+//
+func (m *DBInventory) UpdateRegion(
+	ctx context.Context,
+	name string,
+	region *pb.Definition_Region,
+	options ...InventoryRegionOption) (int64, error) {
+
+	r, err := m.inventory.NewRegion(
+		inventory.DefinitionTable,
+		name)
+
+	if err != nil {
+		return InvalidRev, err
 	}
 
-	return blade, rev, nil
+	r.SetDetails(region.Details)
+
+	rev, err := r.Update(ctx, true)
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	return rev, nil
 }
 
 // UpdateZone is used to update the zone basic details record.
@@ -1234,9 +1355,36 @@ func (m *DBInventory) UpdateBlade(
 
 	b.SetDetails(blade.Details)
 	b.SetCapacity(blade.Capacity)
-	b.SetBootInfo(blade.BootOnPowerOn, blade.BootInfo)
+	b.SetBootInfo(blade.BootInfo)
+	b.SetBootPowerOn(blade.BootOnPowerOn)
 
 	rev, err := b.Update(ctx, true)
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	return rev, nil
+}
+
+// DeleteRegion is used to delete the Region record and any
+// contained rack records. That is it will delete the
+// entire Region and all related records.
+//
+func (m *DBInventory) DeleteRegion(
+	ctx context.Context,
+	name string,
+	options ...InventoryOption) (int64, error) {
+
+	r, err := m.inventory.NewRegion(
+		inventory.DefinitionTable,
+		name)
+
+	if err != nil {
+		return InvalidRev, err
+	}
+
+	rev, err := r.Delete(ctx, true)
 
 	if err != nil {
 		return InvalidRev, err

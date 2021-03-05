@@ -862,8 +862,12 @@ type inventoryBlade interface {
 	SetCapacity(capacity *pb.BladeCapacity)
 	GetCapacity() *pb.BladeCapacity
 
-	SetBootInfo(bootOnPowerOn bool, bootInfo *pb.BladeBootInfo)
-	GetBootInfo() (bool, *pb.BladeBootInfo)
+	SetBootInfo(bootInfo *pb.BladeBootInfo)
+	GetBootInfo() *pb.BladeBootInfo
+
+	SetBootPowerOn(bootOnPowerOn bool)
+	GetBootOnPowerOn() bool
+
 }
 
 // Provide a set of definitions to cope with calls to a "null" object.
@@ -1255,7 +1259,7 @@ func (m *Inventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.D
 			}
 
 			for rackName, rack := range *racks {
-				defRack, err := rack.Copy(ctx)
+				defRack, err := rack.GetDefinitionRackWithChildren(ctx)
 				if err != nil {
 					return nil, err
 				}
@@ -1407,7 +1411,8 @@ func (m *Inventory) writeInventoryDefinitionToStore(ctx context.Context, root *p
 
 					storeBlade.SetDetails(blade.GetDetails())
 					storeBlade.SetCapacity(blade.GetCapacity())
-					storeBlade.SetBootInfo(blade.BootOnPowerOn, blade.GetBootInfo())
+					storeBlade.SetBootInfo(blade.GetBootInfo())
+					storeBlade.SetBootPowerOn(blade.GetBootOnPowerOn())
 
 					_, err = storeBlade.Create(ctx)
 					if err != nil {
