@@ -52,7 +52,7 @@ const (
 // entries to determine its structure.  The resulting Rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
 // programmed.
-func newRack(ctx context.Context, name string, def *pb.External_Rack, timers *timestamp.Timers) *Rack {
+func newRack(ctx context.Context, name string, def *pb.Definition_Rack, timers *timestamp.Timers) *Rack {
 	return newRackInternal(ctx, name, def, timers, newPdu, newTor)
 }
 
@@ -62,10 +62,10 @@ func newRack(ctx context.Context, name string, def *pb.External_Rack, timers *ti
 func newRackInternal(
 	ctx context.Context,
 	name string,
-	def *pb.External_Rack,
+	def *pb.Definition_Rack,
 	timers *timestamp.Timers,
-	pduFunc func(*pb.External_Pdu, *Rack) *pdu,
-	torFunc func(*pb.External_Tor, *Rack) *tor) *Rack {
+	pduFunc func(*pb.Definition_Pdu, *Rack) *pdu,
+	torFunc func(*pb.Definition_Tor, *Rack) *tor) *Rack {
 	r := &Rack{
 		name:      name,
 		ch:        make(chan sm.Envelope, rackQueueDepth),
@@ -108,11 +108,11 @@ func newRackInternal(
 			sm.NullLeave),
 	)
 
-	r.pdu = pduFunc(def.Pdu, r)
-	r.tor = torFunc(def.Tor, r)
+	r.pdu = pduFunc(def.Pdus[0], r)
+	r.tor = torFunc(def.Tors[0], r)
 
 	for i, item := range def.Blades {
-		r.blades[i] = newBlade(item, r, i)
+		r.blades[i] = newBlade(item.GetCapacity(), r, i)
 
 		// These two calls are temporary fix-ups until the inventory definition
 		// includes the tor and pdu connectors

@@ -57,15 +57,29 @@ func (ts *testSuiteCore) TearDownTest() {
 	ts.utf.Close()
 }
 
-func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.External_Rack {
-	rackDef := &pb.External_Rack{
-		Pdu:    &pb.External_Pdu{},
-		Tor:    &pb.External_Tor{},
-		Blades: make(map[int64]*pb.BladeCapacity),
+func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.Definition_Rack {
+	rackDef := &pb.Definition_Rack{
+		Pdus:   make(map[int64]*pb.Definition_Pdu),
+		Tors:   make(map[int64]*pb.Definition_Tor),
+		Blades: make(map[int64]*pb.Definition_Blade),
 	}
 
 	for i := 0; i < bladeCount; i++ {
-		rackDef.Blades[int64(i)] = &pb.BladeCapacity{}
+		rackDef.Blades[int64(i)] = &pb.Definition_Blade{
+			Details:  &pb.BladeDetails{},
+			Capacity: &pb.BladeCapacity{},
+			BootInfo: &pb.BladeBootInfo{},
+		}	
+	}
+
+	rackDef.Pdus[0] = &pb.Definition_Pdu{
+		Details: &pb.PduDetails{},
+		Ports:   make(map[int64]*pb.PowerPort),
+	}
+
+	rackDef.Tors[0] = &pb.Definition_Tor{
+		Details: &pb.TorDetails{},
+		Ports:   make(map[int64]*pb.NetworkPort),
 	}
 
 	return rackDef

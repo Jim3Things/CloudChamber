@@ -1,34 +1,85 @@
-#defining a blade1 and blade2 for rack1
-Racks:
-  - Name: rack1
-    Blades:
-    - Index: 1
+# Simple test configuration comprising 1 region, with 1 zone, with the zone having 2 racks, with each rack having a single pdu, a single tor and 2 blades.
+#
+# Two racks, with a duplicated rack name.
+
+BladeTypeS:
+  - &bladeType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: local
+      Image: standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
       Cores: 16
       MemoryInMb: 16384
       DiskInGb: 240 
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
-    - Index: 2
-      Cores: 8
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack1
+
+TorTypes:
+  - &torType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    Ports:
+      - {Index:  0, Wired: true, Item: {Type:   pdu, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+
+PduTypes:
+  - &pduType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    Ports:
+      - {Index:  0, Wired: true, Item: {Type:   tor, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+
+RackTypes:
+  - &rackType1
+    Details:
+      Enabled: true
+      Condition: Operational
+      Location: "Pacific NW, row 1, rack 1"
+      Notes: "rack definition, 1 pdu, 1 tor, 2 blades"
     Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
-      Arch: "X64"
-    - Index: 2
-      Cores: 8
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
+      - Index: 1
+        <<: *bladeType1
+      - Index: 2
+        <<: *bladeType1
+    Tors:
+      - Index: 0
+        <<: *torType1
+    Pdus:
+      - Index: 0
+        <<: *pduType1
+
+
+# Start of layout
+#
+Details:
+  Name: "Simple Test Inventory"
+  Notes: "Test configuration comprising 1 region, with 1 zone, with the zone having 2 racks, with each rack having a single pdu, a single tor and 2 blades. Racks have duplicate names."
+Regions:
+  - Name: region1
+    Details:
+      State: In_Service
+      Location: "Pacific NW"
+      Notes: "Test Region 1"
+    Zones:
+      - Name: zone1
+        Details:
+          Enabled: true
+          State: In_Service
+          Location: "Pacific NW, row 1"
+          Notes: "Simple zone definition"
+        Racks:
+          - Name: rack1
+            <<: *rackType1
+          - Name: rack1
+            <<: *rackType1

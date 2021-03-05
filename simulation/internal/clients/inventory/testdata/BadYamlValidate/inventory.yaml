@@ -1,417 +1,190 @@
-Racks:
-  - Name: rack1
-    Blades:
-    - Index: 1
+# Simple test configuration comprising 1 region, with 1 zone, with the zone having 8 racks, with each rack having a single pdu, a single tor and 8 blades.
+#
+# Region1, Zone1, Rack1, Blade2 has Cores field set to zero
+
+BladeTypeS:
+  - &bladeType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: network
+      Image: region1_standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
       Cores: 16
       MemoryInMb: 16384
       DiskInGb: 240 
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
-    - Index: 2
+
+  - &bladeType2
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: network
+      Image: region1_standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
+      Cores: 32
+      MemoryInMb: 16384
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: "X64"
+
+  - &bladeType3
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: network
+      Image: region1_standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
       Cores: 0
       MemoryInMb: 16384
       DiskInGb: 120
       NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack2
-    Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
       Arch: "X64"
-    - Index: 2
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack3
+
+TorTypes:
+  - &torType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    Ports:
+      - {Index:  0, Wired: true, Item: {Type:   pdu, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+      - {Index:  3, Wired: true, Item: {Type: blade, Id:  3, Port: 1}}
+      - {Index:  4, Wired: true, Item: {Type: blade, Id:  4, Port: 1}}
+      - {Index:  5, Wired: true, Item: {Type: blade, Id:  5, Port: 1}}
+      - {Index:  6, Wired: true, Item: {Type: blade, Id:  6, Port: 1}}
+      - {Index:  7, Wired: true, Item: {Type: blade, Id:  7, Port: 1}}
+      - {Index:  8, Wired: true, Item: {Type: blade, Id:  8, Port: 1}}
+
+PduTypes:
+  - &pduType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    Ports:
+      - {Index:  0, Wired: true, Item: {Type:   tor, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+      - {Index:  3, Wired: true, Item: {Type: blade, Id:  3, Port: 1}}
+      - {Index:  4, Wired: true, Item: {Type: blade, Id:  4, Port: 1}}
+      - {Index:  5, Wired: true, Item: {Type: blade, Id:  5, Port: 1}}
+      - {Index:  6, Wired: true, Item: {Type: blade, Id:  6, Port: 1}}
+      - {Index:  7, Wired: true, Item: {Type: blade, Id:  7, Port: 1}}
+      - {Index:  8, Wired: true, Item: {Type: blade, Id:  8, Port: 1}}
+
+
+RackTypes:
+  - &rackType1
+    Details:
+      Enabled: true
+      Condition: Operational
+      Location: "Pacific NW, row 1, rack 1"
+      Notes: "rack definition, 1 pdu, 1 tor, 8 blades"
     Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
-      Arch: "X64"
-    - Index: 2
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack4
+      - Index: 1
+        <<: *bladeType1
+      - Index: 2
+        <<: *bladeType3
+      - Index: 3
+        <<: *bladeType2
+      - Index: 4
+        <<: *bladeType2
+      - Index: 5
+        <<: *bladeType2
+      - Index: 6
+        <<: *bladeType2
+      - Index: 7
+        <<: *bladeType2
+      - Index: 8
+        <<: *bladeType2
+    Tors:
+      - Index: 0
+        <<: *torType1
+    Pdus:
+      - Index: 0
+        <<: *pduType1
+  - &rackType2
+    Details:
+      Enabled: true
+      Condition: Operational
+      Location: "Pacific NW, row 1, rack 1"
+      Notes: "rack definition, 1 pdu, 1 tor, 8 blades"
     Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
-      Arch: "X64"
-    - Index: 2
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack5
-    Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
-      Arch: "X64"
-    - Index: 2
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 0
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack6
-    Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
-      Arch: "X64"
-    - Index: 2
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack7
-    Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
-      Arch: "X64"
-    - Index: 2
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
-  - Name: rack8
-    Blades:
-    - Index: 1
-      Cores: 16
-      MemoryInMb: 16384
-      DiskInGb: 240 
-      NetworkBandwidthInMbps: 2048
-      Arch: "X64"
-    - Index: 2
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 3
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 4
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 5
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 6
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 7
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    - Index: 8
-      Cores: 32
-      MemoryInMb: 16384
-      DiskInGb: 120
-      NetworkBandwidthInMbps: 2048
-      Arch: X64
-    Tor:
-    Pdu:
+      - Index: 1
+        <<: *bladeType1
+      - Index: 2
+        <<: *bladeType2
+      - Index: 3
+        <<: *bladeType2
+      - Index: 4
+        <<: *bladeType2
+      - Index: 5
+        <<: *bladeType2
+      - Index: 6
+        <<: *bladeType2
+      - Index: 7
+        <<: *bladeType2
+      - Index: 8
+        <<: *bladeType2
+    Tors:
+      - Index: 0
+        <<: *torType1
+    Pdus:
+      - Index: 0
+        <<: *pduType1
+
+
+ZoneTypes:
+  - &zoneType1
+    Details:
+      Enabled: true
+      State: In_Service
+      Location: "Pacific NW, row 1"
+      Notes: "Simple zone definition"
+    Racks:
+      - Name: rack1
+        <<: *rackType1
+      - Name: rack2
+        <<: *rackType1
+      - Name: rack3
+        <<: *rackType1
+      - Name: rack4
+        <<: *rackType1
+      - Name: rack5
+        <<: *rackType1
+      - Name: rack6
+        <<: *rackType1
+      - Name: rack7
+        <<: *rackType1
+      - Name: rack8
+        <<: *rackType1
+
+
+# Start of layout
+#
+Details:
+  Name: "Reference Test Inventory"
+  Notes: "Test configuration comprising 2 regions, each with 4 zones, each zone having 8 racks, with each rack having a single pdu, a single tor and 8 blades."
+Regions:
+  - Name: region1
+    Details:
+      State: In_Service
+      Location: "Pacific NW"
+      Notes: "Test Region 1"
+    Zones:
+      - Name: zone1
+        <<: *zoneType1

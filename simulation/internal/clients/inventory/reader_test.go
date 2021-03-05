@@ -41,82 +41,96 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/Simple")
+	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Simple")
 	require.NoError(err)
 	require.NotNil(response)
 
-	require.Equal(2, len(response.Racks))
+	require.Equal(1, len(response.Regions))
+	region1, ok := response.Regions["region1"]
+	require.True(ok)
+	assert.Equal(1, len(region1.Zones))
 
-	r, ok := response.Racks["rack1"]
+	zone1, ok := region1.Zones["zone1"]
+	require.True(ok)
+	require.Equal(2, len(zone1.Racks))
+
+	r, ok := zone1.Racks["rack1"]
 	require.True(ok)
 	assert.Equal(2, len(r.Blades))
 
 	b, ok := r.Blades[1]
 	require.True(ok)
-	assert.Equal(int64(16), b.Cores)
-	assert.Equal(int64(16384), b.MemoryInMb)
-	assert.Equal(int64(240), b.DiskInGb)
-	assert.Equal(int64(2048), b.NetworkBandwidthInMbps)
-	assert.Equal("X64", b.Arch)
+	require.NotNil(b.Capacity)
+	assert.Equal(int64(16), b.Capacity.Cores)
+	assert.Equal(int64(16384), b.Capacity.MemoryInMb)
+	assert.Equal(int64(240), b.Capacity.DiskInGb)
+	assert.Equal(int64(2048), b.Capacity.NetworkBandwidthInMbps)
+	assert.Equal("X64", b.Capacity.Arch)
 
-	s, ok := response.Racks["rack2"]
+	s, ok := zone1.Racks["rack2"]
 	require.True(ok)
 	assert.Equal(2, len(s.Blades))
 
 	c, ok := r.Blades[2]
 	require.True(ok)
-	assert.Equal(int64(8), c.Cores)
-	assert.Equal(int64(16384), c.MemoryInMb)
-	assert.Equal(int64(120), c.DiskInGb)
-	assert.Equal(int64(2048), c.NetworkBandwidthInMbps)
+	require.NotNil(b.Capacity)
+	assert.Equal(int64(8), c.Capacity.Cores)
+	assert.Equal(int64(16384), c.Capacity.MemoryInMb)
+	assert.Equal(int64(120), c.Capacity.DiskInGb)
+	assert.Equal(int64(2048), c.Capacity.NetworkBandwidthInMbps)
+	assert.Equal("X64", b.Capacity.Arch)
 }
 
-func (ts *readerTestSuite) TestReadInventoryBogusPath() {
-	require := ts.Require()
+// func (ts *readerTestSuite) TestReadInventoryBogusPath() {
+// 	require := ts.Require()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./missing/path")
-	require.EqualError(err, "no inventory definition found at ./missing/path/inventory.yaml (yaml)")
-	require.Nil(response)
-}
+// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./missing/path")
+// 	require.EqualError(err, "no inventory definition found at ./missing/path/inventory.yaml (yaml)")
+// 	require.Nil(response)
+// }
 
-// TestInventoryUniqueRack test to check that zone always contain unique rack numbers
-func (ts *readerTestSuite) TestInventoryUniqueRack() {
-	require := ts.Require()
+// // TestInventoryUniqueRack test to check that zone always contain unique rack numbers
+// func (ts *readerTestSuite) TestInventoryUniqueRack() {
+// 	require := ts.Require()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYaml")
-	require.EqualError(err, "Duplicate rack \"rack1\" detected")
-	require.Nil(response)
-}
+// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYaml")
+// 	require.EqualError(err, "Duplicate rack \"rack1\" detected")
+// 	require.Nil(response)
+// }
 
-func (ts *readerTestSuite) TestInventoryUniqueBlade() {
-	require := ts.Require()
+// func (ts *readerTestSuite) TestInventoryUniqueBlade() {
+// 	require := ts.Require()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlBlade")
-	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
-	require.Nil(response)
-}
+// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlBlade")
+// 	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
+// 	require.Nil(response)
+// }
 
-func (ts *readerTestSuite) TestInventoryValidateBlade() {
-	require := ts.Require()
+// func (ts *readerTestSuite) TestInventoryValidateBlade() {
+// 	require := ts.Require()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlValidate")
-	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
-	require.Nil(response)
-}
+// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlValidate")
+// 	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
+// 	require.Nil(response)
+// }
 
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Simple")
+	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Simple")
 	require.NoError(err)
-	require.NotNil(zonemap)
+	require.NotNil(response)
+
+	require.Equal(1, len(response.Regions))
+	region, ok := response.Regions["region1"]
+	require.True(ok)
 
 	// There should only be a single zone.
 	//
-	require.Equal(1, len(zonemap.Zones))
+	require.Equal(1, len(region.Zones))
 
-	zone, ok := zonemap.Zones[DefaultZone]
+	zone, ok := region.Zones["zone1"]
 	require.True(ok)
 
 	assert.True(zone.Details.Enabled)
@@ -147,9 +161,17 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		p0, ok := r.Pdus[0]
 		require.True(ok)
 
-		// The PDU should have a wired port for each of the two expected blades.
+		// The PDU should have a wired port for each of the two expected blades and one for the tor.
 		//
-		assert.Equal(2, len(p0.Ports))
+		assert.Equal(3, len(p0.Ports))
+
+		p0b0, ok := p0.Ports[1]
+		require.True(ok)
+
+		assert.True(p0b0.Wired)
+		assert.Equal(pb.Hardware_tor, p0b0.Item.Type)
+		assert.Equal(int64(0), p0b0.Item.Id)
+		assert.Equal(int64(1), p0b0.Item.Port)
 
 		p0b1, ok := p0.Ports[1]
 		require.True(ok)
@@ -172,9 +194,17 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		t0, ok := r.Tors[0]
 		require.True(ok)
 
-		// The TOR should have a wired port for each of the two expected blades.
+		// The TOR should have a wired port for each of the two expected blades and one for the pdu.
 		//
-		assert.Equal(2, len(t0.Ports))
+		assert.Equal(3, len(t0.Ports))
+
+		t0b0, ok := t0.Ports[0]
+		require.True(ok)
+
+		assert.True(t0b0.Wired)
+		assert.Equal(pb.Hardware_pdu, t0b0.Item.Type)
+		assert.Equal(int64(0), t0b0.Item.Id)
+		assert.Equal(int64(1), t0b0.Item.Port)
 
 		t0b1, ok := t0.Ports[1]
 		require.True(ok)
@@ -223,7 +253,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileBogusPath() {
 	require := ts.Require()
 
-	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./missing/path")
+	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./missing/path")
 	require.EqualError(err, "no inventory definition found at ./missing/path/inventory.yaml (yaml)")
 	require.Nil(response)
 }
@@ -233,7 +263,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileBogusPath() {
 func (ts *readerTestSuite) TestIReadInventoryDefinitionFromFileUniqueRack() {
 	require := ts.Require()
 
-	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYaml")
+	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYaml")
 	require.EqualError(err, "Duplicate rack \"rack1\" detected")
 	require.Nil(response)
 }
@@ -241,7 +271,7 @@ func (ts *readerTestSuite) TestIReadInventoryDefinitionFromFileUniqueRack() {
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileUniqueBlade() {
 	require := ts.Require()
 
-	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlBlade")
+	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlBlade")
 	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
 	require.Nil(response)
 }
@@ -249,7 +279,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileUniqueBlade() {
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileValidateBlade() {
 	require := ts.Require()
 
-	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlValidate")
+	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlValidate")
 	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
 	require.Nil(response)
 }
