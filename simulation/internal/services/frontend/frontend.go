@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -230,7 +231,35 @@ func StartService(cfg *config.GlobalConfig) error {
 		log.Fatalf("Error initializing service: %v", err)
 	}
 
-	return http.ListenAndServe(
-		fmt.Sprintf(":%d", server.port),
-		server.handler)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%d", server.port),
+		Handler: server.handler,
+
+		ErrorLog: log.New(
+			&WriterToLog{},
+			"HTTP Listener",
+			log.LstdFlags|log.Lshortfile),
+	}
+
+	return srv.ListenAndServe()
+}
+
+// WriterToLog acts as a transducer between the http server's logging functions
+// and the CloudChamber tracing support.  The http server expects an io.Writer,
+// which this structure provides.
+type WriterToLog struct {
+}
+
+// Write is the io writer compliant function that writes the incoming message
+// into the trace log as an informational message in its own minimal span.
+func (w WriterToLog) Write(p []byte) (n int, err error) {
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithName("HTTP intercept event"),
+		tracing.WithNewRoot(),
+		tracing.WithContextValue(ts.OutsideTime))
+	defer span.End()
+
+	tracing.Info(ctx, string(p))
+	return fmt.Fprintln(os.Stderr, string(p))
 }
