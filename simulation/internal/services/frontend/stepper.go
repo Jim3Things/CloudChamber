@@ -78,8 +78,8 @@ func handleAdvance(w http.ResponseWriter, r *http.Request) {
 
 	var count int
 
-	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-		return server.sessions.ensureEstablishedSession(session)
+	err := doSessionHeader(ctx, w, r, func(ctx context.Context, session *sessions.Session) error {
+		return canStepTime(ctx, session)
 	})
 
 	if err != nil {
@@ -138,7 +138,7 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 	var policy pb.StepperPolicy
 
 	err := doSessionHeader(ctx, w, r, func(_ context.Context, session *sessions.Session) error {
-		return server.sessions.ensureEstablishedSession(session)
+		return canStepTime(ctx, session)
 	})
 
 	if err != nil {
@@ -273,4 +273,19 @@ func handleGetNow(w http.ResponseWriter, r *http.Request) {
 	err = p.Marshal(w, &ct.Timestamp{Ticks: common.TickFromContext(ctx)})
 
 	httpErrorIf(ctx, w, err)
+}
+
+// canStepTime verifies that the currently logged in user has the right to
+// modify either the simulation time, or the stepper policy.
+func canStepTime(ctx context.Context, session *sessions.Session) error {
+	user, err := server.sessions.getLoggedInUser(ctx, session)
+	if err != nil {
+		return NewErrUserPermissionDenied()
+	}
+
+	if !user.Rights.CanStepTime {
+		return NewErrUserPermissionDenied()
+	}
+
+	return nil
 }

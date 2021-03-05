@@ -137,6 +137,30 @@ func (ts *StepperTestSuite) TestSetManual() {
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
 
+func (ts *StepperTestSuite) TestSetManualNoPrivilege() {
+	require := ts.Require()
+
+	ts.reset()
+
+	response := ts.doLogin(ts.adminAccountName(), ts.adminPassword(), nil)
+
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
+
+	_, cookies = ts.ensureAccount(ts.aliceName(), ts.aliceDef, cookies)
+	response = ts.doLogout(ts.adminAccountName(), cookies)
+
+	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=manual"), nil)
+	response = ts.doHTTP(request, response.Cookies())
+	_, err := ts.getBody(response)
+	require.NoError(err)
+
+	require.Equal(http.StatusForbidden, response.StatusCode)
+
+	ts.doLogout(ts.aliceName(), response.Cookies())
+}
+
 func (ts *StepperTestSuite) TestSetModeInvalid() {
 	assert := ts.Assert()
 
@@ -251,7 +275,6 @@ func (ts *StepperTestSuite) TestAdvanceTwo() {
 
 func (ts *StepperTestSuite) TestAdvanceNotANumber() {
 	assert := ts.Assert()
-
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	stat, cookies := ts.getStatus(response.Cookies())
@@ -259,9 +282,9 @@ func (ts *StepperTestSuite) TestAdvanceNotANumber() {
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance=two"), nil)
 	response = ts.doHTTP(request, cookies)
-	assert.Equal(http.StatusBadRequest, response.StatusCode)
-
 	body, err := ts.getBody(response)
+
+	assert.Equal(http.StatusBadRequest, response.StatusCode)
 
 	assert.NoError(err)
 	assert.Equal(
@@ -292,6 +315,30 @@ func (ts *StepperTestSuite) TestAdvanceMinusOne() {
 		string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
+}
+
+func (ts *StepperTestSuite) TestAdvanceNoPrivilege() {
+	require := ts.Require()
+
+	ts.reset()
+
+	response := ts.doLogin(ts.adminAccountName(), ts.adminPassword(), nil)
+
+	stat, cookies := ts.getStatus(response.Cookies())
+	cookies = ts.setManual(stat.Epoch, cookies)
+
+	_, cookies = ts.ensureAccount(ts.aliceName(), ts.aliceDef, cookies)
+	response = ts.doLogout(ts.adminAccountName(), cookies)
+
+	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
+	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance"), nil)
+	response = ts.doHTTP(request, response.Cookies())
+	_, err := ts.getBody(response)
+	require.NoError(err)
+
+	require.Equal(http.StatusForbidden, response.StatusCode)
+
+	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *StepperTestSuite) TestSetManualBadRate() {
