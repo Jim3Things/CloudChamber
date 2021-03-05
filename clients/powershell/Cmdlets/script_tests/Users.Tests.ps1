@@ -53,19 +53,19 @@
     It "Tries to create an already created account" {
         { New-CcUser -Session $sess -Name "admin" -Enabled -Password "bogus" } | `
             Should Throw "CloudChamber: user ""admin"" already exists`n" `
-                -ExceptionType  [System.Net.Http.HttpRequestException]
+                -ExceptionType [System.Net.Http.HttpRequestException]
     }
 
     It "Tries to get details on a non-existent user" {
         { Get-CcUser -Session $sess -Name "bogusUser" } | `
             Should Throw "CloudChamber: user ""bogususer"" not found`n" `
-                -ExceptionType  [System.Net.Http.HttpRequestException]
+                -ExceptionType [System.Net.Http.HttpRequestException]
     }
 
     It "Tries to delete a non-existent user" {
         { Remove-CcUser -Session $sess -Name "bogusUser"  |
             Should Throw "CloudChamber: user ""bogususer"" not found`n" `
-                -ExceptionType  [System.Net.Http.HttpRequestException]
+                -ExceptionType [System.Net.Http.HttpRequestException]
         }
     }
 }
