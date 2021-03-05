@@ -8,7 +8,13 @@
     }
 
     AfterEach {
-        Disconnect-CcAccount -Session $sess
+        try {
+            Remove-CcUser -Session $sess -Name "cliTest"
+        } catch {}
+
+        try {
+            Disconnect-CcAccount -Session $sess
+        } catch {}
     }
 
     It "Gets the current time" {
@@ -29,6 +35,20 @@
 
         $tick = Get-CcTime -Session $sess
         $tick | Should Be $newTime
+    }
+
+    It "Fails to step the time manually" {
+        $user = New-CcUser -Session $sess -Name "cliTest" -Enabled -Password "fooBar"
+        
+        $sess = Disconnect-CcAccount -Session $sess
+        $sess = Connect-CcAccount -ClusterUri http://localhost:8080 -Name cliTest -Password fooBar
+
+        $tick = Get-CcTime -Session $sess
+        $tick | Should BeGreaterThan -1
+
+        { $tag = Suspend-CcTime -Session $sess -Force } | `
+            Should Throw "CloudChamber: permission denied`n" `
+                -ExceptionType [System.Net.Http.HttpRequestException]
     }
 
     It "Double Steps the time manaully" {
