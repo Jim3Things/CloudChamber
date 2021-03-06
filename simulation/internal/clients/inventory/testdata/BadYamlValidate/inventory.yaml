@@ -159,19 +159,19 @@ ZoneTypes:
       - Name: rack1
         <<: *rackType1
       - Name: rack2
-        <<: *rackType1
+        <<: *rackType2
       - Name: rack3
-        <<: *rackType1
+        <<: *rackType2
       - Name: rack4
-        <<: *rackType1
+        <<: *rackType2
       - Name: rack5
-        <<: *rackType1
+        <<: *rackType2
       - Name: rack6
-        <<: *rackType1
+        <<: *rackType2
       - Name: rack7
-        <<: *rackType1
+        <<: *rackType2
       - Name: rack8
-        <<: *rackType1
+        <<: *rackType2
 
 
 # Start of layout

@@ -17,6 +17,22 @@ BladeTypeS:
       DiskInGb: 240 
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
+  - &bladeType2
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: local
+      Image: standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
+      Cores: 8
+      MemoryInMb: 16384
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: "X64"
 
 TorTypes:
   - &torType1
@@ -49,7 +65,7 @@ RackTypes:
       - Index: 1
         <<: *bladeType1
       - Index: 2
-        <<: *bladeType1
+        <<: *bladeType2
     Tors:
       - Index: 0
         <<: *torType1
@@ -68,10 +84,15 @@ ZoneTypes:
       - Name: rack1
         <<: *rackType1
         Details:
+          Enabled: true
+          Condition: Operational
           Location: "DC-PNW-0-rack1"
           Notes: "RackName: rack1"
       - Name: rack2
         <<: *rackType1
+        Details:
+          Enabled: true
+          Condition: Operational
           Location: "DC-PNW-0-rack2"
           Notes: "RackName: rack2"
 

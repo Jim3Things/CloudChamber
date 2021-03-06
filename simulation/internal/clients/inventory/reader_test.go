@@ -165,7 +165,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		//
 		assert.Equal(3, len(p0.Ports))
 
-		p0b0, ok := p0.Ports[1]
+		p0b0, ok := p0.Ports[0]
 		require.True(ok)
 
 		assert.True(p0b0.Wired)
@@ -264,7 +264,7 @@ func (ts *readerTestSuite) TestIReadInventoryDefinitionFromFileUniqueRack() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYaml")
-	require.EqualError(err, "Duplicate rack \"rack1\" detected")
+	require.EqualError(err, "CloudChamber: Configuration detected duplicate Rack rack1 in zone \"zone1\" in region \"region1\"")
 	require.Nil(response)
 }
 
@@ -272,7 +272,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileUniqueBlade() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlBlade")
-	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
+	require.EqualError(err, "CloudChamber: Configuration detected duplicate Blade for blade 1 in region \"region1\", zone \"zone1\", rack \"rack1\"")
 	require.Nil(response)
 }
 
@@ -280,7 +280,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileValidateBlade() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlValidate")
-	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
+	require.EqualError(err, "CloudChamber: in region \"region1\": the field \"Zones[zone1].Racks[rack1].Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
 	require.Nil(response)
 }
 
