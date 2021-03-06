@@ -70,6 +70,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	memoData := dbInventory.GetMemoData()
 	if memoData == nil {
 		postHTTPError(ctx, w, errors.ErrInventoryNotAvailable)
+		return
 	}
 
 	res := &pb.External_ZoneSummary{
@@ -87,15 +88,18 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.ScanRacksInZone(inventory.DefaultRegion, inventory.DefaultZone, func(name string) error {
-		target := fmt.Sprintf("%s%s/", b, name)
+	err = dbInventory.ScanRacksInZone(
+		inventory.DefaultRegion,
+		inventory.DefaultZone,
+		func(name string) error {
+			target := fmt.Sprintf("%s%s/", b, name)
 
-		res.Racks[name] = &pb.External_RackSummary{Uri: target}
+			res.Racks[name] = &pb.External_RackSummary{Uri: target}
 
-		tracing.Info(ctx, "   Listing rack %q at %q", name, target)
+			tracing.Info(ctx, "   Listing rack %q at %q", name, target)
 
-		return nil
-	})
+			return nil
+		})
 
 	if err != nil {
 		postHTTPError(ctx, w, err)
@@ -129,7 +133,13 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rack, err := dbInventory.GetRack(inventory.DefaultRegion, inventory.DefaultZone, rackID)
+	rd, err := dbInventory.GetRackInZone(inventory.DefaultRegion, inventory.DefaultZone, rackID)
+	if err != nil {
+		postHTTPError(ctx, w, err)
+		return
+	}
+
+	rack, err := transformRack(rd)
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return
@@ -137,7 +147,8 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 
-	tracing.Info(ctx, "Returning details for rack %q: %v", rackID, rack)
+	tracing.UpdateSpanName(ctx, "Get Details for rack %q", rackID)
+	tracing.Info(ctx, "Rack %q details: %v", rackID, rack)
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, rack)
@@ -166,6 +177,8 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	rackID := vars["rackID"] // captured the key value in rackID variable
 
+	tracing.UpdateSpanName(ctx, "Get List of Blades in rack %q", rackID)
+
 	if _, err = fmt.Fprintf(w, "Blades in %q (List)\n", rackID); err != nil {
 		postHTTPError(ctx, w, err)
 		return
@@ -173,14 +186,18 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
-	err = dbInventory.ScanBladesInRack(inventory.DefaultRegion, inventory.DefaultZone, rackID, func(bladeID int64) error {
+	err = dbInventory.ScanBladesInRack(
+		inventory.DefaultRegion,
+		inventory.DefaultZone,
+		rackID,
+		func(bladeID int64) error {
 
-		target := fmt.Sprintf("%s%d", b, bladeID)
-		tracing.Info(ctx, " Listing blades '%d' at %q", bladeID, target)
+			target := fmt.Sprintf("%s%d", b, bladeID)
+			tracing.Info(ctx, " Listing blades '%d' at %q", bladeID, target)
 
-		_, err = fmt.Fprintln(w, target)
-		return err
-	})
+			_, err = fmt.Fprintln(w, target)
+			return err
+		})
 
 	httpErrorIf(ctx, w, err)
 }
@@ -219,17 +236,50 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	blade, err := dbInventory.GetBlade(inventory.DefaultRegion, inventory.DefaultZone, rackID, bladeID)
-
+	blade, err := dbInventory.GetBlade(
+		inventory.DefaultRegion,
+		inventory.DefaultZone,
+		rackID,
+		bladeID)
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return
 	}
 
-	tracing.Info(ctx, "Returning details for blade %d  in rack %q:  %v", bladeID, rackID, blade)
+	tracing.UpdateSpanName(ctx, "Get Details for blade %d in rack %q", bladeID, rackID)
+	tracing.Info(ctx, "Returning details for blade %d in rack %q:  %v", bladeID, rackID, blade)
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, blade)
 
 	httpErrorIf(ctx, w, err)
+}
+
+// transformRack converts the internal rack states into an exportable external
+// view.
+func transformRack(rd *pb.Definition_Rack) (*pb.External_Rack, error) {
+	rack := &pb.External_Rack{
+		Pdu:    &pb.External_Pdu{},
+		Tor:    &pb.External_Tor{},
+		Blades: make(map[int64]*pb.BladeCapacity),
+	}
+
+	for i, blade := range rd.Blades {
+		b := &pb.BladeCapacity{
+			Cores:                  blade.Capacity.Cores,
+			MemoryInMb:             blade.Capacity.MemoryInMb,
+			DiskInGb:               blade.Capacity.DiskInGb,
+			NetworkBandwidthInMbps: blade.Capacity.NetworkBandwidthInMbps,
+			Arch:                   blade.Capacity.Arch,
+			Accelerators:           nil,
+		}
+
+		for _, a := range blade.Capacity.Accelerators {
+			b.Accelerators = append(b.Accelerators, a)
+		}
+
+		rack.Blades[i] = b
+	}
+
+	return rack, nil
 }

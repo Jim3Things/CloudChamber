@@ -97,7 +97,7 @@ func NewDbInventory(cfg *config.GlobalConfig, store *store.Store) *DBInventory {
 // currently established watch handlers leading to updates elsewhere
 // in the system.
 //
-// NOTE: this method is not expected to be called as part of initialization 
+// NOTE: this method is not expected to be called as part of initialization
 //       when running tests so as to avoid unfortunate interactions with
 //       the trace code as a result of generating lots of trace spans before
 //       the trace sink client is available.
@@ -108,7 +108,7 @@ func (m *DBInventory) Start(ctx context.Context) error {
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
-	
+
 	if !m.Started {
 		if err := m.inventory.Start(ctx); err != nil {
 			return err
@@ -242,7 +242,7 @@ func (m *DBInventory) GetZone(regionName string, zoneName string) (*pb.Definitio
 // function with each entry.
 //
 func (m *DBInventory) ScanRacksInZone(regionName string, zoneName string, action func(entry string) error) error {
-	
+
 	ctx := context.Background()
 
 	zone, err := m.inventory.NewZone(inventory.DefinitionTable, regionName, zoneName)
@@ -310,54 +310,6 @@ func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName
 
 	for index, blade := range *blades {
 		r.Blades[index] = blade.GetDefinitionBlade()
-	}
-
-	return r, nil
-}
-
-// GetRack returns the rack details to match the supplied rackID
-//
-// By convention, during the transition, the routines which provide the
-// External_Xxxx style structures *REQUIRE* that there be a region named
-// "standard", there be a zone within that region named "standard", in
-// each of the racks there must be a Pdu with id 0 and a Tor with Id 0.
-//
-// All other regions, zones, pdus and tors will be ignored.
-//
-func (m *DBInventory) GetRack(regionName string, zoneName string, rackName string) (*pb.External_Rack, error) {
-
-	ctx := context.Background()
-
-	rack, err := m.inventory.NewRack(
-		inventory.DefinitionTable,
-		regionName,
-		zoneName,
-		rackName)
-
-	if err != nil {
-		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
-	}
-
-	_, err = rack.Read(ctx)
-	if err != nil {
-		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
-	}
-
-	_, blades, err := rack.FetchBlades(ctx)
-	if err != nil {
-		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
-	}
-
-	bladeMap := make(map[int64]*pb.BladeCapacity, len(*blades))
-
-	for index, blade := range *blades {
-		bladeMap[index] = blade.GetCapacity()
-	}
-
-	r := &pb.External_Rack{
-		Pdu:    &pb.External_Pdu{},
-		Tor:    &pb.External_Tor{},
-		Blades: bladeMap,
 	}
 
 	return r, nil
