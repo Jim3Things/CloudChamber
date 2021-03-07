@@ -83,7 +83,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		"Listing all %d racks, max blades/rack=%d, max blade capacity=%v",
 		memoData.RackCount,
 		memoData.MaxBladeCount,
-		&memoData.MaxCapacity)
+		memoData.MaxCapacity)
 
 	b := common.URLPrefix(r)
 

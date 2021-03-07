@@ -1047,7 +1047,20 @@ func NewInventory(cfg *config.GlobalConfig, store *store.Store) *Inventory {
 // Start is a function to get the inventory ready for use.
 //
 func (m *Inventory) Start(ctx context.Context) error {
-	return m.Store.Connect()
+
+	if err := m.Store.Connect(); err != nil {
+		return err
+	}
+
+	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	m.RootSummary, m.DefaultZoneSummary = m.buildSummaryInformation(ctx, rootStore)
+
+	return nil
 }
 
 // GetDefaultZoneSummary returns the maximum number of blades held in any rack
@@ -1144,12 +1157,12 @@ func (m *Inventory) reconcileNewInventory(
 		return err
 	}
 
-	m.RootSummary, m.DefaultZoneSummary = m.refreshSummaryInformation(ctx, rootFile)
+	m.RootSummary, m.DefaultZoneSummary = m.buildSummaryInformation(ctx, rootFile)
 
 	return nil
 }
 
-func (m *Inventory) refreshSummaryInformation(ctx context.Context, root *pb.Definition_Root) (*RootSummary, *ZoneSummary) {
+func (m *Inventory) buildSummaryInformation(ctx context.Context, root *pb.Definition_Root) (*RootSummary, *ZoneSummary) {
 
 	var zoneSummary *ZoneSummary
 
@@ -1175,7 +1188,7 @@ func (m *Inventory) refreshSummaryInformation(ctx context.Context, root *pb.Defi
 			"   Reset DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v - %v",
 			zoneSummary.RackCount,
 			zoneSummary.MaxBladeCount,
-			&zoneSummary.MaxCapacity,
+			zoneSummary.MaxCapacity,
 			err,
 		)
 	} else {
