@@ -108,7 +108,7 @@ rem
 echo.
 echo Starting %TARGETBIN%
 
-start cmd /c "%TARGETBIN% -config=%2 2>&1 >%CLOUDCHAMBERLOGS%\%BINARY:~0,-4%.log"
+start cmd /c "%TARGETBIN% -config=%2 >%CLOUDCHAMBERLOGS%\%BINARY:~0,-4%.log 2>&1"
 goto :StartBinaryExit
 
 
