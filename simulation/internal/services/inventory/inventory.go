@@ -27,9 +27,6 @@ type server struct {
 
 	store *st.Store
 	inventory *ic.Inventory
-	inventoryRoot *ic.Root
-	inventoryRegion *ic.Region
-	inventoryZone *ic.Zone
 }
 
 func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
@@ -57,7 +54,7 @@ func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
 		timers: timers,
 	}
 
-	if err := s.initialiseInventory(cfg); err != nil {
+	if err := s.initializeInventory(cfg); err != nil {
 		return err
 	}
 
@@ -90,7 +87,7 @@ func (s *server) GetCurrentStatus(context.Context, *pb.InventoryStatusMsg) (*pb.
 	return nil, nil
 }
 
-func (s *server) initialiseInventory(cfg *config.GlobalConfig) error {
+func (s *server) initializeInventory(cfg *config.GlobalConfig) error {
 	// Initialize the underlying store
 	//
 	ctx := context.Background()
@@ -136,13 +133,15 @@ func (s *server) initializeRacks() error {
 
 	zone, err := s.inventory.NewZone(ic.DefinitionTable, regionName, zoneName)
 
+	if err != nil {
+		return err
+	}
+
 	_, racks, err := zone.FetchChildren(ctx)
 
 	if err != nil {
 		return err
 	}
-
-	s.inventoryZone = zone
 
 	for name, rack := range *racks {
 		// For each rack, create a rack item, supplying the tor, pdu, and blade

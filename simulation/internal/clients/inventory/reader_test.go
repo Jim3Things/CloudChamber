@@ -81,39 +81,6 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 	assert.Equal("X64", b.Capacity.Arch)
 }
 
-// func (ts *readerTestSuite) TestReadInventoryBogusPath() {
-// 	require := ts.Require()
-
-// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./missing/path")
-// 	require.EqualError(err, "no inventory definition found at ./missing/path/inventory.yaml (yaml)")
-// 	require.Nil(response)
-// }
-
-// // TestInventoryUniqueRack test to check that zone always contain unique rack numbers
-// func (ts *readerTestSuite) TestInventoryUniqueRack() {
-// 	require := ts.Require()
-
-// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYaml")
-// 	require.EqualError(err, "Duplicate rack \"rack1\" detected")
-// 	require.Nil(response)
-// }
-
-// func (ts *readerTestSuite) TestInventoryUniqueBlade() {
-// 	require := ts.Require()
-
-// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlBlade")
-// 	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
-// 	require.Nil(response)
-// }
-
-// func (ts *readerTestSuite) TestInventoryValidateBlade() {
-// 	require := ts.Require()
-
-// 	response, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/BadYamlValidate")
-// 	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
-// 	require.Nil(response)
-// }
-
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 	assert := ts.Assert()
 	require := ts.Require()

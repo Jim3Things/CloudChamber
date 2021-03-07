@@ -246,11 +246,11 @@ func ReadInventoryDefinitionFromFileEx(ctx context.Context, path string) (*pb.De
 
 var conditionmMap = map[string]pb.Condition{
 	"not_in_service": pb.Condition_not_in_service,
-    "operational":    pb.Condition_operational,
-    "burn_in":        pb.Condition_burn_in,
-    "out_for_repair": pb.Condition_out_for_repair,
-    "retiring":       pb.Condition_retiring,
-    "retired":        pb.Condition_retired,
+	"operational":    pb.Condition_operational,
+	"burn_in":        pb.Condition_burn_in,
+	"out_for_repair": pb.Condition_out_for_repair,
+	"retiring":       pb.Condition_retiring,
+	"retired":        pb.Condition_retired,
 }
 
 var stateMap = map[string]pb.State{

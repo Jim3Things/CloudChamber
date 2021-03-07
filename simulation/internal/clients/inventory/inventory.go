@@ -1025,7 +1025,6 @@ type Inventory struct {
 	Store              *store.Store
 	RootSummary        *RootSummary
 	DefaultZoneSummary *ZoneSummary
-	summaryInfoValid   bool
 }
 
 // NewInventory is a helper routine to construct an empty Inventory structure
