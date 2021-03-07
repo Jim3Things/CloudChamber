@@ -99,29 +99,18 @@ func (s *server) initialiseInventory(cfg *config.GlobalConfig) error {
 	s.store = st.NewStore()
 	s.inventory = ic.NewInventory(cfg, s.store)
 	
-	// NOTE TO Jim
-	//
-	// We need to decide who gets to write the defined inventory to the
-	// store. At present this is done by the frontend process, but it may
-	// well be that the inventoryd process should be doing that. 
-	//
-	//
-	// NOTE TO Mike
-	//
-	// Need to not have Start() also do the load. That should/is a separate call.
-	//
 	if err := s.inventory.Start(ctx); err != nil {
 		return err
 	}
 
+	// Load/update the store inventory definitions from the configured file.
+	// Once complete, all queries for the current definitions should be
+	// performed against the store.
+	//
 	if err := s.inventory.UpdateInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition); err != nil {
 		return err
 	}
 
-	// At this point the inventory is loaded from the configured file
-	// into the store. All queries for the current defnitions should
-	// now be performed against the store.
-	//
 	return nil
 }
 
@@ -133,11 +122,16 @@ func (s *server) initializeRacks() error {
 	defer span.End()
 
 	const (
-		// These will be whatever is defined in the inventory. Or they can be
+		// These will match whatever is defined in the inventory. Or they can be
 		// discovered by scanning for regions etc from the root of the definition
+		// table.
 		//
-		regionName = "region1"
-		zoneName   = "zone1"
+		// If the inventory service is intended to provide service for a single
+		// zone as defined in (say) the configuration, then these values should
+		// be updated to reflect that configuration information.
+		//
+		regionName = "standard"
+		zoneName   = "standard"
 	)
 
 	zone, err := s.inventory.NewZone(ic.DefinitionTable, regionName, zoneName)

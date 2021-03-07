@@ -64,13 +64,12 @@ type actualZone struct {
 // in-memory "actual" state. Eventually, we expect this to move to the store once
 // all the required store features are in place, primarily Watch().
 //
-func (m *DBInventory) LoadInventoryActual(force bool) error {
+func (m *DBInventory) LoadInventoryActual(ctx context.Context, force bool) error {
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	ctx := context.Background()
-
-	if !m.actualLoaded || force  {
+	if !m.actualLoaded || force {
+		m.actualLoaded = false
 
 		m.mutex.Unlock()
 

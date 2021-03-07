@@ -1025,6 +1025,7 @@ type Inventory struct {
 	Store              *store.Store
 	RootSummary        *RootSummary
 	DefaultZoneSummary *ZoneSummary
+	summaryInfoValid   bool
 }
 
 // NewInventory is a helper routine to construct an empty Inventory structure
@@ -1047,16 +1048,7 @@ func NewInventory(cfg *config.GlobalConfig, store *store.Store) *Inventory {
 // Start is a function to get the inventory ready for use.
 //
 func (m *Inventory) Start(ctx context.Context) error {
-
-	if err := m.Store.Connect(); err != nil {
-		return err
-	}
-
-	if err := m.UpdateInventoryDefinition(ctx, m.cfg.Inventory.InventoryDefinition); err != nil {
-		return err
-	}
-
-	return nil
+	return m.Store.Connect()
 }
 
 // GetDefaultZoneSummary returns the maximum number of blades held in any rack
@@ -1153,44 +1145,53 @@ func (m *Inventory) reconcileNewInventory(
 		return err
 	}
 
-	m.RootSummary = m.buildSummaryForRoot(rootFile)
+	m.RootSummary, m.DefaultZoneSummary = m.refreshSummaryInformation(ctx, rootFile)
+
+	return nil
+}
+
+func (m *Inventory) refreshSummaryInformation(ctx context.Context, root *pb.Definition_Root) (*RootSummary, *ZoneSummary) {
+
+	var zoneSummary *ZoneSummary
+
+	rootSummary := m.buildSummaryForRoot(root)
 
 	tracing.Info(
 		ctx,
 		"   Updated inventory summary - RegionCount: %d MaxZoneCount: %d MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v",
-		m.RootSummary.RegionCount,
-		m.RootSummary.MaxZoneCount,
-		m.RootSummary.MaxRackCount,
-		m.RootSummary.MaxBladeCount,
-		&m.RootSummary.MaxCapacity)
+		rootSummary.RegionCount,
+		rootSummary.MaxZoneCount,
+		rootSummary.MaxRackCount,
+		rootSummary.MaxBladeCount,
+		rootSummary.MaxCapacity)
 
 
-	zone, err := m.getDefaultZone(rootFile)
+	zone, err := m.getDefaultZone(root)
 
 	if err != nil {
-		m.DefaultZoneSummary = &ZoneSummary{}
+		zoneSummary = &ZoneSummary{}
 	
 		tracing.Error(
 			ctx,
 			"   Reset DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v - %v",
-			m.DefaultZoneSummary.RackCount,
-			m.DefaultZoneSummary.MaxBladeCount,
-			&m.DefaultZoneSummary.MaxCapacity,
+			zoneSummary.RackCount,
+			zoneSummary.MaxBladeCount,
+			&zoneSummary.MaxCapacity,
 			err,
 		)
 	} else {
-		m.DefaultZoneSummary = m.buildSummaryForZone(zone)
+		zoneSummary = m.buildSummaryForZone(zone)
 
 		tracing.Info(
 			ctx,
 			"   Updated DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v",
-			m.DefaultZoneSummary.RackCount,
-			m.DefaultZoneSummary.MaxBladeCount,
-			&m.DefaultZoneSummary.MaxCapacity,
+			zoneSummary.RackCount,
+			zoneSummary.MaxBladeCount,
+			zoneSummary.MaxCapacity,
 		)
 	}
 
-	return nil
+	return rootSummary, zoneSummary
 }
 
 func (m *Inventory) getDefaultZone(root *pb.Definition_Root) (*pb.Definition_Zone, error) {
