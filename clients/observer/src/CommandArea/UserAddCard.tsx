@@ -15,8 +15,9 @@ import {
 import PersonIcon from "@material-ui/icons/Person";
 import {makeStyles} from "@material-ui/core/styles";
 
-import {JsonRights, UserDetails} from "../proxies/UsersProxy";
+import {UserDetails} from "../proxies/UsersProxy";
 import {PasswordTextField} from "../common/PasswordTextField";
+import {Rights} from "../../../../pkg/protos/admin/users"
 
 const useStyles = makeStyles(theme => ({
     area: {
@@ -54,7 +55,7 @@ export function UserAddCard(props: {
         props.onModify(props.name,{ ...props.user, [event.target.name]: event.target.checked })
 
     const handleRightsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const rights: JsonRights = {...props.user.rights, [event.target.name]: event.target.checked }
+        const rights: Rights = {...props.user.rights, [event.target.name]: event.target.checked }
 
         props.onModify(props.name,{ ...props.user, rights: rights });
     }

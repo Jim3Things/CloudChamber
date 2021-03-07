@@ -19,8 +19,9 @@ import ExpandLessIcon from "@material-ui/icons/ExpandLess"
 import ExpandMoreIcon from "@material-ui/icons/ExpandMore"
 import {makeStyles} from "@material-ui/core/styles";
 
-import {JsonRights, UserDetails} from "../proxies/UsersProxy";
+import {UserDetails} from "../proxies/UsersProxy";
 import {PasswordTextField} from "../common/PasswordTextField";
+import {Rights} from "../../../../pkg/protos/admin/users"
 
 const useStyles = makeStyles(theme => ({
     area: {
@@ -65,7 +66,7 @@ export function UserDetailsCard(props: {
     }
 
     const handleRightsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const rights: JsonRights = {...props.user.rights, [event.target.name]: event.target.checked }
+        const rights: Rights = {...props.user.rights, [event.target.name]: event.target.checked }
 
         props.onModify({ ...props.user, rights: rights });
     }

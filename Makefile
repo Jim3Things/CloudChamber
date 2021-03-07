@@ -71,6 +71,26 @@ PROTO_CS_GEN_FILES = \
     pkg/protos/workload/target.pb.cs \
     pkg/protos/services/requests.pb.cs
 
+PROTO_TS_GEN_FILES = \
+    pkg/protos/admin/simulation.ts \
+    pkg/protos/admin/users.ts \
+    pkg/protos/common/completion.ts \
+    pkg/protos/common/timestamp.ts \
+    pkg/protos/log/entry.ts \
+    pkg/protos/inventory/capacity.ts \
+    pkg/protos/inventory/common.ts \
+    pkg/protos/inventory/actual.ts \
+    pkg/protos/inventory/definition.ts \
+    pkg/protos/inventory/external.ts \
+    pkg/protos/inventory/internal.ts \
+    pkg/protos/inventory/store.ts \
+    pkg/protos/inventory/target.ts \
+    pkg/protos/workload/actual.ts \
+    pkg/protos/workload/external.ts \
+    pkg/protos/workload/internal.ts \
+    pkg/protos/workload/target.ts \
+    pkg/protos/services/requests.ts
+
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
 
 SRC_ERRORS = \
@@ -226,6 +246,7 @@ PROTOC_BASE = protoc --proto_path=$(GOPATH)/src
 
 PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src
 PROTOC_PBUF_CS = $(PROTOC_BASE) --csharp_out=$(PROJECT)/pkg/protos --csharp_opt=file_extension=.pb.cs,base_namespace=CloudChamber.Protos
+PROTOC_PBUF_TS = $(PROTOC_BASE) --ts_proto_out=$(GOPATH)/src
 PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
 
 
@@ -240,9 +261,9 @@ RM-RECURSIVE = $(RM) -r
 
 all: build run_tests
 
-build: $(PROTO_CS_GEN_FILES) $(SERVICES) $(ARTIFACTS)
+build: $(PROTO_TS_GEN_FILES) $(PROTO_CS_GEN_FILES) $(SERVICES) $(ARTIFACTS)
 
-protogen: $(PROTO_GEN_FILES) $(PROTO_GEN_CS_FILES)
+protogen: $(PROTO_GEN_FILES) $(PROTO_GEN_CS_FILES) $(PROTO_TS_GEN_FILES)
 
 version: $(VERSION_MARKER)
 
@@ -288,7 +309,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 .PHONY : clean
 
 clean:
-	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(PROTO_CS_GEN_FILES) $(VERSION_MARKER)
+	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(PROTO_CS_GEN_FILES) $(PROTO_TS_GEN_FILES) $(VERSION_MARKER)
 
 
 .PHONY : test
@@ -301,6 +322,9 @@ test: run_tests
 
 %.pb.cs : %.proto
 	$(PROTOC_PBUF_CS) $(PROJECT)/$<
+
+%.ts : %.proto
+	$(PROTOC_PBUF_TS) $(PROJECT)/$<
 
 pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
 	$(PROTOC_GRPC) $(PROJECT)/$<
