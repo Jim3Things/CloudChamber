@@ -265,20 +265,7 @@ func transformRack(rd *pb.Definition_Rack) (*pb.External_Rack, error) {
 	}
 
 	for i, blade := range rd.Blades {
-		b := &pb.BladeCapacity{
-			Cores:                  blade.Capacity.Cores,
-			MemoryInMb:             blade.Capacity.MemoryInMb,
-			DiskInGb:               blade.Capacity.DiskInGb,
-			NetworkBandwidthInMbps: blade.Capacity.NetworkBandwidthInMbps,
-			Arch:                   blade.Capacity.Arch,
-			Accelerators:           nil,
-		}
-
-		for _, a := range blade.Capacity.Accelerators {
-			b.Accelerators = append(b.Accelerators, a)
-		}
-
-		rack.Blades[i] = b
+		rack.Blades[i] = blade.GetCapacity()
 	}
 
 	return rack, nil
