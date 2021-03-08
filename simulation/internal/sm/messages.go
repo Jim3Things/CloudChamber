@@ -54,7 +54,7 @@ func UnexpectedMessageResponse(machine *SM, occursAt int64, body interface{}) *R
 	return &Response{
 		Err: &errors.ErrUnexpectedMessage{
 			Msg:   fmt.Sprintf("%v", body),
-			State: machine.CurrentIndex,
+			State: machine.CurrentIndex.String(),
 		},
 		At:  occursAt,
 		Msg: nil,

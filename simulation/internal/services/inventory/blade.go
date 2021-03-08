@@ -4,6 +4,8 @@ import (
 	"context"
 	"math/rand"
 
+	"github.com/golang/protobuf/proto"
+
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
@@ -55,58 +57,9 @@ type blade struct {
 	// matchTimerExpiry is the blade supplied ID embedded in the timer expired
 	// message.
 	matchTimerExpiry int
+
+	expiration int64
 }
-
-const (
-	// bladeStart is the state where initialization of the state machine
-	// begins.
-	bladeStart = "start"
-
-	// bladeOffDiscon is current when the blade has neither simulated
-	// power or simulated network connectivity.
-	bladeOffDiscon = "off-disconnected"
-
-	// bladeOffConn is current when the blade has no simulated power,
-	// but does have simulated network connectivity.
-	bladeOffConn = "off-connected"
-
-	// bladePoweredDiscon is current when the blade has simulated power,
-	// but no simulated network connectivity.
-	bladePoweredDiscon = "powered-disconnected"
-
-	// bladePoweredConn is current when the blade has power and simulated
-	// network connectivity.  If auto-boot is enabled, this state will
-	// automatically transition to the following booting state.
-	bladePoweredConn = "powered-connected"
-
-	// bladeBooting is current when the blade is waiting for the simulated
-	// boot delay to complete.
-	bladeBooting = "booting"
-
-	// bladeWorking is current when the blade is powered on, booted, and
-	// able to handle workload requests.
-	bladeWorking = "working"
-
-	// bladeIsolated is current when the blade is powered on and booted,
-	// but has not simulated network connectivity.  Existing workloads are
-	// informed the connectivity has been lost, but are otherwise undisturbed.
-	bladeIsolated = "isolated"
-
-	// bladeStopping is a transitional state to clean up when the blade is
-	// finally shutting down.  This may involve notifying any active workloads
-	// that they have been forcibly stopped.
-	bladeStopping = "stopping"
-
-	// bladeStoppingIsolated is a transitional state parallel to the
-	// bladeStopping, but where simulated network connectivity has been
-	// lost.
-	bladeStoppingIsolated = "stopping-isolated"
-
-	// bladeFaulted is current when the blade has either had a processing
-	// fault, such as a timer failure, or an injected fault that leaves it in
-	// a position that requires an external reset/fix.
-	bladeFaulted = "faulted"
-)
 
 func newBlade(def *pb.BladeCapacity, r *Rack, id int64) *blade {
 	b := &blade{
@@ -134,112 +87,112 @@ func newBlade(def *pb.BladeCapacity, r *Rack, id int64) *blade {
 
 	b.sm = sm.NewSM(b,
 		sm.WithFirstState(
-			bladeStart,
+			pb.Actual_Blade_start,
 			startedOnEnter,
 			[]sm.ActionEntry{},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			bladeOffDiscon,
+			pb.Actual_Blade_off_disconnected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, bladeOffConn, sm.Stay},
-				{messages.TagSetPower, setPower, bladePoweredDiscon, sm.Stay},
+				{messages.TagSetConnection, setConnection, pb.Actual_Blade_off_connected, sm.Stay},
+				{messages.TagSetPower, setPower, pb.Actual_Blade_powered_disconnected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			bladeOffConn,
+			pb.Actual_Blade_off_connected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, sm.Ignore, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, bladeOffDiscon},
-				{messages.TagSetPower, setPower, bladePoweredConn, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_off_disconnected},
+				{messages.TagSetPower, setPower, pb.Actual_Blade_powered_connected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			bladePoweredDiscon,
+			pb.Actual_Blade_powered_disconnected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, bladePoweredConn, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, bladePoweredDiscon},
+				{messages.TagSetConnection, setConnection, pb.Actual_Blade_powered_connected, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_powered_disconnected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			bladePoweredConn,
+			pb.Actual_Blade_powered_connected,
 			poweredConnOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
-				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_powered_disconnected},
+				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			bladeBooting,
+			pb.Actual_Blade_booting,
 			bootingOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, bladePoweredDiscon},
-				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
-				{messages.TagTimerExpiry, bootingTimerExpiry, bladeWorking, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_powered_disconnected},
+				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagTimerExpiry, bootingTimerExpiry, pb.Actual_Blade_working, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			bootingOnLeave),
 
 		sm.WithState(
-			bladeWorking,
+			pb.Actual_Blade_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, bladeIsolated},
-				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_isolated},
+				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			bladeIsolated,
+			pb.Actual_Blade_isolated,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, bladeWorking, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
+				{messages.TagSetConnection, setConnection, pb.Actual_Blade_working, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			bladeStopping,
+			pb.Actual_Blade_stopping,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, bladeStoppingIsolated},
-				{messages.TagSetPower, setPower, sm.Stay, bladeOffConn},
-				{messages.TagTimerExpiry, stoppingTimerExpiry, bladeOffConn, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_stopping_isolated},
+				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.Actual_Blade_off_connected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			stoppingOnLeave),
 
 		sm.WithState(
-			bladeStoppingIsolated,
+			pb.Actual_Blade_stopping_isolated,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, bladeStopping, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, bladeOffDiscon},
-				{messages.TagTimerExpiry, stoppingTimerExpiry, bladeOffDiscon, sm.Stay},
+				{messages.TagSetConnection, setConnection, pb.Actual_Blade_stopping, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_disconnected},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.Actual_Blade_off_disconnected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			stoppingOnLeave),
 
 		sm.WithState(
-			bladeFaulted,
+			pb.Actual_Blade_faulted,
 			faultedEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
@@ -247,6 +200,25 @@ func newBlade(def *pb.BladeCapacity, r *Rack, id int64) *blade {
 	)
 
 	return b
+}
+
+// Save returns a protobuf instance containing the information needed to later
+// restore this state machine instance to the logical equivalence of its current
+// state.
+func (b *blade) Save() (proto.Message, error) {
+	cur, entered, terminal, guard := b.sm.Savable()
+
+	return &pb.Actual_Blade{
+		Condition:    pb.Actual_operational,
+		SmState:      cur.(pb.Actual_Blade_State),
+		StateExpires: b.hasActiveTimer,
+		Expiration:   b.expiration,
+		Core: &pb.Actual_MachineCore{
+			EnteredAt: entered,
+			Terminal:  terminal,
+			Guard:     guard,
+		},
+	}, nil
 }
 
 func (b *blade) Receive(ctx context.Context, msg sm.Envelope) {
@@ -262,7 +234,7 @@ func (b *blade) me() *messages.MessageTarget {
 // startedOnEnter initializes the simulation state and transitions to the
 // off and disconnected state.
 func startedOnEnter(ctx context.Context, machine *sm.SM) error {
-	return machine.ChangeState(ctx, bladeOffDiscon)
+	return machine.ChangeState(ctx, pb.Actual_Blade_off_disconnected)
 }
 
 // poweredConnOnEnter checks if automatic booting is enabled.  If it is, the
@@ -271,7 +243,7 @@ func poweredConnOnEnter(ctx context.Context, machine *sm.SM) error {
 	b := machine.Parent.(*blade)
 
 	if b.bootOnPower {
-		return machine.ChangeState(ctx, bladeBooting)
+		return machine.ChangeState(ctx, pb.Actual_Blade_booting)
 	}
 
 	return nil
@@ -291,8 +263,8 @@ func bootingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) bool
 
 // bootingOnLeave ensures that any active boot delay timer is canceled before
 // proceeding to a non-booting state.
-func bootingOnLeave(ctx context.Context, machine *sm.SM, nextState string) {
-	if nextState != bladeBooting {
+func bootingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
+	if nextState != pb.Actual_Blade_booting {
 		cancelTimer(ctx, machine, "boot")
 	}
 }
@@ -306,8 +278,9 @@ func stoppingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) boo
 
 // stoppingOnLeave ensures that any active time is canceled before proceeding
 // to a non-stopping state.
-func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState string) {
-	if nextState != bladeStopping && nextState != bladeStoppingIsolated {
+func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
+	if nextState != pb.Actual_Blade_stopping &&
+		nextState != pb.Actual_Blade_stopping_isolated {
 		cancelTimer(ctx, machine, "shutdown")
 	}
 }
@@ -329,7 +302,7 @@ func bladeGetStatus(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 
 	status := &messages.BladeStatus{
 		StatusBody: messages.StatusBody{
-			State:     b.sm.CurrentIndex,
+			State:     b.sm.CurrentIndex.String(),
 			EnteredAt: b.sm.EnteredAt,
 		},
 		Capacity:  b.capacity.Clone(),
@@ -410,6 +383,7 @@ func setTimer(ctx context.Context, machine *sm.SM, delay int64) error {
 
 		b.hasActiveTimer = true
 		b.matchTimerExpiry = timerId
+		b.expiration = occursAt + delay
 	}
 
 	return nil

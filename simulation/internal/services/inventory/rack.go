@@ -39,12 +39,6 @@ type Rack struct {
 }
 
 const (
-	rackAwaitingStartState = "awaiting-start"
-	rackWorkingState       = "working"
-	rackTerminalState      = "terminated"
-)
-
-const (
 	rackQueueDepth = 100
 )
 
@@ -79,29 +73,29 @@ func newRackInternal(
 
 	r.sm = sm.NewSM(r,
 		sm.WithFirstState(
-			rackAwaitingStartState,
+			pb.Actual_Rack_awaiting_start,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{sm.TagStartSM, startSim, rackWorkingState, rackTerminalState},
+				{sm.TagStartSM, startSim, pb.Actual_Rack_working, pb.Actual_Rack_terminated},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			rackWorkingState,
+			pb.Actual_Rack_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, process, sm.Stay, sm.Stay},
 				{messages.TagSetConnection, process, sm.Stay, sm.Stay},
 				{messages.TagSetPower, process, sm.Stay, sm.Stay},
 				{messages.TagTimerExpiry, process, sm.Stay, sm.Stay},
-				{sm.TagStopSM, stopSim, rackTerminalState, sm.Stay},
+				{sm.TagStopSM, stopSim, pb.Actual_Rack_terminated, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			rackTerminalState,
+			pb.Actual_Rack_terminated,
 			sm.TerminalEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
@@ -200,7 +194,7 @@ func (r *Rack) start(ctx context.Context) error {
 
 	// Only start the rack state machine once.  If it has already been started
 	// then ignore this call.
-	if r.sm.CurrentIndex == rackAwaitingStartState {
+	if r.sm.CurrentIndex == pb.Actual_Rack_awaiting_start {
 		go r.simulate()
 
 		repl := make(chan *sm.Response)
@@ -226,7 +220,7 @@ func (r *Rack) stop(ctx context.Context) {
 
 	// Issue a stop to terminate the goroutine iff the state
 	// machine is still active.
-	if r.sm.CurrentIndex != rackAwaitingStartState {
+	if r.sm.CurrentIndex != pb.Actual_Rack_awaiting_start {
 		if !r.sm.Terminated {
 			repl := make(chan *sm.Response)
 
@@ -237,7 +231,7 @@ func (r *Rack) stop(ctx context.Context) {
 			<-repl
 		}
 	} else {
-		_ = r.sm.ChangeState(ctx, rackTerminalState)
+		_ = r.sm.ChangeState(ctx, pb.Actual_Rack_terminated)
 	}
 }
 
@@ -333,7 +327,7 @@ func stopSim(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 
 	// Stop the rack simulation.
 	ch <- &sm.Response{
-		Err: machine.ChangeState(ctx, rackTerminalState),
+		Err: machine.ChangeState(ctx, pb.Actual_Rack_terminated),
 		At:  common.TickFromContext(ctx),
 		Msg: nil,
 	}

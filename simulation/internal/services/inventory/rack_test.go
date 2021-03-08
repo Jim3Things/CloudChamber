@@ -13,6 +13,7 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
 type RackTestSuite struct {
@@ -55,19 +56,19 @@ func (ts *RackTestSuite) TestStartStopRack() {
 	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
-	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
 
 	err := r.start(ctx)
 	assert.NoError(err)
 
 	require.Eventually(func() bool {
-		return r.sm.CurrentIndex == rackWorkingState
+		return r.sm.CurrentIndex == pb.Actual_Rack_working
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
 	require.Eventually(func() bool {
-		return r.sm.CurrentIndex == rackTerminalState
+		return r.sm.CurrentIndex == pb.Actual_Rack_terminated
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.sm.CurrentIndex)
 
@@ -90,13 +91,13 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
-	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
 
 	err := r.start(ctx)
 	assert.NoError(err)
 
 	require.Eventually(func() bool {
-		return r.sm.CurrentIndex == rackWorkingState
+		return r.sm.CurrentIndex == pb.Actual_Rack_working
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.sm.CurrentIndex)
 
@@ -104,11 +105,11 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 	assert.Error(err)
 	assert.Equal(errors.ErrAlreadyStarted, err)
 
-	assert.Equal(rackWorkingState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_working, r.sm.CurrentIndex)
 
 	r.stop(ctx)
 	require.Eventually(func() bool {
-		return r.sm.CurrentIndex == rackTerminalState
+		return r.sm.CurrentIndex == pb.Actual_Rack_terminated
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.sm.CurrentIndex)
 
@@ -131,24 +132,24 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
-	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
 
 	err := r.start(ctx)
 	assert.NoError(err)
 
 	require.Eventually(func() bool {
-		return r.sm.CurrentIndex == rackWorkingState
+		return r.sm.CurrentIndex == pb.Actual_Rack_working
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
 	require.Eventually(func() bool {
-		return r.sm.CurrentIndex == rackTerminalState
+		return r.sm.CurrentIndex == pb.Actual_Rack_terminated
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_terminated, r.sm.CurrentIndex)
 
 	span.End()
 }
@@ -169,10 +170,10 @@ func (ts *RackTestSuite) TestStopNoStartRack() {
 	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
-	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
 
 	r.stop(ctx)
-	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_terminated, r.sm.CurrentIndex)
 
 	span.End()
 }
@@ -193,13 +194,13 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
-	assert.Equal(rackAwaitingStartState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
 
 	err := r.start(ctx)
 	assert.NoError(err)
 
 	require.Eventually(func() bool {
-		return r.sm.CurrentIndex == rackWorkingState
+		return r.sm.CurrentIndex == pb.Actual_Rack_working
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.sm.CurrentIndex)
 
@@ -225,10 +226,10 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 		assert.False(c.on)
 	}
 
-	assert.Equal(pduWorkingState, r.pdu.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Pdu_working, r.pdu.sm.CurrentIndex)
 
 	r.stop(ctx)
-	assert.Equal(rackTerminalState, r.sm.CurrentIndex)
+	assert.Equal(pb.Actual_Rack_terminated, r.sm.CurrentIndex)
 
 	span.End()
 }

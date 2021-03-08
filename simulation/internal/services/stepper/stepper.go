@@ -15,32 +15,10 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
+	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 )
 
 const (
-	// awaitingStart is the state prior to initializing the state machine.
-	awaitingStart = "AwaitingStart"
-
-	// invalidState is the state used when no legal policy is in force.
-	invalidState = "Invalid"
-
-	// noWaitState manages the policy where the simulated time is either
-	// manually stepped forward, or, if a Delay operation is called, it jumps
-	// forward to immediately complete any waiter.
-	noWaitState = "NoWait"
-
-	// manualState manages the policy where simulated time only moves forward
-	// due to specific Step operations.
-	manualState = "Manual"
-
-	// measuredState manages the policy where simulated time moves forward by
-	// one tick per a designated real time interval (e.g. 1 tick / second)
-	measuredState = "Measured"
-
-	// faultedState is the state the machine transitions to when an internal
-	// error has occurred.  It is a terminal state.
-	faultedState = "Faulted"
-
 	// queueDepth is the number of incoming messages that may be queued up
 	// before the sender is forced to wait.
 	queueDepth = 100
@@ -84,22 +62,22 @@ func newStepper(startingPolicy int) *stepper {
 
 	s.sm = sm.NewSM(s,
 		sm.WithFirstState(
-			awaitingStart,
+			pb.StepperState_awaiting_start,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{sm.TagStartSM, doStart, sm.Stay, faultedState},
+				{sm.TagStartSM, doStart, sm.Stay, pb.StepperState_faulted},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			invalidState,
+			pb.StepperState_invalid,
 			invalidStateEnter,
 			[]sm.ActionEntry{
-				{messages.TagNoWaitPolicy, policy, noWaitState, sm.Stay},
-				{messages.TagMeasuredPolicy, measuredPolicy, measuredState, sm.Stay},
-				{messages.TagManualPolicy, policy, manualState, sm.Stay},
-				{messages.TagReset, reset, invalidState, sm.Stay},
+				{messages.TagNoWaitPolicy, policy, pb.StepperState_no_wait, sm.Stay},
+				{messages.TagMeasuredPolicy, measuredPolicy, pb.StepperState_measured, sm.Stay},
+				{messages.TagManualPolicy, policy, pb.StepperState_manual, sm.Stay},
+				{messages.TagReset, reset, pb.StepperState_invalid, sm.Stay},
 				{messages.TagGetStatus, getStatus, sm.Stay, sm.Stay},
 				{messages.TagAutoStep, sm.Ignore, sm.Stay, sm.Stay},
 			},
@@ -107,13 +85,13 @@ func newStepper(startingPolicy int) *stepper {
 			sm.NullLeave),
 
 		sm.WithState(
-			noWaitState,
+			pb.StepperState_no_wait,
 			noWaitEnter,
 			[]sm.ActionEntry{
-				{messages.TagNoWaitPolicy, policy, noWaitState, sm.Stay},
-				{messages.TagMeasuredPolicy, measuredPolicy, measuredState, sm.Stay},
-				{messages.TagManualPolicy, policy, manualState, sm.Stay},
-				{messages.TagReset, reset, invalidState, sm.Stay},
+				{messages.TagNoWaitPolicy, policy, pb.StepperState_no_wait, sm.Stay},
+				{messages.TagMeasuredPolicy, measuredPolicy, pb.StepperState_measured, sm.Stay},
+				{messages.TagManualPolicy, policy, pb.StepperState_manual, sm.Stay},
+				{messages.TagReset, reset, pb.StepperState_invalid, sm.Stay},
 				{messages.TagGetStatus, getStatus, sm.Stay, sm.Stay},
 				{messages.TagStep, step, sm.Stay, sm.Stay},
 				{messages.TagNow, now, sm.Stay, sm.Stay},
@@ -124,13 +102,13 @@ func newStepper(startingPolicy int) *stepper {
 			sm.NullLeave),
 
 		sm.WithState(
-			manualState,
+			pb.StepperState_manual,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagNoWaitPolicy, policy, noWaitState, sm.Stay},
-				{messages.TagMeasuredPolicy, measuredPolicy, measuredState, sm.Stay},
-				{messages.TagManualPolicy, policy, manualState, sm.Stay},
-				{messages.TagReset, reset, invalidState, sm.Stay},
+				{messages.TagNoWaitPolicy, policy, pb.StepperState_no_wait, sm.Stay},
+				{messages.TagMeasuredPolicy, measuredPolicy, pb.StepperState_measured, sm.Stay},
+				{messages.TagManualPolicy, policy, pb.StepperState_manual, sm.Stay},
+				{messages.TagReset, reset, pb.StepperState_invalid, sm.Stay},
 				{messages.TagGetStatus, getStatus, sm.Stay, sm.Stay},
 				{messages.TagStep, step, sm.Stay, sm.Stay},
 				{messages.TagNow, now, sm.Stay, sm.Stay},
@@ -141,13 +119,13 @@ func newStepper(startingPolicy int) *stepper {
 			sm.NullLeave),
 
 		sm.WithState(
-			measuredState,
+			pb.StepperState_measured,
 			measuredEnter,
 			[]sm.ActionEntry{
-				{messages.TagNoWaitPolicy, policy, noWaitState, sm.Stay},
-				{messages.TagMeasuredPolicy, measuredPolicy, measuredState, sm.Stay},
-				{messages.TagManualPolicy, policy, manualState, sm.Stay},
-				{messages.TagReset, reset, invalidState, sm.Stay},
+				{messages.TagNoWaitPolicy, policy, pb.StepperState_no_wait, sm.Stay},
+				{messages.TagMeasuredPolicy, measuredPolicy, pb.StepperState_measured, sm.Stay},
+				{messages.TagManualPolicy, policy, pb.StepperState_manual, sm.Stay},
+				{messages.TagReset, reset, pb.StepperState_invalid, sm.Stay},
 				{messages.TagGetStatus, getStatus, sm.Stay, sm.Stay},
 				{messages.TagNow, now, sm.Stay, sm.Stay},
 				{messages.TagDelay, delay, sm.Stay, sm.Stay},
@@ -157,7 +135,7 @@ func newStepper(startingPolicy int) *stepper {
 			measuredLeave),
 
 		sm.WithState(
-			faultedState,
+			pb.StepperState_faulted,
 			sm.TerminalEnter,
 			[]sm.ActionEntry{},
 			sm.UnexpectedMessage,
@@ -181,7 +159,7 @@ func (s *stepper) start(ctx context.Context) error {
 
 	// Only start the state machine once.  If it has already been started
 	// then ignore this call.
-	if s.sm.CurrentIndex == awaitingStart {
+	if s.sm.CurrentIndex == pb.StepperState_awaiting_start {
 		go s.simulate()
 
 		repl := make(chan *sm.Response)
@@ -300,7 +278,7 @@ func measuredEnter(ctx context.Context, machine *sm.SM) error {
 
 // measuredLeave cancels the recurring timer and the associated background
 // goroutine.
-func measuredLeave(_ context.Context, machine *sm.SM, _ string) {
+func measuredLeave(_ context.Context, machine *sm.SM, _ sm.StateIndex) {
 	s := machine.Parent.(*stepper)
 
 	s.stopTicker <- true
@@ -325,16 +303,16 @@ func doStart(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 
 	switch s.firstPolicy {
 	case messages.PolicyInvalid:
-		err = machine.ChangeState(ctx, invalidState)
+		err = machine.ChangeState(ctx, pb.StepperState_invalid)
 
 	case messages.PolicyMeasured:
-		err = machine.ChangeState(ctx, measuredState)
+		err = machine.ChangeState(ctx, pb.StepperState_measured)
 
 	case messages.PolicyManual:
-		err = machine.ChangeState(ctx, manualState)
+		err = machine.ChangeState(ctx, pb.StepperState_manual)
 
 	case messages.PolicyNoWait:
-		err = machine.ChangeState(ctx, noWaitState)
+		err = machine.ChangeState(ctx, pb.StepperState_no_wait)
 
 	default:
 		err = &errors.ErrInvalidEnum{
@@ -600,15 +578,15 @@ func checkForExpiry(ctx context.Context, machine *sm.SM) {
 
 // convertFromState translates the current state into a policy enum value that
 // can be used in the GetStatus response message.
-func convertFromState(state string) int {
+func convertFromState(state sm.StateIndex) int {
 	switch state {
-	case manualState:
+	case pb.StepperState_manual:
 		return messages.PolicyManual
 
-	case measuredState:
+	case pb.StepperState_measured:
 		return messages.PolicyMeasured
 
-	case noWaitState:
+	case pb.StepperState_no_wait:
 		return messages.PolicyNoWait
 
 	default:
