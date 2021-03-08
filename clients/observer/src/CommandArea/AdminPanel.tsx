@@ -2,7 +2,7 @@
 
 import React, {Component} from "react";
 
-import {JsonUserList, JsonUserListEntry, UserDetails, UsersProxy} from "../proxies/UsersProxy";
+import {UserDetails, UsersProxy} from "../proxies/UsersProxy";
 import {getErrorDetails} from "../proxies/Session";
 import {Container, Item} from "../common/Cells";
 import {ListUsers} from "./UsersList";
@@ -11,6 +11,8 @@ import {RenderIf} from "../common/If";
 import {UserAddCard} from "./UserAddCard";
 import {SuccessSnackbar} from "../common/SuccessSnackbar";
 import {ErrorSnackbar} from "../common/ErrorSnackbar";
+
+import {UserList, UserList_Entry} from "../../../../pkg/protos/admin/users"
 
 interface Props {
     height: number
@@ -25,7 +27,7 @@ enum MessageMode {
 }
 
 interface State {
-    users: JsonUserListEntry[]; // Set of known user names
+    users: UserList_Entry[];    // Set of known user names
 
     addInProgress: boolean      // True, if we're in the middle of an add user
     newUserName: string;        // What is the new user name (add dialog)
@@ -62,7 +64,7 @@ export class AdminPanel extends Component<Props & any, State> {
         }));
     }
 
-    private findAfter(name: string, list: JsonUserListEntry[]) : string | undefined {
+    private findAfter(name: string, list: UserList_Entry[]) : string | undefined {
         const result = list.find(item => item.name > name)
         return result === undefined ? undefined : result.name
     }
@@ -89,7 +91,7 @@ export class AdminPanel extends Component<Props & any, State> {
     // Get the list of users
     refreshUserList = (name: string | undefined) => {
         this.props.usersProxy.list()
-            .then((list: JsonUserList) =>
+            .then((list: UserList) =>
             {
                 // Order the list by name
                 const newList = list.users.sort((n1, n2) => {

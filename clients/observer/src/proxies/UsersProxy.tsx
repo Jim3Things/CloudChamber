@@ -7,43 +7,26 @@
 //       protobuf file.
 
 import {ETagHeader, failIfError, getETag} from "./Session";
-
-export interface JsonUserListEntry {
-    name: string
-    uri: string
-    protected: boolean
-}
-
-export interface JsonUserList {
-    users: JsonUserListEntry[]
-}
-
-export interface JsonRights {
-    canManageAccounts: boolean
-    canStepTime: boolean
-    canModifyWorkloads: boolean
-    canModifyInventory: boolean
-    canInjectFaults: boolean
-    canPerformRepairs: boolean
-}
+import {Rights, UserList, UserUpdate, UserPassword} from "../../../../pkg/protos/admin/users";
 
 export interface PublicUserDetails {
     enabled: boolean
-    rights: JsonRights
+    rights: Rights
     neverDelete: boolean
     eTag: number
 }
 
 export class UserDetails implements PublicUserDetails{
     password: string;
-    rights: JsonRights
+    rights: Rights
     enabled: boolean;
     neverDelete: boolean
     eTag: number
 
     constructor() {
         this.password = "";
-        this.rights = {
+        this.rights =
+        {
             canInjectFaults: false,
             canManageAccounts: false,
             canModifyInventory: false,
@@ -57,21 +40,7 @@ export class UserDetails implements PublicUserDetails{
     }
 }
 
-// Message definition for the update request body
-interface JsonUserUpdate {
-    enabled: boolean
-    rights: JsonRights
-}
-
-// Message definition for the set password request body
-interface JsonSetPasswordRequest {
-    oldPassword: string
-    newPassword: string
-    force: boolean
-}
-
 const nullDetails = new UserDetails()
-
 
 // Utility class that provides a proxy to the Cloud Chamber User management
 // service.
@@ -83,7 +52,7 @@ const nullDetails = new UserDetails()
 
 export class UsersProxy {
     // List all known user names
-    public list(): Promise<JsonUserList> {
+    public list(): Promise<UserList> {
         const path = "/api/users/"
         const request = new Request(path, {method: "GET"})
 
@@ -91,7 +60,7 @@ export class UsersProxy {
             .then((resp: Response) => {
                 failIfError(request, resp)
 
-                return resp.json() as Promise<JsonUserList>
+                return resp.json() as Promise<UserList>
             })
     }
 
@@ -126,7 +95,7 @@ export class UsersProxy {
     // Update the details for a user.
     public set(name: string, body: UserDetails): Promise<UserDetails> {
         const path = "/api/users/" + name
-        const details : JsonUserUpdate = {
+        const details : UserUpdate = {
             rights: body.rights,
             enabled: body.enabled
         }
@@ -160,7 +129,7 @@ export class UsersProxy {
     // Set the password for a user
     public setPassword(name: string, body: UserDetails, oldPassword: string, newPassword: string): Promise<number> {
         const path = "/api/users/" + name + "?password"
-        const msg : JsonSetPasswordRequest = {
+        const msg : UserPassword = {
             oldPassword: oldPassword,
             newPassword: newPassword,
             force: false

@@ -7,7 +7,7 @@ import PersonAddIcon from "@material-ui/icons/PersonAdd";
 import DeleteIcon from "@material-ui/icons/Delete";
 import DeleteOutlineOutlinedIcon from '@material-ui/icons/DeleteOutlineOutlined';
 import {makeStyles} from "@material-ui/core/styles";
-import {JsonUserListEntry} from "../proxies/UsersProxy";
+import {UserList_Entry} from "../../../../pkg/protos/admin/users"
 
 const useStyles = makeStyles(theme => ({
     title: {
@@ -39,7 +39,7 @@ function DeleteAnnotation(props: {
 }
 export function ListUsers(props: {
         height: number,
-        users: JsonUserListEntry[],
+        users: UserList_Entry[],
         selectedUser: string,
         onSelectUser: (key: string) => void,
         onNewUser: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void,
