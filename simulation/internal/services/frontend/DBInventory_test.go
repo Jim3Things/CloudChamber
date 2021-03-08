@@ -723,29 +723,6 @@ func (ts *DBInventoryTestSuite) TestGetRackInZone() {
 	assert.Equal(expectedRack, rack)
 }
 
-func (ts *DBInventoryTestSuite) TestGetRack() {
-	assert := ts.Assert()
-	require := ts.Require()
-
-	rack, err := ts.db.GetRack(inventory.DefaultRegion, inventory.DefaultZone, "rack2")
-	require.NoError(err)
-	require.NotNil(rack)
-
-	expectedCapacityBlade1 := &pb.BladeCapacity{Cores: 16, MemoryInMb: 16384, DiskInGb: 240, NetworkBandwidthInMbps: 2048, Arch: "X64"}
-	expectedCapacity       := &pb.BladeCapacity{Cores: 32, MemoryInMb: 16384, DiskInGb: 120, NetworkBandwidthInMbps: 2048, Arch: "X64"}
-
-	assert.Equal(8, len(rack.Blades))
-
-	for i, v := range rack.Blades {
-		if i == 1 {
-			assert.Equal(expectedCapacityBlade1, v)
-
-		} else {
-			assert.Equal(expectedCapacity, v)
-		}
-	}
-}
-
 func (ts *DBInventoryTestSuite) TestUpdateRegion() {
 	assert := ts.Assert()
 	require := ts.Require()
