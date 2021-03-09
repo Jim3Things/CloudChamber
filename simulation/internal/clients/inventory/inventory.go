@@ -1089,7 +1089,7 @@ func (m *Inventory) UpdateInventoryDefinition(ctx context.Context, path string) 
 	// into the store looking to see if there are any material changes between
 	// what is already in the store and what is now found in the file.
 	//
-	rootFile, err := ReadInventoryDefinitionFromFileEx(ctx, path)
+	rootFile, err := ReadInventoryDefinitionFromFile(ctx, path)
 	if err != nil {
 		return err
 	}

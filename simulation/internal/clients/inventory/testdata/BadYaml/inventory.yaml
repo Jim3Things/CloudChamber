@@ -2,7 +2,7 @@
 #
 # Two racks, with a duplicated rack name.
 
-BladeTypeS:
+BladeTypes:
   - &bladeType1
     Details:
       Enabled: true

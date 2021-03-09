@@ -199,11 +199,11 @@ type bladeExBootinfo struct {
 // --- Intermediate binary format
 
 
-// ReadInventoryDefinitionFromFileEx imports the inventory from
+// ReadInventoryDefinitionFromFile imports the inventory from
 // an external YAML file and transforms it into the
 // internal Cloud chamber binary format.
 //
-func ReadInventoryDefinitionFromFileEx(ctx context.Context, path string) (*pb.Definition_Root, error) {
+func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Definition_Root, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Read inventory definition from file"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -244,58 +244,28 @@ func ReadInventoryDefinitionFromFileEx(ctx context.Context, path string) (*pb.De
 	return root, nil
 }
 
-var conditionmMap = map[string]pb.Condition{
-	"not_in_service": pb.Condition_not_in_service,
-	"operational":    pb.Condition_operational,
-	"burn_in":        pb.Condition_burn_in,
-	"out_for_repair": pb.Condition_out_for_repair,
-	"retiring":       pb.Condition_retiring,
-	"retired":        pb.Condition_retired,
-}
-
-var stateMap = map[string]pb.State{
-	"out_of_service":  pb.State_out_of_service,
-	"in_service":      pb.State_in_service,
-	"commissioning":   pb.State_commissioning,
-	"assumed_failed":  pb.State_assumed_failed,
-	"decommissioning": pb.State_decommissioning,
-	"decommissioned":  pb.State_decommissioned,
-}
-
 func getConditionFromString(c string) (pb.Condition, bool) {
-	cond, ok := conditionmMap[strings.ToLower(c)]
+	cond, ok := pb.Condition_value[strings.ToLower(c)]
 
-	return cond, ok
+	return pb.Condition(cond), ok
 }
 
 func getStateFromString(s string) (pb.State, bool) {
-	state, ok := stateMap[strings.ToLower(s)]
+	state, ok := pb.State_value[strings.ToLower(s)]
 
-	return state, ok
-}
-
-var methodMap = map[string]pb.BladeBootInfo_Method{
-	"local": pb.BladeBootInfo_local,
-	"network": pb.BladeBootInfo_network,
+	return pb.State(state), ok
 }
 
 func getBootMethodFromString(s string) (pb.BladeBootInfo_Method, bool) {
-	method, ok := methodMap[strings.ToLower(s)]
+	method, ok := pb.BladeBootInfo_Method_value[strings.ToLower(s)]
 
-	return method, ok
-}
-
-var hwTypeMap = map[string]pb.Hardware_HwType{
-	"unknown": pb.Hardware_unknown,
-	"pdu": 	   pb.Hardware_pdu,
-	"tor":     pb.Hardware_tor,
-	"blade":   pb.Hardware_blade,
+	return pb.BladeBootInfo_Method(method), ok
 }
 
 func getHwTypeFromString(t string) (pb.Hardware_HwType, bool) {
-	hwType, ok := hwTypeMap[strings.ToLower(t)]
+	hwType, ok := pb.Hardware_HwType_value[strings.ToLower(t)]
 
-	return hwType, ok
+	return pb.Hardware_HwType(hwType), ok
 }
 
 // toDefinitionRoot converts intermediate values to the final format
