@@ -424,8 +424,7 @@ type ErrConfigPduDuplicate struct {
 
 func (e ErrConfigPduDuplicate) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: Configuration detected duplicate Pdu %d in %s",
-		e.Pdu,
+		"CloudChamber: Configuration detected duplicate Pdu for %s",
 		pduAddress(e.Region, e.Zone, e.Rack, e.Pdu))
 }
 
@@ -456,8 +455,7 @@ type ErrConfigTorDuplicate struct {
 
 func (e ErrConfigTorDuplicate) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: Configuration detected duplicate Tor %d in %s",
-		e.Tor,
+		"CloudChamber: Configuration detected duplicate Tor for %s",
 		torAddress(e.Region, e.Zone, e.Rack, e.Tor))
 }
 
@@ -489,8 +487,7 @@ type ErrConfigBladeDuplicate struct {
 
 func (e ErrConfigBladeDuplicate) Error() string {
 	return fmt.Sprintf(
-		"CloudChamber: Configuration detected duplicate Blade %d in %s",
-		e.Blade,
+		"CloudChamber: Configuration detected duplicate Blade for %s",
 		bladeAddress(e.Region, e.Zone, e.Rack, e.Blade))
 }
 
@@ -606,7 +603,7 @@ type ErrRackValidationFailure struct {
 }
 
 func (evf ErrRackValidationFailure) Error() string {
-	return fmt.Sprintf("In rack %q: %v", evf.Rack, evf.Err)
+	return fmt.Sprintf("CloudChamber: in rack %q: %v", evf.Rack, evf.Err)
 }
 
 // ErrRegionValidationFailure indicates validation failure in the attributes associated
@@ -617,7 +614,7 @@ type ErrRegionValidationFailure struct {
 }
 
 func (e ErrRegionValidationFailure) Error() string {
-	return fmt.Sprintf("In rack %q: %v", e.Region, e.Err)
+	return fmt.Sprintf("CloudChamber: in region %q: %v", e.Region, e.Err)
 }
 
 // ErrUserAlreadyExists indicates the attempt to create a new user account

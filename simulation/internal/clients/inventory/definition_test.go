@@ -2865,28 +2865,28 @@ func (ts *definitionTestSuite) TestReadInventoryFromStore() {
 func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExBasic() {
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/basic")
+	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/basic")
 	require.NoError(err)
 }
 
 func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExExtended() {
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/extended")
+	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/extended")
 	require.NoError(err)
 }
 
 func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExStandard() {
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/standard")
+	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/standard")
 	require.NoError(err)
 }
 
 func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExReference() {
 	require := ts.Require()
 
-	_, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/reference")
+	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/reference")
 	require.NoError(err)
 }
 
@@ -2901,7 +2901,7 @@ func (ts *definitionTestSuite) TestLoadInventoryIntoStore() {
 	err = ts.inventory.deleteInventoryDefinitionFromStore(ctx, root)
 	require.NoError(err)
 
-	root, err = ReadInventoryDefinitionFromFileEx(ctx, "./testdata/extended")
+	root, err = ReadInventoryDefinitionFromFile(ctx, "./testdata/extended")
 	require.NoError(err)
 	require.NotNil(root)
 

@@ -41,82 +41,63 @@ func (ts *readerTestSuite) TestReadInventoryDefinition() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/Simple")
+	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Simple")
 	require.NoError(err)
 	require.NotNil(response)
 
-	require.Equal(2, len(response.Racks))
+	require.Equal(1, len(response.Regions))
+	region1, ok := response.Regions["region1"]
+	require.True(ok)
+	assert.Equal(1, len(region1.Zones))
 
-	r, ok := response.Racks["rack1"]
+	zone1, ok := region1.Zones["zone1"]
+	require.True(ok)
+	require.Equal(2, len(zone1.Racks))
+
+	r, ok := zone1.Racks["rack1"]
 	require.True(ok)
 	assert.Equal(2, len(r.Blades))
 
 	b, ok := r.Blades[1]
 	require.True(ok)
-	assert.Equal(int64(16), b.Cores)
-	assert.Equal(int64(16384), b.MemoryInMb)
-	assert.Equal(int64(240), b.DiskInGb)
-	assert.Equal(int64(2048), b.NetworkBandwidthInMbps)
-	assert.Equal("X64", b.Arch)
+	require.NotNil(b.Capacity)
+	assert.EqualValues(16, b.Capacity.Cores)
+	assert.EqualValues(16384, b.Capacity.MemoryInMb)
+	assert.EqualValues(240, b.Capacity.DiskInGb)
+	assert.EqualValues(2048, b.Capacity.NetworkBandwidthInMbps)
+	assert.Equal("X64", b.Capacity.Arch)
 
-	s, ok := response.Racks["rack2"]
+	s, ok := zone1.Racks["rack2"]
 	require.True(ok)
 	assert.Equal(2, len(s.Blades))
 
 	c, ok := r.Blades[2]
 	require.True(ok)
-	assert.Equal(int64(8), c.Cores)
-	assert.Equal(int64(16384), c.MemoryInMb)
-	assert.Equal(int64(120), c.DiskInGb)
-	assert.Equal(int64(2048), c.NetworkBandwidthInMbps)
-}
-
-func (ts *readerTestSuite) TestReadInventoryBogusPath() {
-	require := ts.Require()
-
-	response, err := ReadInventoryDefinition(context.Background(), "./missing/path")
-	require.EqualError(err, "no inventory definition found at ./missing/path/inventory.yaml (yaml)")
-	require.Nil(response)
-}
-
-// TestInventoryUniqueRack test to check that zone always contain unique rack numbers
-func (ts *readerTestSuite) TestInventoryUniqueRack() {
-	require := ts.Require()
-
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYaml")
-	require.EqualError(err, "Duplicate rack \"rack1\" detected")
-	require.Nil(response)
-}
-
-func (ts *readerTestSuite) TestInventoryUniqueBlade() {
-	require := ts.Require()
-
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlBlade")
-	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
-	require.Nil(response)
-}
-
-func (ts *readerTestSuite) TestInventoryValidateBlade() {
-	require := ts.Require()
-
-	response, err := ReadInventoryDefinition(context.Background(), "./testdata/BadYamlValidate")
-	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
-	require.Nil(response)
+	require.NotNil(b.Capacity)
+	assert.EqualValues(8, c.Capacity.Cores)
+	assert.EqualValues(16384, c.Capacity.MemoryInMb)
+	assert.EqualValues(120, c.Capacity.DiskInGb)
+	assert.EqualValues(2048, c.Capacity.NetworkBandwidthInMbps)
+	assert.Equal("X64", b.Capacity.Arch)
 }
 
 func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	zonemap, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Simple")
+	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Simple")
 	require.NoError(err)
-	require.NotNil(zonemap)
+	require.NotNil(response)
+
+	require.Equal(1, len(response.Regions))
+	region, ok := response.Regions["region1"]
+	require.True(ok)
 
 	// There should only be a single zone.
 	//
-	require.Equal(1, len(zonemap.Zones))
+	require.Equal(1, len(region.Zones))
 
-	zone, ok := zonemap.Zones[DefaultZone]
+	zone, ok := region.Zones["zone1"]
 	require.True(ok)
 
 	assert.True(zone.Details.Enabled)
@@ -147,50 +128,66 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		p0, ok := r.Pdus[0]
 		require.True(ok)
 
-		// The PDU should have a wired port for each of the two expected blades.
+		// The PDU should have a wired port for each of the two expected blades and one for the tor.
 		//
-		assert.Equal(2, len(p0.Ports))
+		assert.Equal(3, len(p0.Ports))
+
+		p0b0, ok := p0.Ports[0]
+		require.True(ok)
+
+		assert.True(p0b0.Wired)
+		assert.Equal(pb.Hardware_tor, p0b0.Item.Type)
+		assert.EqualValues(0, p0b0.Item.Id)
+		assert.EqualValues(1, p0b0.Item.Port)
 
 		p0b1, ok := p0.Ports[1]
 		require.True(ok)
 
 		assert.True(p0b1.Wired)
 		assert.Equal(pb.Hardware_blade, p0b1.Item.Type)
-		assert.Equal(int64(1), p0b1.Item.Id)
-		assert.Equal(int64(0), p0b1.Item.Port)
+		assert.EqualValues(1, p0b1.Item.Id)
+		assert.EqualValues(0, p0b1.Item.Port)
 
 		p0b2, ok := p0.Ports[2]
 		require.True(ok)
 
 		assert.True(p0b2.Wired)
 		assert.Equal(pb.Hardware_blade, p0b2.Item.Type)
-		assert.Equal(int64(2), p0b2.Item.Id)
-		assert.Equal(int64(0), p0b2.Item.Port)
+		assert.EqualValues(2, p0b2.Item.Id)
+		assert.EqualValues(0, p0b2.Item.Port)
 
 		// There should be a single TOR at index 0
 		//
 		t0, ok := r.Tors[0]
 		require.True(ok)
 
-		// The TOR should have a wired port for each of the two expected blades.
+		// The TOR should have a wired port for each of the two expected blades and one for the pdu.
 		//
-		assert.Equal(2, len(t0.Ports))
+		assert.Equal(3, len(t0.Ports))
+
+		t0b0, ok := t0.Ports[0]
+		require.True(ok)
+
+		assert.True(t0b0.Wired)
+		assert.Equal(pb.Hardware_pdu, t0b0.Item.Type)
+		assert.EqualValues(0, t0b0.Item.Id)
+		assert.EqualValues(1, t0b0.Item.Port)
 
 		t0b1, ok := t0.Ports[1]
 		require.True(ok)
 
 		assert.True(t0b1.Wired)
 		assert.Equal(pb.Hardware_blade, t0b1.Item.Type)
-		assert.Equal(int64(1), t0b1.Item.Id)
-		assert.Equal(int64(0), t0b1.Item.Port)
+		assert.EqualValues(1, t0b1.Item.Id)
+		assert.EqualValues(0, t0b1.Item.Port)
 
 		t0b2, ok := p0.Ports[2]
 		require.True(ok)
 
 		assert.True(t0b2.Wired)
 		assert.Equal(pb.Hardware_blade, t0b2.Item.Type)
-		assert.Equal(int64(2), t0b2.Item.Id)
-		assert.Equal(int64(0), t0b2.Item.Port)
+		assert.EqualValues(2, t0b2.Item.Id)
+		assert.EqualValues(0, t0b2.Item.Port)
 
 		// There should be exactly two blades at indices 1 and 2.
 		//
@@ -200,11 +197,11 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		assert.True(b1.Details.Enabled)
 		assert.Equal(pb.Condition_operational, b1.Details.Condition)
 
-		assert.Equal(int64(16),    b1.Capacity.Cores)
-		assert.Equal(int64(16384), b1.Capacity.MemoryInMb)
-		assert.Equal(int64(240),   b1.Capacity.DiskInGb)
-		assert.Equal(int64(2048),  b1.Capacity.NetworkBandwidthInMbps)
-		assert.Equal("X64",        b1.Capacity.Arch)
+		assert.EqualValues(16,    b1.Capacity.Cores)
+		assert.EqualValues(16384, b1.Capacity.MemoryInMb)
+		assert.EqualValues(240,   b1.Capacity.DiskInGb)
+		assert.EqualValues(2048,  b1.Capacity.NetworkBandwidthInMbps)
+		assert.Equal("X64",       b1.Capacity.Arch)
 
 		b2, ok := r.Blades[2]
 		require.True(ok)
@@ -212,11 +209,11 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFile() {
 		assert.True(b2.Details.Enabled)
 		assert.Equal(pb.Condition_operational, b2.Details.Condition)
 
-		assert.Equal(int64(8),     b2.Capacity.Cores)
-		assert.Equal(int64(16384), b2.Capacity.MemoryInMb)
-		assert.Equal(int64(120),   b2.Capacity.DiskInGb)
-		assert.Equal(int64(2048),  b2.Capacity.NetworkBandwidthInMbps)
-		assert.Equal("X64",        b2.Capacity.Arch)
+		assert.EqualValues(8,     b2.Capacity.Cores)
+		assert.EqualValues(16384, b2.Capacity.MemoryInMb)
+		assert.EqualValues(120,   b2.Capacity.DiskInGb)
+		assert.EqualValues(2048,  b2.Capacity.NetworkBandwidthInMbps)
+		assert.Equal("X64",       b2.Capacity.Arch)
 	}
 }
 
@@ -234,7 +231,7 @@ func (ts *readerTestSuite) TestIReadInventoryDefinitionFromFileUniqueRack() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYaml")
-	require.EqualError(err, "Duplicate rack \"rack1\" detected")
+	require.EqualError(err, "CloudChamber: Configuration detected duplicate Rack rack1 in zone \"zone1\" in region \"region1\"")
 	require.Nil(response)
 }
 
@@ -242,7 +239,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileUniqueBlade() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlBlade")
-	require.EqualError(err, "Duplicate Blade 1 in Rack \"rack1\" detected")
+	require.EqualError(err, "CloudChamber: Configuration detected duplicate Blade for blade 1 in region \"region1\", zone \"zone1\", rack \"rack1\"")
 	require.Nil(response)
 }
 
@@ -250,7 +247,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionFromFileValidateBlade() {
 	require := ts.Require()
 
 	response, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/BadYamlValidate")
-	require.EqualError(err, "In rack \"rack1\": the field \"Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
+	require.EqualError(err, "CloudChamber: in region \"region1\": the field \"Zones[zone1].Racks[rack1].Blades[2].Cores\" must be greater than or equal to 1.  It is 0, which is invalid")
 	require.Nil(response)
 }
 
@@ -258,7 +255,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	root, err := ReadInventoryDefinitionFromFileEx(context.Background(), "./testdata/Basic")
+	root, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/Basic")
 	require.NoError(err)
 	require.NotNil(root)
 
@@ -332,32 +329,32 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 
 				assert.True(p0b1.Wired)
 				assert.Equal(pb.Hardware_blade, p0b1.Item.Type)
-				assert.Equal(int64(1), p0b1.Item.Id)
-				assert.Equal(int64(0), p0b1.Item.Port)
+				assert.EqualValues(1, p0b1.Item.Id)
+				assert.EqualValues(0, p0b1.Item.Port)
 
 				p0b2, ok := p0.Ports[2]
 				require.True(ok)
 
 				assert.True(p0b2.Wired)
 				assert.Equal(pb.Hardware_blade, p0b2.Item.Type)
-				assert.Equal(int64(1), p0b2.Item.Id)
-				assert.Equal(int64(1), p0b2.Item.Port)
+				assert.EqualValues(1, p0b2.Item.Id)
+				assert.EqualValues(1, p0b2.Item.Port)
 
 				p0b3, ok := p0.Ports[3]
 				require.True(ok)
 
 				assert.True(p0b3.Wired)
 				assert.Equal(pb.Hardware_tor, p0b3.Item.Type)
-				assert.Equal(int64(0), p0b3.Item.Id)
-				assert.Equal(int64(1), p0b3.Item.Port)
+				assert.EqualValues(0, p0b3.Item.Id)
+				assert.EqualValues(1, p0b3.Item.Port)
 
 				p0b4, ok := p0.Ports[4]
 				require.True(ok)
 
 				assert.True(p0b4.Wired)
 				assert.Equal(pb.Hardware_blade, p0b4.Item.Type)
-				assert.Equal(int64(2), p0b4.Item.Id)
-				assert.Equal(int64(4), p0b4.Item.Port)
+				assert.EqualValues(2, p0b4.Item.Id)
+				assert.EqualValues(4, p0b4.Item.Port)
 
 				// There should be a single TOR at index 0
 				//
@@ -376,32 +373,32 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 
 				assert.True(t0b1.Wired)
 				assert.Equal(pb.Hardware_blade, t0b1.Item.Type)
-				assert.Equal(int64(1), t0b1.Item.Id)
-				assert.Equal(int64(0), t0b1.Item.Port)
+				assert.EqualValues(1, t0b1.Item.Id)
+				assert.EqualValues(0, t0b1.Item.Port)
 
 				t0b2, ok := t0.Ports[2]
 				require.True(ok)
 
 				assert.True(t0b2.Wired)
 				assert.Equal(pb.Hardware_blade, t0b2.Item.Type)
-				assert.Equal(int64(1), t0b2.Item.Id)
-				assert.Equal(int64(1), t0b2.Item.Port)
+				assert.EqualValues(1, t0b2.Item.Id)
+				assert.EqualValues(1, t0b2.Item.Port)
 
 				t0b3, ok := t0.Ports[3]
 				require.True(ok)
 
 				assert.True(t0b3.Wired)
 				assert.Equal(pb.Hardware_pdu, t0b3.Item.Type)
-				assert.Equal(int64(0), t0b3.Item.Id)
-				assert.Equal(int64(1), t0b3.Item.Port)
+				assert.EqualValues(0, t0b3.Item.Id)
+				assert.EqualValues(1, t0b3.Item.Port)
 
 				t0b4, ok := t0.Ports[4]
 				require.True(ok)
 
 				assert.True(t0b4.Wired)
 				assert.Equal(pb.Hardware_blade, t0b4.Item.Type)
-				assert.Equal(int64(2), t0b4.Item.Id)
-				assert.Equal(int64(3), t0b4.Item.Port)
+				assert.EqualValues(2, t0b4.Item.Id)
+				assert.EqualValues(3, t0b4.Item.Port)
 
 				// There should be exactly two blades at indices 1 and 2
 				//
@@ -413,11 +410,11 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 				assert.True(b1.Details.Enabled)
 				assert.Equal(pb.Condition_operational, b1.Details.Condition)
 
-				assert.Equal(int64(16),    b1.Capacity.Cores)
-				assert.Equal(int64(16384), b1.Capacity.MemoryInMb)
-				assert.Equal(int64(240),   b1.Capacity.DiskInGb)
-				assert.Equal(int64(2048),  b1.Capacity.NetworkBandwidthInMbps)
-				assert.Equal("X64",        b1.Capacity.Arch)
+				assert.EqualValues(16,    b1.Capacity.Cores)
+				assert.EqualValues(16384, b1.Capacity.MemoryInMb)
+				assert.EqualValues(240,   b1.Capacity.DiskInGb)
+				assert.EqualValues(2048,  b1.Capacity.NetworkBandwidthInMbps)
+				assert.Equal("X64",       b1.Capacity.Arch)
 
 				b2, ok := rack.Blades[2]
 				require.True(ok)
@@ -425,11 +422,11 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 				assert.True(b2.Details.Enabled)
 				assert.Equal(pb.Condition_operational, b2.Details.Condition)
 
-				assert.Equal(int64(24),    b2.Capacity.Cores)
-				assert.Equal(int64(32768), b2.Capacity.MemoryInMb)
-				assert.Equal(int64(480),   b2.Capacity.DiskInGb)
-				assert.Equal(int64(4096),  b2.Capacity.NetworkBandwidthInMbps)
-				assert.Equal("X64",        b2.Capacity.Arch)
+				assert.EqualValues(24,    b2.Capacity.Cores)
+				assert.EqualValues(32768, b2.Capacity.MemoryInMb)
+				assert.EqualValues(480,   b2.Capacity.DiskInGb)
+				assert.EqualValues(4096,  b2.Capacity.NetworkBandwidthInMbps)
+				assert.Equal("X64",       b2.Capacity.Arch)
 			}
 		}
 	}

@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 
 	ic "github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	st "github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/simulation/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
@@ -23,6 +24,9 @@ type server struct {
 	racks map[string]*Rack
 
 	timers *ts.Timers
+
+	store *st.Store
+	inventory *ic.Inventory
 }
 
 func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
@@ -50,7 +54,11 @@ func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
 		timers: timers,
 	}
 
-	if err := s.initializeRacks(cfg.Inventory.InventoryDefinition); err != nil {
+	if err := s.initializeInventory(cfg); err != nil {
+		return err
+	}
+
+	if err := s.initializeRacks(); err != nil {
 		return err
 	}
 
@@ -79,21 +87,72 @@ func (s *server) GetCurrentStatus(context.Context, *pb.InventoryStatusMsg) (*pb.
 	return nil, nil
 }
 
-func (s *server) initializeRacks(path string) error {
+func (s *server) initializeInventory(cfg *config.GlobalConfig) error {
+	// Initialize the underlying store
+	//
+	ctx := context.Background()
+
+	st.Initialize(cfg)
+	s.store = st.NewStore()
+	s.inventory = ic.NewInventory(cfg, s.store)
+	
+	if err := s.inventory.Start(ctx); err != nil {
+		return err
+	}
+
+	// Load/update the store inventory definitions from the configured file.
+	// Once complete, all queries for the current definitions should be
+	// performed against the store.
+	//
+	if err := s.inventory.UpdateInventoryDefinition(ctx, cfg.Inventory.InventoryDefinition); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *server) initializeRacks() error {
 	ctx, span := tracing.StartSpan(
 		context.Background(),
 		tracing.WithName("Initializing the simulated inventory"),
 		tracing.WithContextValue(ts.EnsureTickInContext))
 	defer span.End()
 
-	zone, err := ic.ReadInventoryDefinition(ctx, path)
+	const (
+		// These will match whatever is defined in the inventory. Or they can be
+		// discovered by scanning for regions etc from the root of the definition
+		// table.
+		//
+		// If the inventory service is intended to provide service for a single
+		// zone as defined in (say) the configuration, then these values should
+		// be updated to reflect that configuration information.
+		//
+		regionName = "standard"
+		zoneName   = "standard"
+	)
+
+	zone, err := s.inventory.NewZone(ic.DefinitionTable, regionName, zoneName)
+
 	if err != nil {
 		return err
 	}
 
-	for name, r := range zone.Racks {
+	_, racks, err := zone.FetchChildren(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	for name, rack := range *racks {
 		// For each rack, create a rack item, supplying the tor, pdu, and blade
 		tracing.Info(ctx, "Adding rack %q", name)
+
+		r, err := rack.GetDefinitionRackWithChildren(ctx)
+
+		if err != nil {
+			return err
+		}
+
 		s.racks[name] = newRack(ctx, name, r, s.timers)
 
 		// Start each rack (this gives us a channel and a goroutine)
