@@ -212,11 +212,21 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 	if !initServiceDone {
 		require := ts.Require()
 
+		ctx := context.Background()
+
 		_ = ts.utf.Open(ts.T())
 
 		// Start the test web service, which all tests will use
 		require.NoError(initService(ts.cfg))
 		initServiceDone = true
+
+		// Load the standard inventory into the store which all tests will use
+		err := dbInventory.inventory.UpdateInventoryDefinition(ctx, ts.cfg.Inventory.InventoryDefinition)
+		require.NoError(err)
+
+		// Need to reload the actual inventory after loading the store.
+		err = dbInventory.LoadInventoryActual(ctx, true)
+		require.NoError(err)
 
 		ts.utf.Close()
 	}

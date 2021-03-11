@@ -114,7 +114,7 @@ func (m *DBInventory) Start(ctx context.Context) error {
 			return err
 		}
 
-		if err := m.LoadInventoryActual(true); err != nil {
+		if err := m.LoadInventoryActual(ctx, true); err != nil {
 			return err
 		}
 

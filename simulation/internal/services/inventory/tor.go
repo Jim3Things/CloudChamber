@@ -34,7 +34,7 @@ type tor struct {
 // and the containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
-func newTor(_ *pb.External_Tor, r *Rack) *tor {
+func newTor(_ *pb.Definition_Tor, r *Rack) *tor {
 	t := &tor{
 		cables: make(map[int64]*cable),
 		holder: r,
