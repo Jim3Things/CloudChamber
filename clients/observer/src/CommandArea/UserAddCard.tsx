@@ -10,14 +10,16 @@ import {
     CardHeader,
     Checkbox,
     FormControl,
-    FormControlLabel, FormGroup, TextField
+    FormControlLabel,
+    FormGroup,
+    TextField
 } from "@material-ui/core";
 import PersonIcon from "@material-ui/icons/Person";
 import {makeStyles} from "@material-ui/core/styles";
 
 import {UserDetails} from "../proxies/UsersProxy";
 import {PasswordTextField} from "../common/PasswordTextField";
-import {Rights} from "../../../../pkg/protos/admin/users"
+import {Rights} from "../pkg/protos/admin/users"
 
 const useStyles = makeStyles(theme => ({
     area: {
@@ -49,15 +51,15 @@ export function UserAddCard(props: {
         props.onModify(event.target.value, props.user)
 
     const handlePasswordChange = (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
-        props.onModify(props.name,{ ...props.user, password: event.target.value })
+        props.onModify(props.name, {...props.user, password: event.target.value})
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) =>
-        props.onModify(props.name,{ ...props.user, [event.target.name]: event.target.checked })
+        props.onModify(props.name, {...props.user, [event.target.name]: event.target.checked})
 
     const handleRightsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const rights: Rights = {...props.user.rights, [event.target.name]: event.target.checked }
+        const rights: Rights = {...props.user.rights, [event.target.name]: event.target.checked}
 
-        props.onModify(props.name,{ ...props.user, rights: rights });
+        props.onModify(props.name, {...props.user, rights: rights});
     }
 
     return <div className={classes.area}>

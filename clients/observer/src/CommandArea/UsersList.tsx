@@ -7,7 +7,8 @@ import PersonAddIcon from "@material-ui/icons/PersonAdd";
 import DeleteIcon from "@material-ui/icons/Delete";
 import DeleteOutlineOutlinedIcon from '@material-ui/icons/DeleteOutlineOutlined';
 import {makeStyles} from "@material-ui/core/styles";
-import {UserList_Entry} from "../../../../pkg/protos/admin/users"
+
+import {UserList_Entry} from "../pkg/protos/admin/users"
 
 const useStyles = makeStyles(theme => ({
     title: {
@@ -16,7 +17,7 @@ const useStyles = makeStyles(theme => ({
     filler: {
         flexGrow: 1
     },
-    area: (props: {height: number}) => ({
+    area: (props: { height: number }) => ({
         height: props.height,
         overflow: 'auto'
     })
@@ -28,23 +29,24 @@ function DeleteAnnotation(props: {
 }) {
     if (props.protected) {
         return <ListItemIcon>
-            <DeleteOutlineOutlinedIcon color="disabled" />
+            <DeleteOutlineOutlinedIcon color="disabled"/>
         </ListItemIcon>
     }
 
     return <ListItemIcon
         onClick={props.onClick}>
-        <DeleteIcon />
+        <DeleteIcon/>
     </ListItemIcon>
 }
+
 export function ListUsers(props: {
-        height: number,
-        users: UserList_Entry[],
-        selectedUser: string,
-        onSelectUser: (key: string) => void,
-        onNewUser: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void,
-        onDeleteUser: (key: string) => void
-    }) {
+    height: number,
+    users: UserList_Entry[],
+    selectedUser: string,
+    onSelectUser: (key: string) => void,
+    onNewUser: (event: React.MouseEvent<HTMLButtonElement, MouseEvent>) => void,
+    onDeleteUser: (key: string) => void
+}) {
     const classes = useStyles(props)
 
     return <Paper className={classes.area}>
@@ -57,7 +59,7 @@ export function ListUsers(props: {
                 </Box>
                 <Box bgcolor="secondary" pt={1} pr={1}>
                     <IconButton size="small" onClick={props.onNewUser}>
-                        <PersonAddIcon />
+                        <PersonAddIcon/>
                     </IconButton>
                 </Box>
             </Box>

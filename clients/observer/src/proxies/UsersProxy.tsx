@@ -7,7 +7,7 @@
 //       protobuf file.
 
 import {ETagHeader, failIfError, getETag} from "./Session";
-import {Rights, UserList, UserUpdate, UserPassword} from "../../../../pkg/protos/admin/users";
+import {Rights, UserList, UserPassword, UserUpdate} from "../pkg/protos/admin/users";
 
 export interface PublicUserDetails {
     enabled: boolean
@@ -16,24 +16,24 @@ export interface PublicUserDetails {
     eTag: number
 }
 
-export class UserDetails implements PublicUserDetails{
-    password: string;
+export class UserDetails implements PublicUserDetails {
+    password: string
     rights: Rights
-    enabled: boolean;
+    enabled: boolean
     neverDelete: boolean
     eTag: number
 
     constructor() {
         this.password = "";
         this.rights =
-        {
-            canInjectFaults: false,
-            canManageAccounts: false,
-            canModifyInventory: false,
-            canModifyWorkloads: false,
-            canPerformRepairs: false,
-            canStepTime: false
-        }
+            {
+                canInjectFaults: false,
+                canManageAccounts: false,
+                canModifyInventory: false,
+                canModifyWorkloads: false,
+                canPerformRepairs: false,
+                canStepTime: false
+            }
         this.enabled = false;
         this.neverDelete = false;
         this.eTag = -1
@@ -75,10 +75,10 @@ export class UsersProxy {
 
         const value = JSON.stringify(details)
 
-        const request = new Request(path, {method: "POST", body: value })
+        const request = new Request(path, {method: "POST", body: value})
 
         return fetch(request)
-            .then ((resp) => {
+            .then((resp) => {
                 failIfError(request, resp)
                 return "user " + name + " added"
             })
@@ -95,7 +95,7 @@ export class UsersProxy {
     // Update the details for a user.
     public set(name: string, body: UserDetails): Promise<UserDetails> {
         const path = "/api/users/" + name
-        const details : UserUpdate = {
+        const details: UserUpdate = {
             rights: body.rights,
             enabled: body.enabled
         }
@@ -129,7 +129,7 @@ export class UsersProxy {
     // Set the password for a user
     public setPassword(name: string, body: UserDetails, oldPassword: string, newPassword: string): Promise<number> {
         const path = "/api/users/" + name + "?password"
-        const msg : UserPassword = {
+        const msg: UserPassword = {
             oldPassword: oldPassword,
             newPassword: newPassword,
             force: false
@@ -153,7 +153,7 @@ export class UsersProxy {
             })
     }
 
-    private getETagAndDetails(request: Request) : Promise<UserDetails> {
+    private getETagAndDetails(request: Request): Promise<UserDetails> {
         let eTag: number
 
         return fetch(request)

@@ -246,7 +246,7 @@ PROTOC_BASE = protoc --proto_path=$(GOPATH)/src
 
 PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src
 PROTOC_PBUF_CS = $(PROTOC_BASE) --csharp_out=$(PROJECT)/pkg/protos --csharp_opt=file_extension=.pb.cs,base_namespace=CloudChamber.Protos
-PROTOC_PBUF_TS = $(PROTOC_BASE) --ts_proto_out=$(GOPATH)/src
+PROTOC_PBUF_TS = $(PROTOC_BASE) --ts_proto_out=$(GOPATH)/src --ts_proto_opt=outputEncodeMethods=false,outputPartialMethods=false,outputClientImpl=false
 PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
 
 

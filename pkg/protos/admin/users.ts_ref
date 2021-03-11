@@ -1,0 +1,483 @@
+/* eslint-disable */
+export const protobufPackage = "admin";
+
+/** Rights contains the set of known action rights that a user holds. */
+export interface Rights {
+  /**
+   * can_manage_accounts indicates that this user can create, modify, or
+   * delete user accounts - both others, and its own.
+   */
+  canManageAccounts: boolean;
+  /**
+   * can_step_time indicates that this user can change the simulated time and
+   * simulated time policy.
+   */
+  canStepTime: boolean;
+  /**
+   * can_modify_workloads indicates that this user can create, update, or
+   * delete simulated workloads.
+   */
+  canModifyWorkloads: boolean;
+  /**
+   * can_modify_inventory indicates that this user can add, modify, or remove
+   * the definition views of simulated inventory.
+   */
+  canModifyInventory: boolean;
+  /**
+   * can_inject_faults indicates that this user can inject forced faults
+   * into the running simulation.
+   */
+  canInjectFaults: boolean;
+  /**
+   * can_perform_repairs indicates that this used can manually repair a fault
+   * in the simulated inventory.
+   */
+  canPerformRepairs: boolean;
+}
+
+/** User is a representation of an individual user */
+export interface User {
+  /** The username, held so as to preserve the original case */
+  name: string;
+  passwordHash: Uint8Array;
+  userId: number;
+  enabled: boolean;
+  /** obsolete */
+  canManageAccounts: boolean;
+  /** True, if this user entry can never be deleted. */
+  neverDelete: boolean;
+  /** The rights this user has */
+  rights: Rights | undefined;
+}
+
+/**
+ * Limited exposure of user attributes for use when returning information
+ * to a remote client.
+ */
+export interface UserPublic {
+  enabled: boolean;
+  /** The rights this user has */
+  rights: Rights | undefined;
+  /** True, if this user entry can never be deleted. */
+  neverDelete: boolean;
+}
+
+/**
+ * Public definition for a user, sent by a remote client to the Cloud Chamber
+ * controller when the user is created.
+ */
+export interface UserDefinition {
+  password: string;
+  enabled: boolean;
+  /** The rights this user has */
+  rights: Rights | undefined;
+}
+
+/**
+ * Public definition for the fields for a user that can be mutated in an
+ * update operation
+ */
+export interface UserUpdate {
+  enabled: boolean;
+  /** The rights this user has */
+  rights: Rights | undefined;
+}
+
+/** Public definition for a request to set a new password for a user */
+export interface UserPassword {
+  /** The existing password, used to check that this is a legit request */
+  oldPassword: string;
+  /** The new password */
+  newPassword: string;
+  /** An administrative flag to force the new password */
+  force: boolean;
+}
+
+/** User list response. */
+export interface UserList {
+  /** List of known users */
+  users: UserList_Entry[];
+}
+
+/** A single user entry */
+export interface UserList_Entry {
+  /** Name of the user */
+  name: string;
+  /** Uri to use to access the user */
+  uri: string;
+  /** True, if the user is protected against changes */
+  protected: boolean;
+}
+
+const baseRights: object = {
+  canManageAccounts: false,
+  canStepTime: false,
+  canModifyWorkloads: false,
+  canModifyInventory: false,
+  canInjectFaults: false,
+  canPerformRepairs: false,
+};
+
+export const Rights = {
+  fromJSON(object: any): Rights {
+    const message = { ...baseRights } as Rights;
+    if (
+      object.canManageAccounts !== undefined &&
+      object.canManageAccounts !== null
+    ) {
+      message.canManageAccounts = Boolean(object.canManageAccounts);
+    } else {
+      message.canManageAccounts = false;
+    }
+    if (object.canStepTime !== undefined && object.canStepTime !== null) {
+      message.canStepTime = Boolean(object.canStepTime);
+    } else {
+      message.canStepTime = false;
+    }
+    if (
+      object.canModifyWorkloads !== undefined &&
+      object.canModifyWorkloads !== null
+    ) {
+      message.canModifyWorkloads = Boolean(object.canModifyWorkloads);
+    } else {
+      message.canModifyWorkloads = false;
+    }
+    if (
+      object.canModifyInventory !== undefined &&
+      object.canModifyInventory !== null
+    ) {
+      message.canModifyInventory = Boolean(object.canModifyInventory);
+    } else {
+      message.canModifyInventory = false;
+    }
+    if (
+      object.canInjectFaults !== undefined &&
+      object.canInjectFaults !== null
+    ) {
+      message.canInjectFaults = Boolean(object.canInjectFaults);
+    } else {
+      message.canInjectFaults = false;
+    }
+    if (
+      object.canPerformRepairs !== undefined &&
+      object.canPerformRepairs !== null
+    ) {
+      message.canPerformRepairs = Boolean(object.canPerformRepairs);
+    } else {
+      message.canPerformRepairs = false;
+    }
+    return message;
+  },
+
+  toJSON(message: Rights): unknown {
+    const obj: any = {};
+    message.canManageAccounts !== undefined &&
+      (obj.canManageAccounts = message.canManageAccounts);
+    message.canStepTime !== undefined &&
+      (obj.canStepTime = message.canStepTime);
+    message.canModifyWorkloads !== undefined &&
+      (obj.canModifyWorkloads = message.canModifyWorkloads);
+    message.canModifyInventory !== undefined &&
+      (obj.canModifyInventory = message.canModifyInventory);
+    message.canInjectFaults !== undefined &&
+      (obj.canInjectFaults = message.canInjectFaults);
+    message.canPerformRepairs !== undefined &&
+      (obj.canPerformRepairs = message.canPerformRepairs);
+    return obj;
+  },
+};
+
+const baseUser: object = {
+  name: "",
+  userId: 0,
+  enabled: false,
+  canManageAccounts: false,
+  neverDelete: false,
+};
+
+export const User = {
+  fromJSON(object: any): User {
+    const message = { ...baseUser } as User;
+    if (object.name !== undefined && object.name !== null) {
+      message.name = String(object.name);
+    } else {
+      message.name = "";
+    }
+    if (object.passwordHash !== undefined && object.passwordHash !== null) {
+      message.passwordHash = bytesFromBase64(object.passwordHash);
+    }
+    if (object.userId !== undefined && object.userId !== null) {
+      message.userId = Number(object.userId);
+    } else {
+      message.userId = 0;
+    }
+    if (object.enabled !== undefined && object.enabled !== null) {
+      message.enabled = Boolean(object.enabled);
+    } else {
+      message.enabled = false;
+    }
+    if (
+      object.canManageAccounts !== undefined &&
+      object.canManageAccounts !== null
+    ) {
+      message.canManageAccounts = Boolean(object.canManageAccounts);
+    } else {
+      message.canManageAccounts = false;
+    }
+    if (object.neverDelete !== undefined && object.neverDelete !== null) {
+      message.neverDelete = Boolean(object.neverDelete);
+    } else {
+      message.neverDelete = false;
+    }
+    if (object.rights !== undefined && object.rights !== null) {
+      message.rights = Rights.fromJSON(object.rights);
+    } else {
+      message.rights = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: User): unknown {
+    const obj: any = {};
+    message.name !== undefined && (obj.name = message.name);
+    message.passwordHash !== undefined &&
+      (obj.passwordHash = base64FromBytes(
+        message.passwordHash !== undefined
+          ? message.passwordHash
+          : new Uint8Array()
+      ));
+    message.userId !== undefined && (obj.userId = message.userId);
+    message.enabled !== undefined && (obj.enabled = message.enabled);
+    message.canManageAccounts !== undefined &&
+      (obj.canManageAccounts = message.canManageAccounts);
+    message.neverDelete !== undefined &&
+      (obj.neverDelete = message.neverDelete);
+    message.rights !== undefined &&
+      (obj.rights = message.rights ? Rights.toJSON(message.rights) : undefined);
+    return obj;
+  },
+};
+
+const baseUserPublic: object = { enabled: false, neverDelete: false };
+
+export const UserPublic = {
+  fromJSON(object: any): UserPublic {
+    const message = { ...baseUserPublic } as UserPublic;
+    if (object.enabled !== undefined && object.enabled !== null) {
+      message.enabled = Boolean(object.enabled);
+    } else {
+      message.enabled = false;
+    }
+    if (object.rights !== undefined && object.rights !== null) {
+      message.rights = Rights.fromJSON(object.rights);
+    } else {
+      message.rights = undefined;
+    }
+    if (object.neverDelete !== undefined && object.neverDelete !== null) {
+      message.neverDelete = Boolean(object.neverDelete);
+    } else {
+      message.neverDelete = false;
+    }
+    return message;
+  },
+
+  toJSON(message: UserPublic): unknown {
+    const obj: any = {};
+    message.enabled !== undefined && (obj.enabled = message.enabled);
+    message.rights !== undefined &&
+      (obj.rights = message.rights ? Rights.toJSON(message.rights) : undefined);
+    message.neverDelete !== undefined &&
+      (obj.neverDelete = message.neverDelete);
+    return obj;
+  },
+};
+
+const baseUserDefinition: object = { password: "", enabled: false };
+
+export const UserDefinition = {
+  fromJSON(object: any): UserDefinition {
+    const message = { ...baseUserDefinition } as UserDefinition;
+    if (object.password !== undefined && object.password !== null) {
+      message.password = String(object.password);
+    } else {
+      message.password = "";
+    }
+    if (object.enabled !== undefined && object.enabled !== null) {
+      message.enabled = Boolean(object.enabled);
+    } else {
+      message.enabled = false;
+    }
+    if (object.rights !== undefined && object.rights !== null) {
+      message.rights = Rights.fromJSON(object.rights);
+    } else {
+      message.rights = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: UserDefinition): unknown {
+    const obj: any = {};
+    message.password !== undefined && (obj.password = message.password);
+    message.enabled !== undefined && (obj.enabled = message.enabled);
+    message.rights !== undefined &&
+      (obj.rights = message.rights ? Rights.toJSON(message.rights) : undefined);
+    return obj;
+  },
+};
+
+const baseUserUpdate: object = { enabled: false };
+
+export const UserUpdate = {
+  fromJSON(object: any): UserUpdate {
+    const message = { ...baseUserUpdate } as UserUpdate;
+    if (object.enabled !== undefined && object.enabled !== null) {
+      message.enabled = Boolean(object.enabled);
+    } else {
+      message.enabled = false;
+    }
+    if (object.rights !== undefined && object.rights !== null) {
+      message.rights = Rights.fromJSON(object.rights);
+    } else {
+      message.rights = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: UserUpdate): unknown {
+    const obj: any = {};
+    message.enabled !== undefined && (obj.enabled = message.enabled);
+    message.rights !== undefined &&
+      (obj.rights = message.rights ? Rights.toJSON(message.rights) : undefined);
+    return obj;
+  },
+};
+
+const baseUserPassword: object = {
+  oldPassword: "",
+  newPassword: "",
+  force: false,
+};
+
+export const UserPassword = {
+  fromJSON(object: any): UserPassword {
+    const message = { ...baseUserPassword } as UserPassword;
+    if (object.oldPassword !== undefined && object.oldPassword !== null) {
+      message.oldPassword = String(object.oldPassword);
+    } else {
+      message.oldPassword = "";
+    }
+    if (object.newPassword !== undefined && object.newPassword !== null) {
+      message.newPassword = String(object.newPassword);
+    } else {
+      message.newPassword = "";
+    }
+    if (object.force !== undefined && object.force !== null) {
+      message.force = Boolean(object.force);
+    } else {
+      message.force = false;
+    }
+    return message;
+  },
+
+  toJSON(message: UserPassword): unknown {
+    const obj: any = {};
+    message.oldPassword !== undefined &&
+      (obj.oldPassword = message.oldPassword);
+    message.newPassword !== undefined &&
+      (obj.newPassword = message.newPassword);
+    message.force !== undefined && (obj.force = message.force);
+    return obj;
+  },
+};
+
+const baseUserList: object = {};
+
+export const UserList = {
+  fromJSON(object: any): UserList {
+    const message = { ...baseUserList } as UserList;
+    message.users = [];
+    if (object.users !== undefined && object.users !== null) {
+      for (const e of object.users) {
+        message.users.push(UserList_Entry.fromJSON(e));
+      }
+    }
+    return message;
+  },
+
+  toJSON(message: UserList): unknown {
+    const obj: any = {};
+    if (message.users) {
+      obj.users = message.users.map((e) =>
+        e ? UserList_Entry.toJSON(e) : undefined
+      );
+    } else {
+      obj.users = [];
+    }
+    return obj;
+  },
+};
+
+const baseUserList_Entry: object = { name: "", uri: "", protected: false };
+
+export const UserList_Entry = {
+  fromJSON(object: any): UserList_Entry {
+    const message = { ...baseUserList_Entry } as UserList_Entry;
+    if (object.name !== undefined && object.name !== null) {
+      message.name = String(object.name);
+    } else {
+      message.name = "";
+    }
+    if (object.uri !== undefined && object.uri !== null) {
+      message.uri = String(object.uri);
+    } else {
+      message.uri = "";
+    }
+    if (object.protected !== undefined && object.protected !== null) {
+      message.protected = Boolean(object.protected);
+    } else {
+      message.protected = false;
+    }
+    return message;
+  },
+
+  toJSON(message: UserList_Entry): unknown {
+    const obj: any = {};
+    message.name !== undefined && (obj.name = message.name);
+    message.uri !== undefined && (obj.uri = message.uri);
+    message.protected !== undefined && (obj.protected = message.protected);
+    return obj;
+  },
+};
+
+declare var self: any | undefined;
+declare var window: any | undefined;
+var globalThis: any = (() => {
+  if (typeof globalThis !== "undefined") return globalThis;
+  if (typeof self !== "undefined") return self;
+  if (typeof window !== "undefined") return window;
+  if (typeof global !== "undefined") return global;
+  throw "Unable to locate global object";
+})();
+
+const atob: (b64: string) => string =
+  globalThis.atob ||
+  ((b64) => globalThis.Buffer.from(b64, "base64").toString("binary"));
+function bytesFromBase64(b64: string): Uint8Array {
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; ++i) {
+    arr[i] = bin.charCodeAt(i);
+  }
+  return arr;
+}
+
+const btoa: (bin: string) => string =
+  globalThis.btoa ||
+  ((bin) => globalThis.Buffer.from(bin, "binary").toString("base64"));
+function base64FromBytes(arr: Uint8Array): string {
+  const bin: string[] = [];
+  for (let i = 0; i < arr.byteLength; ++i) {
+    bin.push(String.fromCharCode(arr[i]));
+  }
+  return btoa(bin.join(""));
+}
