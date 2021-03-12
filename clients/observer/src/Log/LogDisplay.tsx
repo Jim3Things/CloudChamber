@@ -1,29 +1,23 @@
 import React from 'react';
-import {
-    List, ListItem, ListItemIcon, ListItemText,
-    Paper} from "@material-ui/core";
+import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core";
 import {makeStyles} from "@material-ui/core/styles";
 import {
-    Menu,
-    Warning,
+    BugReport,
     Error,
     ErrorOutline,
-    HelpOutline,
-    BugReport,
-    Info,
+    ExpandLess,
     ExpandMore,
-    ExpandLess
+    HelpOutline,
+    Info,
+    Menu,
+    Warning
 } from '@material-ui/icons';
 
-import {
-    LogEntry,
-    LogEvent,
-    LogEventType,
-    LogSeverity
-} from "../proxies/LogProxy";
+import {LogEntry} from "../proxies/LogProxy";
 import {Organizer} from "./Organizer";
 import {RenderIf} from "../common/If";
 import {SettingsState} from "../Settings";
+import {Action, Event, Severity} from "../pkg/protos/log/entry";
 
 interface styleProps {
     indent: number
@@ -91,7 +85,7 @@ const ExpandIcon = (props: { expanded: boolean }) =>
 // FilteredCount produces the child element count for a span after applying the
 // active display filters.
 function FilteredCount(
-    event: LogEvent[],
+    event: Event[],
     settings: SettingsState,
     organizer: Organizer
 ): number {
@@ -103,7 +97,7 @@ function FilteredCount(
 
     for (const item of event) {
         switch (item.eventAction) {
-            case LogEventType.SpanStart:
+            case Action.SpanStart:
                 if (!settings.logSettings.showInfra) {
                     const span = organizer.get(item.spanId)
 
@@ -113,7 +107,7 @@ function FilteredCount(
                 }
                 break
 
-            case LogEventType.AddLink:
+            case Action.AddLink:
                 if (!settings.logSettings.showInfra) {
                     const span = organizer.get(item.linkId)
 
@@ -123,8 +117,8 @@ function FilteredCount(
                 }
                 break
 
-            case LogEventType.Trace:
-                if (!settings.logSettings.showDebug && (item.severity === LogSeverity.Debug)) {
+            case Action.Trace:
+                if (!settings.logSettings.showDebug && (item.severity === Severity.Debug)) {
                     count -= 1
                 }
                 break
@@ -224,27 +218,27 @@ function TraceEvent(props: {
     onTrackChange: ExpansionHandler,
     indent: number,
     entry: LogEntry,
-    event: LogEvent,
+    event: Event,
     infra: boolean
 }) {
     const classes = useStyles({indent: props.indent, infra: props.infra, height: 0})
 
     // Construct the icon to use to denote the severity code in a log event.
-    const SevIcon = (props: { sev: number }) => {
-        switch (props.sev) {
-            case LogSeverity.Debug:
+    const SevIcon = (props: { ev: Event }) => {
+        switch (props.ev.severity) {
+            case Severity.Debug:
                 return <BugReport className={classes.success}/>
 
-            case LogSeverity.Info:
+            case Severity.Info:
                 return <Info className={classes.success}/>
 
-            case LogSeverity.Warning:
+            case Severity.Warning:
                 return <Warning className={classes.warning}/>
 
-            case LogSeverity.Error:
+            case Severity.Error:
                 return <ErrorOutline className={classes.error}/>
 
-            case LogSeverity.Fatal:
+            case Severity.Fatal:
                 return <Error className={classes.error}/>
 
             default:
@@ -253,7 +247,7 @@ function TraceEvent(props: {
     }
 
     switch (props.event.eventAction) {
-        case LogEventType.SpanStart: {
+        case Action.SpanStart: {
             // If this event is for a span start, then recursively process that span,
             // unless that child span has already been aged out.
             const span = props.organizer.get(props.event.spanId)
@@ -282,7 +276,7 @@ function TraceEvent(props: {
                 id={props.event.spanId}/>
         }
 
-        case LogEventType.AddLink: {
+        case Action.AddLink: {
             // If this event is for an add link, then see if that link has been
             // registered.  If it has, then recursively process the registering
             // span, if it can be found.  If it can't, then just ignore it.
@@ -302,15 +296,15 @@ function TraceEvent(props: {
 
         default:
             // Format a normal trace event.
-            if (!props.settings.logSettings.showDebug && props.event.severity === LogSeverity.Debug) {
+            if (!props.settings.logSettings.showDebug && props.event.severity === Severity.Debug) {
                 return <React.Fragment/>
             }
 
             return <ListItem dense className={classes.nested}>
                 <ListItemIcon>
-                    <SevIcon sev={props.event.severity}/>
+                    <SevIcon ev={props.event}/>
                 </ListItemIcon>
-                <ListItemText className={classes.labelText} primary={props.event.text} />
+                <ListItemText className={classes.labelText} primary={props.event.text}/>
             </ListItem>
     }
 }

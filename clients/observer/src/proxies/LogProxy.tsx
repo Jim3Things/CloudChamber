@@ -4,52 +4,8 @@
 // throughout the rest of the UI.
 
 import {getJson} from "./Session";
-
-// +++ JSON data definitions
-
-interface JsonPolicy {
-    maxEntriesHeld: number
-    firstId: number
-}
-
-interface JsonEntry {
-    id: number
-    entry: JsonLogEntry
-}
-
-interface JsonLogEvent {
-    tick: number
-    severity: string
-    name: string
-    text: string
-    eventAction: string
-    stackTrace: string
-    spanId: string
-    linkId: string
-}
-
-interface JsonLogEntry {
-    name: string
-    spanID: string
-    parentID: string
-    traceID: string
-    status: string
-    stackTrace: string
-    event: JsonLogEvent[]
-    infrastructure: boolean
-    startingLink: string
-    linkSpanID: string
-    linkTraceID: string
-    reason: string
-}
-
-interface JsonLogEntries {
-    lastId: number
-    missed: boolean
-    entries: JsonEntry[]
-}
-
-// --- JSON data definitions
+import {Entry, Event} from "../pkg/protos/log/entry";
+import {GetAfterResponse, GetPolicyResponse} from "../pkg/protos/services/requests";
 
 const nullTraceID: string = "00000000000000000000000000000000"
 export const nullSpanID: string = "0000000000000000"
@@ -75,58 +31,12 @@ export interface LogEntry {
     traceID: string
     status: string
     stackTrace: string
-    event: LogEvent[]
+    event: Event[]
     infrastructure: boolean
     startingLink: string
     linkSpanID: string
     linkTraceID: string
     reason: string
-}
-
-export interface LogEvent {
-    tick: number
-    severity: number
-    name: string
-    text: string
-    eventAction: number
-    stackTrace: string
-    spanId: string
-    linkId: string
-}
-
-export enum LogSeverity {
-    Debug,
-    Reason,
-    Info,
-    Warning,
-    Error,
-    Fatal
-}
-
-function LogSeverityToNumber(sev: string): number {
-    switch (sev) {
-        case "Debug":   return LogSeverity.Debug
-        case "Reason":  return LogSeverity.Reason
-        case "Info":    return LogSeverity.Info
-        case "Warning": return LogSeverity.Warning
-        case "Error":   return LogSeverity.Error
-        default:        return LogSeverity.Info
-    }
-}
-
-export enum LogEventType {
-    Trace ,
-    SpanStart,
-    AddLink
-}
-
-function LogActionToNumber(action: string): number {
-    switch (action) {
-        case "SpanStart":   return LogEventType.SpanStart
-        case "AddLink":     return LogEventType.AddLink
-        case "Trace":       return LogEventType.Trace
-        default:            return LogEventType.Trace
-    }
 }
 
 // --- UI Internal data definitions
@@ -136,7 +46,7 @@ export interface LogArrivalHandler {
 }
 
 export class LogProxy {
-    abortController : AbortController | undefined = undefined
+    abortController: AbortController | undefined = undefined
 
     epoch: number = 0
 
@@ -153,9 +63,10 @@ export class LogProxy {
     }
 
     start() {
-        const request = new Request("/api/logs/policy", { method: "GET"})
-        getJson<JsonPolicy>(request, this.getSignal())
-            .then(policy => {
+        const request = new Request("/api/logs/policy", {method: "GET"})
+        getJson<GetPolicyResponse>(request, this.getSignal())
+            .then(jsonPolicy => {
+                const policy = GetPolicyResponse.fromJSON(jsonPolicy)
                 this.startId = policy.firstId
                 this.maxHeld = policy.maxEntriesHeld
                 this.getLogs(this.epoch)
@@ -180,9 +91,10 @@ export class LogProxy {
 
     getLogs(lastEpoch: number) {
         if (lastEpoch === this.epoch) {
-            const request = new Request("/api/logs?from=" + this.startId + "&for=100", { method: "GET"})
-            getJson<JsonLogEntries>(request, this.getSignal())
-                .then(jsonEntries => {
+            const request = new Request("/api/logs?from=" + this.startId + "&for=100", {method: "GET"})
+            getJson<GetAfterResponse>(request, this.getSignal())
+                .then(jsonMsg => {
+                    const jsonEntries = GetAfterResponse.fromJSON(jsonMsg)
                     const entries = this.convertToInternal(jsonEntries)
 
                     this.startId = entries.lastId
@@ -192,7 +104,7 @@ export class LogProxy {
         }
     }
 
-    convertToInternal(input: JsonLogEntries): LogEntries {
+    convertToInternal(input: GetAfterResponse): LogEntries {
         let entries: LogEntries = {
             lastId: input.lastId,
             missed: input.missed,
@@ -202,7 +114,7 @@ export class LogProxy {
         for (let i = 0; i < input.entries.length; i++) {
             const jsonEntry = input.entries[i]
 
-            const span: JsonLogEntry = {
+            const span: Entry = {
                 name: "",
                 parentID: nullSpanID,
                 spanID: missingSpanID,
@@ -214,6 +126,7 @@ export class LogProxy {
                 startingLink: "",
                 linkSpanID: nullSpanID,
                 linkTraceID: nullTraceID,
+                reason: "",
                 ...jsonEntry.entry
             }
 
@@ -234,26 +147,7 @@ export class LogProxy {
             }
 
             for (let j = 0; j < span.event.length; j++) {
-                const jsonEvent = span.event[j]
-
-                const inEvent = {
-                    severity: "Debug",
-                    text: "",
-                    eventAction: "Trace",
-                    spanId: nullSpanID,
-                    ...jsonEvent
-                }
-
-                entry.event[j] = {
-                    tick: inEvent.tick,
-                    severity: LogSeverityToNumber(inEvent.severity),
-                    name: inEvent.name,
-                    text: inEvent.text,
-                    eventAction: LogActionToNumber(inEvent.eventAction),
-                    stackTrace: inEvent.stackTrace,
-                    spanId: inEvent.spanId,
-                    linkId: inEvent.linkId
-                }
+                entry.event[j] = span.event[j]
             }
 
             entries.entries[i] = entry
@@ -271,7 +165,7 @@ export class LogProxy {
     }
 
     // Get the listener to use to sign up for notification of an abort demand.
-    getSignal() : AbortSignal | undefined {
+    getSignal(): AbortSignal | undefined {
         if (this.abortController === undefined) {
             return undefined
         }

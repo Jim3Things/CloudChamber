@@ -1,0 +1,480 @@
+/* eslint-disable */
+export const protobufPackage = "log";
+
+/** Describe the type of impact that this event has on a module. */
+export enum Impact {
+  Invalid = 0,
+  Read = 1,
+  Create = 2,
+  Modify = 3,
+  Delete = 4,
+  Execute = 5,
+  UNRECOGNIZED = -1,
+}
+
+export function impactFromJSON(object: any): Impact {
+  switch (object) {
+    case 0:
+    case "Invalid":
+      return Impact.Invalid;
+    case 1:
+    case "Read":
+      return Impact.Read;
+    case 2:
+    case "Create":
+      return Impact.Create;
+    case 3:
+    case "Modify":
+      return Impact.Modify;
+    case 4:
+    case "Delete":
+      return Impact.Delete;
+    case 5:
+    case "Execute":
+      return Impact.Execute;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return Impact.UNRECOGNIZED;
+  }
+}
+
+export function impactToJSON(object: Impact): string {
+  switch (object) {
+    case Impact.Invalid:
+      return "Invalid";
+    case Impact.Read:
+      return "Read";
+    case Impact.Create:
+      return "Create";
+    case Impact.Modify:
+      return "Modify";
+    case Impact.Delete:
+      return "Delete";
+    case Impact.Execute:
+      return "Execute";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+/** Describe the actions to take when reading an event entry. */
+export enum Action {
+  /**
+   * Trace - Trace is the most common type of event.  The contents are added to a serial
+   * list in the span, and the formatters will display the entry's data as a
+   * child trace event.
+   */
+  Trace = 0,
+  /**
+   * UpdateSpanName - UpdateSpanName and UpdateReason are directives to edit the containing span
+   * information.  The first replaces the span's name field, and the second
+   * replaces the span's reason text. This allows for better descriptions for a
+   * span once the details have been better understood - e.g. 'logging in a user'
+   * vs. 'logging in user "admin"'.
+   */
+  UpdateSpanName = 1,
+  UpdateReason = 2,
+  /**
+   * SpanStart - SpanStart is used to place the child span in the correct spot in the
+   * sequence of events in the containing span.  It identifies the child span's
+   * ID.  Structured formatters will expand the child span at this point in the
+   * sequence in order to keep a time order.  Note that parent/child span
+   * relationships are strong - they can safely assume that both spans will
+   * complete, they will execute in the same process, and that completion of the
+   * overall trace ID is not complete until both are complete.
+   */
+  SpanStart = 3,
+  /**
+   * AddLink - AddLink is used to place a the request point that may result in a linked
+   * span.  It has an associated ID that is assigned by the active span at the
+   * point of the request, as the future linked span id cannot yet be known.
+   * Note that linked spans have a much looser relationship than parent/child
+   * spans.  The linked span may not be required to complete a logical trace
+   * sequence.  It may not execute in the same process as the initiator.  It
+   * may not even execute.  Consequently, structured formatters consider the
+   * linked information as soft (optional) parent/child relationships.  If they
+   * can put them into a logical execution tree, they do so.  If they cannot,
+   * then they do not.
+   */
+  AddLink = 4,
+  UNRECOGNIZED = -1,
+}
+
+export function actionFromJSON(object: any): Action {
+  switch (object) {
+    case 0:
+    case "Trace":
+      return Action.Trace;
+    case 1:
+    case "UpdateSpanName":
+      return Action.UpdateSpanName;
+    case 2:
+    case "UpdateReason":
+      return Action.UpdateReason;
+    case 3:
+    case "SpanStart":
+      return Action.SpanStart;
+    case 4:
+    case "AddLink":
+      return Action.AddLink;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return Action.UNRECOGNIZED;
+  }
+}
+
+export function actionToJSON(object: Action): string {
+  switch (object) {
+    case Action.Trace:
+      return "Trace";
+    case Action.UpdateSpanName:
+      return "UpdateSpanName";
+    case Action.UpdateReason:
+      return "UpdateReason";
+    case Action.SpanStart:
+      return "SpanStart";
+    case Action.AddLink:
+      return "AddLink";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+export enum Severity {
+  Debug = 0,
+  /** Reason - This is the severity use to denote a purely explanatory entry */
+  Reason = 1,
+  Info = 2,
+  Warning = 3,
+  Error = 4,
+  Fatal = 5,
+  UNRECOGNIZED = -1,
+}
+
+export function severityFromJSON(object: any): Severity {
+  switch (object) {
+    case 0:
+    case "Debug":
+      return Severity.Debug;
+    case 1:
+    case "Reason":
+      return Severity.Reason;
+    case 2:
+    case "Info":
+      return Severity.Info;
+    case 3:
+    case "Warning":
+      return Severity.Warning;
+    case 4:
+    case "Error":
+      return Severity.Error;
+    case 5:
+    case "Fatal":
+      return Severity.Fatal;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return Severity.UNRECOGNIZED;
+  }
+}
+
+export function severityToJSON(object: Severity): string {
+  switch (object) {
+    case Severity.Debug:
+      return "Debug";
+    case Severity.Reason:
+      return "Reason";
+    case Severity.Info:
+      return "Info";
+    case Severity.Warning:
+      return "Warning";
+    case Severity.Error:
+      return "Error";
+    case Severity.Fatal:
+      return "Fatal";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+/** Describe an impacted module */
+export interface Module {
+  impact: Impact;
+  name: string;
+}
+
+/** Define an individual trace event */
+export interface Event {
+  /** Simulated time when it was logged. */
+  tick: number;
+  /** Event severity */
+  severity: Severity;
+  /** Label to quickly mark the event */
+  name: string;
+  /** The event text itself. */
+  text: string;
+  /** Formatted caller's stack trace */
+  stackTrace: string;
+  /** The set of modules impacted, and the type of impact. */
+  impacted: Module[];
+  /** Action to take when this trace is encountered. */
+  eventAction: Action;
+  /** Child's span ID.  Ignored if the action is not SpanStart. */
+  spanId: string;
+  /** Outgoing link ID.  Ignored if the action is not AddLink. */
+  linkId: string;
+}
+
+/** Describe a full correlated span, consisting of zero or more events. */
+export interface Entry {
+  /** Name of the span */
+  name: string;
+  /** The IDs for the span, and its parent */
+  spanID: string;
+  parentID: string;
+  traceID: string;
+  /** Final status of the span */
+  status: string;
+  /** Formatted stack trace */
+  stackTrace: string;
+  /** The set of events emitted by this span */
+  event: Event[];
+  /** True, if this span represents internal-only operations. */
+  infrastructure: boolean;
+  /**
+   * Friendly string describing the purpose of the logic covered by this
+   * entry.
+   */
+  reason: string;
+  /**
+   * The link tag associated with an AddLink event at the source span,
+   * if present.
+   */
+  startingLink: string;
+  /**
+   * The link span ID and trace ID identify the active span at the point
+   * where the request to start a new related span was made.
+   */
+  linkSpanID: string;
+  linkTraceID: string;
+}
+
+const baseModule: object = { impact: 0, name: "" };
+
+export const Module = {
+  fromJSON(object: any): Module {
+    const message = { ...baseModule } as Module;
+    if (object.impact !== undefined && object.impact !== null) {
+      message.impact = impactFromJSON(object.impact);
+    } else {
+      message.impact = 0;
+    }
+    if (object.name !== undefined && object.name !== null) {
+      message.name = String(object.name);
+    } else {
+      message.name = "";
+    }
+    return message;
+  },
+
+  toJSON(message: Module): unknown {
+    const obj: any = {};
+    message.impact !== undefined && (obj.impact = impactToJSON(message.impact));
+    message.name !== undefined && (obj.name = message.name);
+    return obj;
+  },
+};
+
+const baseEvent: object = {
+  tick: 0,
+  severity: 0,
+  name: "",
+  text: "",
+  stackTrace: "",
+  eventAction: 0,
+  spanId: "",
+  linkId: "",
+};
+
+export const Event = {
+  fromJSON(object: any): Event {
+    const message = { ...baseEvent } as Event;
+    message.impacted = [];
+    if (object.tick !== undefined && object.tick !== null) {
+      message.tick = Number(object.tick);
+    } else {
+      message.tick = 0;
+    }
+    if (object.severity !== undefined && object.severity !== null) {
+      message.severity = severityFromJSON(object.severity);
+    } else {
+      message.severity = 0;
+    }
+    if (object.name !== undefined && object.name !== null) {
+      message.name = String(object.name);
+    } else {
+      message.name = "";
+    }
+    if (object.text !== undefined && object.text !== null) {
+      message.text = String(object.text);
+    } else {
+      message.text = "";
+    }
+    if (object.stackTrace !== undefined && object.stackTrace !== null) {
+      message.stackTrace = String(object.stackTrace);
+    } else {
+      message.stackTrace = "";
+    }
+    if (object.impacted !== undefined && object.impacted !== null) {
+      for (const e of object.impacted) {
+        message.impacted.push(Module.fromJSON(e));
+      }
+    }
+    if (object.eventAction !== undefined && object.eventAction !== null) {
+      message.eventAction = actionFromJSON(object.eventAction);
+    } else {
+      message.eventAction = 0;
+    }
+    if (object.spanId !== undefined && object.spanId !== null) {
+      message.spanId = String(object.spanId);
+    } else {
+      message.spanId = "";
+    }
+    if (object.linkId !== undefined && object.linkId !== null) {
+      message.linkId = String(object.linkId);
+    } else {
+      message.linkId = "";
+    }
+    return message;
+  },
+
+  toJSON(message: Event): unknown {
+    const obj: any = {};
+    message.tick !== undefined && (obj.tick = message.tick);
+    message.severity !== undefined &&
+      (obj.severity = severityToJSON(message.severity));
+    message.name !== undefined && (obj.name = message.name);
+    message.text !== undefined && (obj.text = message.text);
+    message.stackTrace !== undefined && (obj.stackTrace = message.stackTrace);
+    if (message.impacted) {
+      obj.impacted = message.impacted.map((e) =>
+        e ? Module.toJSON(e) : undefined
+      );
+    } else {
+      obj.impacted = [];
+    }
+    message.eventAction !== undefined &&
+      (obj.eventAction = actionToJSON(message.eventAction));
+    message.spanId !== undefined && (obj.spanId = message.spanId);
+    message.linkId !== undefined && (obj.linkId = message.linkId);
+    return obj;
+  },
+};
+
+const baseEntry: object = {
+  name: "",
+  spanID: "",
+  parentID: "",
+  traceID: "",
+  status: "",
+  stackTrace: "",
+  infrastructure: false,
+  reason: "",
+  startingLink: "",
+  linkSpanID: "",
+  linkTraceID: "",
+};
+
+export const Entry = {
+  fromJSON(object: any): Entry {
+    const message = { ...baseEntry } as Entry;
+    message.event = [];
+    if (object.name !== undefined && object.name !== null) {
+      message.name = String(object.name);
+    } else {
+      message.name = "";
+    }
+    if (object.spanID !== undefined && object.spanID !== null) {
+      message.spanID = String(object.spanID);
+    } else {
+      message.spanID = "";
+    }
+    if (object.parentID !== undefined && object.parentID !== null) {
+      message.parentID = String(object.parentID);
+    } else {
+      message.parentID = "";
+    }
+    if (object.traceID !== undefined && object.traceID !== null) {
+      message.traceID = String(object.traceID);
+    } else {
+      message.traceID = "";
+    }
+    if (object.status !== undefined && object.status !== null) {
+      message.status = String(object.status);
+    } else {
+      message.status = "";
+    }
+    if (object.stackTrace !== undefined && object.stackTrace !== null) {
+      message.stackTrace = String(object.stackTrace);
+    } else {
+      message.stackTrace = "";
+    }
+    if (object.event !== undefined && object.event !== null) {
+      for (const e of object.event) {
+        message.event.push(Event.fromJSON(e));
+      }
+    }
+    if (object.infrastructure !== undefined && object.infrastructure !== null) {
+      message.infrastructure = Boolean(object.infrastructure);
+    } else {
+      message.infrastructure = false;
+    }
+    if (object.reason !== undefined && object.reason !== null) {
+      message.reason = String(object.reason);
+    } else {
+      message.reason = "";
+    }
+    if (object.startingLink !== undefined && object.startingLink !== null) {
+      message.startingLink = String(object.startingLink);
+    } else {
+      message.startingLink = "";
+    }
+    if (object.linkSpanID !== undefined && object.linkSpanID !== null) {
+      message.linkSpanID = String(object.linkSpanID);
+    } else {
+      message.linkSpanID = "";
+    }
+    if (object.linkTraceID !== undefined && object.linkTraceID !== null) {
+      message.linkTraceID = String(object.linkTraceID);
+    } else {
+      message.linkTraceID = "";
+    }
+    return message;
+  },
+
+  toJSON(message: Entry): unknown {
+    const obj: any = {};
+    message.name !== undefined && (obj.name = message.name);
+    message.spanID !== undefined && (obj.spanID = message.spanID);
+    message.parentID !== undefined && (obj.parentID = message.parentID);
+    message.traceID !== undefined && (obj.traceID = message.traceID);
+    message.status !== undefined && (obj.status = message.status);
+    message.stackTrace !== undefined && (obj.stackTrace = message.stackTrace);
+    if (message.event) {
+      obj.event = message.event.map((e) => (e ? Event.toJSON(e) : undefined));
+    } else {
+      obj.event = [];
+    }
+    message.infrastructure !== undefined &&
+      (obj.infrastructure = message.infrastructure);
+    message.reason !== undefined && (obj.reason = message.reason);
+    message.startingLink !== undefined &&
+      (obj.startingLink = message.startingLink);
+    message.linkSpanID !== undefined && (obj.linkSpanID = message.linkSpanID);
+    message.linkTraceID !== undefined &&
+      (obj.linkTraceID = message.linkTraceID);
+    return obj;
+  },
+};
