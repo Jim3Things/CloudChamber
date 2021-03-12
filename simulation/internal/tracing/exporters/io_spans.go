@@ -126,6 +126,16 @@ func (s *ioSpans) add(entry *log.Entry, io io.Writer) {
 	a.open[spanID] = true
 
 	if !hasParent {
+		if a.root != "" && a.root != spanID {
+			s.recordFatal(
+				a,
+				entry,
+				fmt.Sprintf(
+					"expected only one root, tried to replace %q with %q",
+					a.root,
+					spanID))
+		}
+
 		a.root = spanID
 	} else if _, ok := s.known[parentID]; !ok {
 		// add this entry's parent to active, if not in the known list
@@ -155,15 +165,47 @@ func (s *ioSpans) add(entry *log.Entry, io io.Writer) {
 
 		// Ensure that the closed list is empty
 		if len(a.closed) != 0 {
-			msg := fmt.Sprintf("Expected all closed, %v: ", a)
-			for id := range a.closed {
-				sp, ok := s.known[id]
-				msg = fmt.Sprintf("%s (%v)%v ", msg, ok, sp)
-			}
-
-			stdLog.Fatal(msg)
+			s.recordFatal(a, entry, "Expected all closed")
 		}
 
 		delete(s.active, traceID)
 	}
+}
+
+func (s *ioSpans) recordFatal(a *activeEntry, entry *log.Entry, cause string) {
+	msg := fmt.Sprintf("%s, %v: \n", cause, a)
+	msg = fmt.Sprintf("%sCurrent entry:\n%s\n", msg, formatEntry(entry, false, tab))
+	for _, event := range entry.Event {
+		msg = fmt.Sprintf("%s%s\n", msg, formatEvent(event, tab + tab))
+	}
+	msg = fmt.Sprintf("%sClosed (%d):\n", msg, len(a.closed))
+	for id := range a.closed {
+		sp, ok := s.known[id]
+		if !ok {
+			msg = fmt.Sprintf("%s id: %s not found\n", msg, id)
+		} else {
+			msg = fmt.Sprintf("%s%s\n", msg, formatEntry(sp, false, tab))
+
+			for _, event := range sp.Event {
+				msg = fmt.Sprintf("%s%s\n", msg, formatEvent(event, tab + tab))
+			}
+		}
+	}
+
+	msg = fmt.Sprintf("%sOpen (%d):\n", msg, len(a.open))
+	for id := range a.open {
+		sp, ok := s.known[id]
+		if !ok {
+			msg = fmt.Sprintf("%s id: %s not found\n", msg, id)
+		} else {
+			msg = fmt.Sprintf("%s%s\n", msg, formatEntry(sp, false, tab))
+
+			for _, event := range sp.Event {
+				msg = fmt.Sprintf("%s%s\n", msg, formatEvent(event, tab+tab))
+			}
+		}
+	}
+
+	stdLog.Fatal(msg)
+
 }
