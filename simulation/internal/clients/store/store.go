@@ -66,7 +66,6 @@ package store
 import (
 	"context"
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -202,9 +201,11 @@ func (store *Store) disconnected(ctx context.Context) error {
 // Initialize is a method used to initialise the basic global state used to access
 // the back-end db service.
 //
-func Initialize(cfg *config.GlobalConfig) {
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(timestamp.OutsideTime))
+func Initialize(ctx context.Context, cfg *config.GlobalConfig) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(timestamp.OutsideTime),
+		tracing.AsInternal(),
+		tracing.WithName("Initialize store"))
 	defer span.End()
 
 	storeRoot.DefaultEndpoints = []string{
@@ -265,16 +266,15 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 
 	if cfg.Store.Test.UseUniqueInstance {
 		testNamespace += fmt.Sprintf("/%s", time.Now().Format(time.RFC3339Nano))
+
+		tracing.UpdateSpanName(ctx, "Initialize store (using unique test namespace %q)", testNamespace)
 	} else {
 		testNamespace += "/Standard"
+
+		tracing.UpdateSpanName(ctx, "Initialize store (using test namespace %q)", testNamespace)
 	}
 
-	tracing.Info(ctx, "Configured to use test namespace %q", testNamespace)
-
 	if cfg.Store.Test.PreCleanStore {
-
-		tracing.Info(ctx, "Starting store pre-clean of namespace %q", testNamespace)
-
 		if err := cleanNamespace(ctx, testNamespace); err != nil {
 			tracing.Fatal(ctx, "failed to pre-clean the store as requested - namespace: %s err: %v", testNamespace, err)
 		}
@@ -286,8 +286,10 @@ func PrepareTestNamespace(ctx context.Context, cfg *config.GlobalConfig) {
 func cleanNamespace(ctx context.Context, testNamespace string) error {
 	store := NewStore()
 
+	tracing.Info(ctx, "Starting store pre-clean of namespace %q", testNamespace)
+
 	if store == nil {
-		log.Fatal("unable to allocate store context for pre-cleanup")
+		tracing.Fatal(ctx, "unable to allocate store context for pre-cleanup")
 	}
 
 	if err := store.SetNamespaceSuffix(""); err != nil {
@@ -696,14 +698,53 @@ func (store *Store) UpdateClusterConnections() error {
 	return err
 }
 
+// Watch is a struct
+//
+type Watch struct {
+	Key string
+	Chan clientv3.WatchChan
+	Cancel context.CancelFunc
+	CancelPending bool
+}
+
 // SetWatch is a method used to establish a watchpoint on a single key/value pari
 //
-func (store *Store) SetWatch(key string) error {
-	_, span := tracing.StartSpan(context.Background(),
+func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, err error) {
+	_, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	return errors.ErrStoreNotImplemented("SetWatch")
+	if err = store.disconnected(ctx); err != nil {
+		return nil, err
+	}
+
+	opCtx, cancel := context.WithCancel(ctx)
+
+	ch := store.Client.Watch(opCtx, key)
+
+	response = &Watch{Key: key, Chan: ch, Cancel: cancel}
+
+	return response, nil
+}
+
+// GetNextEvent is a
+//
+func (w *Watch) GetNextEvent(ctx context.Context) (key string, val string) {
+
+	return key, val
+}
+
+// Close is a
+//
+func (w *Watch) Close(ctx context.Context) {
+	cancel := w.Cancel
+
+	w.CancelPending = true
+
+	if cancel != nil {
+		cancel()
+	}
+
 }
 
 // SetWatchMultiple is a method used to establish a set of watchpoints on a set of
@@ -712,8 +753,8 @@ func (store *Store) SetWatch(key string) error {
 // This is essentially a convenience method to allow multiple values to be fetched
 // in a single call rather than repeating individual calls to the SetWatch() method.
 //
-func (store *Store) SetWatchMultiple(key []string) error {
-	_, span := tracing.StartSpan(context.Background(),
+func (store *Store) SetWatchMultiple(ctx context.Context, key []string) error {
+	_, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
@@ -723,8 +764,8 @@ func (store *Store) SetWatchMultiple(key []string) error {
 // SetWatchWithPrefix is a method used to establish a watchpoint on a entire
 // sub-tree of key/value pairs which have a common key name prefix/
 //
-func (store *Store) SetWatchWithPrefix(keyPrefix string) error {
-	_, span := tracing.StartSpan(context.Background(),
+func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) error {
+	_, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
@@ -907,6 +948,7 @@ func (store *Store) ListWithPrefix(ctx context.Context, keyPrefix string) (respo
 	// adding clientv3.WithKeysOnly() to the list of applicable options.
 	//
 	opCtx, cancel := context.WithTimeout(ctx, store.TimeoutRequest)
+
 	getResponse, err := store.Client.Get(
 		opCtx,
 		keyPrefix,

@@ -1294,6 +1294,10 @@ func TestStoreSetWatch(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
 	key := "TestStoreSetWatch/Key"
 
 	store := NewStore()
@@ -1302,7 +1306,7 @@ func TestStoreSetWatch(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.SetWatch(key)
+	_, err = store.SetWatch(ctx, key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
 	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatch"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatch"), err)
 
@@ -1317,6 +1321,10 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
 	keySet := []string{"TestStoreSetWatchMultiple/Key"}
 
 	store := NewStore()
@@ -1325,7 +1333,7 @@ func TestStoreSetWatchMultiple(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.SetWatchMultiple(keySet)
+	err = store.SetWatchMultiple(ctx, keySet)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
 	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchMultiple"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchMultiple"), err)
 
@@ -1340,6 +1348,10 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
 	key := "TestStoreSetWatchPrefix/Key"
 
 	store := NewStore()
@@ -1348,7 +1360,7 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.SetWatchWithPrefix(key)
+	err = store.SetWatchWithPrefix(ctx, key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
 	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err)
 

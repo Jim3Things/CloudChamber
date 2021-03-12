@@ -765,3 +765,30 @@ func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map
 
 	return &recs, response.Revision, nil
 }
+
+// Watch is a method use to establish
+//
+func (store *Store) Watch(ctx context.Context, r KeyRoot, n string) (err error) {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
+	defer span.End()
+
+	if err = store.disconnected(ctx); err != nil {
+		return err
+	}
+
+	prefix := getNamespacePrefixFromKeyRoot(r)
+
+	tracing.UpdateSpanName(ctx, "Request to list keys under prefix %q", prefix)
+
+	k := getKeyFromKeyRootAndName(r, n)
+
+	err = store.SetWatchWithPrefix(ctx, k)
+
+	if err != nil {
+		return err
+	}
+
+
+	return nil
+}

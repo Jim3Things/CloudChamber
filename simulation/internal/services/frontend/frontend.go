@@ -209,7 +209,7 @@ func initService(cfg *config.GlobalConfig) error {
 
 	// Initialize the underlying store
 	//
-	store.Initialize(cfg)
+	store.Initialize(ctx, cfg)
 
 	// initialize the inventory store and apply any updates from the configuration.
 	//

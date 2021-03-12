@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
@@ -44,7 +45,7 @@ func commonSetup() {
 		log.Fatalf("failed to process the global configuration: %v", err)
 	}
 
-	Initialize(cfg)
+	Initialize(context.Background(), cfg)
 }
 
 func testGenerateKeyFromNames(prefix string, name string) string {
