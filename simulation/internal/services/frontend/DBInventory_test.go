@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
@@ -56,9 +58,12 @@ func (ts *DBInventoryTestSuite) TearDownTest() {
 }
 
 func (ts *DBInventoryTestSuite) cleanRegion(regionName string) error {
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
-	err := ts.db.ScanZonesInRegion(regionName, func(zoneName string) error {
+	err := ts.db.ScanZonesInRegion(ctx, regionName, func(zoneName string) error {
 		err := ts.cleanZone(regionName, zoneName)
 		if err != nil {
 			return err
@@ -74,9 +79,12 @@ func (ts *DBInventoryTestSuite) cleanRegion(regionName string) error {
 }
 
 func (ts *DBInventoryTestSuite) cleanZone(regionName string, zoneName string) error {
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
-	err := ts.db.ScanRacksInZone(regionName, zoneName, func(rackName string) error {
+	err := ts.db.ScanRacksInZone(ctx, regionName, zoneName, func(rackName string) error {
 		if err := ts.cleanRack(regionName, zoneName, rackName); err != nil {
 			return err
 		}
@@ -90,7 +98,10 @@ func (ts *DBInventoryTestSuite) cleanZone(regionName string, zoneName string) er
 }
 
 func (ts *DBInventoryTestSuite) cleanRack(regionName string, zoneName string, rackName string) error {
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	if _, err := ts.db.DeletePdu(ctx, regionName, zoneName, rackName, ts.pduID); err != nil {
 		return err
@@ -100,7 +111,7 @@ func (ts *DBInventoryTestSuite) cleanRack(regionName string, zoneName string, ra
 		return err
 	}
 
-	err := ts.db.ScanBladesInRack(regionName, zoneName, rackName, func(index int64)error {
+	err := ts.db.ScanBladesInRack(ctx, regionName, zoneName, rackName, func(index int64)error {
 		_, err := ts.db.DeleteBlade(ctx, regionName, zoneName, rackName, index)
 		return err
 	})
@@ -113,7 +124,10 @@ func (ts *DBInventoryTestSuite) TestCreateRegion() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	region := &pb.Definition_Region{
 		Details: &pb.RegionDetails{
@@ -139,7 +153,10 @@ func (ts *DBInventoryTestSuite) TestCreateZone() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	zone := &pb.Definition_Zone{
 		Details: &pb.ZoneDetails{
@@ -166,7 +183,10 @@ func (ts *DBInventoryTestSuite) TestCreateRack() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rack := &pb.Definition_Rack{
 		Details: &pb.RackDetails{
@@ -195,7 +215,10 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	pduID := int64(1)
 
@@ -305,7 +328,10 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	torID := int64(1)
 
@@ -415,7 +441,10 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	bladeID := int64(1)
 
@@ -479,9 +508,14 @@ func (ts *DBInventoryTestSuite) TestScanRegions() {
 		"standard",
 	}
 
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
 	actual := make([]string, 0)
 
-	err := ts.db.ScanRegions(func(name string) error {
+	err := ts.db.ScanRegions(ctx, func(name string) error {
 		actual = append(actual, name)
 
 		return nil
@@ -501,7 +535,12 @@ func (ts *DBInventoryTestSuite) TestGetRegion() {
 		Notes: "Standard Test Region",
 	}
 
-	region, err := ts.db.GetRegion(inventory.DefaultRegion)
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
+	region, err := ts.db.GetRegion(ctx, inventory.DefaultRegion)
 	require.NoError(err)
 	require.NotNil(region)
 
@@ -521,7 +560,12 @@ func (ts *DBInventoryTestSuite) TestScanZonesInRegion() {
 
 	actual := make([]string, 0)
 
-	err := ts.db.ScanZonesInRegion(inventory.DefaultRegion, func(name string) error {
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
+	err := ts.db.ScanZonesInRegion(ctx, inventory.DefaultRegion, func(name string) error {
 		actual = append(actual, name)
 
 		return nil
@@ -542,7 +586,12 @@ func (ts *DBInventoryTestSuite) TestGetZone() {
 		Notes: "Standard Test Zone definition",
 	}
 
-	zone, err := ts.db.GetZone(inventory.DefaultRegion, inventory.DefaultZone)
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
+	zone, err := ts.db.GetZone(ctx, inventory.DefaultRegion, inventory.DefaultZone)
 	require.NoError(err)
 	require.NotNil(zone)
 
@@ -570,8 +619,9 @@ func (ts *DBInventoryTestSuite) TestScanRacksInZone() {
 	}
 
 	actual := make([]string, 0)
+	ctx := context.Background()
 
-	err := ts.db.ScanRacksInZone(inventory.DefaultRegion, inventory.DefaultZone, func(name string) error {
+	err := ts.db.ScanRacksInZone(ctx, inventory.DefaultRegion, inventory.DefaultZone, func(name string) error {
 		actual = append(actual, name)
 
 		return nil
@@ -598,7 +648,12 @@ func (ts *DBInventoryTestSuite) TestScanBladesInRack() {
 
 	actual := make([]int64, 0)
 
-	err := ts.db.ScanBladesInRack(inventory.DefaultRegion, inventory.DefaultZone, "rack1", func(index int64) error {
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
+	err := ts.db.ScanBladesInRack(ctx, inventory.DefaultRegion, inventory.DefaultZone, "rack1", func(index int64) error {
 		actual = append(actual, index)
 
 		return nil
@@ -711,7 +766,12 @@ func (ts *DBInventoryTestSuite) TestGetRackInZone() {
 		Blades:  expectedBlades,
 	}
 
-	rack, err := ts.db.GetRackInZone(inventory.DefaultRegion, inventory.DefaultZone, "rack1")
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
+	rack, err := ts.db.GetRackInZone(ctx, inventory.DefaultRegion, inventory.DefaultZone, "rack1")
 	require.NoError(err)
 	require.NotNil(rack)
 
@@ -727,7 +787,10 @@ func (ts *DBInventoryTestSuite) TestUpdateRegion() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	region1 := &pb.Definition_Region{
 		Details: &pb.RegionDetails{
@@ -772,7 +835,10 @@ func (ts *DBInventoryTestSuite) TestUpdateZone() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	zone1 := &pb.Definition_Zone{
 		Details: &pb.ZoneDetails{
@@ -819,7 +885,10 @@ func (ts *DBInventoryTestSuite) TestUpdateRack() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackUpdatePdu"
 
@@ -868,7 +937,10 @@ func (ts *DBInventoryTestSuite) TestUpdatePdu() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackUpdatePdu"
 
@@ -913,7 +985,10 @@ func (ts *DBInventoryTestSuite) TestUpdateTor() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackUpdateTor"
 
@@ -958,7 +1033,10 @@ func (ts *DBInventoryTestSuite) TestUpdateBlade() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackUpdateBlade"
 
@@ -1003,7 +1081,10 @@ func (ts *DBInventoryTestSuite) TestDeleteRegion() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	regionName := "regionDeleteRegion"
 
@@ -1040,7 +1121,10 @@ func (ts *DBInventoryTestSuite) TestDeleteZone() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	zoneName := "zoneDeleteZone"
 
@@ -1078,7 +1162,10 @@ func (ts *DBInventoryTestSuite) TestDeleteRack() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackDeleteRack"
 
@@ -1116,7 +1203,10 @@ func (ts *DBInventoryTestSuite) TestDeletePdu() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackDeletePdu"
 
@@ -1152,7 +1242,10 @@ func (ts *DBInventoryTestSuite) TestDeleteTor() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackDeleteTor"
 
@@ -1188,7 +1281,10 @@ func (ts *DBInventoryTestSuite) TestDeleteBlade() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	ctx := context.Background()
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
 
 	rackName := "rackUpdateBlade"
 

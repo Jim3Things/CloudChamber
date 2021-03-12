@@ -89,6 +89,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 	b := common.URLPrefix(r)
 
 	err = dbInventory.ScanRacksInZone(
+		ctx,
 		inventory.DefaultRegion,
 		inventory.DefaultZone,
 		func(name string) error {
@@ -133,7 +134,7 @@ func handlerRackRead(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rd, err := dbInventory.GetRackInZone(inventory.DefaultRegion, inventory.DefaultZone, rackID)
+	rd, err := dbInventory.GetRackInZone(ctx, inventory.DefaultRegion, inventory.DefaultZone, rackID)
 	if err != nil {
 		postHTTPError(ctx, w, err)
 		return
@@ -187,6 +188,7 @@ func handlerBladesList(w http.ResponseWriter, r *http.Request) {
 	b := common.URLPrefix(r)
 
 	err = dbInventory.ScanBladesInRack(
+		ctx,
 		inventory.DefaultRegion,
 		inventory.DefaultZone,
 		rackID,
@@ -237,6 +239,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 	}
 
 	blade, err := dbInventory.GetBlade(
+		ctx,
 		inventory.DefaultRegion,
 		inventory.DefaultZone,
 		rackID,
