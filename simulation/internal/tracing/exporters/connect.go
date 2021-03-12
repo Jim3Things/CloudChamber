@@ -11,7 +11,10 @@ import (
 func ConnectToProvider(exporters ...*Exporter) {
 
 	options := []sdk.ProviderOption{
-		sdk.WithConfig(sdk.Config{DefaultSampler: sdk.AlwaysSample()}),
+		sdk.WithConfig(sdk.Config{
+			DefaultSampler: sdk.AlwaysSample(),
+			MaxEventsPerSpan: 1024,
+		}),
 	}
 
 	for _, exporter := range exporters {
