@@ -10,9 +10,11 @@ import {
     CardActions,
     CardContent,
     CardHeader,
-    Checkbox, Collapse,
+    Checkbox,
+    Collapse,
     FormControl,
-    FormControlLabel, FormGroup
+    FormControlLabel,
+    FormGroup
 } from "@material-ui/core";
 import PersonIcon from "@material-ui/icons/Person";
 import ExpandLessIcon from "@material-ui/icons/ExpandLess"
@@ -21,7 +23,7 @@ import {makeStyles} from "@material-ui/core/styles";
 
 import {UserDetails} from "../proxies/UsersProxy";
 import {PasswordTextField} from "../common/PasswordTextField";
-import {Rights} from "../../../../pkg/protos/admin/users"
+import {Rights} from "../pkg/protos/admin/users"
 
 const useStyles = makeStyles(theme => ({
     area: {
@@ -42,8 +44,8 @@ const useStyles = makeStyles(theme => ({
     }
 }));
 
-const ExpandIcon = (props: {expanded: boolean}) =>
-    props.expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />
+const ExpandIcon = (props: { expanded: boolean }) =>
+    props.expanded ? <ExpandLessIcon/> : <ExpandMoreIcon/>
 
 export function UserDetailsCard(props: {
     name: string,
@@ -62,13 +64,13 @@ export function UserDetailsCard(props: {
     const toggleExpanded = () => setExpanded(!expanded)
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        props.onModify({ ...props.user, [event.target.name]: event.target.checked });
+        props.onModify({...props.user, [event.target.name]: event.target.checked});
     }
 
     const handleRightsChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const rights: Rights = {...props.user.rights, [event.target.name]: event.target.checked }
+        const rights: Rights = {...props.user.rights, [event.target.name]: event.target.checked}
 
-        props.onModify({ ...props.user, rights: rights });
+        props.onModify({...props.user, rights: rights});
     }
 
     return <div className={classes.area}>
@@ -132,7 +134,7 @@ export function UserDetailsCard(props: {
                     color="primary"
                     onClick={toggleExpanded}>
                     Change Password
-                    <ExpandIcon expanded={expanded} />
+                    <ExpandIcon expanded={expanded}/>
                 </Button>
             </CardActions>
             <Collapse in={expanded}>
