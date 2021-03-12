@@ -128,17 +128,13 @@ func (m *DBInventory) Start(ctx context.Context) error {
 // GetMemoData returns the maximum number of blades held in any rack
 // in the inventory.
 func (m *DBInventory) GetMemoData() *inventory.ZoneSummary {
-
 	return m.inventory.GetDefaultZoneSummary()
 }
 
 // ScanRegions scans the set of known regions in the store, invoking the supplied
 // function with each entry.
 //
-func (m *DBInventory) ScanRegions(action func(entry string) error) error {
-
-	ctx := context.Background()
-
+func (m *DBInventory) ScanRegions(ctx context.Context, action func(entry string) error) error {
 	root, err := m.inventory.NewRoot(inventory.DefinitionTable)
 	if err != nil {
 		return m.transformError(err, "", "", "", 0)
@@ -160,10 +156,7 @@ func (m *DBInventory) ScanRegions(action func(entry string) error) error {
 
 // GetRegion returns the region details to match the supplied region name
 //
-func (m *DBInventory) GetRegion(regionName string) (*pb.Definition_Region, error) {
-
-	ctx := context.Background()
-
+func (m *DBInventory) GetRegion(ctx context.Context, regionName string) (*pb.Definition_Region, error) {
 	region, err := m.inventory.NewRegion(inventory.DefinitionTable, regionName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, "", "", 0)
@@ -185,10 +178,7 @@ func (m *DBInventory) GetRegion(regionName string) (*pb.Definition_Region, error
 // ScanZonesInRegion scans the set of known zones in the store within
 // the specified region, invoking the supplied function with each entry.
 //
-func (m *DBInventory) ScanZonesInRegion(regionName string, action func(entry string) error) error {
-
-	ctx := context.Background()
-
+func (m *DBInventory) ScanZonesInRegion(ctx context.Context, regionName string, action func(entry string) error) error {
 	root, err := m.inventory.NewRoot(inventory.DefinitionTable)
 	if err != nil {
 		return m.transformError(err, regionName, "", "", 0)
@@ -215,10 +205,7 @@ func (m *DBInventory) ScanZonesInRegion(regionName string, action func(entry str
 
 // GetZone returns the zone details to match the supplied rackID
 //
-func (m *DBInventory) GetZone(regionName string, zoneName string) (*pb.Definition_Zone, error) {
-
-	ctx := context.Background()
-
+func (m *DBInventory) GetZone(ctx context.Context, regionName string, zoneName string) (*pb.Definition_Zone, error) {
 	zone, err := m.inventory.NewZone(inventory.DefinitionTable, regionName, zoneName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, "", 0)
@@ -241,10 +228,11 @@ func (m *DBInventory) GetZone(regionName string, zoneName string) (*pb.Definitio
 // ScanRacksInZone scans the set of known racks in the store, invoking the supplied
 // function with each entry.
 //
-func (m *DBInventory) ScanRacksInZone(regionName string, zoneName string, action func(entry string) error) error {
-
-	ctx := context.Background()
-
+func (m *DBInventory) ScanRacksInZone(
+	ctx context.Context,
+	regionName string,
+	zoneName string,
+	action func(entry string) error) error {
 	zone, err := m.inventory.NewZone(inventory.DefinitionTable, regionName, zoneName)
 
 	if err != nil {
@@ -267,10 +255,7 @@ func (m *DBInventory) ScanRacksInZone(regionName string, zoneName string, action
 
 // GetRackInZone returns the rack details to match the supplied rackName
 //
-func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName string) (*pb.Definition_Rack, error) {
-
-	ctx := context.Background()
-
+func (m *DBInventory) GetRackInZone(ctx context.Context, regionName string, zoneName string, rackName string) (*pb.Definition_Rack, error) {
 	rack, err := m.inventory.NewRack(inventory.DefinitionTable, regionName, zoneName, rackName)
 
 	_, err = rack.Read(ctx)
@@ -318,10 +303,7 @@ func (m *DBInventory) GetRackInZone(regionName string, zoneName string, rackName
 // ScanBladesInRack enumerates over all the blades in a rack of the given
 // rackID, and invokes the supplied action on each discovered bladeID in
 // turn.
-func (m *DBInventory) ScanBladesInRack(regionName string, zoneName string, rackName string, action func(bladeID int64) error) error {
-
-	ctx := context.Background()
-
+func (m *DBInventory) ScanBladesInRack(ctx context.Context, regionName string, zoneName string, rackName string, action func(bladeID int64) error) error {
 	rack, err := m.inventory.NewRack(
 		inventory.DefinitionTable,
 		regionName,
@@ -348,10 +330,7 @@ func (m *DBInventory) ScanBladesInRack(regionName string, zoneName string, rackN
 
 // GetBlade returns the details of a blade matching the supplied rackID and
 // bladeID
-func (m *DBInventory) GetBlade(regionName string, zoneName string, rackName string, bladeID int64) (*pb.BladeCapacity, error) {
-
-	ctx := context.Background()
-
+func (m *DBInventory) GetBlade(ctx context.Context, regionName string, zoneName string, rackName string, bladeID int64) (*pb.BladeCapacity, error) {
 	blade, err := m.inventory.NewBlade(
 		inventory.DefinitionTable,
 		regionName,
