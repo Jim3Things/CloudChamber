@@ -716,7 +716,7 @@ type WatchEventType uint
 const (
 	// WatchEventTypeCreate indicates the event was a Create operation
 	//
-	WatchEventTypeCreate = iota
+	WatchEventTypeCreate WatchEventType = iota
 
 	// WatchEventTypeUpdate indicates the event was an Update or modify operation
 	//
@@ -733,11 +733,13 @@ type WatchEvent struct {
 	Type     WatchEventType
 	Revision int64
 	Key      string
-	ValueNew string
-	ValueOld string
+	NewRev   int64
+	NewVal   string
+	OldRev   int64
+	OldVal   string
 }
 
-// SetWatch is a method used to establish a watchpoint on a single key/value pari
+// SetWatch is a method used to establish a watchpoint on a single key/value pair
 //
 func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, err error) {
 	if err = store.disconnected(ctx); err != nil {
@@ -749,7 +751,7 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 
 	opCtx, cancel := context.WithCancel(ctx)
 
-	watchEvents := store.Client.Watch(opCtx, key)
+	watchEvents := store.Client.Watch(opCtx, key, clientv3.WithPrevKV())
 
 	go func ()  {
 		for {
@@ -761,22 +763,36 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 			default:
 				for events := range watchEvents {
 					for _, ev := range events.Events {
-						var evType WatchEventType
-
 						if ev.IsCreate() {
-							evType = WatchEventTypeCreate
+							notifications <- WatchEvent{
+								Type:     WatchEventTypeCreate,
+								Revision: events.Header.GetRevision(),
+								Key:      string(ev.Kv.Key),
+								OldRev:   RevisionInvalid,
+								NewRev:   ev.Kv.CreateRevision,
+								OldVal:   "",
+								NewVal:   string(ev.Kv.Value),
+							}
 						} else if ev.IsModify() {
-							evType = WatchEventTypeUpdate
+							notifications <- WatchEvent{
+								Type:     WatchEventTypeUpdate,
+								Revision: events.Header.GetRevision(),
+								Key:      string(ev.Kv.Key),
+								OldRev:   ev.PrevKv.ModRevision,
+								NewRev:   ev.Kv.ModRevision,
+								OldVal:   string(ev.PrevKv.Value),
+								NewVal:   string(ev.Kv.Value),
+							}
 						} else {
-							evType = WatchEventTypeDelete
-						}
-
-						notifications <- WatchEvent{
-							Type:     evType,
-							Revision: ev.Kv.ModRevision,
-							Key:      string(ev.Kv.Key),
-							ValueNew: string(ev.Kv.Value),
-							ValueOld: string(ev.PrevKv.Value),
+							notifications <- WatchEvent{
+								Type:     WatchEventTypeDelete,
+								Revision: events.Header.GetRevision(),
+								Key:      string(ev.Kv.Key),
+								OldRev:   ev.PrevKv.ModRevision,
+								NewRev:   RevisionInvalid,
+								OldVal:   string(ev.PrevKv.Value),
+								NewVal:   "",
+							}
 						}
 					}
 				}
@@ -790,7 +806,7 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 }
 
 // SetWatchWithPrefix is a method used to establish a watchpoint on a entire
-// sub-tree of key/value pairs which have a common key name prefix/
+// sub-tree of key/value pairs which have a common key name prefix
 //
 func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (response *Watch, err error) {
 	if err = store.disconnected(ctx); err != nil {
@@ -802,7 +818,7 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 
 	opCtx, cancel := context.WithCancel(ctx)
 
-	watchEvents := store.Client.Watch(opCtx, keyPrefix, clientv3.WithPrefix())
+	watchEvents := store.Client.Watch(opCtx, keyPrefix, clientv3.WithPrevKV(), clientv3.WithPrefix())
 
 	go func ()  {
 		for {
@@ -814,22 +830,36 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 			default:
 				for events := range watchEvents {
 					for _, ev := range events.Events {
-						var evType WatchEventType
-
 						if ev.IsCreate() {
-							evType = WatchEventTypeCreate
+							notifications <- WatchEvent{
+								Type:     WatchEventTypeCreate,
+								Revision: events.Header.GetRevision(),
+								Key:      string(ev.Kv.Key),
+								OldRev:   RevisionInvalid,
+								NewRev:   ev.Kv.CreateRevision,
+								OldVal:   "",
+								NewVal:   string(ev.Kv.Value),
+							}
 						} else if ev.IsModify() {
-							evType = WatchEventTypeUpdate
+							notifications <- WatchEvent{
+								Type:     WatchEventTypeUpdate,
+								Revision: events.Header.GetRevision(),
+								Key:      string(ev.Kv.Key),
+								OldRev:   ev.PrevKv.ModRevision,
+								NewRev:   ev.Kv.ModRevision,
+								OldVal:   string(ev.PrevKv.Value),
+								NewVal:   string(ev.Kv.Value),
+							}
 						} else {
-							evType = WatchEventTypeDelete
-						}
-
-						notifications <- WatchEvent{
-							Type:     evType,
-							Revision: ev.Kv.ModRevision,
-							Key:      string(ev.Kv.Key),
-							ValueNew: string(ev.Kv.Value),
-							ValueOld: string(ev.PrevKv.Value),
+							notifications <- WatchEvent{
+								Type:     WatchEventTypeDelete,
+								Revision: events.Header.GetRevision(),
+								Key:      string(ev.Kv.Key),
+								OldRev:   ev.PrevKv.ModRevision,
+								NewRev:   RevisionInvalid,
+								OldVal:   string(ev.PrevKv.Value),
+								NewVal:   "",
+							}
 						}
 					}
 				}
@@ -1164,9 +1194,14 @@ func (store *Store) ReadTxn(ctx context.Context, request *Request) (response *Re
 		return nil, errors.ErrStoreKeyReadFailure(request.Reason)
 	}
 
-	// And finally, the revision for the store as a whole.
+	// And finally, the revision for each of the individual records, and
+	// for the store as a whole.
 	//
 	resp.Revision = txnResponse.Header.GetRevision()
+
+	for _, r := range resp.Records {
+		r.Revision = resp.Revision
+	}
 
 	return resp, nil
 }
@@ -1227,6 +1262,10 @@ func (store *Store) WriteTxn(ctx context.Context, request *Request) (response *R
 	}
 
 	// And finally, the revision for the store as a whole.
+	//
+	// NOTE: there are no individual records for each of the keys.
+	//       By definition, the revision for each key is the same
+	//       as that for the transaction as a whole.
 	//
 	resp.Revision = txnResponse.Header.GetRevision()
 
@@ -1289,6 +1328,10 @@ func (store *Store) DeleteTxn(ctx context.Context, request *Request) (response *
 	}
 
 	// And finally, the revision for the store as a whole.
+	//
+	// NOTE: there are no individual records for each of the keys.
+	//       By definition, the revision for each key is the same
+	//       as that for the transaction as a whole.
 	//
 	resp.Revision = txnResponse.Header.GetRevision()
 

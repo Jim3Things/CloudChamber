@@ -796,8 +796,8 @@ func (store *Store) Watch(ctx context.Context, r KeyRoot, n string) (*Watch, err
 				Type:     ev.Type,
 				Revision: ev.Revision,
 				Key:      getNameFromKeyRootAndKey(r, ev.Key),
-				ValueNew: ev.ValueNew,
-				ValueOld: ev.ValueOld,
+				NewVal:   ev.NewVal,
+				OldVal:   ev.OldVal,
 			}
 		}
 
