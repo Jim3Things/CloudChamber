@@ -41,3 +41,38 @@ export function asArray<T>(f: (item: any) => T, item: any): T[] {
 
 	return res
 }
+
+// +++ well known type handling
+
+export interface Duration {
+	seconds: number
+	nanos: number
+}
+
+// Get the nanosecond component from the duration string
+function parseNano(val: string) : number {
+    let nanoIndex = val.indexOf("n")
+    if (nanoIndex > -1) {
+        return +val.substr(0, nanoIndex - 1)
+    }
+
+    return 0
+}
+
+export function durationFromJson(duration: string | undefined) : Duration {
+	let val : Duration = {seconds: 0, nanos: 0}
+
+   	if (duration !== undefined && duration !== null) {
+		let indexS = duration.indexOf("s")
+		if (indexS > -1) {
+		    const segment1 = duration.substr(0, indexS - 1)
+		    val.seconds = +segment1
+
+		    val.nanos = parseNano(duration.substr(indexS + 1))
+		} else {
+		    val.nanos = parseNano(duration)
+		}
+   	}
+
+    return val
+}

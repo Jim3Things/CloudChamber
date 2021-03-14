@@ -4,45 +4,10 @@
 // throughout the rest of the UI.
 
 import {getJson} from "./Session";
-import {Entry, Event} from "../pkg/protos/log/entry";
 import {GetAfterResponse, GetPolicyResponse} from "../pkg/protos/services/requests";
 
-const nullTraceID: string = "00000000000000000000000000000000"
-export const nullSpanID: string = "0000000000000000"
-const missingSpanID: string = "Missing"
-
-// +++ UI Internal data definitions
-//
-// This section contains the log entry data structures after translation and
-// normalization
-
-export interface LogEntries {
-    lastId: number
-    missed: boolean
-    entries: LogEntry[]
-}
-
-export interface LogEntry {
-    id: number
-
-    name: string
-    spanID: string
-    parentID: string
-    traceID: string
-    status: string
-    stackTrace: string
-    event: Event[]
-    infrastructure: boolean
-    startingLink: string
-    linkSpanID: string
-    linkTraceID: string
-    reason: string
-}
-
-// --- UI Internal data definitions
-
 export interface LogArrivalHandler {
-    (toHold: number, entries: LogEntries): any;
+    (toHold: number, entries: GetAfterResponse): any;
 }
 
 export class LogProxy {
@@ -83,7 +48,7 @@ export class LogProxy {
     }
 
     // Issue the time change notification
-    notify(entries: LogEntries) {
+    notify(entries: GetAfterResponse) {
         if (this.onLogArrivalHandler) {
             this.onLogArrivalHandler(this.maxHeld, entries);
         }
@@ -94,66 +59,13 @@ export class LogProxy {
             const request = new Request("/api/logs?from=" + this.startId + "&for=100", {method: "GET"})
             getJson<GetAfterResponse>(request, this.getSignal())
                 .then(jsonMsg => {
-                    const jsonEntries = GetAfterResponse.fromJSON(jsonMsg)
-                    const entries = this.convertToInternal(jsonEntries)
+                    const entries = GetAfterResponse.fromJSON(jsonMsg)
 
                     this.startId = entries.lastId
                     this.notify(entries)
                     this.getLogs(lastEpoch)
                 })
         }
-    }
-
-    convertToInternal(input: GetAfterResponse): LogEntries {
-        let entries: LogEntries = {
-            lastId: input.lastId,
-            missed: input.missed,
-            entries: new Array(input.entries.length)
-        }
-
-        for (let i = 0; i < input.entries.length; i++) {
-            const jsonEntry = input.entries[i]
-
-            const span: Entry = {
-                name: "",
-                parentID: nullSpanID,
-                spanID: missingSpanID,
-                traceID: nullTraceID,
-                status: "",
-                stackTrace: "",
-                event: [],
-                infrastructure: false,
-                startingLink: "",
-                linkSpanID: nullSpanID,
-                linkTraceID: nullTraceID,
-                reason: "",
-                ...jsonEntry.entry
-            }
-
-            let entry: LogEntry = {
-                id: jsonEntry.id,
-                name: span.name,
-                spanID: span.spanID,
-                parentID: span.parentID,
-                traceID: span.traceID,
-                status: span.status,
-                stackTrace: span.stackTrace,
-                event: new Array(span.event.length),
-                infrastructure: span.infrastructure,
-                startingLink: span.startingLink,
-                linkSpanID: span.linkSpanID,
-                linkTraceID: span.linkTraceID,
-                reason: span.reason
-            }
-
-            for (let j = 0; j < span.event.length; j++) {
-                entry.event[j] = span.event[j]
-            }
-
-            entries.entries[i] = entry
-        }
-
-        return entries
     }
 
     // Issue the abort for any outstanding operation, assuming that aborts are

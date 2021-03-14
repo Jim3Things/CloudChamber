@@ -1,7 +1,7 @@
 import React, {Component} from 'react';
 
 import './App.css';
-import {StepperMode, StepperPolicy, StepperProxy, Timestamp} from "./proxies/StepperProxy";
+import {StepperMode, SetStepperPolicy, StepperProxy, TimeContext} from "./proxies/StepperProxy";
 import {CommandTab} from "./CommandBar";
 import {UsersProxy} from "./proxies/UsersProxy";
 import {InventoryProxy} from "./proxies/InventoryProxy";
@@ -10,16 +10,17 @@ import {RenderIf} from "./common/If";
 import {MainPage} from "./MainPage/Main";
 import {Login} from "./MainPage/Login";
 import {PingProxy} from "./proxies/PingProxy";
-import {LogEntries, LogEntry, LogProxy} from "./proxies/LogProxy";
+import {LogProxy} from "./proxies/LogProxy";
 import {Organizer} from "./Log/Organizer";
 import {SettingsState} from "./Settings";
+import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests";
 
 interface Props {
 
 }
 
 interface State {
-    StepperPolicy: StepperPolicy,
+    StepperPolicy: SetStepperPolicy,
     stepperProxy: StepperProxy,
     usersProxy: UsersProxy,
     inventoryProxy: InventoryProxy,
@@ -27,8 +28,8 @@ interface State {
     logProxy: LogProxy,
     session: Session,
     organizer: Organizer,
-    entries: LogEntry[],
-    cur: Timestamp,
+    entries: GetAfterResponse_traceEntry[],
+    cur: TimeContext,
     tab: CommandTab
     activeSession: boolean
     sessionUser: SessionUser
@@ -68,7 +69,7 @@ export class App extends Component<Props & any, State> {
             )
     }
 
-    stepperPolicyEvent = (policy: StepperPolicy) => {
+    stepperPolicyEvent = (policy: SetStepperPolicy) => {
         this.setState({StepperPolicy: policy});
         this.state.stepperProxy.changePolicy(policy);
     }
@@ -77,11 +78,11 @@ export class App extends Component<Props & any, State> {
         this.setState({settings: settings} )
     }
 
-    onTimeEvent = (cur: Timestamp) => {
+    onTimeEvent = (cur: TimeContext) => {
         this.setState({ cur: cur });
     }
 
-    onNewLogEvent = (toHold: number, events: LogEntries) => {
+    onNewLogEvent = (toHold: number, events: GetAfterResponse) => {
         const newEntries = [...this.state.entries, ...events.entries]
         const start = Math.max(newEntries.length - toHold, 0)
         const slice = newEntries.slice(start)
@@ -151,7 +152,7 @@ export class App extends Component<Props & any, State> {
     }
 
     state: State = {
-        StepperPolicy: StepperPolicy.Pause,
+        StepperPolicy: SetStepperPolicy.Pause,
         stepperProxy: new StepperProxy(this.onTimeEvent),
         usersProxy: new UsersProxy(),
         inventoryProxy: new InventoryProxy(),

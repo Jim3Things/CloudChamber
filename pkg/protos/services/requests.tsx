@@ -1,68 +1,72 @@
 /* eslint-disable */
-// import { Duration } from "../../../../../../google/protobuf/duration";
-// import { Timestamp } from "../../../../../../github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp";
-import { asArray, asBool, asNumber, asItem } from "../utils"
+import { asArray, asBool, asNumber, asItem, Duration, durationFromJson } from "../utils"
+
+import { Timestamp } from "../common/Timestamp";
 import { Entry } from "../log/entry";
 
 export const protobufPackage = "services";
 
-// /** Define the various simulated time stepping policies */
-// export enum StepperPolicy {
-//   /** Invalid - Default value, indicates an uninitialized stepper */
-//   Invalid = 0,
-//   /**
-//    * NoWait - Policy that immediately moves the simulated time forward with any
-//    * wait operation.  Useful for shortening test runs.
-//    */
-//   NoWait = 1,
-//   /**
-//    * Measured - Policy that magnifies time, but still proceeds forward automatically.
-//    * This option requires a delay per tick to determine how fast time runs
-//    */
-//   Measured = 2,
-//   /**
-//    * Manual - Policy that requires manual stepping of time.  Simulated time only
-//    * moves forward as a result of an externally generated step command.
-//    */
-//   Manual = 3,
-//   UNRECOGNIZED = -1,
-// }
+/** Define the various simulated time stepping policies */
+export enum StepperPolicy {
+  /** Invalid - Default value, indicates an uninitialized stepper */
+  Invalid = 0,
+  /**
+   * NoWait - Policy that immediately moves the simulated time forward with any
+   * wait operation.  Useful for shortening test runs.
+   */
+  NoWait = 1,
+  /**
+   * Measured - Policy that magnifies time, but still proceeds forward automatically.
+   * This option requires a delay per tick to determine how fast time runs
+   */
+  Measured = 2,
+  /**
+   * Manual - Policy that requires manual stepping of time.  Simulated time only
+   * moves forward as a result of an externally generated step command.
+   */
+  Manual = 3,
+  UNRECOGNIZED = -1,
+}
 
-// export function stepperPolicyFromJSON(object: any): StepperPolicy {
-//   switch (object) {
-//     case 0:
-//     case "Invalid":
-//       return StepperPolicy.Invalid;
-//     case 1:
-//     case "NoWait":
-//       return StepperPolicy.NoWait;
-//     case 2:
-//     case "Measured":
-//       return StepperPolicy.Measured;
-//     case 3:
-//     case "Manual":
-//       return StepperPolicy.Manual;
-//     case -1:
-//     case "UNRECOGNIZED":
-//     default:
-//       return StepperPolicy.UNRECOGNIZED;
-//   }
-// }
+export function stepperPolicyFromJSON(object: any): StepperPolicy {
+  if (object === undefined || object === null) {
+    return StepperPolicy.Invalid
+  }
 
-// export function stepperPolicyToJSON(object: StepperPolicy): string {
-//   switch (object) {
-//     case StepperPolicy.Invalid:
-//       return "Invalid";
-//     case StepperPolicy.NoWait:
-//       return "NoWait";
-//     case StepperPolicy.Measured:
-//       return "Measured";
-//     case StepperPolicy.Manual:
-//       return "Manual";
-//     default:
-//       return "UNKNOWN";
-//   }
-// }
+  switch (object) {
+    case 0:
+    case "Invalid":
+      return StepperPolicy.Invalid;
+    case 1:
+    case "NoWait":
+      return StepperPolicy.NoWait;
+    case 2:
+    case "Measured":
+      return StepperPolicy.Measured;
+    case 3:
+    case "Manual":
+      return StepperPolicy.Manual;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return StepperPolicy.UNRECOGNIZED;
+  }
+}
+
+export function stepperPolicyToJSON(object: StepperPolicy): string {
+  switch (object) {
+    case StepperPolicy.Invalid:
+      return "Invalid";
+    case StepperPolicy.NoWait:
+      return "NoWait";
+    case StepperPolicy.Measured:
+      return "Measured";
+    case StepperPolicy.Manual:
+      return "Manual";
+    default:
+      return "UNKNOWN";
+  }
+}
 
 // /** Define the request associated with a forcible reset */
 // export interface ResetRequest {}
@@ -115,19 +119,19 @@ export const protobufPackage = "services";
 //   epoch: number;
 // }
 
-// /** Define the current status response message */
-// export interface StatusResponse {
-//   /** Current stepper policy */
-//   policy: StepperPolicy;
-//   * Current measured delay - should be zero if the policy is not "Measured" 
-//   measuredDelay: Duration | undefined;
-//   /** Current simulated time */
-//   now: Timestamp | undefined;
-//   /** Number of active waiters (number of outstanding delay calls) */
-//   waiterCount: number;
-//   /** Current policy version number */
-//   epoch: number;
-// }
+/** Define the current status response message */
+export interface StatusResponse {
+  /** Current stepper policy */
+  policy: StepperPolicy;
+  /** Current measured delay - should be zero if the policy is not "Measured" */
+  measuredDelay: Duration;
+  /** Current simulated time */
+  now: Timestamp;
+  /** Number of active waiters (number of outstanding delay calls) */
+  waiterCount: number;
+  /** Current policy version number */
+  epoch: number;
+}
 
 // /**
 //  * StepperState contains the state machine internal state necessary to restore
@@ -255,7 +259,7 @@ export interface GetAfterResponse_traceEntry {
   /** Sequential id for this trace */
   id: number;
   /** Contents of the trace entry */
-  entry: Entry | undefined;
+  entry: Entry;
 }
 
 /** (Empty) payload to request the current policy */
@@ -410,55 +414,17 @@ export interface GetPolicyResponse {
 //   },
 // };
 
-// const baseStatusResponse: object = { policy: 0, waiterCount: 0, epoch: 0 };
-
-// export const StatusResponse = {
-//   fromJSON(object: any): StatusResponse {
-//     const message = { ...baseStatusResponse } as StatusResponse;
-//     if (object.policy !== undefined && object.policy !== null) {
-//       message.policy = stepperPolicyFromJSON(object.policy);
-//     } else {
-//       message.policy = 0;
-//     }
-//     if (object.measuredDelay !== undefined && object.measuredDelay !== null) {
-//       message.measuredDelay = Duration.fromJSON(object.measuredDelay);
-//     } else {
-//       message.measuredDelay = undefined;
-//     }
-//     if (object.now !== undefined && object.now !== null) {
-//       message.now = Timestamp.fromJSON(object.now);
-//     } else {
-//       message.now = undefined;
-//     }
-//     if (object.waiterCount !== undefined && object.waiterCount !== null) {
-//       message.waiterCount = Number(object.waiterCount);
-//     } else {
-//       message.waiterCount = 0;
-//     }
-//     if (object.epoch !== undefined && object.epoch !== null) {
-//       message.epoch = Number(object.epoch);
-//     } else {
-//       message.epoch = 0;
-//     }
-//     return message;
-//   },
-
-//   toJSON(message: StatusResponse): unknown {
-//     const obj: any = {};
-//     message.policy !== undefined &&
-//       (obj.policy = stepperPolicyToJSON(message.policy));
-//     message.measuredDelay !== undefined &&
-//       (obj.measuredDelay = message.measuredDelay
-//         ? Duration.toJSON(message.measuredDelay)
-//         : undefined);
-//     message.now !== undefined &&
-//       (obj.now = message.now ? Timestamp.toJSON(message.now) : undefined);
-//     message.waiterCount !== undefined &&
-//       (obj.waiterCount = message.waiterCount);
-//     message.epoch !== undefined && (obj.epoch = message.epoch);
-//     return obj;
-//   },
-// };
+export const StatusResponse = {
+  fromJSON(object: any): StatusResponse {
+    return {
+      policy: stepperPolicyFromJSON(object.policy),
+      measuredDelay: durationFromJson(object.measuredDelay),
+      now: Timestamp.fromJSON(object.now),
+      waiterCount: asNumber(object.waiterCount),
+      epoch: asNumber(object.epoch),
+    }
+  },
+};
 
 // const baseStepperState: object = { smState: 0 };
 
@@ -548,7 +514,7 @@ export const GetAfterResponse_traceEntry = {
   fromJSON(object: any): GetAfterResponse_traceEntry {
     return {
       id: asNumber(object.id),
-      entry: asItem<Entry|undefined>(Entry.fromJSON, object.entry, undefined),
+      entry: asItem<Entry>(Entry.fromJSON, object.entry, Entry.fromJSON({})),
     }
   },
 };

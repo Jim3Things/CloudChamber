@@ -1,4 +1,4 @@
-import { asArray, asBool, asNumber, asString } from "../utils"
+import { asArray, asBool, asItem, asNumber, asString } from "../utils"
 
 /* eslint-disable */
 export const protobufPackage = "log";
@@ -241,6 +241,11 @@ export interface Entry {
 
 const baseModule: object = { impact: 0, name: "" };
 
+const nullTraceID: string = "00000000000000000000000000000000"
+const missingSpanID: string = "Missing"
+
+export const nullSpanID: string = "0000000000000000"
+
 export const Module = {
   fromJSON(object: any): Module {
     return {
@@ -260,7 +265,7 @@ export const Event = {
       text: asString(object.text),
       stackTrace: asString(object.stackTrace),
       eventAction: actionFromJSON(object.eventAction),
-      spanId: asString(object.spanId),
+      spanId: asItem<string>(String, object.spanId, nullSpanID),
       linkId: asString(object.linkId),
     }
   },
@@ -271,16 +276,16 @@ export const Entry = {
     return {
       event: asArray<Event>(Event.fromJSON, object.event),
       name: asString(object.name),
-      spanID: asString(object.spanID),
-      parentID: asString(object.parentID),
-      traceID: asString(object.traceID),
+      spanID: asItem<string>(String, object.spanID, missingSpanID),
+      parentID: asItem<string>(String, object.parentID, nullSpanID),
+      traceID: asItem<string>(String, object.traceID, nullTraceID),
       status: asString(object.status),
       stackTrace: asString(object.stackTrace),
       infrastructure: asBool(object.infrastructure),
       reason: asString(object.reason),
       startingLink: asString(object.startingLink),
-      linkSpanID: asString(object.linkSpanID),
-      linkTraceID: asString(object.linkTraceID),
+      linkSpanID: asItem<string>(String, object.linkSpanID, nullSpanID),
+      linkTraceID: asItem<string>(String, object.linkTraceID, nullTraceID),
     }
   },
 };
