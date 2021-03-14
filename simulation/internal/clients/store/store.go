@@ -698,78 +698,148 @@ func (store *Store) UpdateClusterConnections() error {
 	return err
 }
 
-// Watch is a struct
+// Watch is a struct returned by a SetWatchXxx() call to the caller to allow
+// the caller to observe the notification and when no longer required, close
+// the channel via the Close() method
 //
 type Watch struct {
-	Key string
-	Chan clientv3.WatchChan
+	Key    string
 	Cancel context.CancelFunc
-	CancelPending bool
+	Events chan WatchEvent
+}
+
+// WatchEventType is used to indicate the type of event that happened
+// on the key under consideration
+//
+type WatchEventType uint
+
+const (
+	// WatchEventTypeCreate indicates the event was a Create operation
+	//
+	WatchEventTypeCreate = iota
+
+	// WatchEventTypeUpdate indicates the event was an Update or modify operation
+	//
+	WatchEventTypeUpdate
+
+	// WatchEventTypeDelete indicates the event was a Delete operation
+	//
+	WatchEventTypeDelete
+)
+
+// WatchEvent is a struct used to describe a specific event to a particular key
+//
+type WatchEvent struct {
+	Type     WatchEventType
+	Revision int64
+	Key      string
+	ValueNew string
+	ValueOld string
 }
 
 // SetWatch is a method used to establish a watchpoint on a single key/value pari
 //
 func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, err error) {
-	_, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	defer span.End()
-
 	if err = store.disconnected(ctx); err != nil {
+		tracing.Debug(ctx, "Attempt to SetWatch for key %q when store disconnected - error: %v", key, err)
 		return nil, err
 	}
 
+	notifications := make(chan WatchEvent) 
+
 	opCtx, cancel := context.WithCancel(ctx)
 
-	ch := store.Client.Watch(opCtx, key)
+	watchEvents := store.Client.Watch(opCtx, key)
 
-	response = &Watch{Key: key, Chan: ch, Cancel: cancel}
+	go func ()  {
+		for {
+			select {
+			case <-opCtx.Done(): 
+				close(notifications)
+				return
+
+			default:
+				for events := range watchEvents {
+					for _, ev := range events.Events {
+						var evType WatchEventType
+
+						if ev.IsCreate() {
+							evType = WatchEventTypeCreate
+						} else if ev.IsModify() {
+							evType = WatchEventTypeUpdate
+						} else {
+							evType = WatchEventTypeDelete
+						}
+
+						notifications <- WatchEvent{
+							Type:     evType,
+							Revision: ev.Kv.ModRevision,
+							Key:      string(ev.Kv.Key),
+							ValueNew: string(ev.Kv.Value),
+							ValueOld: string(ev.PrevKv.Value),
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	response = &Watch{Key: key, Cancel: cancel, Events: notifications}
 
 	return response, nil
-}
-
-// GetNextEvent is a
-//
-func (w *Watch) GetNextEvent(ctx context.Context) (key string, val string) {
-
-	return key, val
-}
-
-// Close is a
-//
-func (w *Watch) Close(ctx context.Context) {
-	cancel := w.Cancel
-
-	w.CancelPending = true
-
-	if cancel != nil {
-		cancel()
-	}
-
-}
-
-// SetWatchMultiple is a method used to establish a set of watchpoints on a set of
-// key/value pairs.
-//
-// This is essentially a convenience method to allow multiple values to be fetched
-// in a single call rather than repeating individual calls to the SetWatch() method.
-//
-func (store *Store) SetWatchMultiple(ctx context.Context, key []string) error {
-	_, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	defer span.End()
-
-	return errors.ErrStoreNotImplemented("SetWatchMultiple")
 }
 
 // SetWatchWithPrefix is a method used to establish a watchpoint on a entire
 // sub-tree of key/value pairs which have a common key name prefix/
 //
-func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) error {
-	_, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	defer span.End()
+func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (response *Watch, err error) {
+	if err = store.disconnected(ctx); err != nil {
+		tracing.Debug(ctx, "Attempt to SetWatch for key %q when store disconnected - error: %v", keyPrefix, err)
+		return nil, err
+	}
 
-	return errors.ErrStoreNotImplemented("SetWatchWithPrefix")
+	notifications := make(chan WatchEvent) 
+
+	opCtx, cancel := context.WithCancel(ctx)
+
+	watchEvents := store.Client.Watch(opCtx, keyPrefix, clientv3.WithPrefix())
+
+	go func ()  {
+		for {
+			select {
+			case <-opCtx.Done(): 
+				close(notifications)
+				return
+
+			default:
+				for events := range watchEvents {
+					for _, ev := range events.Events {
+						var evType WatchEventType
+
+						if ev.IsCreate() {
+							evType = WatchEventTypeCreate
+						} else if ev.IsModify() {
+							evType = WatchEventTypeUpdate
+						} else {
+							evType = WatchEventTypeDelete
+						}
+
+						notifications <- WatchEvent{
+							Type:     evType,
+							Revision: ev.Kv.ModRevision,
+							Key:      string(ev.Kv.Key),
+							ValueNew: string(ev.Kv.Value),
+							ValueOld: string(ev.PrevKv.Value),
+						}
+					}
+				}
+			}
+		}
+	}()
+
+	response = &Watch{Key: keyPrefix, Cancel: cancel, Events: notifications}
+
+	return response, nil
 }
 
 // RevisionInvalid is returned from certain operations if

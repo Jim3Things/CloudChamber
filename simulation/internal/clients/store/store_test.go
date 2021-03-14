@@ -1306,36 +1306,12 @@ func TestStoreSetWatch(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	_, err = store.SetWatch(ctx, key)
+	w, err := store.SetWatch(ctx, key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
 	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatch"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatch"), err)
 
-	store.Disconnect()
-
-	store = nil
-
-	return
-}
-
-func TestStoreSetWatchMultiple(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
-
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithContextValue(timestamp.OutsideTime))
-	defer span.End()
-
-	keySet := []string{"TestStoreSetWatchMultiple/Key"}
-
-	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
-
-	err = store.SetWatchMultiple(ctx, keySet)
-	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchMultiple"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchMultiple"), err)
+	require.NotNil(t, w)
+	w.Close(ctx)
 
 	store.Disconnect()
 
@@ -1360,9 +1336,12 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.SetWatchWithPrefix(ctx, key)
+	w, err := store.SetWatchWithPrefix(ctx, key)
 	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
 	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err)
+
+	require.NotNil(t, w)
+	w.Close(ctx)
 
 	store.Disconnect()
 

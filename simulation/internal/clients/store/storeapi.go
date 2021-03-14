@@ -766,16 +766,14 @@ func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map
 	return &recs, response.Revision, nil
 }
 
-// Watch is a method use to establish
+// Watch is a method use to establish a watch point on a portion of
+// the namespace identified by the supplied prefix name.
 //
-func (store *Store) Watch(ctx context.Context, r KeyRoot, n string) (err error) {
+func (store *Store) Watch(ctx context.Context, r KeyRoot, n string) (*Watch, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	if err = store.disconnected(ctx); err != nil {
-		return err
-	}
 
 	prefix := getNamespacePrefixFromKeyRoot(r)
 
@@ -783,12 +781,62 @@ func (store *Store) Watch(ctx context.Context, r KeyRoot, n string) (err error) 
 
 	k := getKeyFromKeyRootAndName(r, n)
 
-	err = store.SetWatchWithPrefix(ctx, k)
+	// err = store.SetWatchWithPrefix(ctx, k)
+	resp, err := store.SetWatchWithPrefix(ctx, k)
 
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	notifications := make(chan WatchEvent) 
+
+	go func ()  {
+		for ev := range resp.Events {
+			notifications <- WatchEvent{
+				Type:     ev.Type,
+				Revision: ev.Revision,
+				Key:      getNameFromKeyRootAndKey(r, ev.Key),
+				ValueNew: ev.ValueNew,
+				ValueOld: ev.ValueOld,
+			}
+		}
+
+		close(notifications)
+	}()
+
+	response := &Watch{
+		Key:    resp.Key,
+		Cancel: resp.Cancel,
+		Events: notifications,
+	}
+
+	return response, nil
+}
+
+// Close is used to close the upstream event notification channel.
+//
+func (w *Watch) Close(ctx context.Context) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
+		tracing.WithName("Attempting to close event channel")
+	defer span.End()
+
+	cancel := w.Cancel
+
+	if cancel == nil {
+		tracing.Debug(ctx, "Second (or subsequent) attempt to close event channel for key %q", w.Key)
+
+		return errors.ErrAlreadyClosed{
+			Type: "watch event channel",
+			Name: w.Key,
+		}
+	}
+
+	w.Cancel = nil
+
+	cancel()
+
+	tracing.UpdateSpanName(ctx, "Closed notification channel for key %q", w.Key)
 
 	return nil
 }
