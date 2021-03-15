@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"context"
 	"flag"
 	"sync"
 
@@ -57,7 +58,7 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
 
-	store.Initialize(cfg)
+	store.Initialize(context.Background(), cfg)
 
 	ts.cfg = cfg
 	ts.store = store.NewStore()

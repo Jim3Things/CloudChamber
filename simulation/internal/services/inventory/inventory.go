@@ -88,11 +88,15 @@ func (s *server) GetCurrentStatus(context.Context, *pb.InventoryStatusMsg) (*pb.
 }
 
 func (s *server) initializeInventory(cfg *config.GlobalConfig) error {
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithName("Initializing the simulated inventory"),
+		tracing.WithContextValue(ts.EnsureTickInContext))
+	defer span.End()
+
 	// Initialize the underlying store
 	//
-	ctx := context.Background()
-
-	st.Initialize(cfg)
+	st.Initialize(ctx, cfg)
 	s.store = st.NewStore()
 	s.inventory = ic.NewInventory(cfg, s.store)
 	
@@ -114,7 +118,7 @@ func (s *server) initializeInventory(cfg *config.GlobalConfig) error {
 func (s *server) initializeRacks() error {
 	ctx, span := tracing.StartSpan(
 		context.Background(),
-		tracing.WithName("Initializing the simulated inventory"),
+		tracing.WithName("Initializing the simulated inventory racks"),
 		tracing.WithContextValue(ts.EnsureTickInContext))
 	defer span.End()
 

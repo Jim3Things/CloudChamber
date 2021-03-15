@@ -1294,7 +1294,21 @@ func TestStoreSetWatch(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
-	key := "TestStoreSetWatch/Key"
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
+	testName := "TestStoreSetWatch"
+	key := testGenerateKeyFromName(testName)
+
+	writeRequest := testGenerateRequestForWrite(0, key)
+	updateRequest := testGenerateRequestForWrite(0, key)
+	deleteRequest := testGenerateRequestForDelete(0, key)
+
+	assert.Equal(t, 1, len(writeRequest.Records))
+	assert.Equal(t, 1, len(updateRequest.Records))
+	assert.Equal(t, 1, len(deleteRequest.Records))
+
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -1302,32 +1316,71 @@ func TestStoreSetWatch(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.SetWatch(key)
-	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatch"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatch"), err)
+	w, err := store.SetWatch(ctx, key)
+	assert.NoError(t, err, "Failed setting a watch point - error: %v", err)
+	require.NotNil(t, w)
 
-	store.Disconnect()
 
-	store = nil
+	writeResponse, err := store.WriteTxn(ctx, writeRequest)
+	assert.NoError(t, err, "Failed to write to store - error: %v", err)
+	require.NotNil(t, writeResponse)
+	assert.Equal(t, 0, len(writeResponse.Records))
+	assert.Less(t, revStoreInitial, writeResponse.Revision)
 
-	return
-}
+	writeEvent := <-w.Events
 
-func TestStoreSetWatchMultiple(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+	require.NotNil(t, writeEvent)
+	assert.Equal(t, WatchEventTypeCreate, writeEvent.Type)
+	assert.Equal(t, key, writeEvent.Key)
+	assert.Equal(t, writeResponse.Revision, writeEvent.Revision)
 
-	keySet := []string{"TestStoreSetWatchMultiple/Key"}
+	assert.Equal(t, RevisionInvalid, writeEvent.OldRev)
+	assert.Equal(t, "", writeEvent.OldVal)
 
-	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	assert.Equal(t, writeResponse.Revision, writeEvent.NewRev)
+	assert.Equal(t, writeRequest.Records[key].Value, writeEvent.NewVal)
 
-	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.SetWatchMultiple(keySet)
-	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchMultiple"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchMultiple"), err)
+	updateResponse, err := store.WriteTxn(ctx, updateRequest)
+	assert.NoError(t, err, "Failed to write to store - error: %v", err)
+	require.NotNil(t, updateResponse)
+	assert.Equal(t, 0, len(updateResponse.Records))
+	assert.Less(t, writeResponse.Revision, updateResponse.Revision)
+
+	updateEvent := <-w.Events
+
+	require.NotNil(t, updateEvent)
+	assert.Equal(t, WatchEventTypeUpdate, updateEvent.Type)
+	assert.Equal(t, key, updateEvent.Key)
+	assert.Equal(t, updateResponse.Revision, updateEvent.Revision)
+
+	assert.Equal(t, writeResponse.Revision, updateEvent.OldRev)
+	assert.Equal(t, writeRequest.Records[key].Value, updateEvent.OldVal)
+
+	assert.Equal(t, updateResponse.Revision, updateEvent.NewRev)
+	assert.Equal(t, updateRequest.Records[key].Value, updateEvent.NewVal)
+
+
+	deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+	assert.NoError(t, err, "Failed to delete from store - error: %v", err)
+	require.NotNil(t, deleteResponse)
+	assert.Equal(t, 0, len(deleteResponse.Records))
+	assert.Less(t, updateResponse.Revision, deleteResponse.Revision)
+
+	deleteEvent := <-w.Events
+
+	require.NotNil(t, deleteEvent)
+	assert.Equal(t, WatchEventTypeDelete, deleteEvent.Type)
+	assert.Equal(t, key, deleteEvent.Key)
+	assert.Equal(t, deleteResponse.Revision, deleteEvent.Revision)
+
+	assert.Equal(t, updateResponse.Revision, deleteEvent.OldRev)
+	assert.Equal(t, updateRequest.Records[key].Value, deleteEvent.OldVal)
+
+	assert.Equal(t, RevisionInvalid, deleteEvent.NewRev)
+	assert.Equal(t, "" , deleteEvent.NewVal)
+
+	w.Close(ctx)
 
 	store.Disconnect()
 
@@ -1340,7 +1393,21 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 	_ = utf.Open(t)
 	defer utf.Close()
 
-	key := "TestStoreSetWatchPrefix/Key"
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithContextValue(timestamp.OutsideTime))
+	defer span.End()
+
+	testName := "TestStoreSetWatchPrefix"
+	key := testGenerateKeyFromName(testName)
+
+	writeRequest := testGenerateRequestForWrite(2, key)
+	updateRequest := testGenerateRequestForWrite(2, key)
+	deleteRequest := testGenerateRequestForDelete(2, key)
+
+	assert.Equal(t, 2, len(writeRequest.Records))
+	assert.Equal(t, 2, len(updateRequest.Records))
+	assert.Equal(t, 2, len(deleteRequest.Records))
+
 
 	store := NewStore()
 	assert.NotNilf(t, store, "Failed to get the store as expected")
@@ -1348,9 +1415,93 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 	err := store.Connect()
 	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
 
-	err = store.SetWatchWithPrefix(key)
-	assert.NotNilf(t, err, "Unexpectedly succeeded setting a watch point - error: %v", err)
-	assert.Equal(t, errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err, "Unexpected error response - expected: %v got: %v", errors.ErrStoreNotImplemented("SetWatchWithPrefix"), err)
+	w, err := store.SetWatchWithPrefix(ctx, key)
+	assert.NoError(t, err, "Failed setting a watch point - error: %v", err)
+	require.NotNil(t, w)
+
+
+	writeResponse, err := store.WriteTxn(ctx, writeRequest)
+	assert.NoError(t, err, "Failed to write to store - error: %v", err)
+	require.NotNil(t, writeResponse)
+	assert.Equal(t, 0, len(writeResponse.Records))
+	assert.Less(t, revStoreInitial, writeResponse.Revision)
+
+	// At this point we expect two events, one for each of the k/v pairs in the
+	// write request. The order of the events is arbitrary.
+	//
+	for i := 0; i < len(writeRequest.Records); i++ {
+		writeEvent := <-w.Events
+
+		require.NotNil(t, writeEvent)
+		assert.Equal(t, WatchEventTypeCreate, writeEvent.Type)
+		assert.Equal(t, writeResponse.Revision, writeEvent.Revision)
+
+		record, ok := writeRequest.Records[writeEvent.Key]
+		require.True(t, ok)
+
+		assert.Equal(t, RevisionInvalid, writeEvent.OldRev)
+		assert.Equal(t, "", writeEvent.OldVal)
+	
+		assert.Equal(t, writeResponse.Revision, writeEvent.NewRev)
+		assert.Equal(t, record.Value, writeEvent.NewVal)
+		}
+
+
+	updateResponse, err := store.WriteTxn(ctx, updateRequest)
+	assert.NoError(t, err, "Failed to write to store - error: %v", err)
+	require.NotNil(t, updateResponse)
+	assert.Equal(t, 0, len(updateResponse.Records))
+	assert.Less(t, writeResponse.Revision, updateResponse.Revision)
+
+	// Now we expect two update events, one for each of the k/v pairs in the
+	// update request. The order of the events is arbitrary.
+	//
+	for i := 0; i < len(updateRequest.Records); i++ {
+		updateEvent := <-w.Events
+
+		require.NotNil(t, updateEvent)
+		assert.Equal(t, WatchEventTypeUpdate, updateEvent.Type)
+		assert.Equal(t, updateResponse.Revision, updateEvent.Revision)
+
+		record, ok := updateRequest.Records[updateEvent.Key]
+		require.True(t, ok)
+
+		assert.Equal(t, writeResponse.Revision, updateEvent.OldRev)
+		assert.Equal(t, writeRequest.Records[updateEvent.Key].Value, updateEvent.OldVal)
+
+		assert.Equal(t, updateResponse.Revision, updateEvent.NewRev)
+		assert.Equal(t, record.Value, updateEvent.NewVal)
+	}
+
+
+	deleteResponse, err := store.DeleteTxn(ctx, deleteRequest)
+	assert.NoError(t, err, "Failed to delete from store - error: %v", err)
+	require.NotNil(t, deleteResponse)
+	assert.Equal(t, 0, len(deleteResponse.Records))
+	assert.Less(t, updateResponse.Revision, deleteResponse.Revision)
+
+	// Finally we expect two delete events, one for each of the k/v pairs in the
+	// delete request. The order of the events is arbitrary.
+	//
+	for i := 0; i < len(updateRequest.Records); i++ {
+		deleteEvent := <-w.Events
+
+		require.NotNil(t, deleteEvent)
+		assert.Equal(t, WatchEventTypeDelete, deleteEvent.Type)
+		assert.Equal(t, deleteResponse.Revision, deleteEvent.Revision)
+
+		_, ok := deleteRequest.Records[deleteEvent.Key]
+		require.True(t, ok)
+
+		assert.Equal(t, updateResponse.Revision, deleteEvent.OldRev)
+		assert.Equal(t, updateRequest.Records[deleteEvent.Key].Value, deleteEvent.OldVal)
+
+		assert.Equal(t, RevisionInvalid, deleteEvent.NewRev)
+		assert.Equal(t, "" , deleteEvent.NewVal)
+	}
+
+
+	w.Close(ctx)
 
 	store.Disconnect()
 

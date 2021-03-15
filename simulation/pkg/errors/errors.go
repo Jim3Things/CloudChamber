@@ -1541,3 +1541,14 @@ type ErrIndexKeyValueMismatch struct {
 func (ekvm ErrIndexKeyValueMismatch) Error() string {
 	return fmt.Sprintf("CloudChamber: mismatch in index key %q for returned value %q in the %q namespace", ekvm.Key, ekvm.Value, ekvm.Namespace)
 }
+
+// ErrAlreadyClosed indicates the specified type of given name is already closed
+//
+type ErrAlreadyClosed struct {
+	Type string
+	Name string
+}
+
+func (e ErrAlreadyClosed) Error() string {
+	return fmt.Sprintf("CloudChamber: %s for %q is already closed", e.Type, e.Name)
+}
