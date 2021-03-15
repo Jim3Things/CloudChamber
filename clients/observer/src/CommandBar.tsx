@@ -3,7 +3,7 @@ import {AppBar, IconButton, Tab, Tabs, Toolbar, Tooltip, Typography} from "@mate
 import {makeStyles} from "@material-ui/core/styles";
 
 import {Stepper} from "./Stepper";
-import {StepperPolicy} from "./proxies/StepperProxy";
+import {SetStepperPolicy} from "./proxies/StepperProxy";
 import {ExitToApp} from "@material-ui/icons";
 import {Settings, SettingsState} from "./Settings";
 
@@ -30,7 +30,7 @@ export const CommandBar: FunctionComponent<{
             tab: CommandTab,
             sessionUser: string,
             settings: SettingsState,
-            onPolicyEvent: (policy: StepperPolicy) => void,
+            onPolicyEvent: (policy: SetStepperPolicy) => void,
             onCommandSelect: (tab: CommandTab) => void,
             onSettingsChange: (settings: SettingsState) => void,
             onLogout: () => void

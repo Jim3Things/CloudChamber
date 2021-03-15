@@ -13,11 +13,11 @@ import {
     Warning
 } from '@material-ui/icons';
 
-import {LogEntry} from "../proxies/LogProxy";
 import {Organizer} from "./Organizer";
 import {RenderIf} from "../common/If";
 import {SettingsState} from "../Settings";
 import {Action, Event, Severity} from "../pkg/protos/log/entry";
+import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests";
 
 interface styleProps {
     indent: number
@@ -101,7 +101,7 @@ function FilteredCount(
                 if (!settings.logSettings.showInfra) {
                     const span = organizer.get(item.spanId)
 
-                    if ((span !== undefined) && span.infrastructure) {
+                    if ((span !== undefined) && span.entry.infrastructure) {
                         count -= 1
                     }
                 }
@@ -111,7 +111,7 @@ function FilteredCount(
                 if (!settings.logSettings.showInfra) {
                     const span = organizer.get(item.linkId)
 
-                    if ((span !== undefined) && span.infrastructure) {
+                    if ((span !== undefined) && span.entry.infrastructure) {
                         count -= 1
                     }
                 }
@@ -175,27 +175,27 @@ function TraceSpanSubtree(props: {
             id={props.id}/>
     }
 
-    if (entry.infrastructure && !props.settings.logSettings.showInfra) {
+    if (entry.entry.infrastructure && !props.settings.logSettings.showInfra) {
         return <React.Fragment/>
     }
 
-    const canExpand = FilteredCount(entry.event, props.settings, props.organizer) > 0
+    const canExpand = FilteredCount(entry.entry.event, props.settings, props.organizer) > 0
     const isExpanded = canExpand && props.organizer.isExpanded(props.id)
 
     return <React.Fragment>
         <TraceSpanElement
-            text={entry.name}
-            reason={entry.reason}
+            text={entry.entry.name}
+            reason={entry.entry.reason}
             expanded={isExpanded}
             expandable={canExpand}
             onTrackChange={props.onTrackChange}
             indent={props.indent}
-            infra={entry.infrastructure}
+            infra={entry.entry.infrastructure}
             id={props.id}
         />
 
         <RenderIf cond={isExpanded}>
-            {entry.event.map((ev) => {
+            {entry.entry.event.map((ev) => {
                 return <TraceEvent
                     organizer={props.organizer}
                     settings={props.settings}
@@ -203,7 +203,7 @@ function TraceSpanSubtree(props: {
                     indent={props.indent + 4}
                     event={ev}
                     entry={entry}
-                    infra={entry.infrastructure}
+                    infra={entry.entry.infrastructure}
                 />
             })}
         </RenderIf>
@@ -217,7 +217,7 @@ function TraceEvent(props: {
     settings: SettingsState,
     onTrackChange: ExpansionHandler,
     indent: number,
-    entry: LogEntry,
+    entry: GetAfterResponse_traceEntry,
     event: Event,
     infra: boolean
 }) {
@@ -264,7 +264,7 @@ function TraceEvent(props: {
                 />
             }
 
-            if (!props.settings.logSettings.showInfra && span.infrastructure) {
+            if (!props.settings.logSettings.showInfra && span.entry.infrastructure) {
                 return <React.Fragment/>
             }
 
@@ -280,7 +280,7 @@ function TraceEvent(props: {
             // If this event is for an add link, then see if that link has been
             // registered.  If it has, then recursively process the registering
             // span, if it can be found.  If it can't, then just ignore it.
-            const span = props.organizer.getViaLink(props.entry.spanID, props.entry.traceID, props.event.linkId)
+            const span = props.organizer.getViaLink(props.entry.entry.spanID, props.entry.entry.traceID, props.event.linkId)
 
             if (span !== undefined) {
                 return <TraceSpanSubtree

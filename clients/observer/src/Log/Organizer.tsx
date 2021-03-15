@@ -1,40 +1,43 @@
 // Organizer holds the traces, keyed by span ID, and a list of known root
 // spans, in reverse order (newest first).  It also tracks which spans are
 // currently expanded, and which are not
-import {LogEntry, nullSpanID} from "../proxies/LogProxy";
+import {nullSpanID} from "../pkg/protos/log/entry";
+import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests";
 
 export class Organizer {
     roots: string[]
 
-    all: Map<string, LogEntry>
+    all: Map<string, GetAfterResponse_traceEntry>
     links: Map<string, string>
 
     expanded: Map<string, boolean>
 
-    constructor(values: LogEntry[], cur?: Organizer) {
+    constructor(values: GetAfterResponse_traceEntry[], cur?: Organizer) {
         this.roots = []
-        this.all = new Map<string, LogEntry>()
+        this.all = new Map<string, GetAfterResponse_traceEntry>()
         this.links = new Map<string, string>()
         this.expanded = new Map<string, boolean>()
 
         if (cur !== undefined) {
             for (const span of values) {
-                this.all.set(span.spanID, span)
+                const entry = span.entry
+                this.all.set(entry.spanID, span)
 
-                const v = cur.expanded.get(span.spanID)
+                const v = cur.expanded.get(entry.spanID)
                 if (v !== undefined && v) {
-                    this.expanded.set(span.spanID, true)
+                    this.expanded.set(entry.spanID, true)
                 }
             }
 
             this.all.forEach((v): void => {
-                if (v.parentID === nullSpanID) {
-                    if ((v.linkSpanID !== nullSpanID) && this.all.has(v.linkSpanID))
+                const entry = v.entry
+                if (entry.parentID === nullSpanID) {
+                    if ((entry.linkSpanID !== nullSpanID) && this.all.has(entry.linkSpanID))
                     {
-                        const key = this.formatLink(v.linkSpanID, v.linkTraceID, v.startingLink)
-                        this.links.set(key, v.spanID)
+                        const key = this.formatLink(entry.linkSpanID, entry.linkTraceID, entry.startingLink)
+                        this.links.set(key, entry.spanID)
                     } else {
-                        this.roots = [v.spanID, ...this.roots]
+                        this.roots = [entry.spanID, ...this.roots]
                     }
                 }
             })
@@ -45,11 +48,7 @@ export class Organizer {
         return spanID + ":" + traceID + "@" + linkID
     }
 
-    getRoots() : string[] {
-        return this.roots
-    }
-
-    get(spanID: string): LogEntry | undefined {
+    get(spanID: string): GetAfterResponse_traceEntry | undefined {
         return this.all.get(spanID)
     }
 

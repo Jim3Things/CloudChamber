@@ -3,7 +3,7 @@ import {Badge, Toolbar} from "@material-ui/core";
 import {Pause, PlayArrow} from "@material-ui/icons";
 import {makeStyles} from "@material-ui/core/styles";
 
-import {StepperMode, Timestamp} from "./proxies/StepperProxy";
+import {StepperMode, TimeContext} from "./proxies/StepperProxy";
 
 const useStyles = makeStyles((theme) => ({
     root: {
@@ -19,19 +19,19 @@ const useStyles = makeStyles((theme) => ({
 // TODO: This currently only has information on the stepper status, others need to be
 //       added as they make sense.
 
-export const StatusBar: FunctionComponent<{ cur: Timestamp }> = ({cur}) => {
+export const StatusBar: FunctionComponent<{ cur: TimeContext }> = ({cur}) => {
     const classes = useStyles();
 
     // Helpers to control visibility of the different type of execution icons
-    const hideBadge = (cur: Timestamp) => (cur.mode !== StepperMode.Running) || (cur.rate <= 1)
-    const hidePlay = (cur: Timestamp) => (cur.mode !== StepperMode.Running) || (cur.rate !== 1)
-    const hidePause = (cur: Timestamp) => (cur.mode !== StepperMode.Paused)
+    const hideBadge = (cur: TimeContext) => (cur.mode !== StepperMode.Running) || (cur.rate <= 1)
+    const hidePlay = (cur: TimeContext) => (cur.mode !== StepperMode.Running) || (cur.rate !== 1)
+    const hidePause = (cur: TimeContext) => (cur.mode !== StepperMode.Paused)
 
     // Construct the badge text as the rate - e.g. "1x", "2x", etc
-    const badgeString = (cur: Timestamp) => "" + cur.rate + "x"
+    const badgeString = (cur: TimeContext) => "" + cur.rate + "x"
 
     // Helper to construct the faster icon
-    const badgeIcon = (cur: Timestamp) => {
+    const badgeIcon = (cur: TimeContext) => {
         return (
             <div hidden={hideBadge(cur)}>
                 <Badge anchorOrigin={{
@@ -45,14 +45,14 @@ export const StatusBar: FunctionComponent<{ cur: Timestamp }> = ({cur}) => {
     }
 
     // Helper to construct the simple run-at-1x icon
-    const playIcon = (cur: Timestamp) =>
+    const playIcon = (cur: TimeContext) =>
         <div hidden={hidePlay(cur)}>
             <PlayArrow className={classes.iconTag}/>
         </div>
 
     // Helper to construct the 'currently paused' icon, used for both the
     // pause and single-step stepper actions
-    const pauseIcon = (cur: Timestamp) =>
+    const pauseIcon = (cur: TimeContext) =>
         <div hidden={hidePause(cur)}>
             <Pause className={classes.iconTag}/>
         </div>

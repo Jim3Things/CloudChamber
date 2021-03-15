@@ -3,15 +3,19 @@
 
 // Known stepper policies
 import {failIfError, getJson} from "./Session";
+import {StatusResponse, StepperPolicy} from "../pkg/protos/services/requests";
+import {Duration} from "../pkg/protos/utils";
+import {Timestamp} from "../pkg/protos/common/Timestamp"
 
-export enum StepperPolicy {
+// +++ Stepper mode handling
+
+//
+export enum SetStepperPolicy {
     Pause,
     Step,
     Run,
-    Faster
+    Faster,
 }
-
-// +++ Stepper mode handling
 
 // Known Stepper operating modes
 export enum StepperMode {
@@ -35,22 +39,23 @@ function modeToString(policy: StepperMode) : string {
 }
 
 // Convert the REST string name into a stepper mode value
-function stringToMode(jsonMode: string) : StepperMode {
-    switch (jsonMode.toLowerCase()) {
-        case "manual":
+function policyToMode(policy: StepperPolicy) : StepperMode {
+    switch (policy) {
+        case StepperPolicy.Invalid:
+        case StepperPolicy.Manual:
             return StepperMode.Paused
 
-        case "measured":
+        case StepperPolicy.Measured:
+        case StepperPolicy.NoWait:
             return StepperMode.Running
-
-        default:
-            return StepperMode.Paused
     }
+
+    return StepperMode.Paused
 }
 // --- Stepper mode handling
 
 // Hold the current simulated time context
-export interface Timestamp {
+export interface TimeContext {
     // The current simulated time's advance mode
     mode: StepperMode;
 
@@ -61,64 +66,16 @@ export interface Timestamp {
     now: number;
 }
 
-// Define the top level slice of the simulated time status from the server that
-// we need here.
-interface JsonStatus {
-    policy: string
-    measuredDelay: string
-}
-
-// +++ Timestamp handling
-
-// Define the structure of the timestamp value from the server
-interface JsonTimestamp {
-    ticks?: string
-}
-
-// Get the simulated time tick value from the JSON timestamp
-function tsToNumber(item: JsonTimestamp) : number {
-    return item.ticks !== undefined ? +item.ticks : 0
-}
-
-// --- Timestamp handling
 
 // +++ duration.Duration handling
 
-// Define the structure parsed out from duration string
-interface JsonDuration {
-    seconds: number
-    nanos: number
-}
-
-// Get the nanosecond component from the duration string
-function parseNano(val: string) : number {
-    let nanoIndex = val.indexOf("n")
-    if (nanoIndex > -1) {
-        return +val.substr(0, nanoIndex - 1)
-    }
-
-    return 0
-}
-
-// Convert the duration string into a duration structure
-function parseDuration(duration: string) : JsonDuration {
-    let val : JsonDuration = {seconds: 0, nanos: 0}
-
-    let indexS = duration.indexOf("s")
-    if (indexS > -1) {
-        const segment1 = duration.substr(0, indexS - 1)
-        val.seconds = +segment1
-
-        val.nanos = parseNano(duration.substr(indexS + 1))
-    } else {
-        val.nanos = parseNano(duration)
-    }
-
-    return val
-}
 
 // Convert the duration structure value into a ticks-per-second rate
-function durationToRate(item: JsonDuration) : number {
+function durationToRate(item: Duration | undefined) : number {
+    if (item === undefined || item === null) {
+        return 1
+    }
+
     const seconds = +item.seconds
     const nanoseconds = +item.nanos
 
@@ -135,7 +92,7 @@ function durationToRate(item: JsonDuration) : number {
 // Signature for the notification handler that wants to receive stepper time
 // change events
 export interface ChangeHandlerFunc {
-    (cur: Timestamp): any;
+    (cur: TimeContext): any;
 }
 
 // Utility class that provides a proxy to the Cloud Chamber Stepper REST service.
@@ -148,7 +105,7 @@ export interface ChangeHandlerFunc {
 //       resynchronize the ETags once they get out of sync.
 //
 export class StepperProxy {
-    cur: Timestamp = {
+    cur: TimeContext = {
         mode: StepperMode.Paused,
         rate: 0,
         now: 0
@@ -171,11 +128,10 @@ export class StepperProxy {
     getStatus() {
         getJson<any>(new Request("/api/stepper", {method: "GET"}))
             .then((value: any) => {
-                const status: JsonStatus = {...value}
-                this.cur.mode = stringToMode(status.policy)
-                this.cur.rate = durationToRate(parseDuration(status.measuredDelay))
-
-                this.cur.now = tsToNumber({...value["now"]})
+                const status = StatusResponse.fromJSON(value)
+                this.cur.mode = policyToMode(status.policy)
+                this.cur.rate = durationToRate(status.measuredDelay)
+                this.cur.now = status.now.ticks
 
                 // Update the UI at the start, so we can minimize the delay in
                 // getting the initial screen
@@ -199,12 +155,13 @@ export class StepperProxy {
 
     // Manually move the time forward one tick
     advance() {
-        getJson<JsonTimestamp>(new Request("/api/stepper?advance", {method: "PUT"}))
-            .then((value) => {
+        getJson<any>(new Request("/api/stepper?advance", {method: "PUT"}))
+            .then((item) => {
+                const value = Timestamp.fromJSON(item)
                 this.cur.rate = 0
                 this.cur.mode = StepperMode.Paused
 
-                this.cur.now = tsToNumber(value)
+                this.cur.now = value.ticks
                 this.notify()
             })
     }
@@ -235,11 +192,11 @@ export class StepperProxy {
     // passed to the Stepper, which allows for single stepping and for
     // increased automatic execution rates.
 
-    changePolicy(policy: StepperPolicy) {
+    changePolicy(policy: SetStepperPolicy) {
         // Fake what will be the REST call to the Stepper service, including
         // a fake delay for the response.
         switch (policy) {
-            case StepperPolicy.Pause:
+            case SetStepperPolicy.Pause:
                 this.setMode(StepperMode.Paused, "")
                     .then(() => {
                         this.cur.rate = 0
@@ -249,12 +206,12 @@ export class StepperProxy {
                     })
                 break;
 
-            case StepperPolicy.Step:
+            case SetStepperPolicy.Step:
                 this.setMode(StepperMode.Paused, "")
                     .then(() => this.advance())
                 break;
 
-            case StepperPolicy.Run:
+            case SetStepperPolicy.Run:
                 this.setMode(StepperMode.Running, ":1")
                     .then(() => {
                         this.cur.mode = StepperMode.Running;
@@ -265,7 +222,7 @@ export class StepperProxy {
                     })
                 break;
 
-            case StepperPolicy.Faster:
+            case SetStepperPolicy.Faster:
                 const rate = this.cur.rate = Math.min(this.cur.rate + 1, 5)
                 this.setMode(StepperMode.Running, ":" + rate)
                     .then(() => {
@@ -287,9 +244,10 @@ export class StepperProxy {
         const request = new Request("/api/stepper/now?after=" + after, {method: "GET"})
 
         if (lastEpoch === this.epoch) {
-            getJson<JsonTimestamp>(request, this.getSignal())
-                .then((value)=> {
-                    this.cur.now = tsToNumber(value)
+            getJson<any>(request, this.getSignal())
+                .then((item)=> {
+                    const value = Timestamp.fromJSON(item)
+                    this.cur.now = value.ticks
                     this.notify()
                     this.updateNow(lastEpoch)
                 })

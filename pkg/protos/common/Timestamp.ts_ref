@@ -1,0 +1,31 @@
+/* eslint-disable */
+export const protobufPackage = "common";
+
+/**
+ * Define the structure for a simulated time
+ *
+ * Simulated time is defined as an incrementing tick count, that begins at zero.
+ */
+export interface Timestamp {
+  ticks: number;
+}
+
+const baseTimestamp: object = { ticks: 0 };
+
+export const Timestamp = {
+  fromJSON(object: any): Timestamp {
+    const message = { ...baseTimestamp } as Timestamp;
+    if (object.ticks !== undefined && object.ticks !== null) {
+      message.ticks = Number(object.ticks);
+    } else {
+      message.ticks = 0;
+    }
+    return message;
+  },
+
+  toJSON(message: Timestamp): unknown {
+    const obj: any = {};
+    message.ticks !== undefined && (obj.ticks = message.ticks);
+    return obj;
+  },
+};

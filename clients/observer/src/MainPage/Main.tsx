@@ -1,6 +1,6 @@
 import React from 'react';
 import {CommandBar, CommandTab} from "../CommandBar";
-import {StepperPolicy, Timestamp} from "../proxies/StepperProxy";
+import {SetStepperPolicy, TimeContext} from "../proxies/StepperProxy";
 import {UsersProxy} from "../proxies/UsersProxy";
 import {InventoryProxy} from "../proxies/InventoryProxy";
 import {Paper} from "@material-ui/core";
@@ -34,14 +34,14 @@ export function MainPage(props: {
             activeSession: boolean,
             sessionUser: string,
             settings: SettingsState,
-            onPolicyEvent: (policy: StepperPolicy) => void,
+            onPolicyEvent: (policy: SetStepperPolicy) => void,
             onCommandSelect: (tab: CommandTab) => void,
             onSettingsChange: (settings: SettingsState) => void,
             onTrackChange: ExpansionHandler,
             onLogout: () => void,
             usersProxy: UsersProxy,
             proxy: InventoryProxy,
-            cur: Timestamp,
+            cur: TimeContext,
             organizer: Organizer}) {
     const classes = useStyles();
 
