@@ -8,40 +8,13 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 
 	"google.golang.org/protobuf/runtime/protoiface"
 )
-
-// KeyRoot is used to describe which part of the store namespace
-// should be used for the corresponding record access.
-//
-type KeyRoot int
-
-// The set of available namespace roots used by various record types
-//
-const (
-	KeyRootStoreTest KeyRoot = iota
-	KeyRootUsers
-	KeyRootInventory
-	KeyRootWorkloads
-)
-
-const (
-	namespaceRootStoreTest = "storetest"
-	namespaceRootUsers     = "users"
-	namespaceRootInventory = "inventory"
-	namespaceRootWorkloads = "workload"
-)
-
-var namespaceRoots = map[KeyRoot]string{
-	KeyRootStoreTest: namespaceRootStoreTest,
-	KeyRootUsers:     namespaceRootUsers,
-	KeyRootInventory: namespaceRootInventory,
-	KeyRootWorkloads: namespaceRootWorkloads,
-}
 
 // Action defines the signature for a function to be invoked when the
 // WithAction option is used.
@@ -104,37 +77,6 @@ func WithKeysOnly() Option {
 //
 func WithAction(action Action) Option {
 	return func(options *Options) { options.action = action }
-}
-
-func getNamespaceRootFromKeyRoot(r KeyRoot) string {
-	return namespaceRoots[r]
-}
-
-func getNamespacePrefixFromKeyRoot(r KeyRoot) string {
-	return namespaceRoots[r] + "/"
-}
-
-func getKeyFromKeyRootAndName(r KeyRoot, n string) string {
-	return namespaceRoots[r] + "/" + GetNormalizedName(n)
-}
-
-func getNameFromKeyRootAndKey(r KeyRoot, k string) string {
-	n := strings.TrimPrefix(namespaceRoots[r]+"/", k)
-	return n
-}
-
-// GetKeyFromUsername1 is a utility function to convert a supplied username to
-// a store usable key for use when operating with user records.
-//
-func GetKeyFromUsername1(name string) string {
-	return getKeyFromKeyRootAndName(KeyRootUsers, name)
-}
-
-// GetNormalizedName is a utility function to prepare a name for use when
-// building a key suitable for operating with records in the store
-//
-func GetNormalizedName(name string) string {
-	return strings.ToLower(name)
 }
 
 // Request is a struct defining the collection of values needed to make a request
@@ -211,14 +153,14 @@ func Decode(s string, m protoiface.MessageV1) error {
 //
 func (store *Store) CreateWithEncode(
 	ctx context.Context,
-	r KeyRoot,
+	r namespace.KeyRoot,
 	n string,
 	m protoiface.MessageV1) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.Info(ctx, "Request to create new %q under prefix %q", n, prefix)
 
@@ -237,7 +179,7 @@ func (store *Store) CreateWithEncode(
 		Conditions: make(map[string]Condition),
 	}
 
-	k := getKeyFromKeyRootAndName(r, n)
+	k := namespace.GetKeyFromKeyRootAndName(r, n)
 	request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
 	request.Conditions[k] = ConditionCreate
 
@@ -261,12 +203,12 @@ func (store *Store) CreateWithEncode(
 
 // Create is a function to create a single key, value record pair
 //
-func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (revision int64, err error) {
+func (store *Store) Create(ctx context.Context, r namespace.KeyRoot, n string, v string) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.Info(ctx, "Request to create new %q under prefix %q", n, prefix)
 
@@ -279,7 +221,7 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 		Conditions: make(map[string]Condition),
 	}
 
-	k := getKeyFromKeyRootAndName(r, n)
+	k := namespace.GetKeyFromKeyRootAndName(r, n)
 	request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
 	request.Conditions[k] = ConditionCreate
 
@@ -305,12 +247,12 @@ func (store *Store) Create(ctx context.Context, r KeyRoot, n string, v string) (
 
 // CreateMultiple is a function to create a set of related key, value pairs within a single operation (txn)
 //
-func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[string]string) (revision int64, err error) {
+func (store *Store) CreateMultiple(ctx context.Context, r namespace.KeyRoot, kvs *map[string]string) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.Info(ctx, "Request to create new key set under prefix %q", prefix)
 
@@ -324,7 +266,7 @@ func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 	}
 
 	for n, v := range *kvs {
-		k := getKeyFromKeyRootAndName(r, n)
+		k := namespace.GetKeyFromKeyRootAndName(r, n)
 		request.Records[k] = Record{Revision: RevisionInvalid, Value: v}
 		request.Conditions[k] = ConditionCreate
 	}
@@ -337,7 +279,7 @@ func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 		//
 		for k := range request.Records {
 			if err == errors.ErrStoreAlreadyExists(k) {
-				n := getNameFromKeyRootAndKey(r, k)
+				n := namespace.GetNameFromKeyRootAndKey(r, k)
 				return RevisionInvalid, errors.ErrStoreAlreadyExists(n)
 			}
 		}
@@ -366,7 +308,7 @@ func (store *Store) CreateMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 //
 func (store *Store) ReadWithDecode(
 	ctx context.Context,
-	kr KeyRoot,
+	kr namespace.KeyRoot,
 	n string,
 	m protoiface.MessageV1) (revision int64, err error) {
 	revision = RevisionInvalid
@@ -375,7 +317,7 @@ func (store *Store) ReadWithDecode(
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(kr)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(kr)
 
 	tracing.Info(ctx, "Request to read and decode %q under prefix %q", n, prefix)
 
@@ -396,7 +338,7 @@ func (store *Store) ReadWithDecode(
 		Conditions: make(map[string]Condition),
 	}
 
-	k := getKeyFromKeyRootAndName(kr, n)
+	k := namespace.GetKeyFromKeyRootAndName(kr, n)
 	request.Records[k] = Record{Revision: RevisionInvalid}
 	request.Conditions[k] = ConditionUnconditional
 
@@ -437,14 +379,14 @@ func (store *Store) ReadWithDecode(
 //       the keys used to persist the callers records but not have to worry
 //       about the encode/decode formats or indeed the target record itself.
 //
-func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *string, revision int64, err error) {
+func (store *Store) Read(ctx context.Context, kr namespace.KeyRoot, n string) (value *string, revision int64, err error) {
 	revision = RevisionInvalid
 
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(kr)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(kr)
 
 	tracing.Info(ctx, "Request to read value of %q under prefix %q", n, prefix)
 
@@ -465,7 +407,7 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 		Conditions: make(map[string]Condition),
 	}
 
-	k := getKeyFromKeyRootAndName(kr, n)
+	k := namespace.GetKeyFromKeyRootAndName(kr, n)
 	request.Records[k] = Record{Revision: RevisionInvalid}
 	request.Conditions[k] = ConditionUnconditional
 
@@ -506,13 +448,13 @@ func (store *Store) Read(ctx context.Context, kr KeyRoot, n string) (value *stri
 
 // Update is a function to conditionally update a value for a single key
 //
-func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64, v string) (revision int64, err error) {
+func (store *Store) Update(ctx context.Context, r namespace.KeyRoot, n string, rev int64, v string) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
-	k := getKeyFromKeyRootAndName(r, n)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
+	k := namespace.GetKeyFromKeyRootAndName(r, n)
 
 	tracing.Info(ctx, "Request to update %q under prefix %q", n, prefix)
 
@@ -554,7 +496,7 @@ func (store *Store) Update(ctx context.Context, r KeyRoot, n string, rev int64, 
 //
 func (store *Store) UpdateWithEncode(
 	ctx context.Context,
-	kr KeyRoot,
+	kr namespace.KeyRoot,
 	n string,
 	rev int64,
 	m protoiface.MessageV1) (revision int64, err error) {
@@ -562,7 +504,7 @@ func (store *Store) UpdateWithEncode(
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(kr)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(kr)
 
 	tracing.Info(ctx, "Request to update %q under prefix %q", n, prefix)
 
@@ -589,7 +531,7 @@ func (store *Store) UpdateWithEncode(
 		Records:    make(map[string]Record),
 		Conditions: make(map[string]Condition)}
 
-	k := getKeyFromKeyRootAndName(kr, n)
+	k := namespace.GetKeyFromKeyRootAndName(kr, n)
 	request.Records[k] = Record{Revision: rev, Value: v}
 	request.Conditions[k] = condition
 
@@ -608,12 +550,12 @@ func (store *Store) UpdateWithEncode(
 
 // Delete is a function to delete a single key, value record pair
 //
-func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) (revision int64, err error) {
+func (store *Store) Delete(ctx context.Context, r namespace.KeyRoot, n string, rev int64) (revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.Info(ctx, "Request to delete %q under prefix %q", n, prefix)
 
@@ -636,7 +578,7 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 		Conditions: make(map[string]Condition),
 	}
 
-	k := getKeyFromKeyRootAndName(r, n)
+	k := namespace.GetKeyFromKeyRootAndName(r, n)
 	request.Records[k] = Record{Revision: rev}
 	request.Conditions[k] = condition
 
@@ -661,12 +603,12 @@ func (store *Store) Delete(ctx context.Context, r KeyRoot, n string, rev int64) 
 // DeleteMultiple is a function to delete a set of related key, revision pairs
 // within a single operation (txn)
 //
-func (store *Store) DeleteMultiple(ctx context.Context, r KeyRoot, kvs *map[string]int64) (int64, error) {
+func (store *Store) DeleteMultiple(ctx context.Context, r namespace.KeyRoot, kvs *map[string]int64) (int64, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.Info(ctx, "Request to delete key set under prefix %q", prefix)
 
@@ -680,7 +622,7 @@ func (store *Store) DeleteMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 	}
 
 	for n, rev := range *kvs {
-		k := getKeyFromKeyRootAndName(r, n)
+		k := namespace.GetKeyFromKeyRootAndName(r, n)
 
 		condition := ConditionRevisionEqual
 
@@ -700,7 +642,7 @@ func (store *Store) DeleteMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 		//
 		for k := range request.Records {
 			if err == errors.ErrStoreKeyNotFound(k) {
-				n := getNameFromKeyRootAndKey(r, k)
+				n := namespace.GetNameFromKeyRootAndKey(r, k)
 				return RevisionInvalid, errors.ErrStoreKeyNotFound(n)
 			}
 		}
@@ -725,12 +667,12 @@ func (store *Store) DeleteMultiple(ctx context.Context, r KeyRoot, kvs *map[stri
 //       be updated to use an "interrupted" enum style call to allow for
 //		 an essentially infinite number of records.
 //
-func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map[string]Record, revision int64, err error) {
+func (store *Store) List(ctx context.Context, r namespace.KeyRoot, n string) (records *map[string]Record, revision int64, err error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.Info(ctx, "Request to list keys under prefix %q", prefix)
 
@@ -738,7 +680,7 @@ func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map
 		return nil, RevisionInvalid, err
 	}
 
-	k := getKeyFromKeyRootAndName(r, n)
+	k := namespace.GetKeyFromKeyRootAndName(r, n)
 
 	response, err := store.ListWithPrefix(ctx, k)
 
@@ -769,17 +711,17 @@ func (store *Store) List(ctx context.Context, r KeyRoot, n string) (records *map
 // Watch is a method use to establish a watch point on a portion of
 // the namespace identified by the supplied prefix name.
 //
-func (store *Store) Watch(ctx context.Context, r KeyRoot, n string) (*Watch, error) {
+func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*Watch, error) {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
 
-	prefix := getNamespacePrefixFromKeyRoot(r)
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.UpdateSpanName(ctx, "Request to list keys under prefix %q", prefix)
 
-	k := getKeyFromKeyRootAndName(r, n)
+	k := namespace.GetKeyFromKeyRootAndName(r, n)
 
 	// err = store.SetWatchWithPrefix(ctx, k)
 	resp, err := store.SetWatchWithPrefix(ctx, k)
@@ -792,10 +734,20 @@ func (store *Store) Watch(ctx context.Context, r KeyRoot, n string) (*Watch, err
 
 	go func ()  {
 		for ev := range resp.Events {
+			addr, err := namespace.GetAddressFromKey(namespace.GetNameFromKeyRootAndKey(r, ev.Key))
+
+			if err != nil {
+				tracing.Error(ctx, "Invalid key fornmat in watch event channel for key: %s", ev.Key)
+			}
+
+			if addr.Table().String() != prefix {
+				tracing.Error(ctx, "Invalid key fornmat in watch event channel for key: %s", ev.Key)
+			}
+
 			notifications <- WatchEvent{
 				Type:     ev.Type,
 				Revision: ev.Revision,
-				Key:      getNameFromKeyRootAndKey(r, ev.Key),
+				Key:      namespace.GetNameFromKeyRootAndKey(r, ev.Key),
 				NewVal:   ev.NewVal,
 				OldVal:   ev.OldVal,
 			}

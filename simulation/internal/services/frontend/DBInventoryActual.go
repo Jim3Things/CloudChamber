@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 )
 
 type rackStatus int
@@ -75,7 +76,7 @@ func (m *DBInventory) LoadInventoryActual(ctx context.Context, force bool) error
 
 		actual := &actualZone{Racks: make(map[string]*actualRack)}
 
-		zone, err := m.inventory.NewZone(inventory.DefinitionTable, inventory.DefaultRegion, inventory.DefaultZone)
+		zone, err := m.inventory.NewZone(namespace.DefinitionTable, inventory.DefaultRegion, inventory.DefaultZone)
 		if err != nil {
 			return err
 		}
@@ -108,7 +109,7 @@ func (m *DBInventory) LoadInventoryActual(ctx context.Context, force bool) error
 			if err != nil {
 				return err
 			}
-	
+
 			for _, bladeID := range bladeIDs {
 				r.Blades[bladeID] = &actualBlade{
 					State: bladeWorking,

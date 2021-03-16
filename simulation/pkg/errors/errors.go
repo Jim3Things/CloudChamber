@@ -1378,6 +1378,19 @@ func (e ErrSessionNotFound) Error() string {
 	return fmt.Sprintf("CloudChamber: session %d not found", int64(e))
 }
 
+// ErrNoValidAddressFromKey indicates the supplied key value cannot be used
+// to construct a valid address. This could be for many reasons including 
+// missing fields, improper construction, invalid table names, not being a
+// data key
+//
+type ErrNoValidAddressFromKey struct {
+	Key string
+}
+
+func (e ErrNoValidAddressFromKey) Error() string {
+	return fmt.Sprintf("CloudChamber: address cannot be formed for key %s", e.Key)
+}
+
 // ErrTableNameInvalid indicates the supplied region name is not one of the valid options.
 //
 type ErrTableNameInvalid struct {

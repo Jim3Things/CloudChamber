@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
@@ -24,14 +25,14 @@ import (
 //	- ObservedTable
 //	- TargetTable
 //
-func (m *Inventory) NewRoot(table string) (*Root, error) {
+func (m *Inventory) NewRoot(table namespace.TableName) (*Root, error) {
 
 	return newRoot(m.Store, table)
 }
 
-func newRoot(store *store.Store, table string) (*Root, error) {
+func newRoot(store *store.Store, table namespace.TableName) (*Root, error) {
 
-	k, err := getKeyForIndexRegions(table)
+	k, err := namespace.GetKeyForIndexRegions(table)
 
 	if err != nil {
 		return nil, err
@@ -49,26 +50,26 @@ func newRoot(store *store.Store, table string) (*Root, error) {
 // NewRegion is a convenience function used to construct a Region object
 // from scratch rather than relative to its parent.
 //
-func (m *Inventory) NewRegion(table string, region string) (*Region, error) {
+func (m *Inventory) NewRegion(table namespace.TableName, region string) (*Region, error) {
 
 	return newRegion(m.Store, table, region)
 }
 
-func newRegion(store *store.Store, table string, region string) (*Region, error) {
+func newRegion(store *store.Store, table namespace.TableName, region string) (*Region, error) {
 
-	keyIndex, err := getKeyForIndexZones(table, region)
+	keyIndex, err := namespace.GetKeyForIndexZones(table, region)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexEntry, err := getKeyForIndexEntryRegion(table, region)
+	keyIndexEntry, err := namespace.GetKeyForIndexEntryRegion(table, region)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := getKeyForRegion(table, region)
+	key, err := namespace.GetKeyForRegion(table, region)
 
 	if nil != err {
 		return nil, err
@@ -89,25 +90,25 @@ func newRegion(store *store.Store, table string, region string) (*Region, error)
 // NewZone is a convenience function used to construct a Zone object
 // from scratch rather than relative to its parent.
 //
-func (m *Inventory) NewZone(table string, region string, zone string) (*Zone, error) {
+func (m *Inventory) NewZone(table namespace.TableName, region string, zone string) (*Zone, error) {
 	return newZone(m.Store, table, region, zone)
 }
 
-func newZone(store *store.Store, table string, region string, zone string) (*Zone, error) {
+func newZone(store *store.Store, table namespace.TableName, region string, zone string) (*Zone, error) {
 
-	keyIndex, err := getKeyForIndexRacks(table, region, zone)
+	keyIndex, err := namespace.GetKeyForIndexRacks(table, region, zone)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexEntry, err := getKeyForIndexEntryZone(table, region, zone)
+	keyIndexEntry, err := namespace.GetKeyForIndexEntryZone(table, region, zone)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := getKeyForZone(table, region, zone)
+	key, err := namespace.GetKeyForZone(table, region, zone)
 
 	if nil != err {
 		return nil, err
@@ -130,7 +131,7 @@ func newZone(store *store.Store, table string, region string, zone string) (*Zon
 // from scratch rather than relative to its parent.
 //
 func (m *Inventory) NewRack(
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string) (*Rack, error) {
@@ -140,36 +141,36 @@ func (m *Inventory) NewRack(
 
 func newRack(
 	store *store.Store,
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string) (*Rack, error) {
 
-	keyIndexPdu, err := getKeyForIndexPdus(table, region, zone, rack)
+	keyIndexPdu, err := namespace.GetKeyForIndexPdus(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexTor, err := getKeyForIndexTors(table, region, zone, rack)
+	keyIndexTor, err := namespace.GetKeyForIndexTors(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexBlade, err := getKeyForIndexBlades(table, region, zone, rack)
+	keyIndexBlade, err := namespace.GetKeyForIndexBlades(table, region, zone, rack)
 
 	if err != nil {
 		return nil, err
 	}
 
-	keyIndexEntry, err := getKeyForIndexEntryRack(table, region, zone, rack)
+	keyIndexEntry, err := namespace.GetKeyForIndexEntryRack(table, region, zone, rack)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := getKeyForRack(table, region, zone, rack)
+	key, err := namespace.GetKeyForRack(table, region, zone, rack)
 
 	if nil != err {
 		return nil, err
@@ -195,7 +196,7 @@ func newRack(
 // from scratch rather than relative to its parent.
 //
 func (m *Inventory) NewPdu(
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string,
@@ -206,19 +207,19 @@ func (m *Inventory) NewPdu(
 
 func newPdu(
 	store *store.Store,
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string,
 	id int64) (*Pdu, error) {
 
-	keyIndexEntry, err := getKeyForIndexEntryPdu(table, region, zone, rack, id)
+	keyIndexEntry, err := namespace.GetKeyForIndexEntryPdu(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := getKeyForPdu(table, region, zone, rack, id)
+	key, err := namespace.GetKeyForPdu(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -242,7 +243,7 @@ func newPdu(
 // from scratch rather than relative to its parent.
 //
 func (m *Inventory) NewTor(
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string,
@@ -253,19 +254,19 @@ func (m *Inventory) NewTor(
 
 func newTor(
 	store *store.Store,
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string,
 	id int64) (*Tor, error) {
 
-	keyIndexEntry, err := getKeyForIndexEntryTor(table, region, zone, rack, id)
+	keyIndexEntry, err := namespace.GetKeyForIndexEntryTor(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := getKeyForTor(table, region, zone, rack, id)
+	key, err := namespace.GetKeyForTor(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -289,7 +290,7 @@ func newTor(
 // from scratch rather than relative to its parent.
 //
 func (m *Inventory) NewBlade(
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string,
@@ -300,19 +301,19 @@ func (m *Inventory) NewBlade(
 
 func newBlade(
 	store *store.Store,
-	table string,
+	table namespace.TableName,
 	region string,
 	zone string,
 	rack string,
 	id int64) (*Blade, error) {
 
-	keyIndexEntry, err := getKeyForIndexEntryBlade(table, region, zone, rack, id)
+	keyIndexEntry, err := namespace.GetKeyForIndexEntryBlade(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
 	}
 
-	key, err := getKeyForBlade(table, region, zone, rack, id)
+	key, err := namespace.GetKeyForBlade(table, region, zone, rack, id)
 
 	if nil != err {
 		return nil, err
@@ -373,7 +374,7 @@ func (r *revisionInfo) GetRevisionStore() int64 {
 //
 func (r *revisionInfo) GetRevisionForRequest(unconditional bool) int64 {
 
-	if unconditional == true {
+	if unconditional {
 		return store.RevisionInvalid
 	}
 
@@ -411,7 +412,7 @@ func (r *revisionInfo) updateRevisionInfo(rev int64) int64 {
 type Root struct {
 	Store         *store.Store
 	KeyChildIndex string
-	Table         string
+	Table         namespace.TableName
 
 	revisionInfo
 
@@ -497,7 +498,7 @@ func (r *Root) NewChild(name string) (*Region, error) {
 //
 func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {
 
-	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
+	records, rev, err := r.Store.List(ctx, namespace.KeyRootInventory, r.KeyChildIndex)
 
 	if err == errors.ErrStoreIndexNotFound(r.KeyChildIndex) {
 		return store.RevisionInvalid, nil, errors.ErrIndexNotFound(r.KeyChildIndex)
@@ -513,9 +514,9 @@ func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {
 
 		name := strings.TrimPrefix(k, r.KeyChildIndex)
 
-		if name != store.GetNormalizedName(v.Value) {
+		if name != namespace.GetNormalizedName(v.Value) {
 			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{
-				Namespace: r.Table,
+				Namespace: r.Table.String(),
 				Key:       name,
 				Value:     v.Value,
 			}
@@ -574,7 +575,7 @@ type Region struct {
 	KeyChildIndex string
 	KeyIndexEntry string
 	Key           string
-	Table         string
+	Table         namespace.TableName
 	Region        string
 
 	revisionInfo
@@ -663,7 +664,7 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 		r.Key:           v,
 	}
 
-	rev, err := r.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := r.Store.CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -684,7 +685,7 @@ func (r *Region) Create(ctx context.Context) (int64, error) {
 //
 func (r *Region) Read(ctx context.Context) (int64, error) {
 
-	v, rev, err := r.Store.Read(ctx, store.KeyRootInventory, r.Key)
+	v, rev, err := r.Store.Read(ctx, namespace.KeyRootInventory, r.Key)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -731,7 +732,7 @@ func (r *Region) Update(ctx context.Context, unconditional bool) (int64, error) 
 
 	rev, err := r.Store.Update(
 		ctx,
-		store.KeyRootInventory,
+		namespace.KeyRootInventory,
 		r.Key,
 		r.GetRevisionForRequest(unconditional),
 		v)
@@ -766,7 +767,7 @@ func (r *Region) Delete(ctx context.Context, unconditional bool) (int64, error) 
 		r.Key:           r.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err := r.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := r.Store.DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -797,7 +798,7 @@ func (r *Region) NewChild(name string) (*Zone, error) {
 //
 func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 
-	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyChildIndex)
+	records, rev, err := r.Store.List(ctx, namespace.KeyRootInventory, r.KeyChildIndex)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
@@ -809,8 +810,8 @@ func (r *Region) ListChildren(ctx context.Context) (int64, []string, error) {
 
 		name := strings.TrimPrefix(k, r.KeyChildIndex)
 
-		if name != store.GetNormalizedName(v.Value) {
-			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{Namespace: r.Table, Key: name, Value: v.Value}
+		if name != namespace.GetNormalizedName(v.Value) {
+			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{Namespace: r.Table.String(), Key: name, Value: v.Value}
 		}
 
 		names = append(names, v.Value)
@@ -886,7 +887,7 @@ type Zone struct {
 	KeyChildIndex string
 	KeyIndexEntry string
 	Key           string
-	Table         string
+	Table         namespace.TableName
 	Region        string
 	Zone          string
 
@@ -976,7 +977,7 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 		z.Key:           v,
 	}
 
-	rev, err := z.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := z.Store.CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -997,7 +998,7 @@ func (z *Zone) Create(ctx context.Context) (int64, error) {
 //
 func (z *Zone) Read(ctx context.Context) (int64, error) {
 
-	v, rev, err := z.Store.Read(ctx, store.KeyRootInventory, z.Key)
+	v, rev, err := z.Store.Read(ctx, namespace.KeyRootInventory, z.Key)
 
 	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1044,7 +1045,7 @@ func (z *Zone) Update(ctx context.Context, unconditional bool) (int64, error) {
 
 	rev, err := z.Store.Update(
 		ctx,
-		store.KeyRootInventory,
+		namespace.KeyRootInventory,
 		z.Key,
 		z.GetRevisionForRequest(unconditional),
 		v)
@@ -1079,7 +1080,7 @@ func (z *Zone) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		z.Key:           z.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err := z.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := z.Store.DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1110,7 +1111,7 @@ func (z *Zone) NewChild(name string) (*Rack, error) {
 //
 func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 
-	records, rev, err := z.Store.List(ctx, store.KeyRootInventory, z.KeyChildIndex)
+	records, rev, err := z.Store.List(ctx, namespace.KeyRootInventory, z.KeyChildIndex)
 
 	if err = z.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
@@ -1122,8 +1123,8 @@ func (z *Zone) ListChildren(ctx context.Context) (int64, []string, error) {
 
 		name := strings.TrimPrefix(k, z.KeyChildIndex)
 
-		if name != store.GetNormalizedName(v.Value) {
-			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{Namespace: z.Table, Key: name, Value: v.Value}
+		if name != namespace.GetNormalizedName(v.Value) {
+			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{Namespace: z.Table.String(), Key: name, Value: v.Value}
 		}
 
 		names = append(names, v.Value)
@@ -1199,7 +1200,7 @@ type Rack struct {
 	KeyIndexBlade string
 	KeyIndexEntry string
 	Key           string
-	Table         string
+	Table         namespace.TableName
 	Region        string
 	Zone          string
 	Rack          string
@@ -1334,7 +1335,7 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 		r.Key:           v,
 	}
 
-	rev, err := r.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := r.Store.CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1355,7 +1356,7 @@ func (r *Rack) Create(ctx context.Context) (int64, error) {
 //
 func (r *Rack) Read(ctx context.Context) (int64, error) {
 
-	v, rev, err := r.Store.Read(ctx, store.KeyRootInventory, r.Key)
+	v, rev, err := r.Store.Read(ctx, namespace.KeyRootInventory, r.Key)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1402,7 +1403,7 @@ func (r *Rack) Update(ctx context.Context, unconditional bool) (int64, error) {
 
 	rev, err := r.Store.Update(
 		ctx,
-		store.KeyRootInventory,
+		namespace.KeyRootInventory,
 		r.Key,
 		r.GetRevisionForRequest(unconditional),
 		v)
@@ -1437,7 +1438,7 @@ func (r *Rack) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		r.Key:           r.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err := r.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := r.Store.DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -1536,7 +1537,7 @@ func (r *Rack) FetchChildren(_ context.Context) (int64, *map[string]interface{},
 //
 func (r *Rack) ListPdus(ctx context.Context) (int64, []int64, error) {
 
-	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexPdu)
+	records, rev, err := r.Store.List(ctx, namespace.KeyRootInventory, r.KeyIndexPdu)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
@@ -1574,7 +1575,7 @@ func (r *Rack) ListPdus(ctx context.Context) (int64, []int64, error) {
 
 		if intName != intValue {
 			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{
-				Namespace: r.Table,
+				Namespace: r.Table.String(),
 				Key:       name,
 				Value:     v.Value,
 			}
@@ -1593,7 +1594,7 @@ func (r *Rack) ListPdus(ctx context.Context) (int64, []int64, error) {
 //
 func (r *Rack) ListTors(ctx context.Context) (int64, []int64, error) {
 
-	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexTor)
+	records, rev, err := r.Store.List(ctx, namespace.KeyRootInventory, r.KeyIndexTor)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
@@ -1631,7 +1632,7 @@ func (r *Rack) ListTors(ctx context.Context) (int64, []int64, error) {
 
 		if intName != intValue {
 			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{
-				Namespace: r.Table,
+				Namespace: r.Table.String(),
 				Key:       name,
 				Value:     v.Value,
 			}
@@ -1650,7 +1651,7 @@ func (r *Rack) ListTors(ctx context.Context) (int64, []int64, error) {
 //
 func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 
-	records, rev, err := r.Store.List(ctx, store.KeyRootInventory, r.KeyIndexBlade)
+	records, rev, err := r.Store.List(ctx, namespace.KeyRootInventory, r.KeyIndexBlade)
 
 	if err = r.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
@@ -1668,7 +1669,7 @@ func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 
 		if err != nil {
 			return store.RevisionInvalid, nil, errors.ErrBladeIndexInvalid{
-				Region: r.Table,
+				Region: r.Table.String(),
 				Zone:   r.Zone,
 				Rack:   r.Rack,
 				Blade:  name,
@@ -1679,7 +1680,7 @@ func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 
 		if err != nil {
 			return store.RevisionInvalid, nil, errors.ErrBladeIndexInvalid{
-				Region: r.Table,
+				Region: r.Table.String(),
 				Zone:   r.Zone,
 				Rack:   r.Rack,
 				Blade:  v.Value,
@@ -1688,7 +1689,7 @@ func (r *Rack) ListBlades(ctx context.Context) (int64, []int64, error) {
 
 		if intName != intValue {
 			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{
-				Namespace: r.Table,
+				Namespace: r.Table.String(),
 				Key:       name,
 				Value:     v.Value,
 			}
@@ -1843,7 +1844,7 @@ type Pdu struct {
 	Store         *store.Store
 	Key           string
 	KeyIndexEntry string
-	Table         string
+	Table         namespace.TableName
 	Region        string
 	Zone          string
 	Rack          string
@@ -1991,7 +1992,7 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 		p.Key:           v,
 	}
 
-	rev, err := p.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := p.Store.CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2012,7 +2013,7 @@ func (p *Pdu) Create(ctx context.Context) (int64, error) {
 //
 func (p *Pdu) Read(ctx context.Context) (int64, error) {
 
-	v, rev, err := p.Store.Read(ctx, store.KeyRootInventory, p.Key)
+	v, rev, err := p.Store.Read(ctx, namespace.KeyRootInventory, p.Key)
 
 	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2065,7 +2066,7 @@ func (p *Pdu) Update(ctx context.Context, unconditional bool) (int64, error) {
 
 	rev, err := p.Store.Update(
 		ctx,
-		store.KeyRootInventory,
+		namespace.KeyRootInventory,
 		p.Key,
 		p.GetRevisionForRequest(unconditional),
 		v)
@@ -2100,7 +2101,7 @@ func (p *Pdu) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		p.Key:           p.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err := p.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := p.Store.DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = p.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2137,7 +2138,7 @@ type Tor struct {
 	Store         *store.Store
 	Key           string
 	KeyIndexEntry string
-	Table         string
+	Table         namespace.TableName
 	Region        string
 	Zone          string
 	Rack          string
@@ -2285,7 +2286,7 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 		t.Key:           v,
 	}
 
-	rev, err := t.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := t.Store.CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2306,7 +2307,7 @@ func (t *Tor) Create(ctx context.Context) (int64, error) {
 //
 func (t *Tor) Read(ctx context.Context) (int64, error) {
 
-	v, rev, err := t.Store.Read(ctx, store.KeyRootInventory, t.Key)
+	v, rev, err := t.Store.Read(ctx, namespace.KeyRootInventory, t.Key)
 
 	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2359,7 +2360,7 @@ func (t *Tor) Update(ctx context.Context, unconditional bool) (int64, error) {
 
 	rev, err := t.Store.Update(
 		ctx,
-		store.KeyRootInventory,
+		namespace.KeyRootInventory,
 		t.Key,
 		t.GetRevisionForRequest(unconditional),
 		v)
@@ -2394,7 +2395,7 @@ func (t *Tor) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		t.Key:           t.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err := t.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := t.Store.DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = t.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2431,7 +2432,7 @@ type Blade struct {
 	Store         *store.Store
 	Key           string
 	KeyIndexEntry string
-	Table         string
+	Table         namespace.TableName
 	Region        string
 	Zone          string
 	Rack          string
@@ -2630,7 +2631,7 @@ func (b *Blade) Create(ctx context.Context) (int64, error) {
 		b.Key:           v,
 	}
 
-	rev, err := b.Store.CreateMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := b.Store.CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2651,7 +2652,7 @@ func (b *Blade) Create(ctx context.Context) (int64, error) {
 //
 func (b *Blade) Read(ctx context.Context) (int64, error) {
 
-	v, rev, err := b.Store.Read(ctx, store.KeyRootInventory, b.Key)
+	v, rev, err := b.Store.Read(ctx, namespace.KeyRootInventory, b.Key)
 
 	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
@@ -2712,7 +2713,7 @@ func (b *Blade) Update(ctx context.Context, unconditional bool) (int64, error) {
 
 	rev, err := b.Store.Update(
 		ctx,
-		store.KeyRootInventory,
+		namespace.KeyRootInventory,
 		b.Key,
 		b.GetRevisionForRequest(unconditional),
 		v)
@@ -2747,7 +2748,7 @@ func (b *Blade) Delete(ctx context.Context, unconditional bool) (int64, error) {
 		b.Key:           b.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err := b.Store.DeleteMultiple(ctx, store.KeyRootInventory, keySet)
+	rev, err := b.Store.DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
 
 	if err = b.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err

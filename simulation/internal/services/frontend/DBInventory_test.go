@@ -72,7 +72,9 @@ func (ts *DBInventoryTestSuite) cleanRegion(regionName string) error {
 		_, err = ts.db.DeleteZone(ctx, regionName, zoneName)
 		return err
 	})
-	ts.Require().NoError(err)
+	if err != nil {
+		return err
+	}
 
 	_, err = ts.db.DeleteRegion(ctx, regionName)
 
