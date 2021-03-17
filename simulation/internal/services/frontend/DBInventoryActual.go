@@ -81,6 +81,9 @@ func (m *DBInventory) LoadInventoryActual(ctx context.Context, force bool) error
 		}
 
 		_, rackNames, err := zone.ListChildren(ctx)
+		if err != nil {
+			return err
+		}
 
 		for _, rackName := range rackNames {
 			r := &actualRack{
@@ -102,7 +105,10 @@ func (m *DBInventory) LoadInventoryActual(ctx context.Context, force bool) error
 			}
 	
 			_, bladeIDs, err := rack.ListBlades(ctx)
-
+			if err != nil {
+				return err
+			}
+	
 			for _, bladeID := range bladeIDs {
 				r.Blades[bladeID] = &actualBlade{
 					State: bladeWorking,

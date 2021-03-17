@@ -257,6 +257,9 @@ func (m *DBInventory) ScanRacksInZone(
 //
 func (m *DBInventory) GetRackInZone(ctx context.Context, regionName string, zoneName string, rackName string) (*pb.Definition_Rack, error) {
 	rack, err := m.inventory.NewRack(inventory.DefinitionTable, regionName, zoneName, rackName)
+	if err != nil {
+		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
+	}
 
 	_, err = rack.Read(ctx)
 	if err != nil {

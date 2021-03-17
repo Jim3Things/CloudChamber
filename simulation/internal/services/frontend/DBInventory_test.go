@@ -72,6 +72,7 @@ func (ts *DBInventoryTestSuite) cleanRegion(regionName string) error {
 		_, err = ts.db.DeleteZone(ctx, regionName, zoneName)
 		return err
 	})
+	ts.Require().NoError(err)
 
 	_, err = ts.db.DeleteRegion(ctx, regionName)
 
@@ -92,6 +93,9 @@ func (ts *DBInventoryTestSuite) cleanZone(regionName string, zoneName string) er
 		_, err := ts.db.DeleteRack(ctx, regionName, zoneName, rackName)
 		return err
 	})
+	if err != nil {
+		return err
+	}
 
 	_, err = ts.db.DeleteZone(ctx, regionName, zoneName)
 	return err
@@ -115,6 +119,9 @@ func (ts *DBInventoryTestSuite) cleanRack(regionName string, zoneName string, ra
 		_, err := ts.db.DeleteBlade(ctx, regionName, zoneName, rackName, index)
 		return err
 	})
+	if err != nil {
+		return err
+	}
 
 	_, err = ts.db.DeleteRack(ctx, regionName, zoneName, rackName)
 	return err

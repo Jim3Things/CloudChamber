@@ -111,6 +111,7 @@ func (ts *UserTestSuite) TestLoginSessionSimple() {
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.admin()), strings.NewReader(ts.adminPassword()))
 	response := ts.doHTTP(request, nil)
 	body, err := ts.getBody(response)
+	assert.NoError(err)
 
 	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	log(string(body))
@@ -890,6 +891,7 @@ func (ts *UserTestSuite) TestUpdateNoPrivilege() {
 
 	response = ts.doHTTP(request, response.Cookies())
 	body, err := ts.getBody(response)
+	assert.NoError(err)
 
 	logf(string(body))
 
@@ -936,6 +938,7 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 
 	response = ts.doHTTP(request, response.Cookies())
 	body, err := ts.getBody(response)
+	assert.NoError(err)
 	assert.Equal("CloudChamber: permission denied\n", string(body))
 
 	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
@@ -1231,7 +1234,7 @@ func (ts *UserTestSuite) TestSetRights() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
-	response, user := ts.userRead(ts.alice(), cookies)
+	response, _ = ts.userRead(ts.alice(), cookies)
 
 	rev, err := parseETag(response.Header.Get("ETag"))
 	require.NoError(err)
@@ -1252,7 +1255,7 @@ func (ts *UserTestSuite) TestSetRights() {
 
 	response, match := ts.userUpdate(ts.alice(), upd, rev, response.Cookies())
 
-	user = &pb.UserPublic{}
+	user := &pb.UserPublic{}
 	err = ts.getJSONBody(response, user)
 	assert.NoError(err)
 
