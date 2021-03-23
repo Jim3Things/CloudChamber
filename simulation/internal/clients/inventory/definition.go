@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
@@ -1185,6 +1186,65 @@ func (z *Zone) mapErrStoreValue(err error) error {
 	}
 
 	return err
+}
+
+type Watch struct {
+	watch   *store.Watch
+	Events  chan WatchEvent
+}
+
+type WatchEvent struct {
+	Type     store.WatchEventType
+	Address  *namespace.Address
+	Revision int64
+	NewRev   int64
+	NewVal   string
+	OldRev   int64
+	OldVal   string
+}
+
+func (z *Zone) Watch(ctx context.Context) (*Watch, error) {
+
+	resp, err := z.Store.Watch(ctx, namespace.KeyRootInventory, z.Key)
+
+	if err != nil {
+		return nil, err
+	}
+
+	notifications := make(chan WatchEvent)
+
+	go func ()  {
+		for ev := range resp.Events {
+			addr, err := namespace.GetAddressFromKey(namespace.GetNameFromKeyRootAndKey(namespace.KeyRootInventory, ev.Key))
+
+			if err != nil {
+				tracing.Error(ctx, "Invalid key fornmat in watch event channel for key: %s", ev.Key)
+			} else {
+				notifications <- WatchEvent{
+					Type:     ev.Type,
+					Address:  addr,
+					Revision: ev.Revision,
+					NewRev:   ev.NewRev,
+					OldRev:   ev.OldRev,
+					NewVal:   ev.NewVal,
+					OldVal:   ev.OldVal,
+				}
+			}
+		}
+
+		close(notifications)
+	}()
+
+	response := &Watch{
+		watch:  resp,
+		Events: notifications,
+	}
+
+	return response, nil
+}
+
+func (w *Watch) Close(ctx context.Context) error {
+	return w.watch.Close(ctx)
 }
 
 // Rack is a structure representing a rack object. This object can be used

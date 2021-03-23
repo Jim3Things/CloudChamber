@@ -146,6 +146,10 @@ func (ts *definitionTestSuite) stdBladeBootInfo() *pb.BladeBootInfo {
 	}
 }
 
+func (ts *definitionTestSuite) stdBladeBootOnPowerOn() bool {
+	return true
+}
+
 func (ts *definitionTestSuite)createStandardInventory(ctx context.Context) error {
 
 	err := ts.createInventory(
@@ -302,7 +306,7 @@ func (ts *definitionTestSuite)createInventory(
 			if err != nil {
 				return err
 			}
-	
+
 				zone.SetDetails(ts.stdZoneDetails(zoneName))
 
 			_, err = zone.Create(ctx)
@@ -317,7 +321,7 @@ func (ts *definitionTestSuite)createInventory(
 				if err != nil {
 					return err
 				}
-		
+
 				rack.SetDetails(ts.stdRackDetails(rackName))
 
 				_, err = rack.Create(ctx)
@@ -2258,6 +2262,211 @@ func (ts *definitionTestSuite) TestZoneUpdateDetails() {
 	revDel, err := cz.Delete(ctx, false)
 	require.NoError(err)
 	assert.Less(revUpdate, revDel)
+}
+
+func (ts *definitionTestSuite) TestZoneWatch() {
+
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestZoneUpdateDetails"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName := ts.zoneName(stdSuffix)
+	rackName := ts.rackName(stdSuffix)
+	bladeId := ts.bladeID(99)
+
+	stdDetails := ts.stdZoneDetails(stdSuffix)
+
+	ctx := context.Background()
+
+	z, err := ts.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
+	require.NoError(err)
+
+	z.SetDetails(stdDetails)
+
+	// Set the watch prior to the create so expect to see a create event
+	//
+	watch, err := z.Watch(ctx)
+	require.NoError(err)
+	require.NotNil(watch)
+
+
+	// Create the zone we are interested in monitoring.
+	//
+	revZoneCreate, err := z.Create(ctx)
+	require.NoError(err)
+	assert.NotEqual(store.RevisionInvalid, revZoneCreate)
+
+	ev := <-watch.Events
+
+	// Verify we got a create for the zone we just created and that
+	// all the new and old revisions etc match.
+	//
+	require.Equal(store.WatchEventTypeCreate, ev.Type)
+	assert.Equal(revZoneCreate, ev.Revision)
+	assert.Equal(revZoneCreate, ev.NewRev)
+	assert.Equal(store.RevisionInvalid, ev.OldRev)
+
+	assert.Equal(namespace.AddressTypeZone, ev.Address.Type())
+	assert.Equal(regionName, ev.Address.Region())
+	assert.Equal(zoneName, ev.Address.Zone())
+
+	details := z.GetDetails()
+	require.NotNil(details)
+
+	details.State = pb.State_out_of_service
+	details.Notes += " (out of service)"
+
+	z.SetDetails(details)
+
+	revZoneUpdate, err := z.Update(ctx, false)
+	require.NoError(err)
+
+	ev = <-watch.Events
+
+	// Verify we got a create for the zone we just created and that
+	// all the new and old revisions etc match.
+	//
+	require.Equal(store.WatchEventTypeUpdate, ev.Type)
+	assert.Equal(revZoneUpdate, ev.Revision)
+	assert.Equal(revZoneUpdate, ev.NewRev)
+	assert.Equal(revZoneCreate, ev.OldRev)
+
+	assert.Equal(namespace.AddressTypeZone, ev.Address.Type())
+	assert.Equal(regionName, ev.Address.Region())
+	assert.Equal(zoneName, ev.Address.Zone())
+
+	zoneAddress := ev.Address
+
+	// Now create a child within the zone to verify we see an event
+	// for the create of the child
+	//
+	r, err := z.NewChild(rackName)
+	require.NoError(err)
+
+	r.SetDetails(ts.stdRackDetails(stdSuffix))
+	revRackCreate, err := r.Create(ctx)
+	require.NoError(err)
+	require.Less(revZoneUpdate, revRackCreate)
+
+	ev = <-watch.Events
+
+	// Verify we got a create for the rack we just created and that
+	// all the new and old revisions etc match.
+	//
+	require.Equal(store.WatchEventTypeCreate, ev.Type)
+	assert.Equal(revRackCreate, ev.Revision)
+	assert.Equal(revRackCreate, ev.NewRev)
+	assert.Equal(store.RevisionInvalid, ev.OldRev)
+
+	assert.Equal(namespace.AddressTypeRack, ev.Address.Type())
+	assert.Equal(regionName, ev.Address.Region())
+	assert.Equal(zoneName, ev.Address.Zone())
+	assert.Equal(rackName, ev.Address.Rack())
+
+	rackAddress := ev.Address
+
+	// Now create a blade under the rack
+	//
+	b, err := r.NewBlade(bladeId)
+	require.NoError(err)
+
+	b.SetDetails(ts.stdBladeDetails())
+	b.SetCapacity(ts.stdBladeCapacity())
+	b.SetBootInfo(ts.stdBladeBootInfo())
+	b.SetBootPowerOn(ts.stdBladeBootOnPowerOn())
+
+	revBladeCreate, err := b.Create(ctx)
+	require.NoError(err)
+	require.Less(revZoneUpdate, revBladeCreate)
+
+	ev = <-watch.Events
+
+	// Verify we got a create for the blade we just created and that
+	// all the new and old revisions etc match.
+	//
+	require.Equal(store.WatchEventTypeCreate, ev.Type)
+	assert.Equal(revBladeCreate, ev.Revision)
+	assert.Equal(revBladeCreate, ev.NewRev)
+	assert.Equal(store.RevisionInvalid, ev.OldRev)
+
+	assert.Equal(namespace.AddressTypeBlade, ev.Address.Type())
+	assert.Equal(regionName, ev.Address.Region())
+	assert.Equal(zoneName, ev.Address.Zone())
+	assert.Equal(rackName, ev.Address.Rack())
+	assert.Equal(bladeId, ev.Address.Blade())
+
+	bladeAddress := ev.Address
+
+	type event struct {
+		revNew    int64
+		revOld    int64
+		eventType store.WatchEventType
+		addr      *namespace.Address
+	}
+
+	events := make([]event, 0)
+
+	// Now we issue a sequence of updates and then verify the
+	// events arrive in the expected order.
+	//
+	rackDetails := r.GetDetails()
+	rackDetails.Condition = pb.Condition_out_for_repair
+	r.SetDetails(rackDetails)
+	rev, err := r.Update(ctx, true)
+	require.NoError(err)
+
+	events = append(events, event{revNew: rev, addr: rackAddress, eventType: store.WatchEventTypeUpdate})
+
+	bladeDetails := b.GetDetails()
+	bladeDetails.Condition = pb.Condition_retired
+	rev, err = b.Update(ctx, true)
+	require.NoError(err)
+
+	events = append(events, event{revNew: rev, addr: bladeAddress, eventType: store.WatchEventTypeUpdate})
+
+	rackDetails.Condition = pb.Condition_operational
+	r.SetDetails(rackDetails)
+	rev, err = r.Update(ctx, true)
+	require.NoError(err)
+
+	events = append(events, event{revNew: rev, addr: rackAddress, eventType: store.WatchEventTypeUpdate})
+
+	rev, err = b.Delete(ctx, true)
+	require.NoError(err)
+
+	events = append(events, event{revNew: rev, addr: bladeAddress, eventType: store.WatchEventTypeDelete})
+
+	rev, err = r.Delete(ctx, true)
+	require.NoError(err)
+
+	events = append(events, event{revNew: rev, addr: rackAddress, eventType: store.WatchEventTypeDelete})
+
+	rev, err = z.Delete(ctx, true)
+	require.NoError(err)
+
+	events = append(events, event{revNew: rev, addr: zoneAddress, eventType: store.WatchEventTypeDelete})
+
+	for i, event := range events {
+		if i == 0 {
+			assert.Less(revBladeCreate, event.revNew)
+		} else {
+			assert.Less(events[i-1], event.revNew)
+		}
+	}
+
+	for _, event := range events {
+		ev, ok := <-watch.Events
+
+		require.True(ok)
+		assert.Equal(event.eventType, ev.Type)
+		assert.Equal(event.revNew, ev.Revision)
+		assert.Equal(event.revNew, ev.NewRev)
+		assert.Equal(event.revOld, ev.OldRev)
+		assert.Equal(event.addr, ev.Address)
+	}
+
 }
 
 func (ts *definitionTestSuite) TestRackUpdateDetails() {

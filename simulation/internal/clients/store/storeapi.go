@@ -734,16 +734,6 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 
 	go func ()  {
 		for ev := range resp.Events {
-			addr, err := namespace.GetAddressFromKey(namespace.GetNameFromKeyRootAndKey(r, ev.Key))
-
-			if err != nil {
-				tracing.Error(ctx, "Invalid key fornmat in watch event channel for key: %s", ev.Key)
-			}
-
-			if addr.Table().String() != prefix {
-				tracing.Error(ctx, "Invalid key fornmat in watch event channel for key: %s", ev.Key)
-			}
-
 			notifications <- WatchEvent{
 				Type:     ev.Type,
 				Revision: ev.Revision,
@@ -757,8 +747,8 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 	}()
 
 	response := &Watch{
-		Key:    resp.Key,
-		Cancel: resp.Cancel,
+		key:    resp.key,
+		cancel: resp.cancel,
 		Events: notifications,
 	}
 
@@ -773,22 +763,22 @@ func (w *Watch) Close(ctx context.Context) error {
 		tracing.WithName("Attempting to close event channel")
 	defer span.End()
 
-	cancel := w.Cancel
+	cancel := w.cancel
 
 	if cancel == nil {
-		tracing.Debug(ctx, "Second (or subsequent) attempt to close event channel for key %q", w.Key)
+		tracing.Debug(ctx, "Second (or subsequent) attempt to close event channel for key %q", w.key)
 
 		return errors.ErrAlreadyClosed{
 			Type: "watch event channel",
-			Name: w.Key,
+			Name: w.key,
 		}
 	}
 
-	w.Cancel = nil
+	w.cancel = nil
 
 	cancel()
 
-	tracing.UpdateSpanName(ctx, "Closed notification channel for key %q", w.Key)
+	tracing.UpdateSpanName(ctx, "Closed notification channel for key %q", w.key)
 
 	return nil
 }

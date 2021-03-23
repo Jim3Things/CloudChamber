@@ -703,8 +703,8 @@ func (store *Store) UpdateClusterConnections() error {
 // the channel via the Close() method
 //
 type Watch struct {
-	Key    string
-	Cancel context.CancelFunc
+	key    string
+	cancel context.CancelFunc
 	Events chan WatchEvent
 }
 
@@ -800,7 +800,7 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 		}
 	}()
 
-	response = &Watch{Key: key, Cancel: cancel, Events: notifications}
+	response = &Watch{key: key, cancel: cancel, Events: notifications}
 
 	return response, nil
 }
@@ -867,7 +867,7 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 		}
 	}()
 
-	response = &Watch{Key: keyPrefix, Cancel: cancel, Events: notifications}
+	response = &Watch{key: keyPrefix, cancel: cancel, Events: notifications}
 
 	return response, nil
 }
