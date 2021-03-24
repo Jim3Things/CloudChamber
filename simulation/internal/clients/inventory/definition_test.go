@@ -2278,6 +2278,10 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 
 	stdDetails := ts.stdZoneDetails(stdSuffix)
 
+	zoneAddress  := namespace.NewZone(namespace.DefinitionTable, regionName, zoneName)
+	rackAddress  := namespace.NewRack(namespace.DefinitionTable, regionName, zoneName, rackName)
+	bladeAddress := namespace.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
+
 	ctx := context.Background()
 
 	z, err := ts.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
@@ -2310,9 +2314,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert.Equal(revZoneCreate, ev.NewRev)
 	assert.Equal(store.RevisionInvalid, ev.OldRev)
 
-	assert.Equal(namespace.AddressTypeZone, ev.Address.Type())
-	assert.Equal(regionName, ev.Address.Region())
-	assert.Equal(zoneName, ev.Address.Zone())
+	assert.Equal(zoneAddress, ev.Address)
 
 	details := z.GetDetails()
 	require.NotNil(details)
@@ -2337,9 +2339,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert.Equal(revZoneUpdate, ev.NewRev)
 	assert.Equal(revZoneCreate, ev.OldRev)
 
-	assert.Equal(namespace.AddressTypeZone, ev.Address.Type())
-	assert.Equal(regionName, ev.Address.Region())
-	assert.Equal(zoneName, ev.Address.Zone())
+	assert.Equal(zoneAddress, ev.Address)
 
 	// Now create a child within the zone to verify we see an event
 	// for the create of the child
@@ -2364,10 +2364,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert.Equal(revRackCreate, ev.NewRev)
 	assert.Equal(store.RevisionInvalid, ev.OldRev)
 
-	assert.Equal(namespace.AddressTypeRack, ev.Address.Type())
-	assert.Equal(regionName, ev.Address.Region())
-	assert.Equal(zoneName, ev.Address.Zone())
-	assert.Equal(rackName, ev.Address.Rack())
+	assert.Equal(rackAddress, ev.Address)
 
 	// Now create a blade under the rack
 	//
@@ -2395,11 +2392,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert.Equal(revBladeCreate, ev.NewRev)
 	assert.Equal(store.RevisionInvalid, ev.OldRev)
 
-	assert.Equal(namespace.AddressTypeBlade, ev.Address.Type())
-	assert.Equal(regionName, ev.Address.Region())
-	assert.Equal(zoneName, ev.Address.Zone())
-	assert.Equal(rackName, ev.Address.Rack())
-	assert.Equal(bladeId, ev.Address.Blade())
+	assert.Equal(bladeAddress, ev.Address)
 }
 
 func (ts *definitionTestSuite) TestZoneWatchSequence() {
@@ -2462,9 +2455,9 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	// Now we issue a sequence of updates and then verify the
 	// events arrive in the expected order.
 	//
-	zoneAddress   := namespace.NewZone(namespace.DefinitionTable, regionName, zoneName)
-	rackAddress   := namespace.NewRack(namespace.DefinitionTable, regionName, zoneName, rackName)
-	bladeAddress  := namespace.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
+	zoneAddress  := namespace.NewZone(namespace.DefinitionTable, regionName, zoneName)
+	rackAddress  := namespace.NewRack(namespace.DefinitionTable, regionName, zoneName, rackName)
+	bladeAddress := namespace.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
 
 
 	// Create the zone we are interested in monitoring.

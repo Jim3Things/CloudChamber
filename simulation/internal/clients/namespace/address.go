@@ -26,46 +26,13 @@ const (
 	AddressTypeBlade
 )
 
-
-type addressRegion struct {
-	table TableName
-	region string
-}
-
-type addressZone struct {
-	addressRegion
-	zone string
-}
-
-type addressRack struct {
-	addressZone
-	rack string
-}
-
-type addressPdu struct {
-	addressRack
-	pdu int64
-}
-
-type addressTor struct {
-	addressRack
-	tor int64
-}
-
-type addressBlade struct {
-	addressRack
-	blade int64
-}
-
 type Address struct {
-	addressRegion
-	addressZone
-	addressRack
-	addressPdu
-	addressTor
-	addressBlade
-
 	nodeType AddressType
+	table    TableName
+	region   string
+	zone     string
+	rack     string
+	index    int64
 }
 
 func NewRegion(table TableName, region string) *Address {
@@ -105,7 +72,7 @@ func NewPdu(table TableName, region string, zone string, rack string, pdu int64)
 	addr.region = strings.ToLower(region)
 	addr.zone   = strings.ToLower(zone)
 	addr.rack   = strings.ToLower(rack)
-	addr.pdu    = pdu
+	addr.index  = pdu
 
 	return addr
 }
@@ -117,7 +84,7 @@ func NewTor(table TableName, region string, zone string, rack string, tor int64)
 	addr.region = strings.ToLower(region)
 	addr.zone   = strings.ToLower(zone)
 	addr.rack   = strings.ToLower(rack)
-	addr.tor    = tor
+	addr.index  = tor
 
 	return addr
 }
@@ -129,173 +96,182 @@ func NewBlade(table TableName, region string, zone string, rack string, blade in
 	addr.region = strings.ToLower(region)
 	addr.zone   = strings.ToLower(zone)
 	addr.rack   = strings.ToLower(rack)
-	addr.blade  = blade
+	addr.index  = blade
 
 	return addr
 }
 
-func (a *addressRegion) Validate() bool {
+func (a *Address) regionValidate() bool {
 	return a.region != ""
 }
 
-func (a *addressRegion) String() string {
+func (a *Address) zoneValidate() bool {
+	return a.zone != ""  && a.regionValidate()
+}
+
+func (a *Address) rackValidate() bool {
+	return a.rack != "" && a.zoneValidate()
+}
+
+func (a *Address) pduValidate() bool {
+	return a.index < limits.MaxPduID && a.rackValidate()
+}
+
+func (a *Address) torValidate() bool {
+	return a.index < limits.MaxTorID && a.rackValidate()
+}
+
+func (a *Address) bladeValidate() bool {
+	return a.index < limits.MaxBladeID && a.rackValidate()
+}
+
+
+
+func (a *Address) regionString() string {
 	return fmt.Sprintf("Region %s", a.region)
 }
 
-func (a *addressRegion) Region() string {
-	return a.region
-}
 
-func (a *addressRegion) Table() TableName {
-	return a.table
-}
-
-
-func (a *addressZone) Validate() bool {
-	return a.zone != ""  && a.addressRegion.Validate()
-}
-
-func (a *addressZone) String() string {
+func (a *Address) zoneString() string {
 	return fmt.Sprintf("Region: %s Zone: %s", a.region, a.zone)
 }
 
-func (a *addressZone) Zone() string {
-	return a.zone
-}
 
-
-func (a *addressRack) Validate() bool {
-	return a.rack != "" && a.addressZone.Validate()
-}
-
-func (a *addressRack) String() string {
+func (a *Address) rackString() string {
 	return fmt.Sprintf("Region: %s Zone: %s Rack: %s", a.region, a.zone, a.rack)
 }
 
-func (a *addressRack) Rack() string {
-	return a.rack
+func (a *Address) pduString() string {
+	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.index)
 }
 
 
-func (a *addressPdu) Validate() bool {
-	return a.pdu < limits.MaxPduID && a.addressRack.Validate()
-}
-
-func (a *addressPdu) String() string {
-	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.pdu)
-}
-
-func (a *addressPdu) Pdu() int64 {
-	return a.pdu
+func (a *Address) torString() string {
+	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.index)
 }
 
 
-func (a *addressTor) Validate() bool {
-	return a.tor < limits.MaxTorID && a.addressRack.Validate()
+func (a *Address) bladeString() string {
+	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.index)
 }
 
-func (a *addressTor) String() string {
-	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.tor)
-}
-
-func (a *addressTor) Tor() int64 {
-	return a.tor
-}
-
-
-func (a *addressBlade) Validate() bool {
-	return a.blade < limits.MaxBladeID && a.addressRack.Validate()
-}
-
-func (a *addressBlade) String() string {
-	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.blade)
-}
-
-func (a *addressBlade) Blade() int64 {
-	return a.blade
-}
-
-
-
-func (a *Address) Type() AddressType {
-	return a.nodeType
-}
 
 func (a *Address) Validate() bool {
 	switch a.nodeType {
-	case AddressTypeRegion: return a.addressRegion.Validate()
-	case AddressTypeZone: return a.addressZone.Validate()
-	case AddressTypeRack: return a.addressRack.Validate()
-	case AddressTypePdu: return a.addressPdu.Validate()
-	case AddressTypeTor: return a.addressTor.Validate()
-	case AddressTypeBlade: return a.addressBlade.Validate()
+	case AddressTypeRegion: return a.regionValidate()
+	case AddressTypeZone: return a.zoneValidate()
+	case AddressTypeRack: return a.rackValidate()
+	case AddressTypePdu: return a.pduValidate()
+	case AddressTypeTor: return a.torValidate()
+	case AddressTypeBlade: return a.bladeValidate()
 	default: return false
 	}
 }
 
 func (a *Address) String() string {
 	switch a.nodeType {
-	case AddressTypeRegion: return a.addressRegion.String()
-	case AddressTypeZone: return a.addressZone.String()
-	case AddressTypeRack: return a.addressRack.String()
-	case AddressTypePdu: return a.addressPdu.String()
-	case AddressTypeTor: return a.addressTor.String()
-	case AddressTypeBlade: return a.addressBlade.String()
+	case AddressTypeRegion: return a.regionString()
+	case AddressTypeZone: return a.zoneString()
+	case AddressTypeRack: return a.rackString()
+	case AddressTypePdu: return a.pduString()
+	case AddressTypeTor: return a.torString()
+	case AddressTypeBlade: return a.bladeString()
+
 	default: return "<UNRECOGNIZED ADDRESS>"
+	}
+}
+
+func (a *Address) Type() AddressType {
+	return a.nodeType
+}
+
+func (a *Address) Table() TableName {
+	switch a.nodeType {
+	case
+	AddressTypeRegion,
+	AddressTypeZone,
+	AddressTypeRack,
+	AddressTypePdu,
+	AddressTypeTor,
+	AddressTypeBlade:
+		return a.table
+
+	default:
+		return InvalidTable
 	}
 }
 
 func (a *Address) Region() string {
 	switch a.nodeType {
-	case AddressTypeRegion: return a.addressRegion.region
-	case AddressTypeZone: return a.addressZone.region
-	case AddressTypeRack: return a.addressRack.region
-	case AddressTypePdu: return a.addressPdu.region
-	case AddressTypeTor: return a.addressTor.region
-	case AddressTypeBlade: return a.addressBlade.region
-	default: return ""
+	case
+	AddressTypeRegion,
+	AddressTypeZone,
+	AddressTypeRack,
+	AddressTypePdu,
+	AddressTypeTor,
+	AddressTypeBlade:
+		return a.region
+
+	default:
+		return ""
 	}
 }
 
 func (a *Address) Zone() string {
 	switch a.nodeType {
-	case AddressTypeZone: return a.addressZone.zone
-	case AddressTypeRack: return a.addressRack.zone
-	case AddressTypePdu: return a.addressPdu.zone
-	case AddressTypeTor: return a.addressTor.zone
-	case AddressTypeBlade: return a.addressBlade.zone
-	default: return ""
+	case
+	AddressTypeZone,
+	AddressTypeRack,
+	AddressTypePdu,
+	AddressTypeTor,
+	AddressTypeBlade:
+		return a.zone
+
+	default:
+		return ""
 	}
 }
 
 func (a *Address) Rack() string {
 	switch a.nodeType {
-	case AddressTypeRack: return a.addressRack.rack
-	case AddressTypePdu: return a.addressPdu.rack
-	case AddressTypeTor: return a.addressTor.rack
-	case AddressTypeBlade: return a.addressBlade.rack
+	case
+	AddressTypeRack,
+	AddressTypePdu,
+	AddressTypeTor,
+	AddressTypeBlade:
+		return a.rack
+
 	default: return ""
 	}
 }
 
 func (a *Address) Pdu() int64 {
 	switch a.nodeType {
-	case AddressTypePdu: return a.addressPdu.pdu
-	default: return int64(-1)
+	case AddressTypePdu:
+		return a.index
+
+	default:
+		return int64(-1)
 	}
 }
 
 func (a *Address) Tor() int64 {
 	switch a.nodeType {
-	case AddressTypeTor: return a.addressTor.tor
-	default: return int64(-1)
+	case AddressTypeTor:
+		return a.index
+
+	default:
+		return int64(-1)
 	}
 }
 
 func (a *Address) Blade() int64 {
 	switch a.nodeType {
-	case AddressTypeBlade: return a.addressBlade.blade
-	default: return int64(-1)
+	case AddressTypeBlade:
+		return a.index
+
+	default:
+		return int64(-1)
 	}
 }
 
@@ -360,19 +336,19 @@ func GetAddressFromKey(key string) (*Address, error) {
 	case 10:
 		switch fields[8] {
 		case prefixPdu:
-			if addr.pdu, err = strconv.ParseInt(fields[9], 10, 64); err != nil {
+			if addr.index, err = strconv.ParseInt(fields[9], 10, 64); err != nil {
 				return nil, errors.ErrNoValidAddressFromKey{Key: key}
 			}
 			addr.nodeType = AddressTypePdu
 
 		case prefixTor:
-			if addr.tor, err = strconv.ParseInt(fields[9], 10, 64); err != nil {
+			if addr.index, err = strconv.ParseInt(fields[9], 10, 64); err != nil {
 				return nil, errors.ErrNoValidAddressFromKey{Key: key}
 			}
 			addr.nodeType = AddressTypeTor
 
 		case prefixBlade:
-			if addr.blade, err = strconv.ParseInt(fields[9], 10, 64); err != nil {
+			if addr.index, err = strconv.ParseInt(fields[9], 10, 64); err != nil {
 				return nil, errors.ErrNoValidAddressFromKey{Key: key}
 			}
 			addr.nodeType = AddressTypeBlade
