@@ -423,42 +423,6 @@ const (
 	ConditionRetired
 )
 
-// // DefinitionTor describes the revision and value for the request TOR
-// //
-// type DefinitionTor struct {
-// 	revision int64
-// 	tor      *pb.Definition_Tor
-// }
-
-// // DefinitionPdu describes the revision and value for the request PDU
-// //
-// type DefinitionPdu struct {
-// 	revision int64
-// 	pdu      *pb.Definition_Pdu
-// }
-
-// // DefinitionBlade describes the revision and value for the request blade
-// //
-// type DefinitionBlade struct {
-// 	revision int64
-// 	blade    *pb.Definition_Blade
-// }
-
-// // DefinitionRack describes the revision and value for the request rack
-// //
-// type DefinitionRack struct {
-// 	revision int64
-// 	rack     *pb.Definition_Rack
-// }
-
-// // DefinitionZone defines the set of values used to summarize the contents of a zone to
-// // allow a query on the zone without incorporating the entire inventory definition
-// //
-// type DefinitionZone struct {
-// 	revision int64
-// 	zone     *pb.Definition_Zone
-// }
-
 // Generic options
 
 // InventoryOption is a
@@ -654,56 +618,6 @@ func WithRackTors() InventoryRackOption {
 func WithRackBlades() InventoryRackOption {
 	return func(options *InventoryRackOptions) { options.includeBlades = true }
 }
-
-// // ListZones returns the basic zone record for all the discovered zones. Optionally,
-// // racks along with the rack component PDU, TOR and blades can also be returned.
-// //
-// func (m *DBInventory) ListZones(
-// 	ctx context.Context,
-// 	options ...InventoryZoneOption) (map[string]*DefinitionZone, int64, error) {
-// 	return nil, InvalidRev, nil
-// }
-
-// // ListRacks returns the basic zone record for all the discovered racks within
-// // the specified zone. Optionally, the rack component PDU, TOR and blades can
-// // also be returned.
-// //
-// func (m *DBInventory) ListRacks(
-// 	ctx context.Context,
-// 	zone string,
-// 	options ...InventoryRackOption) (map[string]*DefinitionRack, int64, error) {
-// 	return nil, InvalidRev, nil
-// }
-
-// // ListPdus returns the basic records for the PDUs in the specified rack.
-// //
-// func (m *DBInventory) ListPdus(
-// 	ctx context.Context,
-// 	zone string,
-// 	rack string,
-// 	options ...InventoryOption) (map[string]*DefinitionPdu, int64, error) {
-// 	return nil, InvalidRev, nil
-// }
-
-// // ListTors returns the basic records for the TORs in the specified rack.
-// //
-// func (m *DBInventory) ListTors(
-// 	ctx context.Context,
-// 	zone string,
-// 	rack string,
-// 	options ...InventoryOption) (map[string]*DefinitionTor, int64, error) {
-// 	return nil, InvalidRev, nil
-// }
-
-// // ListBlades returns the basic records for the blades in the specified rack.
-// //
-// func (m *DBInventory) ListBlades(
-// 	ctx context.Context,
-// 	zone string,
-// 	rack string,
-// 	options ...InventoryOption) (map[string]*DefinitionBlade, int64, error) {
-// 	return nil, InvalidRev, nil
-// }
 
 // CreateRegion is used to create a basic region record in the store.
 //

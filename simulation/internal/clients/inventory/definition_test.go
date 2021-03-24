@@ -2688,6 +2688,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		case 2:
 			assert.Equal(rackOps[0].eventType, ev.Type)
 			assert.Equal(rackOps[0].revStore, ev.Revision)
+			assert.Equal(rackOps[0].revNew, ev.Revision)
 			assert.Equal(rackOps[0].revNew, ev.NewRev)
 			assert.Equal(rackOps[0].revOld, ev.OldRev)
 			assert.Equal(rackOps[0].addr, ev.Address)

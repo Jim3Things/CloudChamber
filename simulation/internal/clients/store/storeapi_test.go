@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
@@ -35,12 +36,13 @@ func TestCreate(t *testing.T) {
 	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -70,7 +72,6 @@ func TestCreate(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-	return
 }
 
 func TestReadNew(t *testing.T) {
@@ -80,12 +81,13 @@ func TestReadNew(t *testing.T) {
 	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -121,7 +123,6 @@ func TestReadNew(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-	return
 }
 
 func TestReadNewValue(t *testing.T) {
@@ -131,12 +132,13 @@ func TestReadNewValue(t *testing.T) {
 	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNil(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -175,7 +177,6 @@ func TestReadNewValue(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-	return
 }
 
 func TestUpdate(t *testing.T) {
@@ -185,12 +186,13 @@ func TestUpdate(t *testing.T) {
 	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNil(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminUpdatePassword), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -216,6 +218,7 @@ func TestUpdate(t *testing.T) {
 	// Now update the user record and see if the changes made it.
 	//
 	passwordHash, err = bcrypt.GenerateFromPassword([]byte(adminUpdatePassword2), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	userUpdate := &pb.User{
 		Name:         userName,
@@ -256,7 +259,6 @@ func TestUpdate(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-	return
 }
 
 func TestUpdateUnconditional(t *testing.T) {
@@ -266,12 +268,13 @@ func TestUpdateUnconditional(t *testing.T) {
 	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminUpdatePassword), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -297,6 +300,7 @@ func TestUpdateUnconditional(t *testing.T) {
 	// Now update the user record and see if the changes made it.
 	//
 	passwordHash, err = bcrypt.GenerateFromPassword([]byte(adminUpdatePassword2), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	userUpdate := &pb.User{
 		Name:         userName,
@@ -352,7 +356,6 @@ func TestUpdateUnconditional(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-	return
 }
 
 func TestDelete(t *testing.T) {
@@ -363,12 +366,13 @@ func TestDelete(t *testing.T) {
 	passWord := alicePassword
 
 	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(passWord), bcrypt.DefaultCost)
+	require.NoError(t, err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -420,7 +424,6 @@ func TestDelete(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-	return
 }
 
 func TestList(t *testing.T) {
@@ -433,10 +436,10 @@ func TestList(t *testing.T) {
 	}
 
 	store := NewStore()
-	assert.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNilf(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
-	assert.Nilf(t, err, "Failed to connect to store - error: %v", err)
+	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	suffix := "." + tracing.MethodName(1)
 
@@ -451,7 +454,7 @@ func TestList(t *testing.T) {
 	for i, u := range userSet {
 		pwdHash, err := bcrypt.GenerateFromPassword([]byte(u.pwd), bcrypt.DefaultCost)
 
-		assert.Nilf(t, err, "Failed to create password hash for user %q - error: %v", u.name, err)
+		require.NoError(t, err, "Failed to create password hash for user %q - error: %v", u.name, err)
 
 		users[namespace.GetNormalizedName(u.name)] = &pb.User{
 			Name:         u.name,
@@ -502,5 +505,4 @@ func TestList(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-	return
 }

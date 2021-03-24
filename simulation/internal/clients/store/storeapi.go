@@ -734,19 +734,15 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 
 	go func ()  {
 		for ev := range resp.Events {
-			k := namespace.GetNameFromKeyRootAndKey(r, ev.Key)
-
-			we := WatchEvent{
+			notifications <- WatchEvent{
 				Type:     ev.Type,
 				Revision: ev.Revision,
-				Key:      k,
+				Key:      namespace.GetNameFromKeyRootAndKey(r, ev.Key),
 				NewRev:   ev.NewRev,
 				OldRev:   ev.OldRev,
 				NewVal:   ev.NewVal,
 				OldVal:   ev.OldVal,
 			}
-
-			notifications <- we
 		}
 
 		close(notifications)

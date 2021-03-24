@@ -36,69 +36,63 @@ type Address struct {
 }
 
 func NewRegion(table TableName, region string) *Address {
-	addr := &Address{nodeType: AddressTypeRegion}
-
-	addr.table  = table
-	addr.region = strings.ToLower(region)
-
-	return addr
+	return &Address{
+		nodeType: AddressTypeRegion,
+		table:    table,
+		region:   strings.ToLower(region),
+	}
 }
 
 func NewZone(table TableName, region string, zone string) *Address {
-	addr := &Address{nodeType: AddressTypeZone}
-
-	addr.table  = table
-	addr.region = strings.ToLower(region)
-	addr.zone   = strings.ToLower(zone)
-
-	return addr
+	return &Address{
+		nodeType: AddressTypeZone,
+		table:    table,
+		region:   strings.ToLower(region),
+		zone:     strings.ToLower(zone),
+	}
 }
 
 func NewRack(table TableName, region string, zone string, rack string) *Address {
-	addr := &Address{nodeType: AddressTypeRack}
-
-	addr.table  = table
-	addr.region = strings.ToLower(region)
-	addr.zone   = strings.ToLower(zone)
-	addr.rack   = strings.ToLower(rack)
-
-	return addr
+	return &Address{
+		nodeType: AddressTypeRack,
+		table:    table,
+		region:   strings.ToLower(region),
+		zone:     strings.ToLower(zone),
+		rack:     strings.ToLower(rack),
+	}
 }
 
 func NewPdu(table TableName, region string, zone string, rack string, pdu int64) *Address {
-	addr := &Address{nodeType: AddressTypeBlade}
-
-	addr.table  = table
-	addr.region = strings.ToLower(region)
-	addr.zone   = strings.ToLower(zone)
-	addr.rack   = strings.ToLower(rack)
-	addr.index  = pdu
-
-	return addr
+	return &Address{
+		nodeType: AddressTypeBlade,
+		table:    table,
+		region:   strings.ToLower(region),
+		zone:     strings.ToLower(zone),
+		rack:     strings.ToLower(rack),
+		index:    pdu,
+	}
 }
 
 func NewTor(table TableName, region string, zone string, rack string, tor int64) *Address {
-	addr := &Address{nodeType: AddressTypeBlade}
-
-	addr.table  = table
-	addr.region = strings.ToLower(region)
-	addr.zone   = strings.ToLower(zone)
-	addr.rack   = strings.ToLower(rack)
-	addr.index  = tor
-
-	return addr
+	return &Address{
+		nodeType: AddressTypeBlade,
+		table:    table,
+		region:   strings.ToLower(region),
+		zone:     strings.ToLower(zone),
+		rack:     strings.ToLower(rack),
+		index:    tor,
+	}
 }
 
 func NewBlade(table TableName, region string, zone string, rack string, blade int64) *Address {
-	addr := &Address{nodeType: AddressTypeBlade}
-
-	addr.table  = table
-	addr.region = strings.ToLower(region)
-	addr.zone   = strings.ToLower(zone)
-	addr.rack   = strings.ToLower(rack)
-	addr.index  = blade
-
-	return addr
+	return &Address{
+		nodeType: AddressTypeBlade,
+		table:    table,
+		region:   strings.ToLower(region),
+		zone:     strings.ToLower(zone),
+		rack:     strings.ToLower(rack),
+		index:    blade,
+	}
 }
 
 func (a *Address) regionValidate() bool {
@@ -164,6 +158,7 @@ func (a *Address) Validate() bool {
 	case AddressTypePdu: return a.pduValidate()
 	case AddressTypeTor: return a.torValidate()
 	case AddressTypeBlade: return a.bladeValidate()
+
 	default: return false
 	}
 }
@@ -386,9 +381,19 @@ func GetAddressFromKey(key string) (*Address, error) {
 		fallthrough
 
 	case 4:
+		// The next value, field[1] should be either "index" or "data".
+		// Everything else is invalid in an address. In addition, we never
+		// build an address for index keys. As a result we reject everything
+		// except "data"
+		//
+		if fields[1] != "data" {
+			return nil, errors.ErrNoValidAddressFromKey{Key: key}
+		}
+
 		if fields[2] != prefixRegion {
 			return nil, errors.ErrNoValidAddressFromKey{Key: key}
 		}
+
 		if addr.nodeType == AddressTypeInvalid {
 			addr.nodeType = AddressTypeRegion
 		}
@@ -401,15 +406,6 @@ func GetAddressFromKey(key string) (*Address, error) {
 
 		if err != nil {
 			return nil, err
-		}
-
-		// The next value, field[1] should be either "index" or "data".
-		// Everything else is invalid in an address. In addition, we never
-		// build an address for index keys. As a result we reject everything
-		// except "data"
-		//
-		if fields[1] != "data" {
-			return nil, errors.ErrNoValidAddressFromKey{Key: key}
 		}
 
 	default:
