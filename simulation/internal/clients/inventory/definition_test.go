@@ -2269,7 +2269,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert := ts.Assert()
 	require := ts.Require()
 
-	stdSuffix := "TestZoneUpdateDetails"
+	stdSuffix := "TestZoneWatch"
 
 	regionName := ts.regionName(stdSuffix)
 	zoneName := ts.zoneName(stdSuffix)
@@ -2303,6 +2303,8 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	// Verify we got a create for the zone we just created and that
 	// all the new and old revisions etc match.
 	//
+	require.NoError(ev.Err)
+
 	require.Equal(store.WatchEventTypeCreate, ev.Type)
 	assert.Equal(revZoneCreate, ev.Revision)
 	assert.Equal(revZoneCreate, ev.NewRev)
@@ -2328,6 +2330,8 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	// Verify we got a create for the zone we just created and that
 	// all the new and old revisions etc match.
 	//
+	require.NoError(ev.Err)
+
 	require.Equal(store.WatchEventTypeUpdate, ev.Type)
 	assert.Equal(revZoneUpdate, ev.Revision)
 	assert.Equal(revZoneUpdate, ev.NewRev)
@@ -2336,8 +2340,6 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert.Equal(namespace.AddressTypeZone, ev.Address.Type())
 	assert.Equal(regionName, ev.Address.Region())
 	assert.Equal(zoneName, ev.Address.Zone())
-
-	zoneAddress := ev.Address
 
 	// Now create a child within the zone to verify we see an event
 	// for the create of the child
@@ -2355,6 +2357,8 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	// Verify we got a create for the rack we just created and that
 	// all the new and old revisions etc match.
 	//
+	require.NoError(ev.Err)
+
 	require.Equal(store.WatchEventTypeCreate, ev.Type)
 	assert.Equal(revRackCreate, ev.Revision)
 	assert.Equal(revRackCreate, ev.NewRev)
@@ -2364,8 +2368,6 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert.Equal(regionName, ev.Address.Region())
 	assert.Equal(zoneName, ev.Address.Zone())
 	assert.Equal(rackName, ev.Address.Rack())
-
-	rackAddress := ev.Address
 
 	// Now create a blade under the rack
 	//
@@ -2386,6 +2388,8 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	// Verify we got a create for the blade we just created and that
 	// all the new and old revisions etc match.
 	//
+	require.NoError(ev.Err)
+
 	require.Equal(store.WatchEventTypeCreate, ev.Type)
 	assert.Equal(revBladeCreate, ev.Revision)
 	assert.Equal(revBladeCreate, ev.NewRev)
@@ -2396,77 +2400,362 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	assert.Equal(zoneName, ev.Address.Zone())
 	assert.Equal(rackName, ev.Address.Rack())
 	assert.Equal(bladeId, ev.Address.Blade())
+}
 
-	bladeAddress := ev.Address
+func (ts *definitionTestSuite) TestZoneWatchSequence() {
 
-	type event struct {
+	assert := ts.Assert()
+	require := ts.Require()
+
+	stdSuffix := "TestZoneWatchSequence"
+
+	regionName := ts.regionName(stdSuffix)
+	zoneName := ts.zoneName(stdSuffix)
+	rackName := ts.rackName(stdSuffix)
+	bladeId := ts.bladeID(99)
+
+	stdDetails := ts.stdZoneDetails(stdSuffix)
+
+	ctx := context.Background()
+
+	z, err := ts.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
+	require.NoError(err)
+
+	z.SetDetails(stdDetails)
+
+	r, err := z.NewChild(rackName)
+	require.NoError(err)
+
+	r.SetDetails(ts.stdRackDetails(stdSuffix))
+
+	b, err := r.NewBlade(bladeId)
+	require.NoError(err)
+
+	b.SetDetails(ts.stdBladeDetails())
+	b.SetCapacity(ts.stdBladeCapacity())
+	b.SetBootInfo(ts.stdBladeBootInfo())
+	b.SetBootPowerOn(ts.stdBladeBootOnPowerOn())
+
+	// Set the watch prior to the create so expect to see a create event
+	//
+	watch, err := z.Watch(ctx)
+	require.NoError(err)
+	require.NotNil(watch)
+
+
+	type operation struct {
+		revStore  int64
 		revNew    int64
 		revOld    int64
 		eventType store.WatchEventType
 		addr      *namespace.Address
 	}
 
-	events := make([]event, 0)
+	var op operation
+	ops := make([]operation, 0)
+
+	zoneOps := make([]operation, 0)
+	rackOps := make([]operation, 0)
+	bladeOps := make([]operation, 0)
+
 
 	// Now we issue a sequence of updates and then verify the
 	// events arrive in the expected order.
 	//
+	zoneAddress   := namespace.NewZone(namespace.DefinitionTable, regionName, zoneName)
+	rackAddress   := namespace.NewRack(namespace.DefinitionTable, regionName, zoneName, rackName)
+	bladeAddress  := namespace.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
+
+
+	// Create the zone we are interested in monitoring.
+	//
+	revZone0, err := z.Create(ctx)
+	require.NoError(err)
+
+	op =  operation{
+		revStore:  revZone0,
+		revNew:    revZone0,
+		revOld:    store.RevisionInvalid,
+		addr:      zoneAddress,
+		eventType: store.WatchEventTypeCreate}
+
+	ops = append(ops, op)
+	zoneOps = append(zoneOps, op)
+
+
+	details := z.GetDetails()
+	require.NotNil(details)
+
+	details.State = pb.State_out_of_service
+	details.Notes += " (out of service)"
+
+	z.SetDetails(details)
+
+	revZone1, err := z.Update(ctx, false)
+	require.NoError(err)
+
+	op = operation{
+		revStore:  revZone1,
+		revNew:    revZone1,
+		revOld:    revZone0,
+		addr:      zoneAddress,
+		eventType: store.WatchEventTypeUpdate}
+
+	ops = append(ops, op)
+	zoneOps = append(zoneOps, op)
+
+
+	revRack0, err := r.Create(ctx)
+	require.NoError(err)
+
+	op = operation{
+		revStore:  revRack0,
+		revNew:    revRack0,
+		revOld:    store.RevisionInvalid,
+		addr:      rackAddress,
+		eventType: store.WatchEventTypeCreate}
+
+	ops = append(ops, op)
+	rackOps = append(rackOps, op)
+
+
+	revBlade0, err := b.Create(ctx)
+	require.NoError(err)
+
+	op = operation{
+		revStore:  revBlade0,
+		revNew:    revBlade0,
+		revOld:    store.RevisionInvalid,
+		addr:      bladeAddress,
+		eventType: store.WatchEventTypeCreate}
+
+	ops = append(ops, op)
+	bladeOps = append(bladeOps, op)
+
+
 	rackDetails := r.GetDetails()
 	rackDetails.Condition = pb.Condition_out_for_repair
 	r.SetDetails(rackDetails)
-	rev, err := r.Update(ctx, true)
+
+	revRack1, err := r.Update(ctx, true)
 	require.NoError(err)
 
-	events = append(events, event{revNew: rev, addr: rackAddress, eventType: store.WatchEventTypeUpdate})
+	op = operation{
+		revStore:  revRack1,
+		revNew:    revRack1,
+		revOld:    revRack0,
+		addr:      rackAddress,
+		eventType: store.WatchEventTypeUpdate}
+
+	ops = append(ops, op)
+	rackOps = append(rackOps, op)
+
 
 	bladeDetails := b.GetDetails()
 	bladeDetails.Condition = pb.Condition_retired
-	rev, err = b.Update(ctx, true)
+
+	revBlade1, err := b.Update(ctx, true)
 	require.NoError(err)
 
-	events = append(events, event{revNew: rev, addr: bladeAddress, eventType: store.WatchEventTypeUpdate})
+	op = operation{
+		revStore:  revBlade1,
+		revNew:    revBlade1,
+		revOld:    revBlade0,
+		addr:      bladeAddress,
+		eventType: store.WatchEventTypeUpdate}
+
+	ops = append(ops, op)
+	bladeOps = append(bladeOps, op)
+
 
 	rackDetails.Condition = pb.Condition_operational
 	r.SetDetails(rackDetails)
-	rev, err = r.Update(ctx, true)
+
+	revRack2, err := r.Update(ctx, true)
 	require.NoError(err)
 
-	events = append(events, event{revNew: rev, addr: rackAddress, eventType: store.WatchEventTypeUpdate})
+	op = operation{
+		revStore:  revRack2,
+		revNew:    revRack2,
+		revOld:    revRack1,
+		addr:      rackAddress,
+		eventType: store.WatchEventTypeUpdate}
 
-	rev, err = b.Delete(ctx, true)
+	ops = append(ops, op)
+	rackOps = append(rackOps, op)
+
+
+	revBlade2, err := b.Delete(ctx, true)
 	require.NoError(err)
 
-	events = append(events, event{revNew: rev, addr: bladeAddress, eventType: store.WatchEventTypeDelete})
+	op = operation{
+		revStore:  revBlade2,
+		revNew:    store.RevisionInvalid,
+		revOld:    revBlade1,
+		addr:      bladeAddress,
+		eventType: store.WatchEventTypeDelete}
 
-	rev, err = r.Delete(ctx, true)
+	ops = append(ops, op)
+	bladeOps = append(bladeOps, op)
+
+
+	revRack3, err := r.Delete(ctx, true)
 	require.NoError(err)
 
-	events = append(events, event{revNew: rev, addr: rackAddress, eventType: store.WatchEventTypeDelete})
+	op = operation{
+		revStore:  revRack3,
+		revNew:    store.RevisionInvalid,
+		revOld:    revRack2,
+		addr:      rackAddress,
+		eventType: store.WatchEventTypeDelete}
 
-	rev, err = z.Delete(ctx, true)
+	ops = append(ops, op)
+	rackOps = append(rackOps, op)
+
+
+	revZone2, err := z.Delete(ctx, true)
 	require.NoError(err)
 
-	events = append(events, event{revNew: rev, addr: zoneAddress, eventType: store.WatchEventTypeDelete})
+	op = operation{
+		revStore:  revZone2,
+		revNew:    store.RevisionInvalid,
+		revOld:    revZone1,
+		addr:      zoneAddress,
+		eventType: store.WatchEventTypeDelete}
 
-	for i, event := range events {
+	ops = append(ops, op)
+	zoneOps = append(zoneOps, op)
+
+
+	for i, op := range ops {
 		if i == 0 {
-			assert.Less(revBladeCreate, event.revNew)
+			assert.Less(store.RevisionInvalid, op.revStore)
+			assert.Equal(store.RevisionInvalid, op.revOld)
 		} else {
-			assert.Less(events[i-1], event.revNew)
+			assert.Less(ops[i-1].revStore, op.revStore)
 		}
 	}
 
-	for _, event := range events {
+	for i, op := range zoneOps {
+		if i == 0 {
+			assert.Less(store.RevisionInvalid, op.revStore)
+			assert.Equal(store.RevisionInvalid, op.revOld)
+		} else {
+			assert.Less(ops[i-1].revStore, op.revStore)
+		}
+	}
+
+	for i, op := range rackOps {
+		if i == 0 {
+			assert.Less(store.RevisionInvalid, op.revStore)
+			assert.Equal(store.RevisionInvalid, op.revOld)
+		} else {
+			assert.Less(ops[i-1].revStore, op.revStore)
+		}
+	}
+
+	for i, op := range bladeOps {
+		if i == 0 {
+			assert.Less(store.RevisionInvalid, op.revStore)
+			assert.Equal(store.RevisionInvalid, op.revOld)
+		} else {
+			assert.Less(ops[i-1].revStore, op.revStore)
+		}
+	}
+
+	for i, op := range ops {
 		ev, ok := <-watch.Events
 
 		require.True(ok)
-		assert.Equal(event.eventType, ev.Type)
-		assert.Equal(event.revNew, ev.Revision)
-		assert.Equal(event.revNew, ev.NewRev)
-		assert.Equal(event.revOld, ev.OldRev)
-		assert.Equal(event.addr, ev.Address)
-	}
+		require.NoError(ev.Err)
 
+		assert.Equal(op.eventType, ev.Type)
+		assert.Equal(op.revStore, ev.Revision)
+		assert.Equal(op.revNew, ev.NewRev)
+		assert.Equal(op.revOld, ev.OldRev)
+		assert.Equal(op.addr, ev.Address)
+
+		switch i {
+		case 0:
+			assert.Equal(zoneOps[0].eventType, ev.Type)
+			assert.Equal(zoneOps[0].revStore, ev.Revision)
+			assert.Equal(zoneOps[0].revNew, ev.Revision)
+			assert.Equal(zoneOps[0].revNew, ev.NewRev)
+			assert.Equal(zoneOps[0].revOld, ev.OldRev)
+			assert.Equal(zoneOps[0].addr, ev.Address)
+
+		case 1:
+			assert.Equal(zoneOps[1].eventType, ev.Type)
+			assert.Equal(zoneOps[1].revStore, ev.Revision)
+			assert.Equal(zoneOps[1].revNew, ev.Revision)
+			assert.Equal(zoneOps[1].revNew, ev.NewRev)
+			assert.Equal(zoneOps[1].revOld, ev.OldRev)
+			assert.Equal(zoneOps[1].addr, ev.Address)
+
+		case 2:
+			assert.Equal(rackOps[0].eventType, ev.Type)
+			assert.Equal(rackOps[0].revStore, ev.Revision)
+			assert.Equal(rackOps[0].revNew, ev.NewRev)
+			assert.Equal(rackOps[0].revOld, ev.OldRev)
+			assert.Equal(rackOps[0].addr, ev.Address)
+
+		case 3:
+			assert.Equal(bladeOps[0].eventType, ev.Type)
+			assert.Equal(bladeOps[0].revStore, ev.Revision)
+			assert.Equal(bladeOps[0].revNew, ev.Revision)
+			assert.Equal(bladeOps[0].revNew, ev.NewRev)
+			assert.Equal(bladeOps[0].revOld, ev.OldRev)
+			assert.Equal(bladeOps[0].addr, ev.Address)
+
+		case 4:
+			assert.Equal(rackOps[1].eventType, ev.Type)
+			assert.Equal(rackOps[1].revStore, ev.Revision)
+			assert.Equal(rackOps[1].revNew, ev.Revision)
+			assert.Equal(rackOps[1].revNew, ev.NewRev)
+			assert.Equal(rackOps[1].revOld, ev.OldRev)
+			assert.Equal(rackOps[1].addr, ev.Address)
+
+		case 5:
+			assert.Equal(bladeOps[1].eventType, ev.Type)
+			assert.Equal(bladeOps[1].revStore, ev.Revision)
+			assert.Equal(bladeOps[1].revNew, ev.Revision)
+			assert.Equal(bladeOps[1].revNew, ev.NewRev)
+			assert.Equal(bladeOps[1].revOld, ev.OldRev)
+			assert.Equal(bladeOps[1].addr, ev.Address)
+
+		case 6:
+			assert.Equal(rackOps[2].eventType, ev.Type)
+			assert.Equal(rackOps[2].revStore, ev.Revision)
+			assert.Equal(rackOps[2].revNew, ev.Revision)
+			assert.Equal(rackOps[2].revNew, ev.NewRev)
+			assert.Equal(rackOps[2].revOld, ev.OldRev)
+			assert.Equal(rackOps[2].addr, ev.Address)
+
+		case 7:
+			assert.Equal(bladeOps[2].eventType, ev.Type)
+			assert.Equal(bladeOps[2].revStore, ev.Revision)
+			assert.Equal(bladeOps[2].revNew, store.RevisionInvalid)
+			assert.Equal(bladeOps[2].revNew, ev.NewRev)
+			assert.Equal(bladeOps[2].revOld, ev.OldRev)
+			assert.Equal(bladeOps[2].addr, ev.Address)
+
+		case 8:
+			assert.Equal(rackOps[3].eventType, ev.Type)
+			assert.Equal(rackOps[3].revStore, ev.Revision)
+			assert.Equal(rackOps[3].revNew, store.RevisionInvalid)
+			assert.Equal(rackOps[3].revNew, ev.NewRev)
+			assert.Equal(rackOps[3].revOld, ev.OldRev)
+			assert.Equal(rackOps[3].addr, ev.Address)
+
+		case 9:
+			assert.Equal(zoneOps[2].eventType, ev.Type)
+			assert.Equal(zoneOps[2].revStore, ev.Revision)
+			assert.Equal(zoneOps[2].revNew, store.RevisionInvalid)
+			assert.Equal(zoneOps[2].revNew, ev.NewRev)
+			assert.Equal(zoneOps[2].revOld, ev.OldRev)
+			assert.Equal(zoneOps[2].addr, ev.Address)
+		}
+	}
 }
 
 func (ts *definitionTestSuite) TestRackUpdateDetails() {

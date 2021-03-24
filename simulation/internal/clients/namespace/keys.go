@@ -677,7 +677,7 @@ func GetKeyFromKeyRootAndName(r KeyRoot, n string) string {
 }
 
 func GetNameFromKeyRootAndKey(r KeyRoot, k string) string {
-	n := strings.TrimPrefix(getNamespaceRootFromKeyRoot(r)+"/", k)
+	n := strings.TrimPrefix(k, getNamespaceRootFromKeyRoot(r)+"/")
 	return n
 }
 
@@ -694,4 +694,3 @@ func GetKeyFromUsername(name string) string {
 func GetNormalizedName(name string) string {
 	return strings.ToLower(name)
 }
-

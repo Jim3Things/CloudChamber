@@ -730,17 +730,23 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 		return nil, err
 	}
 
-	notifications := make(chan WatchEvent) 
+	notifications := make(chan WatchEvent)
 
 	go func ()  {
 		for ev := range resp.Events {
-			notifications <- WatchEvent{
+			k := namespace.GetNameFromKeyRootAndKey(r, ev.Key)
+
+			we := WatchEvent{
 				Type:     ev.Type,
 				Revision: ev.Revision,
-				Key:      namespace.GetNameFromKeyRootAndKey(r, ev.Key),
+				Key:      k,
+				NewRev:   ev.NewRev,
+				OldRev:   ev.OldRev,
 				NewVal:   ev.NewVal,
 				OldVal:   ev.OldVal,
 			}
+
+			notifications <- we
 		}
 
 		close(notifications)

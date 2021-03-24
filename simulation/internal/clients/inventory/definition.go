@@ -1194,6 +1194,7 @@ type Watch struct {
 }
 
 type WatchEvent struct {
+	Err      error
 	Type     store.WatchEventType
 	Address  *namespace.Address
 	Revision int64
@@ -1205,7 +1206,7 @@ type WatchEvent struct {
 
 func (z *Zone) Watch(ctx context.Context) (*Watch, error) {
 
-	resp, err := z.Store.Watch(ctx, namespace.KeyRootInventory, z.Key)
+	storeWatch, err := z.Store.Watch(ctx, namespace.KeyRootInventory, z.Key)
 
 	if err != nil {
 		return nil, err
@@ -1214,15 +1215,27 @@ func (z *Zone) Watch(ctx context.Context) (*Watch, error) {
 	notifications := make(chan WatchEvent)
 
 	go func ()  {
-		for ev := range resp.Events {
-			addr, err := namespace.GetAddressFromKey(namespace.GetNameFromKeyRootAndKey(namespace.KeyRootInventory, ev.Key))
+		for ev := range storeWatch.Events {
+			var we WatchEvent
+
+			addr, err := namespace.GetAddressFromKey(ev.Key)
 
 			if err != nil {
 				tracing.Error(ctx, "Invalid key fornmat in watch event channel for key: %s", ev.Key)
-			} else {
-				notifications <- WatchEvent{
+
+				we = WatchEvent{
+					Err:      err,
 					Type:     ev.Type,
+					Revision: ev.Revision,
+					NewRev:   ev.NewRev,
+					OldRev:   ev.OldRev,
+					NewVal:   ev.NewVal,
+					OldVal:   ev.OldVal,
+}
+			} else {
+				we = WatchEvent{
 					Address:  addr,
+					Type:     ev.Type,
 					Revision: ev.Revision,
 					NewRev:   ev.NewRev,
 					OldRev:   ev.OldRev,
@@ -1230,13 +1243,15 @@ func (z *Zone) Watch(ctx context.Context) (*Watch, error) {
 					OldVal:   ev.OldVal,
 				}
 			}
+
+			notifications <- we
 		}
 
 		close(notifications)
 	}()
 
 	response := &Watch{
-		watch:  resp,
+		watch:  storeWatch,
 		Events: notifications,
 	}
 

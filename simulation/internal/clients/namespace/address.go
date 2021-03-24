@@ -68,6 +68,71 @@ type Address struct {
 	nodeType AddressType
 }
 
+func NewRegion(table TableName, region string) *Address {
+	addr := &Address{nodeType: AddressTypeRegion}
+
+	addr.table  = table
+	addr.region = strings.ToLower(region)
+
+	return addr
+}
+
+func NewZone(table TableName, region string, zone string) *Address {
+	addr := &Address{nodeType: AddressTypeZone}
+
+	addr.table  = table
+	addr.region = strings.ToLower(region)
+	addr.zone   = strings.ToLower(zone)
+
+	return addr
+}
+
+func NewRack(table TableName, region string, zone string, rack string) *Address {
+	addr := &Address{nodeType: AddressTypeRack}
+
+	addr.table  = table
+	addr.region = strings.ToLower(region)
+	addr.zone   = strings.ToLower(zone)
+	addr.rack   = strings.ToLower(rack)
+
+	return addr
+}
+
+func NewPdu(table TableName, region string, zone string, rack string, pdu int64) *Address {
+	addr := &Address{nodeType: AddressTypeBlade}
+
+	addr.table  = table
+	addr.region = strings.ToLower(region)
+	addr.zone   = strings.ToLower(zone)
+	addr.rack   = strings.ToLower(rack)
+	addr.pdu    = pdu
+
+	return addr
+}
+
+func NewTor(table TableName, region string, zone string, rack string, tor int64) *Address {
+	addr := &Address{nodeType: AddressTypeBlade}
+
+	addr.table  = table
+	addr.region = strings.ToLower(region)
+	addr.zone   = strings.ToLower(zone)
+	addr.rack   = strings.ToLower(rack)
+	addr.tor    = tor
+
+	return addr
+}
+
+func NewBlade(table TableName, region string, zone string, rack string, blade int64) *Address {
+	addr := &Address{nodeType: AddressTypeBlade}
+
+	addr.table  = table
+	addr.region = strings.ToLower(region)
+	addr.zone   = strings.ToLower(zone)
+	addr.rack   = strings.ToLower(rack)
+	addr.blade  = blade
+
+	return addr
+}
 
 func (a *addressRegion) Validate() bool {
 	return a.region != ""

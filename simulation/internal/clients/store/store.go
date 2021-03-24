@@ -747,7 +747,7 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 		return nil, err
 	}
 
-	notifications := make(chan WatchEvent) 
+	notifications := make(chan WatchEvent)
 
 	opCtx, cancel := context.WithCancel(ctx)
 
@@ -756,7 +756,7 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 	go func ()  {
 		for {
 			select {
-			case <-opCtx.Done(): 
+			case <-opCtx.Done():
 				close(notifications)
 				return
 
@@ -814,7 +814,7 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 		return nil, err
 	}
 
-	notifications := make(chan WatchEvent) 
+	notifications := make(chan WatchEvent)
 
 	opCtx, cancel := context.WithCancel(ctx)
 
@@ -823,15 +823,17 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 	go func ()  {
 		for {
 			select {
-			case <-opCtx.Done(): 
+			case <-opCtx.Done():
 				close(notifications)
 				return
 
 			default:
 				for events := range watchEvents {
 					for _, ev := range events.Events {
+						var we WatchEvent
+
 						if ev.IsCreate() {
-							notifications <- WatchEvent{
+							we = WatchEvent{
 								Type:     WatchEventTypeCreate,
 								Revision: events.Header.GetRevision(),
 								Key:      string(ev.Kv.Key),
@@ -841,7 +843,7 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 								NewVal:   string(ev.Kv.Value),
 							}
 						} else if ev.IsModify() {
-							notifications <- WatchEvent{
+							we = WatchEvent{
 								Type:     WatchEventTypeUpdate,
 								Revision: events.Header.GetRevision(),
 								Key:      string(ev.Kv.Key),
@@ -851,7 +853,7 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 								NewVal:   string(ev.Kv.Value),
 							}
 						} else {
-							notifications <- WatchEvent{
+							we = WatchEvent{
 								Type:     WatchEventTypeDelete,
 								Revision: events.Header.GetRevision(),
 								Key:      string(ev.Kv.Key),
@@ -861,6 +863,8 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 								NewVal:   "",
 							}
 						}
+
+						notifications <- we
 					}
 				}
 			}
