@@ -2444,13 +2444,12 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		addr      *namespace.Address
 	}
 
-	var op operation
+	// Keep an ordered set of operations which record the update being performed
+	// along with some of the responses for that operation. These then form the
+	// set of expectations to compare to the sequence of events that are indicated
+	// by the watchpoint.
+	//
 	ops := make([]operation, 0)
-
-	zoneOps := make([]operation, 0)
-	rackOps := make([]operation, 0)
-	bladeOps := make([]operation, 0)
-
 
 	// Now we issue a sequence of updates and then verify the
 	// events arrive in the expected order.
@@ -2459,21 +2458,17 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	rackAddress  := namespace.NewRack(namespace.DefinitionTable, regionName, zoneName, rackName)
 	bladeAddress := namespace.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
 
-
 	// Create the zone we are interested in monitoring.
 	//
 	revZone0, err := z.Create(ctx)
 	require.NoError(err)
 
-	op =  operation{
+	ops = append(ops, operation{
 		revStore:  revZone0,
 		revNew:    revZone0,
 		revOld:    store.RevisionInvalid,
 		addr:      zoneAddress,
-		eventType: store.WatchEventTypeCreate}
-
-	ops = append(ops, op)
-	zoneOps = append(zoneOps, op)
+		eventType: store.WatchEventTypeCreate})
 
 
 	details := z.GetDetails()
@@ -2487,43 +2482,34 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	revZone1, err := z.Update(ctx, false)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revZone1,
 		revNew:    revZone1,
 		revOld:    revZone0,
 		addr:      zoneAddress,
-		eventType: store.WatchEventTypeUpdate}
-
-	ops = append(ops, op)
-	zoneOps = append(zoneOps, op)
+		eventType: store.WatchEventTypeUpdate})
 
 
 	revRack0, err := r.Create(ctx)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revRack0,
 		revNew:    revRack0,
 		revOld:    store.RevisionInvalid,
 		addr:      rackAddress,
-		eventType: store.WatchEventTypeCreate}
-
-	ops = append(ops, op)
-	rackOps = append(rackOps, op)
+		eventType: store.WatchEventTypeCreate})
 
 
 	revBlade0, err := b.Create(ctx)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revBlade0,
 		revNew:    revBlade0,
 		revOld:    store.RevisionInvalid,
 		addr:      bladeAddress,
-		eventType: store.WatchEventTypeCreate}
-
-	ops = append(ops, op)
-	bladeOps = append(bladeOps, op)
+		eventType: store.WatchEventTypeCreate})
 
 
 	rackDetails := r.GetDetails()
@@ -2533,15 +2519,12 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	revRack1, err := r.Update(ctx, true)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revRack1,
 		revNew:    revRack1,
 		revOld:    revRack0,
 		addr:      rackAddress,
-		eventType: store.WatchEventTypeUpdate}
-
-	ops = append(ops, op)
-	rackOps = append(rackOps, op)
+		eventType: store.WatchEventTypeUpdate})
 
 
 	bladeDetails := b.GetDetails()
@@ -2550,15 +2533,12 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	revBlade1, err := b.Update(ctx, true)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revBlade1,
 		revNew:    revBlade1,
 		revOld:    revBlade0,
 		addr:      bladeAddress,
-		eventType: store.WatchEventTypeUpdate}
-
-	ops = append(ops, op)
-	bladeOps = append(bladeOps, op)
+		eventType: store.WatchEventTypeUpdate})
 
 
 	rackDetails.Condition = pb.Condition_operational
@@ -2567,96 +2547,62 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	revRack2, err := r.Update(ctx, true)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revRack2,
 		revNew:    revRack2,
 		revOld:    revRack1,
 		addr:      rackAddress,
-		eventType: store.WatchEventTypeUpdate}
-
-	ops = append(ops, op)
-	rackOps = append(rackOps, op)
+		eventType: store.WatchEventTypeUpdate})
 
 
 	revBlade2, err := b.Delete(ctx, true)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revBlade2,
 		revNew:    store.RevisionInvalid,
 		revOld:    revBlade1,
 		addr:      bladeAddress,
-		eventType: store.WatchEventTypeDelete}
-
-	ops = append(ops, op)
-	bladeOps = append(bladeOps, op)
+		eventType: store.WatchEventTypeDelete})
 
 
 	revRack3, err := r.Delete(ctx, true)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revRack3,
 		revNew:    store.RevisionInvalid,
 		revOld:    revRack2,
 		addr:      rackAddress,
-		eventType: store.WatchEventTypeDelete}
-
-	ops = append(ops, op)
-	rackOps = append(rackOps, op)
+		eventType: store.WatchEventTypeDelete})
 
 
 	revZone2, err := z.Delete(ctx, true)
 	require.NoError(err)
 
-	op = operation{
+	ops = append(ops, operation{
 		revStore:  revZone2,
 		revNew:    store.RevisionInvalid,
 		revOld:    revZone1,
 		addr:      zoneAddress,
-		eventType: store.WatchEventTypeDelete}
+		eventType: store.WatchEventTypeDelete})
 
-	ops = append(ops, op)
-	zoneOps = append(zoneOps, op)
-
-
+	// Verify the captured revisions only increase over the
+	// set of operations
+	//
 	for i, op := range ops {
 		if i == 0 {
 			assert.Less(store.RevisionInvalid, op.revStore)
-			assert.Equal(store.RevisionInvalid, op.revOld)
 		} else {
 			assert.Less(ops[i-1].revStore, op.revStore)
 		}
 	}
 
-	for i, op := range zoneOps {
-		if i == 0 {
-			assert.Less(store.RevisionInvalid, op.revStore)
-			assert.Equal(store.RevisionInvalid, op.revOld)
-		} else {
-			assert.Less(ops[i-1].revStore, op.revStore)
-		}
-	}
-
-	for i, op := range rackOps {
-		if i == 0 {
-			assert.Less(store.RevisionInvalid, op.revStore)
-			assert.Equal(store.RevisionInvalid, op.revOld)
-		} else {
-			assert.Less(ops[i-1].revStore, op.revStore)
-		}
-	}
-
-	for i, op := range bladeOps {
-		if i == 0 {
-			assert.Less(store.RevisionInvalid, op.revStore)
-			assert.Equal(store.RevisionInvalid, op.revOld)
-		} else {
-			assert.Less(ops[i-1].revStore, op.revStore)
-		}
-	}
-
-	for i, op := range ops {
+	// Verify the sequence of delivered events match expectations and
+	// the recorded responses from the actual operations when they
+	// were performed.
+	//
+	for _, op := range ops {
 		ev, ok := <-watch.Events
 
 		require.True(ok)
@@ -2667,88 +2613,6 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		assert.Equal(op.revNew, ev.NewRev)
 		assert.Equal(op.revOld, ev.OldRev)
 		assert.Equal(op.addr, ev.Address)
-
-		switch i {
-		case 0:
-			assert.Equal(zoneOps[0].eventType, ev.Type)
-			assert.Equal(zoneOps[0].revStore, ev.Revision)
-			assert.Equal(zoneOps[0].revNew, ev.Revision)
-			assert.Equal(zoneOps[0].revNew, ev.NewRev)
-			assert.Equal(zoneOps[0].revOld, ev.OldRev)
-			assert.Equal(zoneOps[0].addr, ev.Address)
-
-		case 1:
-			assert.Equal(zoneOps[1].eventType, ev.Type)
-			assert.Equal(zoneOps[1].revStore, ev.Revision)
-			assert.Equal(zoneOps[1].revNew, ev.Revision)
-			assert.Equal(zoneOps[1].revNew, ev.NewRev)
-			assert.Equal(zoneOps[1].revOld, ev.OldRev)
-			assert.Equal(zoneOps[1].addr, ev.Address)
-
-		case 2:
-			assert.Equal(rackOps[0].eventType, ev.Type)
-			assert.Equal(rackOps[0].revStore, ev.Revision)
-			assert.Equal(rackOps[0].revNew, ev.Revision)
-			assert.Equal(rackOps[0].revNew, ev.NewRev)
-			assert.Equal(rackOps[0].revOld, ev.OldRev)
-			assert.Equal(rackOps[0].addr, ev.Address)
-
-		case 3:
-			assert.Equal(bladeOps[0].eventType, ev.Type)
-			assert.Equal(bladeOps[0].revStore, ev.Revision)
-			assert.Equal(bladeOps[0].revNew, ev.Revision)
-			assert.Equal(bladeOps[0].revNew, ev.NewRev)
-			assert.Equal(bladeOps[0].revOld, ev.OldRev)
-			assert.Equal(bladeOps[0].addr, ev.Address)
-
-		case 4:
-			assert.Equal(rackOps[1].eventType, ev.Type)
-			assert.Equal(rackOps[1].revStore, ev.Revision)
-			assert.Equal(rackOps[1].revNew, ev.Revision)
-			assert.Equal(rackOps[1].revNew, ev.NewRev)
-			assert.Equal(rackOps[1].revOld, ev.OldRev)
-			assert.Equal(rackOps[1].addr, ev.Address)
-
-		case 5:
-			assert.Equal(bladeOps[1].eventType, ev.Type)
-			assert.Equal(bladeOps[1].revStore, ev.Revision)
-			assert.Equal(bladeOps[1].revNew, ev.Revision)
-			assert.Equal(bladeOps[1].revNew, ev.NewRev)
-			assert.Equal(bladeOps[1].revOld, ev.OldRev)
-			assert.Equal(bladeOps[1].addr, ev.Address)
-
-		case 6:
-			assert.Equal(rackOps[2].eventType, ev.Type)
-			assert.Equal(rackOps[2].revStore, ev.Revision)
-			assert.Equal(rackOps[2].revNew, ev.Revision)
-			assert.Equal(rackOps[2].revNew, ev.NewRev)
-			assert.Equal(rackOps[2].revOld, ev.OldRev)
-			assert.Equal(rackOps[2].addr, ev.Address)
-
-		case 7:
-			assert.Equal(bladeOps[2].eventType, ev.Type)
-			assert.Equal(bladeOps[2].revStore, ev.Revision)
-			assert.Equal(bladeOps[2].revNew, store.RevisionInvalid)
-			assert.Equal(bladeOps[2].revNew, ev.NewRev)
-			assert.Equal(bladeOps[2].revOld, ev.OldRev)
-			assert.Equal(bladeOps[2].addr, ev.Address)
-
-		case 8:
-			assert.Equal(rackOps[3].eventType, ev.Type)
-			assert.Equal(rackOps[3].revStore, ev.Revision)
-			assert.Equal(rackOps[3].revNew, store.RevisionInvalid)
-			assert.Equal(rackOps[3].revNew, ev.NewRev)
-			assert.Equal(rackOps[3].revOld, ev.OldRev)
-			assert.Equal(rackOps[3].addr, ev.Address)
-
-		case 9:
-			assert.Equal(zoneOps[2].eventType, ev.Type)
-			assert.Equal(zoneOps[2].revStore, ev.Revision)
-			assert.Equal(zoneOps[2].revNew, store.RevisionInvalid)
-			assert.Equal(zoneOps[2].revNew, ev.NewRev)
-			assert.Equal(zoneOps[2].revOld, ev.OldRev)
-			assert.Equal(zoneOps[2].addr, ev.Address)
-		}
 	}
 }
 

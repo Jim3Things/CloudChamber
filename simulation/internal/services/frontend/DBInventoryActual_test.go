@@ -49,6 +49,7 @@ func (ts *InventoryActualTestSuite) TestLoadInventoryActual() {
 
 	_, rackNames, err := zone.ListChildren(ctx)
 	require.NoError(err)
+	require.NotNil(rackNames)
 
 	assert.Equal(len(ts.db.Actual.Racks), len(rackNames))
 

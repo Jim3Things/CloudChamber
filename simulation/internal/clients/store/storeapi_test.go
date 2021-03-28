@@ -36,7 +36,7 @@ func TestCreate(t *testing.T) {
 	userName := admin + "." + tracing.MethodName(1)
 
 	store := NewStore()
-	require.NotNilf(t, store, "Failed to get the store as expected")
+	require.NotNil(t, store, "Failed to get the store as expected")
 
 	err := store.Connect()
 	require.NoError(t, err, "Failed to connect to store - error: %v", err)

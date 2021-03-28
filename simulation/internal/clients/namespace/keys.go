@@ -41,6 +41,36 @@ const (
 	//
 	InvalidTable TableName = ""
 
+	// InvalidRegion is used when a return valid is needed for a region but where
+	// the value cannot be used in any way other than for comparison.
+	//
+	InvalidRegion string = ""
+
+	// InvalidZone is used when a return valid is needed for a zone but where
+	// the value cannot be used in any way other than for comparison.
+	//
+	InvalidZone   string = ""
+
+	// InvalidRack is used when a return valid is needed for a rack but where
+	// the value cannot be used in any way other than for comparison.
+	//
+	InvalidRack   string = ""
+
+	// InvalidPdu is used when a return valid is needed for a pdu but where
+	// the value cannot be used in any way other than for comparison.
+	//
+	InvalidPdu    int64  = -1
+
+	// InvalidTor is used when a return valid is needed for a tor but where
+	// the value cannot be used in any way other than for comparison.
+	//
+	invalidTor    int64  = -1
+
+	// InvalidBlade is used when a return valid is needed for a blade but where
+	// the value cannot be used in any way other than for comparison.
+	//
+	InvalidBlade  int64  = -1
+
 	prefixRegion = "region"
 	prefixZone   = "zone"
 	prefixRack   = "rack"
@@ -68,8 +98,6 @@ const (
 	keyFormatPdu    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixPdu + "/%d"
 	keyFormatTor    = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixTor + "/%d"
 	keyFormatBlade  = "%s/data/" + prefixRegion + "/%s/" + prefixZone + "/%s/" + prefixRack + "/%s/" + prefixBlade + "/%d"
-
-
 )
 
 // KeyRoot is used to describe which part of the store namespace
@@ -156,7 +184,7 @@ func GetTableNameFromString(name string) (TableName, error) {
 
 	default:
 		return InvalidTable, errors.ErrTableNameInvalid{
-			Name: name,
+			Name:            name,
 			DefinitionTable: DefinitionTable.String(),
 			ActualTable:     ActualTable.String(),
 			ObservedTable:   ObservedTable.String(),
@@ -167,13 +195,11 @@ func GetTableNameFromString(name string) (TableName, error) {
 
 func verifyTableName(table TableName) error {
 	switch table {
-	case DefinitionTable:
-		return nil
-	case ActualTable:
-		return nil
-	case ObservedTable:
-		return nil
-	case TargetTable:
+	case
+	DefinitionTable,
+	ActualTable,
+	ObservedTable,
+	TargetTable:
 		return nil
 
 	// Special case for a namespace only ever expected to be used
@@ -196,31 +222,25 @@ func verifyTableName(table TableName) error {
 	}
 }
 
-func verifyRegion(val string) error {
-
-	if val == "" {
-		return errors.ErrRegionNameMissing(val)
+func requireNotEmpty(s string, e error) error {
+	if s == "" {
+		return e
 	}
 
 	return nil
 }
 
+func verifyRegion(val string) error {
+	return requireNotEmpty(val, errors.ErrRegionNameMissing)
+}
+
+
 func verifyZone(val string) error {
-
-	if val == "" {
-		return errors.ErrZoneNameMissing(val)
-	}
-
-	return nil
+	return requireNotEmpty(val, errors.ErrZoneNameMissing)
 }
 
 func verifyRack(val string) error {
-
-	if val == "" {
-		return errors.ErrRackNameMissing(val)
-	}
-
-	return nil
+	return requireNotEmpty(val, errors.ErrRackNameMissing)
 }
 
 func verifyPdu(val int64) error {
@@ -256,11 +276,7 @@ func verifyNamesRegion(table TableName, region string) error {
 		return err
 	}
 
-	if err := verifyRegion(region); err != nil {
-		return err
-	}
-
-	return nil
+	return verifyRegion(region)
 }
 
 func verifyNamesZone(table TableName, region string, zone string) error {
@@ -269,11 +285,7 @@ func verifyNamesZone(table TableName, region string, zone string) error {
 		return err
 	}
 
-	if err := verifyZone(zone); err != nil {
-		return err
-	}
-
-	return nil
+	return verifyZone(zone)
 }
 
 func verifyNamesRack(table TableName, region string, zone string, rack string) error {
@@ -282,11 +294,7 @@ func verifyNamesRack(table TableName, region string, zone string, rack string) e
 		return err
 	}
 
-	if err := verifyRack(rack); err != nil {
-		return err
-	}
-
-	return nil
+	return verifyRack(rack)
 }
 
 func verifyNamesPdu(table TableName, region string, zone string, rack string, index int64) error {
@@ -295,11 +303,7 @@ func verifyNamesPdu(table TableName, region string, zone string, rack string, in
 		return err
 	}
 
-	if err := verifyPdu(index); err != nil {
-		return err
-	}
-
-	return nil
+	return verifyPdu(index)
 }
 
 func verifyNamesTor(table TableName, region string, zone string, rack string, index int64) error {
@@ -308,11 +312,7 @@ func verifyNamesTor(table TableName, region string, zone string, rack string, in
 		return err
 	}
 
-	if err := verifyTor(index); err != nil {
-		return err
-	}
-
-	return nil
+	return verifyTor(index)
 }
 
 func verifyNamesBlade(table TableName, region string, zone string, rack string, index int64) error {
@@ -321,11 +321,7 @@ func verifyNamesBlade(table TableName, region string, zone string, rack string, 
 		return err
 	}
 
-	if err := verifyBlade(index); err != nil {
-		return err
-	}
-
-	return nil
+	return verifyBlade(index)
 }
 
 // GetKeyForIndexRegions generates the key to discover the list of regions within a

@@ -76,6 +76,18 @@ var (
 	// not yet been loaded.
 	//
 	ErrInventoryNotAvailable = errors.New("CloudChamber: Inventory empty or not yet loaded")
+
+	// ErrRegionNameMissing indicates the required region name is absent.
+	//
+	ErrRegionNameMissing = errors.New("CloudChamber: region name is missing")
+
+	// ErrZoneNameMissing indicates the required zone name is absent.
+	//
+	ErrZoneNameMissing = errors.New("CloudChamber: zone name is missing")
+
+	// ErrRackNameMissing indicates the required rack name is absent.
+	//
+	ErrRackNameMissing = errors.New("CloudChamber: rack name is missing")
 )
 
 // ErrInventoryChangeTooLate indicates that an attempt to modify an inventory
@@ -1379,7 +1391,7 @@ func (e ErrSessionNotFound) Error() string {
 }
 
 // ErrNoValidAddressFromKey indicates the supplied key value cannot be used
-// to construct a valid address. This could be for many reasons including 
+// to construct a valid address. This could be for many reasons including
 // missing fields, improper construction, invalid table names, not being a
 // data key
 //
@@ -1389,6 +1401,17 @@ type ErrNoValidAddressFromKey struct {
 
 func (e ErrNoValidAddressFromKey) Error() string {
 	return fmt.Sprintf("CloudChamber: address cannot be formed for key %s", e.Key)
+}
+
+// ErrAddrInvalidType indicates the type of the node for a given Address is
+// not one of the recognized values.
+//
+type ErrAddrInvalidType struct {
+	Type int64
+}
+
+func (e ErrAddrInvalidType) Error() string {
+	return fmt.Sprintf("CloudChamber: invalid node type %d for address", e.Type)
 }
 
 // ErrTableNameInvalid indicates the supplied region name is not one of the valid options.
@@ -1420,27 +1443,27 @@ func (etnm ErrTableNameMissing) Error() string {
 	return fmt.Sprintf("CloudChamber: table name %q is missing or not properly specified", string(etnm))
 }
 
-// ErrRegionNameMissing indicates the supplied region name is absent or otherwise not properly specified.
+// ErrRegionNameInvalid indicates the supplied region name is absent or otherwise not properly specified.
 //
-type ErrRegionNameMissing string
+type ErrRegionNameInvalid string
 
-func (ernm ErrRegionNameMissing) Error() string {
+func (ernm ErrRegionNameInvalid) Error() string {
 	return fmt.Sprintf("CloudChamber: region name %q is missing or not properly specified", string(ernm))
 }
 
-// ErrZoneNameMissing indicates the supplied zone name is absent or otherwise not properly specified.
+// ErrZoneNameInvalid indicates the supplied zone name is absent or otherwise not properly specified.
 //
-type ErrZoneNameMissing string
+type ErrZoneNameInvalid string
 
-func (eznm ErrZoneNameMissing) Error() string {
+func (eznm ErrZoneNameInvalid) Error() string {
 	return fmt.Sprintf("CloudChamber: zone name %q is missing or not properly specified", string(eznm))
 }
 
-// ErrRackNameMissing indicates the supplied rack name is absent or otherwise not properly specified.
+// ErrRackNameInvalid indicates the supplied rack name is absent or otherwise not properly specified.
 //
-type ErrRackNameMissing string
+type ErrRackNameInvalid string
 
-func (ernm ErrRackNameMissing) Error() string {
+func (ernm ErrRackNameInvalid) Error() string {
 	return fmt.Sprintf("CloudChamber: zone name %q is missing or not properly specified", string(ernm))
 }
 

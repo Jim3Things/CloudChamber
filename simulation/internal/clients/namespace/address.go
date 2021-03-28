@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
-
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 )
 
@@ -35,88 +33,116 @@ type Address struct {
 	index    int64
 }
 
+func normalize(a *Address) *Address {
+	a.region = strings.ToLower(a.region)
+	a.zone   = strings.ToLower(a.zone)
+	a.rack   = strings.ToLower(a.rack)
+
+	return a
+}
+
 func NewRegion(table TableName, region string) *Address {
-	return &Address{
+	return normalize(&Address{
 		nodeType: AddressTypeRegion,
 		table:    table,
-		region:   strings.ToLower(region),
-	}
+		region:   region,
+	})
 }
 
 func NewZone(table TableName, region string, zone string) *Address {
-	return &Address{
+	return normalize(&Address{
 		nodeType: AddressTypeZone,
 		table:    table,
-		region:   strings.ToLower(region),
-		zone:     strings.ToLower(zone),
-	}
+		region:   region,
+		zone:     zone,
+	})
 }
 
 func NewRack(table TableName, region string, zone string, rack string) *Address {
-	return &Address{
+	return normalize(&Address{
 		nodeType: AddressTypeRack,
 		table:    table,
-		region:   strings.ToLower(region),
-		zone:     strings.ToLower(zone),
-		rack:     strings.ToLower(rack),
-	}
+		region:   region,
+		zone:     zone,
+		rack:     rack,
+	})
 }
 
 func NewPdu(table TableName, region string, zone string, rack string, pdu int64) *Address {
-	return &Address{
+	return normalize(&Address{
 		nodeType: AddressTypeBlade,
 		table:    table,
-		region:   strings.ToLower(region),
-		zone:     strings.ToLower(zone),
-		rack:     strings.ToLower(rack),
+		region:   region,
+		zone:     zone,
+		rack:     rack,
 		index:    pdu,
-	}
+	})
 }
 
 func NewTor(table TableName, region string, zone string, rack string, tor int64) *Address {
-	return &Address{
+	return normalize(&Address{
 		nodeType: AddressTypeBlade,
 		table:    table,
-		region:   strings.ToLower(region),
-		zone:     strings.ToLower(zone),
-		rack:     strings.ToLower(rack),
+		region:   region,
+		zone:     zone,
+		rack:     rack,
 		index:    tor,
-	}
+	})
 }
 
 func NewBlade(table TableName, region string, zone string, rack string, blade int64) *Address {
-	return &Address{
+	return normalize(&Address{
 		nodeType: AddressTypeBlade,
 		table:    table,
-		region:   strings.ToLower(region),
-		zone:     strings.ToLower(zone),
-		rack:     strings.ToLower(rack),
+		region:   region,
+		zone:     zone,
+		rack:     rack,
 		index:    blade,
+	})
+}
+
+func (a *Address) regionValidate() error {
+	return verifyRegion(a.region)
+}
+
+func (a *Address) zoneValidate() error {
+	if err := a.regionValidate(); err != nil {
+		return err
 	}
+
+	return verifyZone(a.zone)
 }
 
-func (a *Address) regionValidate() bool {
-	return a.region != ""
+func (a *Address) rackValidate() error {
+	if err := a.zoneValidate(); err != nil {
+		return err
+	}
+
+	return verifyRack(a.rack)
 }
 
-func (a *Address) zoneValidate() bool {
-	return a.zone != ""  && a.regionValidate()
+func (a *Address) pduValidate() error {
+	if err := a.rackValidate(); err != nil {
+		return err
+	}
+
+	return verifyPdu(a.index)
 }
 
-func (a *Address) rackValidate() bool {
-	return a.rack != "" && a.zoneValidate()
+func (a *Address) torValidate() error {
+	if err := a.rackValidate(); err != nil {
+		return err
+	}
+
+	return verifyTor(a.index)
 }
 
-func (a *Address) pduValidate() bool {
-	return a.index < limits.MaxPduID && a.rackValidate()
-}
+func (a *Address) bladeValidate() error {
+	if err := a.rackValidate(); err != nil {
+		return err
+	}
 
-func (a *Address) torValidate() bool {
-	return a.index < limits.MaxTorID && a.rackValidate()
-}
-
-func (a *Address) bladeValidate() bool {
-	return a.index < limits.MaxBladeID && a.rackValidate()
+	return verifyBlade(a.index)
 }
 
 
@@ -141,16 +167,16 @@ func (a *Address) pduString() string {
 
 
 func (a *Address) torString() string {
-	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.index)
+	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Tor: %d", a.region, a.zone, a.rack, a.index)
 }
 
 
 func (a *Address) bladeString() string {
-	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Pdu: %d", a.region, a.zone, a.rack, a.index)
+	return fmt.Sprintf("Region: %s Zone: %s Rack: %s Blade: %d", a.region, a.zone, a.rack, a.index)
 }
 
 
-func (a *Address) Validate() bool {
+func (a *Address) Validate() error {
 	switch a.nodeType {
 	case AddressTypeRegion: return a.regionValidate()
 	case AddressTypeZone: return a.zoneValidate()
@@ -159,7 +185,7 @@ func (a *Address) Validate() bool {
 	case AddressTypeTor: return a.torValidate()
 	case AddressTypeBlade: return a.bladeValidate()
 
-	default: return false
+	default: return errors.ErrAddrInvalidType{Type: int64(a.nodeType)}
 	}
 }
 
@@ -208,7 +234,7 @@ func (a *Address) Region() string {
 		return a.region
 
 	default:
-		return ""
+		return InvalidRegion
 	}
 }
 
@@ -223,7 +249,7 @@ func (a *Address) Zone() string {
 		return a.zone
 
 	default:
-		return ""
+		return InvalidZone
 	}
 }
 
@@ -236,7 +262,7 @@ func (a *Address) Rack() string {
 	AddressTypeBlade:
 		return a.rack
 
-	default: return ""
+	default: return InvalidRack
 	}
 }
 
@@ -246,7 +272,7 @@ func (a *Address) Pdu() int64 {
 		return a.index
 
 	default:
-		return int64(-1)
+		return InvalidPdu
 	}
 }
 
@@ -256,7 +282,7 @@ func (a *Address) Tor() int64 {
 		return a.index
 
 	default:
-		return int64(-1)
+		return invalidTor
 	}
 }
 
@@ -266,7 +292,7 @@ func (a *Address) Blade() int64 {
 		return a.index
 
 	default:
-		return int64(-1)
+		return InvalidBlade
 	}
 }
 
