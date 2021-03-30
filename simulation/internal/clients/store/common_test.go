@@ -1,14 +1,10 @@
 package store
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"log"
 	"os"
 	"testing"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,7 +22,7 @@ import (
 const keySetSize = 10
 
 var (
-	configPath *string
+	// configPath *string
 
 	utf *exporters.Exporter
 )
@@ -35,15 +31,15 @@ func commonSetup() {
 	utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(utf)
 
-	configPath = flag.String("config", "./testdata", "path to the configuration file")
-	flag.Parse()
+	// configPath = flag.String("config", "./testdata", "path to the configuration file")
+	// flag.Parse()
 
-	cfg, err := config.ReadGlobalConfig(*configPath)
-	if err != nil {
-		log.Fatalf("failed to process the global configuration: %v", err)
-	}
+	// cfg, err := config.ReadGlobalConfig(*configPath)
+	// if err != nil {
+	// 	log.Fatalf("failed to process the global configuration: %v", err)
+	// }
 
-	Initialize(context.Background(), cfg)
+	// Initialize(context.Background(), cfg)
 }
 
 func testGenerateKeyFromNames(prefix string, name string) string {
