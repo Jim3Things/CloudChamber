@@ -41,32 +41,32 @@ const (
 	//
 	InvalidTable TableName = ""
 
-	// InvalidRegion is used when a return valid is needed for a region but where
+	// InvalidRegion is used when a return value is needed for a region but where
 	// the value cannot be used in any way other than for comparison.
 	//
 	InvalidRegion string = ""
 
-	// InvalidZone is used when a return valid is needed for a zone but where
+	// InvalidZone is used when a return value is needed for a zone but where
 	// the value cannot be used in any way other than for comparison.
 	//
 	InvalidZone   string = ""
 
-	// InvalidRack is used when a return valid is needed for a rack but where
+	// InvalidRack is used when a return value is needed for a rack but where
 	// the value cannot be used in any way other than for comparison.
 	//
 	InvalidRack   string = ""
 
-	// InvalidPdu is used when a return valid is needed for a pdu but where
+	// InvalidPdu is used when a return value is needed for a pdu but where
 	// the value cannot be used in any way other than for comparison.
 	//
 	InvalidPdu    int64  = -1
 
-	// InvalidTor is used when a return valid is needed for a tor but where
+	// InvalidTor is used when a return value is needed for a tor but where
 	// the value cannot be used in any way other than for comparison.
 	//
 	invalidTor    int64  = -1
 
-	// InvalidBlade is used when a return valid is needed for a blade but where
+	// InvalidBlade is used when a return value is needed for a blade but where
 	// the value cannot be used in any way other than for comparison.
 	//
 	InvalidBlade  int64  = -1

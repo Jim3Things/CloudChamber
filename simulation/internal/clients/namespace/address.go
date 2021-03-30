@@ -185,7 +185,7 @@ func (a *Address) Validate() error {
 	case AddressTypeTor: return a.torValidate()
 	case AddressTypeBlade: return a.bladeValidate()
 
-	default: return errors.ErrAddrInvalidType{Type: int64(a.nodeType)}
+	default: return errors.ErrAddrInvalidType(a.nodeType)
 	}
 }
 

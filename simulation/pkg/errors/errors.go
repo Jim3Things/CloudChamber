@@ -1406,12 +1406,10 @@ func (e ErrNoValidAddressFromKey) Error() string {
 // ErrAddrInvalidType indicates the type of the node for a given Address is
 // not one of the recognized values.
 //
-type ErrAddrInvalidType struct {
-	Type int64
-}
+type ErrAddrInvalidType int64
 
 func (e ErrAddrInvalidType) Error() string {
-	return fmt.Sprintf("CloudChamber: invalid node type %d for address", e.Type)
+	return fmt.Sprintf("CloudChamber: invalid node type %d for address", e)
 }
 
 // ErrTableNameInvalid indicates the supplied region name is not one of the valid options.

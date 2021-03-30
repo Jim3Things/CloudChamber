@@ -1208,9 +1208,9 @@ type Watch struct {
 // call to the Watch() function.
 //
 type WatchEvent struct {
-	// Err indicates if somesort of error occured during the construction
+	// Err indicates if some sort of error occured during the construction
 	// of the WatchEvent notification itself, likely an issue resulting from
-	// procissing the key responsible for generating the event. The value
+	// processing the key responsible for generating the event. The value
 	// of the key leading to the problem is included in the error.
 	//
 	Err      error
@@ -1226,7 +1226,7 @@ type WatchEvent struct {
 	Address  *namespace.Address
 
 	// Revision is the revision of the store itself when the change occured.
-	// Fro creates and updates, this will be the same as the new revision
+	// For creates and updates, this will be the same as the new revision
 	// of the item that was the subject of the create/update.
 	//
 	Revision int64
