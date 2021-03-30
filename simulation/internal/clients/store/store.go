@@ -138,7 +138,6 @@ type Store struct {
 
 var (
 	storeRoot global
-	val       int64
 )
 
 func (store *Store) traceEnabled() bool { return store.TraceFlags != 0 }
@@ -570,7 +569,7 @@ func (store *Store) Connect() error {
 
 	suffix := store.GetNamespaceSuffix()
 
-	if "" != suffix {
+	if suffix != "" {
 		namespace += suffix + slash
 	}
 
@@ -703,8 +702,8 @@ func (store *Store) UpdateClusterConnections() error {
 // the channel via the Close() method
 //
 type Watch struct {
-	Key    string
-	Cancel context.CancelFunc
+	key    string
+	cancel context.CancelFunc
 	Events chan WatchEvent
 }
 
@@ -739,6 +738,40 @@ type WatchEvent struct {
 	OldVal   string
 }
 
+func buildNotification(rev int64, ev *clientv3.Event) WatchEvent {
+	if ev.IsCreate() {
+		return WatchEvent{
+			Type:     WatchEventTypeCreate,
+			Revision: rev,
+			Key:      string(ev.Kv.Key),
+			OldRev:   RevisionInvalid,
+			NewRev:   ev.Kv.CreateRevision,
+			OldVal:   "",
+			NewVal:   string(ev.Kv.Value),
+		}
+	} else if ev.IsModify() {
+		return WatchEvent{
+			Type:     WatchEventTypeUpdate,
+			Revision: rev,
+			Key:      string(ev.Kv.Key),
+			OldRev:   ev.PrevKv.ModRevision,
+			NewRev:   ev.Kv.ModRevision,
+			OldVal:   string(ev.PrevKv.Value),
+			NewVal:   string(ev.Kv.Value),
+		}
+	} else {
+		return WatchEvent{
+			Type:     WatchEventTypeDelete,
+			Revision: rev,
+			Key:      string(ev.Kv.Key),
+			OldRev:   ev.PrevKv.ModRevision,
+			NewRev:   RevisionInvalid,
+			OldVal:   string(ev.PrevKv.Value),
+			NewVal:   "",
+		}
+	}
+}
+
 // SetWatch is a method used to establish a watchpoint on a single key/value pair
 //
 func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, err error) {
@@ -747,7 +780,7 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 		return nil, err
 	}
 
-	notifications := make(chan WatchEvent) 
+	notifications := make(chan WatchEvent)
 
 	opCtx, cancel := context.WithCancel(ctx)
 
@@ -756,51 +789,21 @@ func (store *Store) SetWatch(ctx context.Context, key string) (response *Watch, 
 	go func ()  {
 		for {
 			select {
-			case <-opCtx.Done(): 
+			case <-opCtx.Done():
 				close(notifications)
 				return
 
 			default:
 				for events := range watchEvents {
 					for _, ev := range events.Events {
-						if ev.IsCreate() {
-							notifications <- WatchEvent{
-								Type:     WatchEventTypeCreate,
-								Revision: events.Header.GetRevision(),
-								Key:      string(ev.Kv.Key),
-								OldRev:   RevisionInvalid,
-								NewRev:   ev.Kv.CreateRevision,
-								OldVal:   "",
-								NewVal:   string(ev.Kv.Value),
-							}
-						} else if ev.IsModify() {
-							notifications <- WatchEvent{
-								Type:     WatchEventTypeUpdate,
-								Revision: events.Header.GetRevision(),
-								Key:      string(ev.Kv.Key),
-								OldRev:   ev.PrevKv.ModRevision,
-								NewRev:   ev.Kv.ModRevision,
-								OldVal:   string(ev.PrevKv.Value),
-								NewVal:   string(ev.Kv.Value),
-							}
-						} else {
-							notifications <- WatchEvent{
-								Type:     WatchEventTypeDelete,
-								Revision: events.Header.GetRevision(),
-								Key:      string(ev.Kv.Key),
-								OldRev:   ev.PrevKv.ModRevision,
-								NewRev:   RevisionInvalid,
-								OldVal:   string(ev.PrevKv.Value),
-								NewVal:   "",
-							}
-						}
+						notifications <- buildNotification(events.Header.GetRevision(), ev)
 					}
 				}
 			}
 		}
 	}()
 
-	response = &Watch{Key: key, Cancel: cancel, Events: notifications}
+	response = &Watch{key: key, cancel: cancel, Events: notifications}
 
 	return response, nil
 }
@@ -814,7 +817,7 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 		return nil, err
 	}
 
-	notifications := make(chan WatchEvent) 
+	notifications := make(chan WatchEvent)
 
 	opCtx, cancel := context.WithCancel(ctx)
 
@@ -823,51 +826,21 @@ func (store *Store) SetWatchWithPrefix(ctx context.Context, keyPrefix string) (r
 	go func ()  {
 		for {
 			select {
-			case <-opCtx.Done(): 
+			case <-opCtx.Done():
 				close(notifications)
 				return
 
 			default:
 				for events := range watchEvents {
 					for _, ev := range events.Events {
-						if ev.IsCreate() {
-							notifications <- WatchEvent{
-								Type:     WatchEventTypeCreate,
-								Revision: events.Header.GetRevision(),
-								Key:      string(ev.Kv.Key),
-								OldRev:   RevisionInvalid,
-								NewRev:   ev.Kv.CreateRevision,
-								OldVal:   "",
-								NewVal:   string(ev.Kv.Value),
-							}
-						} else if ev.IsModify() {
-							notifications <- WatchEvent{
-								Type:     WatchEventTypeUpdate,
-								Revision: events.Header.GetRevision(),
-								Key:      string(ev.Kv.Key),
-								OldRev:   ev.PrevKv.ModRevision,
-								NewRev:   ev.Kv.ModRevision,
-								OldVal:   string(ev.PrevKv.Value),
-								NewVal:   string(ev.Kv.Value),
-							}
-						} else {
-							notifications <- WatchEvent{
-								Type:     WatchEventTypeDelete,
-								Revision: events.Header.GetRevision(),
-								Key:      string(ev.Kv.Key),
-								OldRev:   ev.PrevKv.ModRevision,
-								NewRev:   RevisionInvalid,
-								OldVal:   string(ev.PrevKv.Value),
-								NewVal:   "",
-							}
-						}
+						notifications <- buildNotification(events.Header.GetRevision(), ev)
 					}
 				}
 			}
 		}
 	}()
 
-	response = &Watch{Key: keyPrefix, Cancel: cancel, Events: notifications}
+	response = &Watch{key: keyPrefix, cancel: cancel, Events: notifications}
 
 	return response, nil
 }
@@ -1112,7 +1085,7 @@ func (store *Store) DeleteWithPrefix(ctx context.Context, keyPrefix string) (res
 
 	resp := &Response{
 		Revision: RevisionInvalid,
-		Records:  make(map[string]Record, 0),
+		Records:  make(map[string]Record),
 	}
 
 	resp.Revision = opResponse.Header.GetRevision()

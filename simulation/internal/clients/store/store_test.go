@@ -25,8 +25,6 @@ func TestNew(t *testing.T) {
 	assert.NotNilf(t, store, "Failed to get the store as expected")
 
 	store = nil
-
-	return
 }
 
 func TestInitialize(t *testing.T) {
@@ -58,8 +56,6 @@ func TestInitialize(t *testing.T) {
 	assert.Equal(t, namespaceSuffix, store.NamespaceSuffix, "Mismatch in initialization of namespace suffix")
 
 	store = nil
-
-	return
 }
 
 func TestNewWithArgs(t *testing.T) {
@@ -84,8 +80,6 @@ func TestNewWithArgs(t *testing.T) {
 	assert.Equal(t, namespaceSuffix, store.NamespaceSuffix, "Mismatch in initialization of namespace suffix")
 
 	store = nil
-
-	return
 }
 
 func TestStoreSetAndGet(t *testing.T) {
@@ -150,8 +144,6 @@ func TestStoreConnectDisconnect(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-
-	return
 }
 
 func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
@@ -189,8 +181,6 @@ func TestStoreConnectDisconnectWithInitialize(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-
-	return
 }
 
 func TestStoreConnectDisconnectWithSet(t *testing.T) {
@@ -253,8 +243,6 @@ func TestStoreConnectDisconnectWithSet(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-
-	return
 }
 
 func TestStoreWriteReadTxn(t *testing.T) {
@@ -1385,8 +1373,6 @@ func TestStoreSetWatch(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-
-	return
 }
 
 func TestStoreSetWatchPrefix(t *testing.T) {
@@ -1441,7 +1427,7 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 
 		assert.Equal(t, RevisionInvalid, writeEvent.OldRev)
 		assert.Equal(t, "", writeEvent.OldVal)
-	
+
 		assert.Equal(t, writeResponse.Revision, writeEvent.NewRev)
 		assert.Equal(t, record.Value, writeEvent.NewVal)
 		}
@@ -1506,8 +1492,6 @@ func TestStoreSetWatchPrefix(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-
-	return
 }
 
 func TestStoreGetMemberList(t *testing.T) {
@@ -1538,8 +1522,6 @@ func TestStoreGetMemberList(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-
-	return
 }
 
 func TestStoreSyncClusterConnections(t *testing.T) {
@@ -1558,8 +1540,6 @@ func TestStoreSyncClusterConnections(t *testing.T) {
 	store.Disconnect()
 
 	store = nil
-
-	return
 }
 
 func TestStoreWriteMultipleTxnCreate(t *testing.T) {

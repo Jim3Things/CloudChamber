@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 
 	ic "github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	ns "github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	st "github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/simulation/internal/clients/trace_sink"
@@ -135,7 +136,7 @@ func (s *server) initializeRacks() error {
 		zoneName   = "standard"
 	)
 
-	zone, err := s.inventory.NewZone(ic.DefinitionTable, regionName, zoneName)
+	zone, err := s.inventory.NewZone(ns.DefinitionTable, regionName, zoneName)
 
 	if err != nil {
 		return err

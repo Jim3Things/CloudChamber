@@ -21,8 +21,6 @@ var (
 type testSuiteCore struct {
 	suite.Suite
 
-	baseURI string
-
 	utf   *exporters.Exporter
 	cfg   *config.GlobalConfig
 	store *store.Store

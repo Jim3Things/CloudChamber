@@ -26,8 +26,6 @@ import (
 const keySetSize = 10
 
 var (
-	initialized bool
-
 	configPath *string
 
 	utf *exporters.Exporter

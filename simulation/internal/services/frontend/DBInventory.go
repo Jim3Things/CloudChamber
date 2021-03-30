@@ -19,6 +19,8 @@ import (
 	"sync"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
@@ -135,7 +137,7 @@ func (m *DBInventory) GetMemoData() *inventory.ZoneSummary {
 // function with each entry.
 //
 func (m *DBInventory) ScanRegions(ctx context.Context, action func(entry string) error) error {
-	root, err := m.inventory.NewRoot(inventory.DefinitionTable)
+	root, err := m.inventory.NewRoot(namespace.DefinitionTable)
 	if err != nil {
 		return m.transformError(err, "", "", "", 0)
 	}
@@ -157,7 +159,7 @@ func (m *DBInventory) ScanRegions(ctx context.Context, action func(entry string)
 // GetRegion returns the region details to match the supplied region name
 //
 func (m *DBInventory) GetRegion(ctx context.Context, regionName string) (*pb.Definition_Region, error) {
-	region, err := m.inventory.NewRegion(inventory.DefinitionTable, regionName)
+	region, err := m.inventory.NewRegion(namespace.DefinitionTable, regionName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, "", "", 0)
 	}
@@ -179,7 +181,7 @@ func (m *DBInventory) GetRegion(ctx context.Context, regionName string) (*pb.Def
 // the specified region, invoking the supplied function with each entry.
 //
 func (m *DBInventory) ScanZonesInRegion(ctx context.Context, regionName string, action func(entry string) error) error {
-	root, err := m.inventory.NewRoot(inventory.DefinitionTable)
+	root, err := m.inventory.NewRoot(namespace.DefinitionTable)
 	if err != nil {
 		return m.transformError(err, regionName, "", "", 0)
 	}
@@ -206,7 +208,7 @@ func (m *DBInventory) ScanZonesInRegion(ctx context.Context, regionName string, 
 // GetZone returns the zone details to match the supplied rackID
 //
 func (m *DBInventory) GetZone(ctx context.Context, regionName string, zoneName string) (*pb.Definition_Zone, error) {
-	zone, err := m.inventory.NewZone(inventory.DefinitionTable, regionName, zoneName)
+	zone, err := m.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, "", 0)
 	}
@@ -233,7 +235,7 @@ func (m *DBInventory) ScanRacksInZone(
 	regionName string,
 	zoneName string,
 	action func(entry string) error) error {
-	zone, err := m.inventory.NewZone(inventory.DefinitionTable, regionName, zoneName)
+	zone, err := m.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
 
 	if err != nil {
 		return m.transformError(err, regionName, zoneName, "", 0)
@@ -256,7 +258,7 @@ func (m *DBInventory) ScanRacksInZone(
 // GetRackInZone returns the rack details to match the supplied rackName
 //
 func (m *DBInventory) GetRackInZone(ctx context.Context, regionName string, zoneName string, rackName string) (*pb.Definition_Rack, error) {
-	rack, err := m.inventory.NewRack(inventory.DefinitionTable, regionName, zoneName, rackName)
+	rack, err := m.inventory.NewRack(namespace.DefinitionTable, regionName, zoneName, rackName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
@@ -308,7 +310,7 @@ func (m *DBInventory) GetRackInZone(ctx context.Context, regionName string, zone
 // turn.
 func (m *DBInventory) ScanBladesInRack(ctx context.Context, regionName string, zoneName string, rackName string, action func(bladeID int64) error) error {
 	rack, err := m.inventory.NewRack(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		regionName,
 		zoneName,
 		rackName)
@@ -335,7 +337,7 @@ func (m *DBInventory) ScanBladesInRack(ctx context.Context, regionName string, z
 // bladeID
 func (m *DBInventory) GetBlade(ctx context.Context, regionName string, zoneName string, rackName string, bladeID int64) (*pb.BladeCapacity, error) {
 	blade, err := m.inventory.NewBlade(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		regionName,
 		zoneName,
 		rackName,
@@ -370,7 +372,7 @@ func (m *DBInventory) transformError(err error, region string, zone string, rack
 	case err == errors.ErrPduIndexNotFound{Region: region, Zone: zone, Rack: rack, Pdu: index}:
 		return NewErrPduNotFound(rack, index)
 
-	case err == errors.ErrPduIDInvalid{Value: index, Limit: inventory.MaxPduID}:
+	case err == errors.ErrPduIDInvalid{Value: index, Limit: limits.MaxPduID}:
 		return NewErrPduNotFound(rack, index)
 
 	case err == errors.ErrPduIndexInvalid{Region: region, Zone: zone, Rack: rack, Pdu: fmt.Sprintf("%d", index)}:
@@ -382,7 +384,7 @@ func (m *DBInventory) transformError(err error, region string, zone string, rack
 	case err == errors.ErrTorIndexNotFound{Region: region, Zone: zone, Rack: rack, Tor: index}:
 		return NewErrTorNotFound(rack, index)
 
-	case err == errors.ErrTorIDInvalid{Value: index, Limit: inventory.MaxTorID}:
+	case err == errors.ErrTorIDInvalid{Value: index, Limit: limits.MaxTorID}:
 		return NewErrTorNotFound(rack, index)
 
 	case err == errors.ErrTorIndexInvalid{Region: region, Zone: zone, Rack: rack, Tor: fmt.Sprintf("%d", index)}:
@@ -394,7 +396,7 @@ func (m *DBInventory) transformError(err error, region string, zone string, rack
 	case err == errors.ErrBladeIndexNotFound{Region: region, Zone: zone, Rack: rack, Blade: index}:
 		return NewErrBladeNotFound(rack, index)
 
-	case err == errors.ErrBladeIDInvalid{Value: index, Limit: inventory.MaxBladeID}:
+	case err == errors.ErrBladeIDInvalid{Value: index, Limit: limits.MaxBladeID}:
 		return NewErrBladeNotFound(rack, index)
 
 	case err == errors.ErrBladeIndexInvalid{Region: region, Zone: zone, Rack: rack, Blade: fmt.Sprintf("%d", index)}:
@@ -421,42 +423,6 @@ const (
 	ConditionRetired
 )
 
-// DefinitionTor describes the revision and value for the request TOR
-//
-type DefinitionTor struct {
-	revision int64
-	tor      *pb.Definition_Tor
-}
-
-// DefinitionPdu describes the revision and value for the request PDU
-//
-type DefinitionPdu struct {
-	revision int64
-	pdu      *pb.Definition_Pdu
-}
-
-// DefinitionBlade describes the revision and value for the request blade
-//
-type DefinitionBlade struct {
-	revision int64
-	blade    *pb.Definition_Blade
-}
-
-// DefinitionRack describes the revision and value for the request rack
-//
-type DefinitionRack struct {
-	revision int64
-	rack     *pb.Definition_Rack
-}
-
-// DefinitionZone defines the set of values used to summarize the contents of a zone to
-// allow a query on the zone without incorporating the entire inventory definition
-//
-type DefinitionZone struct {
-	revision int64
-	zone     *pb.Definition_Zone
-}
-
 // Generic options
 
 // InventoryOption is a
@@ -477,8 +443,8 @@ func (options *InventoryOptions) applyOpts(optionsArray []InventoryOption) {
 
 // WithRevision is a
 //
-func WithRevision(rev int64) InventoryZoneOption {
-	return func(options *InventoryZoneOptions) { options.revision = rev }
+func WithRevision(rev int64) InventoryOption {
+	return func(options *InventoryOptions) { options.revision = rev }
 }
 
 // Region options
@@ -498,7 +464,7 @@ type InventoryRegionOptions struct {
 	includeBlades bool
 }
 
-func (options *InventoryRegionOptions) applyRegionOpts(optionsArray []InventoryRegionOption) {
+func (options *InventoryRegionOptions) applyOpts(optionsArray []InventoryRegionOption) {
 	for _, option := range optionsArray {
 		option(options)
 	}
@@ -508,6 +474,12 @@ func (options *InventoryRegionOptions) applyRegionOpts(optionsArray []InventoryR
 //
 func WithRegionRevision(rev int64) InventoryRegionOption {
 	return func(options *InventoryRegionOptions) { options.revision = rev }
+}
+
+// WithRegionZones is a
+//
+func WithRegionZones() InventoryRegionOption {
+	return func(options *InventoryRegionOptions) { options.includeZones = true }
 }
 
 // WithRegionRacks is a
@@ -550,7 +522,7 @@ type InventoryZoneOptions struct {
 	includeBlades bool
 }
 
-func (options *InventoryZoneOptions) applyZoneOpts(optionsArray []InventoryZoneOption) {
+func (options *InventoryZoneOptions) applyOpts(optionsArray []InventoryZoneOption) {
 	for _, option := range optionsArray {
 		option(options)
 	}
@@ -603,7 +575,7 @@ type InventoryRackOptions struct {
 	includeBlades bool
 }
 
-func (options *InventoryRackOptions) applyRackOpts(optionsArray []InventoryRackOption) {
+func (options *InventoryRackOptions) applyOpts(optionsArray []InventoryRackOption) {
 	for _, option := range optionsArray {
 		option(options)
 	}
@@ -647,56 +619,6 @@ func WithRackBlades() InventoryRackOption {
 	return func(options *InventoryRackOptions) { options.includeBlades = true }
 }
 
-// ListZones returns the basic zone record for all the discovered zones. Optionally,
-// racks along with the rack component PDU, TOR and blades can also be returned.
-//
-func (m *DBInventory) ListZones(
-	ctx context.Context,
-	options ...InventoryZoneOption) (map[string]*DefinitionZone, int64, error) {
-	return nil, InvalidRev, nil
-}
-
-// ListRacks returns the basic zone record for all the discovered racks within
-// the specified zone. Optionally, the rack component PDU, TOR and blades can
-// also be returned.
-//
-func (m *DBInventory) ListRacks(
-	ctx context.Context,
-	zone string,
-	options ...InventoryRackOption) (map[string]*DefinitionRack, int64, error) {
-	return nil, InvalidRev, nil
-}
-
-// ListPdus returns the basic records for the PDUs in the specified rack.
-//
-func (m *DBInventory) ListPdus(
-	ctx context.Context,
-	zone string,
-	rack string,
-	options ...InventoryOption) (map[string]*DefinitionPdu, int64, error) {
-	return nil, InvalidRev, nil
-}
-
-// ListTors returns the basic records for the TORs in the specified rack.
-//
-func (m *DBInventory) ListTors(
-	ctx context.Context,
-	zone string,
-	rack string,
-	options ...InventoryOption) (map[string]*DefinitionTor, int64, error) {
-	return nil, InvalidRev, nil
-}
-
-// ListBlades returns the basic records for the blades in the specified rack.
-//
-func (m *DBInventory) ListBlades(
-	ctx context.Context,
-	zone string,
-	rack string,
-	options ...InventoryOption) (map[string]*DefinitionBlade, int64, error) {
-	return nil, InvalidRev, nil
-}
-
 // CreateRegion is used to create a basic region record in the store.
 //
 // This record created will contain just the region level details
@@ -710,7 +632,7 @@ func (m *DBInventory) CreateRegion(
 	options ...InventoryRegionOption) (int64, error) {
 
 	r, err := m.inventory.NewRegion(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		name)
 
 	if err != nil {
@@ -742,7 +664,7 @@ func (m *DBInventory) CreateZone(
 	options ...InventoryZoneOption) (int64, error) {
 
 	z, err := m.inventory.NewZone(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		name)
 
@@ -776,7 +698,7 @@ func (m *DBInventory) CreateRack(
 	options ...InventoryRackOption) (int64, error) {
 
 	r, err := m.inventory.NewRack(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		name)
@@ -816,7 +738,7 @@ func (m *DBInventory) CreatePdu(
 	}
 
 	p, err := m.inventory.NewPdu(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -859,7 +781,7 @@ func (m *DBInventory) CreateTor(
 	}
 
 	t, err := m.inventory.NewTor(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -898,7 +820,7 @@ func (m *DBInventory) CreateBlade(
 	options ...InventoryOption) (int64, error) {
 
 	b, err := m.inventory.NewBlade(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -933,7 +855,7 @@ func (m *DBInventory) ReadRegion(
 	options ...InventoryRegionOption) (*pb.Definition_Region, int64, error) {
 
 	r, err := m.inventory.NewRegion(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		name)
 
 	if err != nil {
@@ -960,7 +882,7 @@ func (m *DBInventory) ReadZone(
 	options ...InventoryZoneOption) (*pb.Definition_Zone, int64, error) {
 
 	z, err := m.inventory.NewZone(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		name)
 
@@ -988,7 +910,7 @@ func (m *DBInventory) ReadRack(
 	options ...InventoryRackOption) (*pb.Definition_Rack, int64, error) {
 
 	r, err := m.inventory.NewRack(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		name)
@@ -1017,7 +939,7 @@ func (m *DBInventory) ReadPdu(
 	options ...InventoryOption) (*pb.Definition_Pdu, int64, error) {
 
 	p, err := m.inventory.NewPdu(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1047,7 +969,7 @@ func (m *DBInventory) ReadTor(
 	options ...InventoryOption) (*pb.Definition_Tor, int64, error) {
 
 	t, err := m.inventory.NewTor(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1077,7 +999,7 @@ func (m *DBInventory) ReadBlade(
 	options ...InventoryOption) (*pb.Definition_Blade, int64, error) {
 
 	b, err := m.inventory.NewBlade(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1109,7 +1031,7 @@ func (m *DBInventory) UpdateRegion(
 	options ...InventoryRegionOption) (int64, error) {
 
 	r, err := m.inventory.NewRegion(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		name)
 
 	if err != nil {
@@ -1141,7 +1063,7 @@ func (m *DBInventory) UpdateZone(
 	options ...InventoryZoneOption) (int64, error) {
 
 	z, err := m.inventory.NewZone(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		name)
 
@@ -1174,7 +1096,7 @@ func (m *DBInventory) UpdateRack(
 	rack *pb.Definition_Rack, options ...InventoryRackOption) (int64, error) {
 
 	r, err := m.inventory.NewRack(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		name)
@@ -1206,7 +1128,7 @@ func (m *DBInventory) UpdatePdu(
 	options ...InventoryOption) (int64, error) {
 
 	p, err := m.inventory.NewPdu(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1241,7 +1163,7 @@ func (m *DBInventory) UpdateTor(
 	options ...InventoryOption) (int64, error) {
 
 	t, err := m.inventory.NewTor(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1276,7 +1198,7 @@ func (m *DBInventory) UpdateBlade(
 	options ...InventoryOption) (int64, error) {
 
 	b, err := m.inventory.NewBlade(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1311,7 +1233,7 @@ func (m *DBInventory) DeleteRegion(
 	options ...InventoryOption) (int64, error) {
 
 	r, err := m.inventory.NewRegion(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		name)
 
 	if err != nil {
@@ -1338,7 +1260,7 @@ func (m *DBInventory) DeleteZone(
 	options ...InventoryOption) (int64, error) {
 
 	z, err := m.inventory.NewZone(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		name)
 
@@ -1367,7 +1289,7 @@ func (m *DBInventory) DeleteRack(
 	options ...InventoryOption) (int64, error) {
 
 	r, err := m.inventory.NewRack(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		name)
@@ -1402,7 +1324,7 @@ func (m *DBInventory) DeletePdu(
 	options ...InventoryOption) (int64, error) {
 
 	p, err := m.inventory.NewPdu(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1439,7 +1361,7 @@ func (m *DBInventory) DeleteTor(
 	options ...InventoryOption) (int64, error) {
 
 	t, err := m.inventory.NewTor(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,
@@ -1476,7 +1398,7 @@ func (m *DBInventory) DeleteBlade(
 	options ...InventoryOption) (int64, error) {
 
 	b, err := m.inventory.NewBlade(
-		inventory.DefinitionTable,
+		namespace.DefinitionTable,
 		region,
 		zone,
 		rack,

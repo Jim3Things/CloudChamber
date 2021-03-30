@@ -16,6 +16,7 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
@@ -135,7 +136,7 @@ func (m *DBUsers) Create(ctx context.Context, u *pb.User) (int64, error) {
 		return InvalidRev, err
 	}
 
-	rev, err := m.Store.Create(ctx, store.KeyRootUsers, u.Name, v)
+	rev, err := m.Store.Create(ctx, namespace.KeyRootUsers, u.Name, v)
 
 	if err == errors.ErrStoreAlreadyExists(u.Name) {
 		return InvalidRev, errors.ErrUserAlreadyExists(u.Name)
@@ -152,7 +153,7 @@ func (m *DBUsers) Create(ctx context.Context, u *pb.User) (int64, error) {
 //
 func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error) {
 
-	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
+	val, rev, err := m.Store.Read(ctx, namespace.KeyRootUsers, name)
 
 	if err == errors.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, errors.ErrUserNotFound(name)
@@ -170,7 +171,7 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 
 	u.FixMissingFields()
 
-	if store.GetNormalizedName(name) != store.GetNormalizedName(u.GetName()) {
+	if namespace.GetNormalizedName(name) != namespace.GetNormalizedName(u.GetName()) {
 		return nil, InvalidRev, errors.ErrUserBadRecordContent{Name: name, Value: *val}
 	}
 
@@ -187,7 +188,7 @@ func (m *DBUsers) Read(ctx context.Context, name string) (*pb.User, int64, error
 //
 func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, match int64) (*pb.User, int64, error) {
 
-	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
+	val, rev, err := m.Store.Read(ctx, namespace.KeyRootUsers, name)
 
 	if err == errors.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, errors.ErrUserNotFound(name)
@@ -219,7 +220,7 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 		NeverDelete:  old.GetNeverDelete(),
 	}
 
-	rev, err = m.Store.UpdateWithEncode(ctx, store.KeyRootUsers, name, match, user)
+	rev, err = m.Store.UpdateWithEncode(ctx, namespace.KeyRootUsers, name, match, user)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -237,7 +238,7 @@ func (m *DBUsers) Update(ctx context.Context, name string, u *pb.UserUpdate, mat
 // user entries.
 func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, match int64) (*pb.User, int64, error) {
 
-	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, name)
+	val, rev, err := m.Store.Read(ctx, namespace.KeyRootUsers, name)
 
 	if err == errors.ErrStoreKeyNotFound(name) {
 		return nil, InvalidRev, errors.ErrUserNotFound(name)
@@ -270,7 +271,7 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 		NeverDelete:  old.GetNeverDelete(),
 	}
 
-	rev, err = m.Store.UpdateWithEncode(ctx, store.KeyRootUsers, name, match, user)
+	rev, err = m.Store.UpdateWithEncode(ctx, namespace.KeyRootUsers, name, match, user)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -283,9 +284,9 @@ func (m *DBUsers) UpdatePassword(ctx context.Context, name string, hash []byte, 
 //
 func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 
-	n := store.GetNormalizedName(name)
+	n := namespace.GetNormalizedName(name)
 
-	val, rev, err := m.Store.Read(ctx, store.KeyRootUsers, n)
+	val, rev, err := m.Store.Read(ctx, namespace.KeyRootUsers, n)
 
 	if err == errors.ErrStoreKeyNotFound(n) {
 		return errors.ErrUserNotFound(name)
@@ -320,7 +321,7 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 		return errors.ErrUserStaleVersion(name)
 	}
 
-	_, err = m.Store.Delete(ctx, store.KeyRootUsers, n, rev)
+	_, err = m.Store.Delete(ctx, namespace.KeyRootUsers, n, rev)
 
 	if err == errors.ErrStoreKeyNotFound(n) {
 		return errors.ErrUserNotFound(name)
@@ -338,7 +339,7 @@ func (m *DBUsers) Delete(ctx context.Context, name string, match int64) error {
 //
 func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) error {
 
-	recs, _, err := m.Store.List(ctx, store.KeyRootUsers, "")
+	recs, _, err := m.Store.List(ctx, namespace.KeyRootUsers, "")
 
 	if err != nil {
 		return err
@@ -354,7 +355,7 @@ func (m *DBUsers) Scan(ctx context.Context, action func(entry *pb.User) error) e
 
 		u.FixMissingFields()
 
-		if n != store.GetNormalizedName(u.GetName()) {
+		if n != namespace.GetNormalizedName(u.GetName()) {
 			return errors.ErrUserBadRecordContent{Name: n, Value: r.Value}
 		}
 
