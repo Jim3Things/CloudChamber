@@ -174,7 +174,7 @@ func (esinf ErrStoreIndexNotFound) Error() string {
 type ErrStoreKeyNotFound string
 
 func (esknf ErrStoreKeyNotFound) Error() string {
-	return fmt.Sprintf("CloudChamber: key %q not found", string(esknf))
+	return fmt.Sprintf("CloudChamber: unable to find key %s", string(esknf))
 }
 
 // ErrStoreKeyTypeMismatch indicates the request key was not found when the store
@@ -305,7 +305,7 @@ func (esucf ErrStoreConditionFail) Error() string {
 type ErrStoreAlreadyExists string
 
 func (esae ErrStoreAlreadyExists) Error() string {
-	return fmt.Sprintf("CloudChamber: condition failure (already exists) on create for key %q", string(esae))
+	return fmt.Sprintf("CloudChamber: condition failure (already exists) on create for key %s", string(esae))
 }
 
 // ErrStoreInvalidConfiguration indicates the key, value pair being created already exists
