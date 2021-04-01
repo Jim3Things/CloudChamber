@@ -42,7 +42,7 @@ func (ts *storeApiTestSuite) SetupSuite() {
 	ts.testSuiteCore.SetupSuite()
 
 	ts.store = NewStore()
-	require.NotNil(ts.store, "Failed to get the store as expected")
+	require.NotNil(ts.store)
 }
 
 func (ts *storeApiTestSuite) SetupTest() {
