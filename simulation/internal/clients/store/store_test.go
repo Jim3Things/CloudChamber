@@ -83,7 +83,7 @@ func (ts *storeTestSuite) TestInitialize() {
 	store = nil
 }
 
-func (ts *storeTestSuite)  TestNewWithArgs() {
+func (ts *storeTestSuite) TestNewWithArgs() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -107,7 +107,7 @@ func (ts *storeTestSuite)  TestNewWithArgs() {
 	store = nil
 }
 
-func (ts *storeTestSuite)  TestStoreSetAndGet() {
+func (ts *storeTestSuite) TestStoreSetAndGet() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -147,7 +147,7 @@ func (ts *storeTestSuite)  TestStoreSetAndGet() {
 	assert.Equal(store.NamespaceSuffix, store.GetNamespaceSuffix(), "Mismatch in re-fetch of namespace suffix")
 }
 
-func (ts *storeTestSuite)  TestStoreConnectDisconnect() {
+func (ts *storeTestSuite) TestStoreConnectDisconnect() {
 	require := ts.Require()
 
 	store := NewStore()
@@ -169,7 +169,7 @@ func (ts *storeTestSuite)  TestStoreConnectDisconnect() {
 	store = nil
 }
 
-func (ts *storeTestSuite)  TestStoreConnectDisconnectWithInitialize() {
+func (ts *storeTestSuite) TestStoreConnectDisconnectWithInitialize() {
 	require := ts.Require()
 
 	store := NewStore()
@@ -205,7 +205,7 @@ func (ts *storeTestSuite)  TestStoreConnectDisconnectWithInitialize() {
 	store = nil
 }
 
-func (ts *storeTestSuite)  TestStoreConnectDisconnectWithSet() {
+func (ts *storeTestSuite) TestStoreConnectDisconnectWithSet() {
 	require := ts.Require()
 
 	endpoints := getDefaultEndpoints()
@@ -262,7 +262,7 @@ func (ts *storeTestSuite)  TestStoreConnectDisconnectWithSet() {
 	store = nil
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadTxn() {
+func (ts *storeTestSuite) TestStoreWriteReadTxn() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -294,7 +294,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadTxn() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequest, writeResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadTxnRequired() {
+func (ts *storeTestSuite) TestStoreWriteReadTxnRequired() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -338,7 +338,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadTxnRequired() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequest, writeResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadTxnOptional() {
+func (ts *storeTestSuite) TestStoreWriteReadTxnOptional() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -384,7 +384,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadTxnOptional() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequest, writeResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxn() {
+func (ts *storeTestSuite) TestStoreWriteReadMultipleTxn() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -418,7 +418,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxn() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequest, writeResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxnRequired() {
+func (ts *storeTestSuite) TestStoreWriteReadMultipleTxnRequired() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -476,7 +476,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxnRequired() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequest, writeResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxnOptional() {
+func (ts *storeTestSuite) TestStoreWriteReadMultipleTxnOptional() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -521,7 +521,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxnOptional() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequest, writeResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxnPartial() {
+func (ts *storeTestSuite) TestStoreWriteReadMultipleTxnPartial() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -587,7 +587,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadMultipleTxnPartial() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequestComplete, writeResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteDeleteTxn() {
+func (ts *storeTestSuite) TestStoreWriteDeleteTxn() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -646,7 +646,7 @@ func (ts *storeTestSuite)  TestStoreWriteDeleteTxn() {
 	assert.Nil(readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteDeleteTxnDeleteAbsent() {
+func (ts *storeTestSuite) TestStoreWriteDeleteTxnDeleteAbsent() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -711,7 +711,7 @@ func (ts *storeTestSuite)  TestStoreWriteDeleteTxnDeleteAbsent() {
 	assert.Nil(readResponse, "Unexpected response for read of invalid key - error: %v key: %v", err, key)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnRequired() {
+func (ts *storeTestSuite) TestStoreWriteDeleteMultipleTxnRequired() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -794,7 +794,7 @@ func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnRequired() {
 	assert.Equal(deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
 }
 
-func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnOptional() {
+func (ts *storeTestSuite) TestStoreWriteDeleteMultipleTxnOptional() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -864,7 +864,7 @@ func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnOptional() {
 	assert.Equal(deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
 }
 
-func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnPartialRequired() {
+func (ts *storeTestSuite) TestStoreWriteDeleteMultipleTxnPartialRequired() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -985,7 +985,7 @@ func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnPartialRequired() {
 	assert.Equal(deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
 }
 
-func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnPartialOptional() {
+func (ts *storeTestSuite) TestStoreWriteDeleteMultipleTxnPartialOptional() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1052,7 +1052,7 @@ func (ts *storeTestSuite)  TestStoreWriteDeleteMultipleTxnPartialOptional() {
 	assert.Equal(deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
 }
 
-func (ts *storeTestSuite)  TestStoreWriteDeleteWithPrefix() {
+func (ts *storeTestSuite) TestStoreWriteDeleteWithPrefix() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1108,7 +1108,7 @@ func (ts *storeTestSuite)  TestStoreWriteDeleteWithPrefix() {
 	assert.Equal(deleteResponse.Revision, readResponse.Revision, "Unexpected value for store revision on read completion")
 }
 
-func (ts *storeTestSuite)  TestStoreWriteReadDeleteWithoutConnect() {
+func (ts *storeTestSuite) TestStoreWriteReadDeleteWithoutConnect() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1145,7 +1145,7 @@ func (ts *storeTestSuite)  TestStoreWriteReadDeleteWithoutConnect() {
 	store = nil
 }
 
-func (ts *storeTestSuite)  TestStoreSetWatch() {
+func (ts *storeTestSuite) TestStoreSetWatch() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1231,7 +1231,7 @@ func (ts *storeTestSuite)  TestStoreSetWatch() {
 	w.Close(ctx)
 }
 
-func (ts *storeTestSuite)  TestStoreSetWatchPrefix() {
+func (ts *storeTestSuite) TestStoreSetWatchPrefix() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1339,7 +1339,7 @@ func (ts *storeTestSuite)  TestStoreSetWatchPrefix() {
 	w.Close(ctx)
 }
 
-func (ts *storeTestSuite)  TestStoreGetMemberList() {
+func (ts *storeTestSuite) TestStoreGetMemberList() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1359,14 +1359,14 @@ func (ts *storeTestSuite)  TestStoreGetMemberList() {
 	}
 }
 
-func (ts *storeTestSuite)  TestStoreSyncClusterConnections() {
+func (ts *storeTestSuite) TestStoreSyncClusterConnections() {
 	require := ts.Require()
 
 	err := ts.store.UpdateClusterConnections()
 	require.NoError(err, "Failed to update cluster connections - error: %v", err)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteMultipleTxnCreate() {
+func (ts *storeTestSuite) TestStoreWriteMultipleTxnCreate() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1419,7 +1419,7 @@ func (ts *storeTestSuite)  TestStoreWriteMultipleTxnCreate() {
 	ts.testCompareReadResponseToWrite(readResponse, writeRequest, createResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteMultipleTxnOverwrite() {
+func (ts *storeTestSuite) TestStoreWriteMultipleTxnOverwrite() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1475,7 +1475,7 @@ func (ts *storeTestSuite)  TestStoreWriteMultipleTxnOverwrite() {
 	ts.testCompareReadResponseToWrite(readResponseUpdate, updateRequest, updateResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreWriteMultipleTxnCompareEqual() {
+func (ts *storeTestSuite) TestStoreWriteMultipleTxnCompareEqual() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1537,7 +1537,7 @@ func (ts *storeTestSuite)  TestStoreWriteMultipleTxnCompareEqual() {
 	ts.testCompareReadResponseToWrite(readResponse, updateRequest, updateResponse)
 }
 
-func (ts *storeTestSuite)  TestStoreListWithPrefix() {
+func (ts *storeTestSuite) TestStoreListWithPrefix() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
@@ -1591,7 +1591,7 @@ func (ts *storeTestSuite)  TestStoreListWithPrefix() {
 	}
 }
 
-func (ts *storeTestSuite)  TestStoreListWithPrefixEmptySet() {
+func (ts *storeTestSuite) TestStoreListWithPrefixEmptySet() {
 	assert  := ts.Assert()
 	require := ts.Require()
 
