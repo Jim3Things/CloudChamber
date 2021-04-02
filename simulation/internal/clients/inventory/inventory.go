@@ -447,12 +447,12 @@ type RootSummary struct {
 	MaxCapacity   *pb.BladeCapacity
 }
 
-// Inventory is a structure used to estblished synchronized access to values 
+// Inventory is a structure used to estblished synchronized access to values
 // required to make use of the inventory layer.
 //
 type Inventory struct {
 	mutex              sync.RWMutex
-	cfg                *config.GlobalConfig	
+	cfg                *config.GlobalConfig
 	Store              *store.Store
 	RootSummary        *RootSummary
 	DefaultZoneSummary *ZoneSummary
@@ -483,15 +483,7 @@ func (m *Inventory) Start(ctx context.Context) error {
 		return err
 	}
 
-	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
-
-	if err != nil {
-		return err
-	}
-
-	m.RootSummary, m.DefaultZoneSummary = m.buildSummaryInformation(ctx, rootStore)
-
-	return nil
+	return m.updateSummaryInformation(ctx)
 }
 
 // GetDefaultZoneSummary returns the maximum number of blades held in any rack
@@ -525,17 +517,11 @@ func (m *Inventory) UpdateInventoryDefinition(ctx context.Context, path string) 
 		return err
 	}
 
-	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
-
-	if err != nil {
+	if err = m.reconcileNewInventory(ctx, rootFile); err != nil {
 		return err
 	}
 
-	if err = m.reconcileNewInventory(ctx, rootFile, rootStore); err != nil {
-		return err
-	}
-
-	return nil
+	return m.updateSummaryInformation(ctx)
 }
 
 // DeleteInventoryDefinition is a
@@ -552,14 +538,238 @@ func (m *Inventory) DeleteInventoryDefinition(ctx context.Context) error {
 		return err
 	}
 
-	return m.deleteInventoryDefinitionFromStore(ctx, root)
+	err = m.deleteInventoryDefinitionFromStore(ctx, root)
+
+	if err != nil {
+		return err
+	}
+
+	return m.updateSummaryInformation(ctx)
+}
+
+func (m *Inventory) reconcileNewInventoryRegion(
+	ctx         context.Context,
+	regionStore *Region,
+	regionFile  *pb.Definition_Region,
+) error {
+	errNotFound := errors.ErrZoneNotFound{Region: regionStore.Region}
+
+	_, err := regionStore.Read(ctx)
+
+	if err == errNotFound {
+		tracing.Info(ctx, "   creating new region %s", regionStore.Region)
+
+		regionStore.SetDetails(regionFile.GetDetails())
+
+		_, err = regionStore.Create(ctx)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if regionFile.GetDetails() != regionStore.GetDetails() {
+		tracing.Info(ctx, "   updating region %s", regionStore.Region)
+
+		regionStore.SetDetails(regionFile.GetDetails())
+
+		_, err = regionStore.Update(ctx, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Inventory) reconcileNewInventoryZone(
+	ctx         context.Context,
+	zoneStore   *Zone,
+	zoneFile    *pb.Definition_Zone,
+) error {
+	errNotFound := errors.ErrZoneNotFound{Region: zoneStore.Region, Zone: zoneStore.Zone}
+
+	_, err := zoneStore.Read(ctx)
+
+	if err == errNotFound {
+		tracing.Info(ctx, "   creating new zone %s/%s", zoneStore.Region, zoneStore.Zone)
+
+		zoneStore.SetDetails(zoneFile.GetDetails())
+
+		_, err = zoneStore.Create(ctx)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if zoneFile.GetDetails() != zoneStore.GetDetails() {
+		tracing.Info(ctx, "   updating zone %s/%s", zoneStore.Region, zoneStore.Zone)
+
+		zoneStore.SetDetails(zoneFile.GetDetails())
+
+		_, err = zoneStore.Update(ctx, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Inventory) reconcileNewInventoryRack(
+	ctx         context.Context,
+	rackStore   *Rack,
+	rackFile    *pb.Definition_Rack,
+) error {
+	errNotFound := errors.ErrRackNotFound{Region: rackStore.Region, Zone: rackStore.Zone, Rack: rackStore.Rack}
+
+	_, err := rackStore.Read(ctx)
+
+	if err == errNotFound {
+		tracing.Info(ctx, "   creating new rack %s/%s/%s", rackStore.Region, rackStore.Zone, rackStore.Rack)
+
+		rackStore.SetDetails(rackFile.GetDetails())
+
+		_, err = rackStore.Create(ctx)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if rackFile.GetDetails() != rackStore.GetDetails() {
+		tracing.Info(ctx, "   updating rack %s/%s/%s", rackStore.Region, rackStore.Zone, rackStore.Rack)
+
+		rackStore.SetDetails(rackFile.GetDetails())
+
+		_, err = rackStore.Update(ctx, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Inventory) reconcileNewInventoryPdu(
+	ctx      context.Context,
+	pduStore *Pdu,
+	pduFile  *pb.Definition_Pdu,
+) error {
+	errNotFound := errors.ErrPduNotFound{Region: pduStore.Region, Zone: pduStore.Zone, Rack: pduStore.Rack, Pdu: pduStore.ID}
+
+	_, err := pduStore.Read(ctx)
+
+	if err == errNotFound {
+		tracing.Info(ctx, "   creating new pdu %s/%s/%s/%d", pduStore.Region, pduStore.Zone, pduStore.Rack, pduStore.ID)
+
+		ports := pduFile.GetPorts()
+		pduStore.SetPorts(&ports)
+		pduStore.SetDetails(pduFile.GetDetails())
+
+		_, err = pduStore.Create(ctx)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if pduFile.GetDetails() != pduStore.GetDetails() {
+		tracing.Info(ctx, "   updating pdu %s/%s/%s/%d", pduStore.Region, pduStore.Zone, pduStore.Rack, pduStore.ID)
+
+		ports := pduFile.GetPorts()
+		pduStore.SetPorts(&ports)
+		pduStore.SetDetails(pduFile.GetDetails())
+
+		_, err = pduStore.Update(ctx, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Inventory) reconcileNewInventoryTor(
+	ctx      context.Context,
+	torStore *Tor,
+	torFile  *pb.Definition_Tor,
+) error {
+	errNotFound := errors.ErrTorNotFound{Region: torStore.Region, Zone: torStore.Zone, Rack: torStore.Rack, Tor: torStore.ID}
+
+	_, err := torStore.Read(ctx)
+
+	if err == errNotFound {
+		tracing.Info(ctx, "   creating new tor %s/%s/%s/%d", torStore.Region, torStore.Zone, torStore.Rack, torStore.ID)
+
+		ports := torFile.GetPorts()
+		torStore.SetPorts(&ports)
+		torStore.SetDetails(torFile.GetDetails())
+
+		_, err = torStore.Create(ctx)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if torFile.GetDetails() != torStore.GetDetails() {
+		tracing.Info(ctx, "   updating tor %s/%s/%s/%d", torStore.Region, torStore.Zone, torStore.Rack, torStore.ID)
+
+		ports := torFile.GetPorts()
+		torStore.SetPorts(&ports)
+		torStore.SetDetails(torFile.GetDetails())
+
+		_, err = torStore.Update(ctx, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (m *Inventory) reconcileNewInventoryBlade(
+	ctx      context.Context,
+	bladeStore *Blade,
+	bladeFile  *pb.Definition_Blade,
+) error {
+	errNotFound := errors.ErrBladeNotFound{Region: bladeStore.Region, Zone: bladeStore.Zone, Rack: bladeStore.Rack, Blade: bladeStore.ID}
+
+	_, err := bladeStore.Read(ctx)
+
+	if err == errNotFound {
+		tracing.Info(ctx, "   creating new blade %s/%s/%s/%d", bladeStore.Region, bladeStore.Zone, bladeStore.Rack, bladeStore.ID)
+
+		bladeStore.SetDetails(bladeFile.GetDetails())
+		bladeStore.SetCapacity(bladeFile.GetCapacity())
+		bladeStore.SetBootInfo(bladeFile.GetBootInfo())
+		bladeStore.SetBootPowerOn(bladeFile.GetBootOnPowerOn())
+
+		_, err = bladeStore.Create(ctx)
+		if err != nil {
+			return err
+		}
+	} else if err != nil {
+		return err
+	} else if bladeFile.GetDetails() != bladeStore.GetDetails() {
+		tracing.Info(ctx, "   updating blade %s/%s/%s/%d", bladeStore.Region, bladeStore.Zone, bladeStore.Rack, bladeStore.ID)
+
+		bladeStore.SetDetails(bladeFile.GetDetails())
+		bladeStore.SetCapacity(bladeFile.GetCapacity())
+		bladeStore.SetBootInfo(bladeFile.GetBootInfo())
+		bladeStore.SetBootPowerOn(bladeFile.GetBootOnPowerOn())
+
+		_, err = bladeStore.Update(ctx, true)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // reconcileNewInventory compares the newly loaded inventory definition,
-// presumably from a configuration file, with the currently loaded inventory
-// and updates the store accordingly. This will trigger the various watches
-// which any currently running services have previously established and deliver
-// a set of arrival and/or departure notifications as appropriate.
+// presumably from a configuration file, with the current inventory and
+// updates the store accordingly. This will trigger the various watches
+// which any currently running services have previously established and
+// deliver a set of arrival and/or departure notifications as appropriate.
 //
 // NOTE: As a temporary measure, reconciliation just deletes the old inventory
 //       from the store and completely replaces it with the newly read inventory
@@ -567,8 +777,7 @@ func (m *Inventory) DeleteInventoryDefinition(ctx context.Context) error {
 //
 func (m *Inventory) reconcileNewInventory(
 	ctx context.Context,
-	rootFile *pb.Definition_Root,
-	rootStore *pb.Definition_Root) error {
+	rootFile *pb.Definition_Root) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName("Reconcile current inventory with update"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
@@ -578,17 +787,200 @@ func (m *Inventory) reconcileNewInventory(
 	m.mutex.Lock()
 	defer m.mutex.Unlock()
 
-	err := m.deleteInventoryDefinitionFromStore(ctx, rootStore)
+	// First iterate over the file based inventory and search for items which have
+	// been added, or changed. For items that are new, create new items and write
+	// them to the store. For updates, update the existing records.
+	//
+	root, err := m.NewRoot(namespace.DefinitionTable)
 	if err != nil {
 		return err
 	}
 
-	err = m.writeInventoryDefinitionToStore(ctx, rootFile)
+	for regionName, regionFile := range rootFile.Regions {
+		regionStore, err := root.NewChild(regionName)
+		if err != nil {
+			return err
+		}
+
+		if err = m.reconcileNewInventoryRegion(ctx, regionStore, regionFile); err != nil {
+			return err
+		}
+
+		for zoneName, zoneFile := range regionFile.Zones {
+			zoneStore, err := regionStore.NewChild(zoneName)
+			if err != nil {
+				return err
+			}
+
+			if err = m.reconcileNewInventoryZone(ctx, zoneStore, zoneFile); err != nil {
+				return err
+			}
+
+			for rackName, rackFile := range zoneFile.Racks {
+				rackStore, err := zoneStore.NewChild(rackName)
+				if err != nil {
+					return err
+				}
+
+				if err = m.reconcileNewInventoryRack(ctx, rackStore, rackFile); err != nil {
+					return err
+				}
+
+				for index, pduFile := range rackFile.Pdus {
+					pduStore, err := rackStore.NewPdu(index)
+					if err != nil {
+						return err
+					}
+
+					if err = m.reconcileNewInventoryPdu(ctx, pduStore, pduFile); err != nil {
+						return err
+					}
+				}
+
+				for index, torFile := range rackFile.Tors {
+					torStore, err := rackStore.NewTor(index)
+					if err != nil {
+						return err
+					}
+
+					if err = m.reconcileNewInventoryTor(ctx, torStore, torFile); err != nil {
+						return err
+					}
+				}
+
+				for index, bladeFile := range rackFile.Blades {
+					bladeStore, err := rackStore.NewBlade(index)
+					if err != nil {
+						return err
+					}
+
+					if err = m.reconcileNewInventoryBlade(ctx, bladeStore, bladeFile); err != nil {
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// Now that new items and updates have been processed, iterate over the store
+	// based inventory and check it it is still present in the file based inventory.
+	// If not, then delete the items from the store.
+	//
+	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
+
 	if err != nil {
 		return err
 	}
 
-	m.RootSummary, m.DefaultZoneSummary = m.buildSummaryInformation(ctx, rootFile)
+	for regionName, regionStore := range rootStore.Regions {
+		region, err := root.NewChild(regionName)
+		if err != nil {
+			return err
+		}
+
+		regionFile, ok := rootFile.Regions[regionName]
+
+		if !ok {
+			_, err = region.Delete(ctx, true)
+			if err != nil {
+				return err
+			}
+		} else {
+			for zoneName, zoneStore := range regionStore.Zones {
+				zone, err := region.NewChild(zoneName)
+				if err != nil {
+					return err
+				}
+
+				zoneFile, ok := regionFile.Zones[zoneName]
+
+				if !ok {
+					_, err = zone.Delete(ctx, true)
+					if err != nil {
+						return err
+					}
+				} else {
+					for rackName, rackStore := range zoneStore.Racks {
+						rack, err := zone.NewChild(rackName)
+						if err != nil {
+							return err
+						}
+
+						rackFile, ok := zoneFile.Racks[rackName]
+
+						if !ok {
+							_, err = rack.Delete(ctx, true)
+							if err != nil {
+								return err
+							}
+						} else {
+							for index := range rackStore.Pdus {
+								pdu, err := rack.NewPdu(index)
+								if err != nil {
+									return err
+								}
+
+								_, ok := rackFile.Pdus[index]
+								if !ok {
+									_, err = pdu.Delete(ctx, true)
+									if err != nil {
+										return err
+									}
+								}
+							}
+
+							for index := range rackStore.Tors {
+								tor, err := rack.NewTor(index)
+								if err != nil {
+									return err
+								}
+
+								_, ok := rackFile.Tors[index]
+								if !ok {
+									_, err = tor.Delete(ctx, true)
+									if err != nil {
+										return err
+									}
+								}
+							}
+
+							for index := range rackStore.Pdus {
+								blade, err := rack.NewBlade(index)
+								if err != nil {
+									return err
+								}
+
+								_, ok := rackFile.Blades[index]
+								if !ok {
+									_, err = blade.Delete(ctx, true)
+									if err != nil {
+										return err
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// updateSummaryInformation is called after any update to the store that might have
+// added or removed items from the inventory and generates a new set of summary
+// information to reflect those updates.
+//
+func (m *Inventory) updateSummaryInformation(ctx context.Context) error {
+
+	root, err := m.readInventoryDefinitionFromStore(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	m.RootSummary, m.DefaultZoneSummary = m.buildSummaryInformation(ctx, root)
 
 	return nil
 }
@@ -613,7 +1005,7 @@ func (m *Inventory) buildSummaryInformation(ctx context.Context, root *pb.Defini
 
 	if err != nil {
 		zoneSummary = &ZoneSummary{}
-	
+
 		tracing.Error(
 			ctx,
 			"   Reset DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v - %v",
@@ -655,7 +1047,7 @@ func (m *Inventory) getDefaultZone(root *pb.Definition_Root) (*pb.Definition_Zon
 }
 
 // readInventoryDefinitionFromStore is used to read all the inventory
-// definitions from the store, regardless of how they got there and 
+// definitions from the store, regardless of how they got there and
 // return them in the hierarchical in-memory form.
 //
 func (m *Inventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.Definition_Root, error) {
@@ -707,7 +1099,7 @@ func (m *Inventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.D
 				if err != nil {
 					return nil, err
 				}
-	
+
 				defZone.Racks[rackName] = defRack
 			}
 
@@ -720,7 +1112,7 @@ func (m *Inventory) readInventoryDefinitionFromStore(ctx context.Context) (*pb.D
 	return defRoot, nil
 }
 
-// writeInventoryDefinitionToStore will use the supplied root parameter and 
+// writeInventoryDefinitionToStore will use the supplied root parameter and
 // persist a record for each item in the supplied Definition_Root contents.
 //
 // In the case of collisions, the routine will fail with an "already exists"
@@ -770,9 +1162,9 @@ func (m *Inventory) writeInventoryDefinitionToStore(ctx context.Context, root *p
 			if err != nil {
 				return err
 			}
-	
+
 			storeZone.SetDetails(zone.GetDetails())
-	
+
 			_, err = storeZone.Create(ctx)
 			if err != nil {
 				return err
@@ -789,9 +1181,9 @@ func (m *Inventory) writeInventoryDefinitionToStore(ctx context.Context, root *p
 				if err != nil {
 					return err
 				}
-		
+
 				storeRack.SetDetails(rack.GetDetails())
-		
+
 				_, err = storeRack.Create(ctx)
 				if err != nil {
 					return err
@@ -1062,4 +1454,3 @@ func (m *Inventory) buildSummaryForRack(rack *pb.Definition_Rack) (int, *pb.Blad
 
 	return len(rack.Blades), memo
 }
-
