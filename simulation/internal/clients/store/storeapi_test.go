@@ -4,12 +4,13 @@ import (
 	"context"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
+
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/admin"
 )
 
@@ -29,20 +30,43 @@ const (
 	evePassword          = "EvePassword"
 )
 
-func TestCreate(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+type storeApiTestSuite struct {
+	testSuiteCore
+
+	store *Store
+}
+
+func (ts *storeApiTestSuite) SetupSuite() {
+	require := ts.Require()
+
+	ts.testSuiteCore.SetupSuite()
+
+	ts.store = NewStore()
+	require.NotNil(ts.store)
+}
+
+func (ts *storeApiTestSuite) SetupTest() {
+	require := ts.Require()
+
+	ts.testSuiteCore.SetupTest()
+
+	require.NoError(ts.store.Connect())
+}
+
+func (ts *storeApiTestSuite) TearDownTest() {
+	ts.store.Disconnect()
+
+	ts.testSuiteCore.TearDownTest()
+}
+
+func (ts *storeApiTestSuite) TestCreate() {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	userName := admin + "." + tracing.MethodName(1)
 
-	store := NewStore()
-	require.NotNil(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	require.NoError(t, err, "Failed to connect to store - error: %v", err)
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -53,41 +77,30 @@ func TestCreate(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revCreate, err := store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+	revCreate, err := ts.store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
+	require.NoError(err)
+	require.Less(RevisionInvalid, revCreate)
 
-	revCreate2, err := store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
-	assert.NotNilf(t, err, "Unexpected success attempting to (re-)create new user %q - error: %v", userName, err)
-	assert.Equalf(t, RevisionInvalid, revCreate2, "Expected failure should result in no response")
+	revCreate2, err := ts.store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
+	require.ErrorIs(errors.ErrStoreAlreadyExists(userName), err)
+	assert.Equal(RevisionInvalid, revCreate2)
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
-
-	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
-	assert.Equalf(t, user, userRead, "Unexpected difference in creation user record and read user record")
-
-	store.Disconnect()
-
-	store = nil
+	revRead, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+	assert.Equal(user, userRead)
 }
 
-func TestReadNew(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *storeApiTestSuite) TestReadNew() {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	userName := admin + "." + tracing.MethodName(1)
 
-	store := NewStore()
-	require.NotNilf(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	require.NoError(t, err, "Failed to connect to store - error: %v", err)
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -98,47 +111,37 @@ func TestReadNew(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revCreate, err := store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+	revCreate, err := ts.store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
+	require.NoError(err)
+	assert.Less(RevisionInvalid, revCreate)
 
 	readUser := &pb.User{}
 
-	revRead, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, readUser)
-	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revRead, "Expected read revision to be equal to create revision")
-	assert.Equalf(t, user, readUser, "Unexpected difference in creation user record and read user record")
+	revRead, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, readUser)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+	assert.Equal(user, readUser)
 
-	readUserString, revReadValue, err := store.Read(context.Background(), namespace.KeyRootUsers, userName)
-	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revReadValue, "Expected read revision to be equal to create revision")
+	readUserString, revReadValue, err := ts.store.Read(context.Background(), namespace.KeyRootUsers, userName)
+	require.NoError(err)
+	assert.Equal(revCreate, revReadValue)
 
 	readUserValue := &pb.User{}
 
 	err = Decode(*readUserString, readUserValue)
 
-	assert.Nilf(t, err, "Unexpected failure attempting to decode string for user %q - error: %v", userName, err, *readUserString)
-	assert.Equalf(t, user, readUserValue, "Unexpected difference in creation user record and read user record")
-
-	store.Disconnect()
-
-	store = nil
+	require.NoError(err)
+	assert.Equal(user, readUserValue)
 }
 
-func TestReadNewValue(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *storeApiTestSuite) TestReadNewValue() {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	userName := admin + "." + tracing.MethodName(1)
 
-	store := NewStore()
-	require.NotNil(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	require.NoError(t, err, "Failed to connect to store - error: %v", err)
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -150,49 +153,39 @@ func TestReadNewValue(t *testing.T) {
 	}
 
 	userValue, err := Encode(user)
-	assert.Nilf(t, err, "Failed to encode user record")
+	require.NoError(err, "Failed to encode user record")
 
-	revCreate, err := store.Create(context.Background(), namespace.KeyRootUsers, userName, userValue)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+	revCreate, err := ts.store.Create(context.Background(), namespace.KeyRootUsers, userName, userValue)
+	require.NoError(err)
+	assert.Less(RevisionInvalid, revCreate)
 
-	readUserValue, revReadValue, err := store.Read(context.Background(), namespace.KeyRootUsers, userName)
-	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revReadValue, "Expected read revision to be equal to create revision")
-	assert.Equalf(t, userValue, *readUserValue, "Unexpected difference in creation user record and read user record")
+	readUserValue, revReadValue, err := ts.store.Read(context.Background(), namespace.KeyRootUsers, userName)
+	require.NoError(err)
+	assert.Equal(revCreate, revReadValue)
+	assert.Equal(userValue, *readUserValue)
 
 	readUser := &pb.User{}
 
-	revRead, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, readUser)
-	assert.Nilf(t, err, "Unexpected failure attempting to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revRead, "Expected read revision to be equal to create revision")
-	assert.Equalf(t, user, readUser, "Unexpected difference in creation user record and read user record")
+	revRead, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, readUser)
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+	assert.Equal(user, readUser)
 
 	readUserFromValue := &pb.User{}
 
 	err = Decode(*readUserValue, readUserFromValue)
-	assert.Nilf(t, err, "Unexpected failure attempting to decode string for user %q with value %q", userName, *readUserValue)
-	assert.Equalf(t, user, readUserFromValue, "Unexpected difference in creation user record and read user record")
-
-	store.Disconnect()
-
-	store = nil
+	require.NoError(err)
+	assert.Equal(user, readUserFromValue)
 }
 
-func TestUpdate(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *storeApiTestSuite) TestUpdate() {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	userName := admin + "." + tracing.MethodName(1)
 
-	store := NewStore()
-	require.NotNil(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	require.NoError(t, err, "Failed to connect to store - error: %v", err)
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminUpdatePassword), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -203,22 +196,22 @@ func TestUpdate(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revCreate, err := store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+	revCreate, err := ts.store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
+	require.NoError(err)
+	assert.Less(RevisionInvalid, revCreate)
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
+	revRead, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
 
-	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
-	assert.Equalf(t, user, userRead, "Unexpected difference in creation user record and read user record")
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+	assert.Equal(user, userRead)
 
 	// Now update the user record and see if the changes made it.
 	//
 	passwordHash, err = bcrypt.GenerateFromPassword([]byte(adminUpdatePassword2), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	userUpdate := &pb.User{
 		Name:         userName,
@@ -229,17 +222,17 @@ func TestUpdate(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revUpdate, err := store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, revRead, revUpdate, "Expected update revision to be greater than create revision")
+	revUpdate, err := ts.store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
 
 	userReadUpdate := &pb.User{}
 
-	revReadUpdate, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userReadUpdate)
+	revReadUpdate, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userReadUpdate)
 
-	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revUpdate, revReadUpdate, "Unexpected difference in update revision vs read revision")
-	assert.Equalf(t, userUpdate, userReadUpdate, "Unexpected difference in updated user record and read user record")
+	require.NoError(err)
+	assert.Equal(revUpdate, revReadUpdate)
+	assert.Equal(userUpdate, userReadUpdate)
 
 	// Now try to update with the wrong revision
 	//
@@ -252,29 +245,29 @@ func TestUpdate(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revReadUpdate2, err := store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate2)
-	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
-	assert.Equalf(t, RevisionInvalid, revReadUpdate2, "Expected update revision to be greater than create revision")
+	revReadUpdate2, err := ts.store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate2)
 
-	store.Disconnect()
+	// See issue #254
+	//
+	require.ErrorIs(errors.ErrStoreConditionFail{
+			Key:       namespace.GetKeyFromUsername(userName),
+			Requested: revCreate,
+			Condition: string(ConditionRevisionEqual),
+			Actual:    revUpdate,
+		},
+		err)
 
-	store = nil
+	assert.Equal(RevisionInvalid, revReadUpdate2)
 }
 
-func TestUpdateUnconditional(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *storeApiTestSuite) TestUpdateUnconditional() {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	userName := admin + "." + tracing.MethodName(1)
 
-	store := NewStore()
-	require.NotNilf(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	require.NoError(t, err, "Failed to connect to store - error: %v", err)
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(adminUpdatePassword), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -285,22 +278,22 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revCreate, err := store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, RevisionInvalid, revCreate, "Expected create revision to be greater than initial revision")
+	revCreate, err := ts.store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
+	require.NoError(err)
+	assert.Less(RevisionInvalid, revCreate)
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
+	revRead, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
 
-	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
-	assert.Equalf(t, user, userRead, "Unexpected difference in creation user record and read user record")
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+	assert.Equal(user, userRead)
 
 	// Now update the user record and see if the changes made it.
 	//
 	passwordHash, err = bcrypt.GenerateFromPassword([]byte(adminUpdatePassword2), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	userUpdate := &pb.User{
 		Name:         userName,
@@ -311,17 +304,17 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revUpdate, err := store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, revRead, revUpdate, "Expected update revision to be greater than first read revision")
+	revUpdate, err := ts.store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate)
+	require.NoError(err)
+	assert.Less(revRead, revUpdate)
 
 	userReadUpdate := &pb.User{}
 
-	revReadUpdate, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userReadUpdate)
+	revReadUpdate, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userReadUpdate)
 
-	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revUpdate, revReadUpdate, "Unexpected difference in update revision vs read revision")
-	assert.Equalf(t, userUpdate, userReadUpdate, "Unexpected difference in updated user record and read user record")
+	require.NoError(err)
+	assert.Equal(revUpdate, revReadUpdate)
+	assert.Equal(userUpdate, userReadUpdate)
 
 	// Now try to update with the wrong revision
 	//
@@ -334,9 +327,19 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revReadUpdate2, err := store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate2)
-	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
-	assert.Equalf(t, RevisionInvalid, revReadUpdate2, "Expected update revision to be nil")
+	revReadUpdate2, err := ts.store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, revRead, userUpdate2)
+
+	// See issue #254
+	//
+	require.ErrorIs(errors.ErrStoreConditionFail{
+			Key:       namespace.GetKeyFromUsername(userName),
+			Requested: revCreate,
+			Condition: string(ConditionRevisionEqual),
+			Actual:    revUpdate,
+		},
+		err)
+
+	assert.Equal(RevisionInvalid, revReadUpdate2)
 
 	// Now try to update unconditionally
 	//
@@ -349,30 +352,20 @@ func TestUpdateUnconditional(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revReadUpdate3, err := store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, RevisionInvalid, userUpdate3)
-	assert.Nilf(t, err, "Failed trying to update upconditionally for user %q - error: %v", userName, err)
-	assert.Lessf(t, revReadUpdate, revReadUpdate3, "Expected update revision to be greater than first update revision")
-
-	store.Disconnect()
-
-	store = nil
+	revReadUpdate3, err := ts.store.UpdateWithEncode(context.Background(), namespace.KeyRootUsers, userName, RevisionInvalid, userUpdate3)
+	require.NoError(err)
+	assert.Less(revReadUpdate, revReadUpdate3)
 }
 
-func TestDelete(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *storeApiTestSuite) TestDelete() {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	userName := alice + "." + tracing.MethodName(1)
 	passWord := alicePassword
 
-	store := NewStore()
-	require.NotNilf(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	require.NoError(t, err, "Failed to connect to store - error: %v", err)
-
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(passWord), bcrypt.DefaultCost)
-	require.NoError(t, err)
+	require.NoError(err)
 
 	user := &pb.User{
 		Name:         userName,
@@ -383,63 +376,72 @@ func TestDelete(t *testing.T) {
 		NeverDelete:  true,
 	}
 
-	revCreate, err := store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
-	assert.Nilf(t, err, "Failed to create new user %q - error: %v", userName, err)
-	assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+	revCreate, err := ts.store.CreateWithEncode(context.Background(), namespace.KeyRootUsers, userName, user)
+	require.NoError(err)
+	assert.Less(RevisionInvalid, revCreate)
 
 	userRead := &pb.User{}
 
-	revRead, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
+	revRead, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userRead)
 
-	assert.Nilf(t, err, "Failed to read user %q - error: %v", userName, err)
-	assert.Equalf(t, revCreate, revRead, "Unexpected difference in creation revision vs read revision")
-	assert.Equalf(t, user, userRead, "Unexpected difference in creation user record and read user record")
+	require.NoError(err)
+	assert.Equal(revCreate, revRead)
+	assert.Equal(user, userRead)
 
 	// Fiurst try to delete using the wrong revision
 	//
-	revDelete, err := store.Delete(context.Background(), namespace.KeyRootUsers, userName, revRead-1)
-	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
-	assert.Equalf(t, RevisionInvalid, revDelete, "Expected post-delete revision to be greater than read revision")
+	revDelete, err := ts.store.Delete(context.Background(), namespace.KeyRootUsers, userName, revRead-1)
+
+	// See issue #254
+	//
+	require.ErrorIs(errors.ErrStoreConditionFail{
+			Key:       namespace.GetKeyFromUsername(userName),
+			Requested: revRead-1,
+			Condition: string(ConditionRevisionEqual),
+			Actual:    revRead,
+		},
+		err)
+
+	assert.Equal(RevisionInvalid, revDelete)
 
 	// Now delete with the correct revision
 	//
-	revDelete, err = store.Delete(context.Background(), namespace.KeyRootUsers, userName, revRead)
-	assert.Nilf(t, err, "Failed to delete user %q - error: %v", userName, err)
-	assert.Lessf(t, revRead, revDelete, "Expected post-delete revision to be greater than read revision")
+	revDelete, err = ts.store.Delete(context.Background(), namespace.KeyRootUsers, userName, revRead)
+	require.NoError(err)
+	assert.Less(revRead, revDelete)
 
 	// Try to read after delete
 	//
 	userReread := &pb.User{}
 
-	revReread, err := store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userReread)
-	assert.NotNilf(t, err, "Unexpected success reading user %q after deletion - error: %v", userName, err)
-	assert.Equalf(t, RevisionInvalid, revReread, "Unexpected difference in update revision vs read revision")
+	revReread, err := ts.store.ReadWithDecode(context.Background(), namespace.KeyRootUsers, userName, userReread)
+	require.ErrorIs(errors.ErrStoreKeyNotFound(userName), err)
+	assert.Equal(RevisionInvalid, revReread)
 
 	// Try to delete a non-existing record.
 	//
-	revDeleteAgain, err := store.Delete(context.Background(), namespace.KeyRootUsers, userName, revRead)
-	assert.NotNilf(t, err, "Unexpected success trying to update with wrong revision for user %q - error: %v", userName, err)
-	assert.Equalf(t, RevisionInvalid, revDeleteAgain, "Expected post-re-delete revision invalid")
+	revDeleteAgain, err := ts.store.Delete(context.Background(), namespace.KeyRootUsers, userName, revRead)
 
-	store.Disconnect()
-
-	store = nil
+	// See issue #254
+	//
+	require.ErrorIs(errors.ErrStoreConditionFail{
+			Key:       namespace.GetKeyFromUsername(userName),
+			Requested: revRead,
+			Condition: string(ConditionRevisionEqual),
+			Actual:    0,
+		},
+		err)
+	assert.Equal(RevisionInvalid, revDeleteAgain)
 }
 
-func TestList(t *testing.T) {
-	_ = utf.Open(t)
-	defer utf.Close()
+func (ts *storeApiTestSuite) TestList() {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	type urec struct {
 		name string
 		pwd  string
 	}
-
-	store := NewStore()
-	require.NotNilf(t, store, "Failed to get the store as expected")
-
-	err := store.Connect()
-	require.NoError(t, err, "Failed to connect to store - error: %v", err)
 
 	suffix := "." + tracing.MethodName(1)
 
@@ -453,8 +455,7 @@ func TestList(t *testing.T) {
 
 	for i, u := range userSet {
 		pwdHash, err := bcrypt.GenerateFromPassword([]byte(u.pwd), bcrypt.DefaultCost)
-
-		require.NoError(t, err, "Failed to create password hash for user %q - error: %v", u.name, err)
+		require.NoError(err)
 
 		users[namespace.GetNormalizedName(u.name)] = &pb.User{
 			Name:         u.name,
@@ -472,11 +473,11 @@ func TestList(t *testing.T) {
 
 	for n, u := range users {
 		v, err := Encode(u)
-		assert.Nilf(t, err, "Failed to encode value for new user %q - error: %v", n, err)
+		require.NoError(err)
 
-		revCreate, err := store.Create(context.Background(), namespace.KeyRootUsers, n, v)
-		assert.Nilf(t, err, "Failed to create new user %q - error: %v", n, err)
-		assert.Lessf(t, RevisionInvalid, revCreate, "Expected new store revision to be greater than initial revision")
+		revCreate, err := ts.store.Create(context.Background(), namespace.KeyRootUsers, n, v)
+		require.NoError(err)
+		assert.Less(RevisionInvalid, revCreate)
 
 		userRecords[n] = Record{Revision: revCreate, Value: v}
 
@@ -485,24 +486,24 @@ func TestList(t *testing.T) {
 		}
 	}
 
-	listRecs, listRev, err := store.List(context.Background(), namespace.KeyRootUsers, "")
-	assert.Nilf(t, err, "Failed to list records")
-	assert.LessOrEqualf(t, revFirstCreate, listRev, "Expected new store revision to be greater than initial revision")
+	listRecs, listRev, err := ts.store.List(context.Background(), namespace.KeyRootUsers, "")
+	require.NoError(err)
+	assert.LessOrEqual(revFirstCreate, listRev)
 
 	// Use "less than or equal" relationship to allow for the cases where all the
 	// file tests are being executed and there are potentially user records left over
 	// from tests running earlier in the set.
 	//
-	assert.LessOrEqualf(t, len(userRecords), len(*listRecs), "Unexpected difference in count of records returned from user list")
+	assert.LessOrEqual(len(userRecords), len(*listRecs))
 
 	// Check that the records this test created are present. There may be others.
 	//
 	for n, u := range userRecords {
-		assert.Equalf(t, u.Revision, (*listRecs)[n].Revision, "Unexpected difference in revision from create for user %q", n)
-		assert.Equalf(t, u.Value, (*listRecs)[n].Value, "Unexpected difference in value from create for user %q", n)
+		assert.Equal(u.Revision, (*listRecs)[n].Revision)
+		assert.Equal(u.Value, (*listRecs)[n].Value)
 	}
+}
 
-	store.Disconnect()
-
-	store = nil
+func TestStoreApiTestSuite(t *testing.T) {
+	suite.Run(t, new(storeApiTestSuite))
 }

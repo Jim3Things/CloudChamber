@@ -1,17 +1,7 @@
 package store
 
 import (
-	"context"
-	"flag"
 	"fmt"
-	"log"
-	"os"
-	"testing"
-
-	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
-	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // A number of tests use a pre-computed set of keys for the purposes of
@@ -24,27 +14,6 @@ import (
 // defaults to 128
 //
 const keySetSize = 10
-
-var (
-	configPath *string
-
-	utf *exporters.Exporter
-)
-
-func commonSetup() {
-	utf = exporters.NewExporter(exporters.NewUTForwarder())
-	exporters.ConnectToProvider(utf)
-
-	configPath = flag.String("config", "./testdata", "path to the configuration file")
-	flag.Parse()
-
-	cfg, err := config.ReadGlobalConfig(*configPath)
-	if err != nil {
-		log.Fatalf("failed to process the global configuration: %v", err)
-	}
-
-	Initialize(context.Background(), cfg)
-}
 
 func testGenerateKeyFromNames(prefix string, name string) string {
 	return fmt.Sprintf("%s/Key%s", prefix, name)
@@ -234,18 +203,18 @@ func testCompareReadRecordToWriteRecord(rRec *Record, wRec *Record, wRev int64) 
 	return true
 }
 
-func testCompareReadResponseToWrite(
-	t *testing.T,
+func (ts *testSuiteCore) testCompareReadResponseToWrite(
 	readResponse *Response,
 	writeRequest *Request,
 	writeResponse *Response,
 ) {
+	assert  := ts.Assert()
+	require := ts.Require()
 
 	// Fist check that we have the same number of records in the
 	// response as in the request
 	//
 	assert.Equalf(
-		t,
 		len(writeRequest.Records),
 		len(readResponse.Records),
 		"record count mismatch",
@@ -258,12 +227,11 @@ func testCompareReadResponseToWrite(
 
 		r, ok := readResponse.Records[k]
 
-		require.Truef(t, ok, "No read response record to match request record for key: %s val:, %s", k, w.Value)
+		require.Truef(ok, "No read response record to match request record for key: %s val:, %s", k, w.Value)
 
 		ok = testCompareReadRecordToWriteRecord(&r, &w, writeResponse.Revision)
 
 		assert.Truef(
-			t,
 			ok,
 			"read response does not match write request - key: %s wVal: %s wRev %v rVal %s rRev: %v",
 			k,
@@ -281,12 +249,11 @@ func testCompareReadResponseToWrite(
 
 		wReq, ok := writeRequest.Records[k]
 
-		require.Truef(t, ok, "No write request record to match read response record")
+		require.Truef(ok, "No write request record to match read response record")
 
 		ok = testCompareReadRecordToWriteRecord(&r, &wReq, writeResponse.Revision)
 
 		assert.Truef(
-			t,
 			ok,
 			"write request does not match read response - key: %s wVal: %s wRev %v rVal %s rRev: %v",
 			k,
@@ -295,11 +262,4 @@ func testCompareReadResponseToWrite(
 			r.Value,
 			r.Revision)
 	}
-}
-
-// TestMain is the Common test startup method.  This is the _only_ Test* function in this
-// file.
-func TestMain(m *testing.M) {
-	commonSetup()
-	os.Exit(m.Run())
 }
