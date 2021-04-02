@@ -33,13 +33,15 @@ func (ts *storeTestSuite) SetupSuite() {
 func (ts *storeTestSuite) SetupTest() {
 	require := ts.Require()
 
-	require.NoError(ts.utf.Open(ts.T()))
+	ts.testSuiteCore.SetupTest()
+
 	require.NoError(ts.store.Connect())
 }
 
 func (ts *storeTestSuite) TearDownTest() {
 	ts.store.Disconnect()
-	ts.utf.Close()
+
+	ts.testSuiteCore.TearDownTest()
 }
 
 func (ts *storeTestSuite) TestNew() {

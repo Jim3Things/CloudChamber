@@ -48,13 +48,15 @@ func (ts *storeApiTestSuite) SetupSuite() {
 func (ts *storeApiTestSuite) SetupTest() {
 	require := ts.Require()
 
-	require.NoError(ts.utf.Open(ts.T()))
+	ts.testSuiteCore.SetupTest()
+
 	require.NoError(ts.store.Connect())
 }
 
 func (ts *storeApiTestSuite) TearDownTest() {
 	ts.store.Disconnect()
-	ts.utf.Close()
+
+	ts.testSuiteCore.TearDownTest()
 }
 
 func (ts *storeApiTestSuite) TestCreate() {
