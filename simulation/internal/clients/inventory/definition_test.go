@@ -3242,28 +3242,21 @@ func (ts *definitionTestSuite) TestReadInventoryFromStore() {
 	require.NoError(err)
 }
 
-func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExBasic() {
+func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileBasic() {
 	require := ts.Require()
 
 	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/basic")
 	require.NoError(err)
 }
 
-func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExExtended() {
+func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExtended() {
 	require := ts.Require()
 
 	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/extended")
 	require.NoError(err)
 }
 
-func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExStandard() {
-	require := ts.Require()
-
-	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/standard")
-	require.NoError(err)
-}
-
-func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExReference() {
+func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileReference() {
 	require := ts.Require()
 
 	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/reference")
@@ -3329,6 +3322,170 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionSimple() {
 	require.NoError(err)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/simple")
+	require.NoError(err)
+}
+
+func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedNoChange() {
+	require := ts.Require()
+
+	regionName := "region1"
+	zoneName   := "zone1"
+
+	region, err := ts.inventory.NewRegion(namespace.DefinitionTable, regionName)
+	require.NoError(err)
+	require.NotNil(region)
+
+	zone, err := region.NewChild(zoneName)
+	require.NoError(err)
+	require.NotNil(zone)
+
+	ctx := context.Background()
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	_, err = region.Read(ctx)
+	require.NoError(err)
+
+	storeRevision := region.GetRevisionStore()
+
+	// We only have the facility to establish a watchpoint on a zone, so
+	// looking for changes is not foolproof.
+	//
+	watch, err := zone.Watch(ctx)
+	require.NoError(err)
+	require.NotNil(watch)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	// Since nothing changed, we expect no events.
+	//
+	select {
+	case ev, ok := <-watch.Events:
+		require.False(ok)
+		require.Nil(ev)
+
+	default:
+		// Nothing to do.
+	}
+
+	watch.Close(ctx)
+
+	// Also check that the store revision is unchanged.
+	//
+	_, err = region.Read(ctx)
+	require.NoError(err)
+
+	require.Equal(storeRevision, region.GetRevisionStore())
+}
+
+func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedAddBlade() {
+	require := ts.Require()
+
+	regionName := "region1"
+	zoneName   := "zone1"
+	rackName   := "rack1"
+	bladeId    := int64(3)
+
+	ctx := context.Background()
+
+	blade, err := ts.inventory.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
+	require.NoError(err)
+	require.NotNil(blade)
+
+	errBladeNotFound := errors.ErrBladeNotFound{
+		Region: regionName,
+		Zone:   zoneName,
+		Rack:   rackName,
+		Blade:  bladeId,
+	}
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	// Check for the absence of the blade that is about to be added
+	//
+	_, err = blade.Read(ctx)
+	require.ErrorIs(err, errBladeNotFound)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddBlade")
+	require.NoError(err)
+
+	// Check that the blade has been properly loaded
+	//
+	_, err = blade.Read(ctx)
+	require.NoError(err)
+
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	// And finally, check that the blade has now been removed.
+	//
+	_, err = blade.Read(ctx)
+	require.ErrorIs(err, errBladeNotFound)
+
+
+}
+
+func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChangeBlade() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedChangeBlade")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+}
+
+func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRack() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddRack")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+}
+
+func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddZone() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddZone")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+}
+
+func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRegion() {
+	require := ts.Require()
+
+	ctx := context.Background()
+
+	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddRegion")
+	require.NoError(err)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
 }
 

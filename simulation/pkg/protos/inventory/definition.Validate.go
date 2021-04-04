@@ -216,7 +216,7 @@ func (x *Definition_Blade) Validate(prefix string) error {
 
 	// Validate that the capacity is valid
 	//
-	if err := x.Capacity.Validate(fmt.Sprintf("%s", prefix)); err != nil {
+	if err := x.Capacity.Validate(prefix); err != nil {
 			return err
 	}
 
@@ -228,7 +228,7 @@ func (x *Definition_Blade) Validate(prefix string) error {
 //
 func (x *Definition_Rack) Validate(prefix string) error {
 
-	// Verify that rack has at least the minimum number of pdus..., 
+	// Verify that rack has at least the minimum number of pdus...,
 	//
 	countPdus := int64(len(x.Pdus))
 
@@ -250,7 +250,7 @@ func (x *Definition_Rack) Validate(prefix string) error {
 		}
 	}
 
-	// Verify that rack has at least the minimum number of tors..., 
+	// Verify that rack has at least the minimum number of tors...,
 	//
 	countTors := int64(len(x.Tors))
 
@@ -272,7 +272,7 @@ func (x *Definition_Rack) Validate(prefix string) error {
 		}
 	}
 
-	// Verify that rack has at least the minimum number of blades..., 
+	// Verify that rack has at least the minimum number of blades...,
 	//
 	countBlades := int64(len(x.Blades))
 

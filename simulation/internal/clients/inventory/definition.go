@@ -620,6 +620,17 @@ func (r *Region) GetDetails() *pb.RegionDetails {
 	return cloneRegionDetails(r.details)
 }
 
+// EqualDetails is used to provide a simple equality check for use to determine
+// if the current details match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (r *Region) EqualDetails(details *pb.RegionDetails) bool {
+	return r.details.Name == details.Name &&
+	r.details.State == details.State &&
+	r.details.Location == details.Location &&
+	r.details.Notes == details.Notes
+}
+
 // GetDefinitionRegion returns a copy of the rack definition based on the contents of the
 // current object.
 //
@@ -629,6 +640,14 @@ func (r *Region) GetDefinitionRegion() *pb.Definition_Region {
 		Details: r.GetDetails(),
 		Zones:   make(map[string]*pb.Definition_Zone),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current region matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (r *Region) Equal(d *pb.Definition_Region) bool {
+	return r.EqualDetails(d.Details)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -933,6 +952,17 @@ func (z *Zone) GetDetails() *pb.ZoneDetails {
 	return cloneZoneDetails(z.details)
 }
 
+// EqualDetails is used to provide a simple equality check for use to determine
+// if the current details match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (z *Zone) EqualDetails(details *pb.ZoneDetails) bool {
+	return z.details.Enabled == details.Enabled &&
+	z.details.State == details.State &&
+	z.details.Location == details.Location &&
+	z.details.Notes == details.Notes
+}
+
 // GetDefinitionZone returns a copy of the rack definition based on the contents of the
 // current object.
 //
@@ -942,6 +972,14 @@ func (z *Zone) GetDefinitionZone() *pb.Definition_Zone {
 		Details: z.GetDetails(),
 		Racks:   make(map[string]*pb.Definition_Rack),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current zone matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (z *Zone) Equal(d *pb.Definition_Zone) bool {
+	return z.EqualDetails(d.Details)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -1385,6 +1423,17 @@ func (r *Rack) GetDetails() *pb.RackDetails {
 	return cloneRackDetails(r.details)
 }
 
+// EqualDetails is used to provide a simple equality check for use to determine
+// if the current details match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (r *Rack) EqualDetails(details *pb.RackDetails) bool {
+	return r.details.Enabled == details.Enabled &&
+	r.details.Condition == details.Condition &&
+	r.details.Location == details.Location &&
+	r.details.Notes == details.Notes
+}
+
 // GetDefinitionRack returns a copy of the rack definition based on the contents of the
 // current object.
 //
@@ -1396,6 +1445,14 @@ func (r *Rack) GetDefinitionRack() *pb.Definition_Rack {
 		Tors:    make(map[int64]*pb.Definition_Tor),
 		Blades:  make(map[int64]*pb.Definition_Blade),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current rack matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (r *Rack) Equal(d *pb.Definition_Rack) bool {
+	return r.EqualDetails(d.Details)
 }
 
 // GetDefinitionRackWithChildren returns a copy of the rack definition based on the contents of the
@@ -2057,6 +2114,15 @@ func (p *Pdu) GetDetails() *pb.PduDetails {
 	return clonePduDetails(p.details)
 }
 
+// EqualDetails is used to provide a simple equality check for use to determine
+// if the current details match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (p *Pdu) EqualDetails(details *pb.PduDetails) bool {
+	return p.details.Enabled == details.Enabled &&
+	p.details.Condition == details.Condition
+}
+
 // SetPorts is used to attach some power port information to the object.
 //
 // The port information is not persisted to the store until an Update()
@@ -2080,6 +2146,24 @@ func (p *Pdu) GetPorts() *map[int64]*pb.PowerPort {
 	return clonePowerPorts(p.ports)
 }
 
+// EqualPorts is used to provide a simple equality check for use to determine
+// if the current ports match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (p *Pdu) EqualPorts(ports map[int64]*pb.PowerPort) bool {
+	if len(*p.ports) != len(ports) {
+		return false
+	}
+
+	for i, pp := range *p.ports {
+		if !pp.EqualPort(ports[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // GetDefinitionPdu returns a copy of the pdu definition based on the contents of the
 // current object.
 //
@@ -2090,6 +2174,14 @@ func (p *Pdu) GetDefinitionPdu() *pb.Definition_Pdu {
 	}
 
 	return pdu
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current pdu matches the supplied definition. Typically used when
+// looking to see if the record has been changed.
+//
+func (p *Pdu) Equal(d *pb.Definition_Pdu) bool {
+	return p.EqualDetails(d.Details) && p.EqualPorts(d.Ports)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -2351,6 +2443,15 @@ func (t *Tor) GetDetails() *pb.TorDetails {
 	return cloneTorDetails(t.details)
 }
 
+// EqualDetails is used to provide a simple equality check for use to determine
+// if the current details match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (t *Tor) EqualDetails(details *pb.TorDetails) bool {
+	return t.details.Enabled == details.Enabled &&
+	t.details.Condition == details.Condition
+}
+
 // SetPorts is used to attach some network port information to the object.
 //
 // The port information is not persisted to the store until an Update()
@@ -2374,6 +2475,24 @@ func (t *Tor) GetPorts() *map[int64]*pb.NetworkPort {
 	return cloneNetworkPorts(t.ports)
 }
 
+// EqualPorts is used to provide a simple equality check for use to determine
+// if the current ports match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (t *Tor) EqualPorts(ports map[int64]*pb.NetworkPort) bool {
+	if len(*t.ports) != len(ports) {
+		return false
+	}
+
+	for i, np := range *t.ports {
+		if !np.EqualPort(ports[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // GetDefinitionTor returns a copy of the tor definition based on the contents of the
 // current object.
 //
@@ -2384,6 +2503,14 @@ func (t *Tor) GetDefinitionTor() *pb.Definition_Tor {
 	}
 
 	return tor
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current tor matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (t *Tor) Equal(d *pb.Definition_Tor) bool {
+	return t.EqualDetails(d.Details) && t.EqualPorts(d.Ports)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -2653,6 +2780,15 @@ func (b *Blade) GetDetails() *pb.BladeDetails {
 	return cloneBladeDetails(b.details)
 }
 
+// EqualDetails is used to provide a simple equality check for use to determine
+// if the current details match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (b *Blade) EqualDetails(d *pb.BladeDetails) bool {
+	return b.details.Enabled == d.Enabled &&
+	b.details.Condition == d.Condition
+}
+
 // SetCapacity is used to attach some capacity information to the object.
 //
 // The capacity information is not persisted to the store until an Update()
@@ -2674,6 +2810,22 @@ func (b *Blade) SetCapacity(capacity *pb.BladeCapacity) {
 //
 func (b *Blade) GetCapacity() *pb.BladeCapacity {
 	return cloneBladeCpacity(b.capacity)
+}
+
+// EqualCapacity is used to provide a simple equality check for use to determine
+// if the current capacity match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (b *Blade) EqualCapacity(c *pb.BladeCapacity) bool {
+	if b.capacity.Arch == c.Arch &&
+	b.capacity.Cores == c.Cores &&
+	b.capacity.DiskInGb == c.DiskInGb &&
+	b.capacity.MemoryInMb == c.MemoryInMb &&
+	b.capacity.NetworkBandwidthInMbps == c.NetworkBandwidthInMbps {
+		return true
+	}
+
+	return false
 }
 
 // SetBootInfo is used to attach some boot information to the object.
@@ -2699,6 +2851,17 @@ func (b *Blade) GetBootInfo() *pb.BladeBootInfo {
 	return cloneBootInfo(b.bootInfo)
 }
 
+// EqualBootInfo is used to provide a simple equality check for use to determine
+// if the current capacity match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (b *Blade) EqualBootInfo(i *pb.BladeBootInfo) bool {
+	return b.bootInfo.Source == i.Source &&
+	b.bootInfo.Image == i.Image &&
+	b.bootInfo.Version == i.Version &&
+	b.bootInfo.Parameters == i.Parameters
+}
+
 // SetBootPowerOn is used to set the boot power on flag
 //
 func (b *Blade) SetBootPowerOn(bootOnPowerOn bool) {
@@ -2713,6 +2876,14 @@ func (b *Blade) GetBootOnPowerOn() bool {
 	return b.bootOnPowerOn
 }
 
+// EqualBootInfo is used to provide a simple equality check for use to determine
+// if the current power on field matches that supplied. Typically used when
+// looking to see if the record has been changed.
+//
+func (b *Blade) EqualBootOnPowerOn(p bool) bool {
+	return b.bootOnPowerOn == p
+}
+
 // GetDefinitionBlade returns a copy of the blade definition based on the contents of the
 // current object.
 //
@@ -2723,6 +2894,17 @@ func (b *Blade) GetDefinitionBlade() *pb.Definition_Blade {
 		BootInfo:      b.GetBootInfo(),
 		BootOnPowerOn: b.GetBootOnPowerOn(),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current blade matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (b *Blade) Equal(d *pb.Definition_Blade) bool {
+	return b.EqualDetails(d.GetDetails()) &&
+		   b.EqualCapacity(d.GetCapacity()) &&
+		   b.EqualBootInfo(d.GetBootInfo()) &&
+		   b.EqualBootOnPowerOn(d.GetBootOnPowerOn())
 }
 
 // Create is used to create a record in the underlying store for the

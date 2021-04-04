@@ -16,7 +16,7 @@ BladeTypes:
     Capacity:
       Cores: 16
       MemoryInMb: 16384
-      DiskInGb: 240 
+      DiskInGb: 240
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
 
@@ -63,7 +63,7 @@ RackTypes:
 # Start of layout
 #
 Details:
-  Name: "Simple Test Inventory"
+  Name: "Bad Yaml"
   Notes: "Test configuration comprising 1 region, with 1 zone, with the zone having 2 racks, with each rack having a single pdu, a single tor and 2 blades. Racks have duplicate names."
 Regions:
   - Name: region1

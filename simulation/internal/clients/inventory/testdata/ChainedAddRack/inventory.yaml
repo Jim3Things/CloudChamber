@@ -1,0 +1,120 @@
+# Chained Add Rack - test configuration comprising 1 region, with 1 zone, with the zone having 3 racks, with each rack having a single pdu, a single tor and 2 blades.
+
+BladeTypeS:
+  - &bladeType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: local
+      Image: standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
+      Cores: 16
+      MemoryInMb: 16384
+      DiskInGb: 240
+      NetworkBandwidthInMbps: 2048
+      Arch: "X64"
+  - &bladeType2
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: local
+      Image: standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
+      Cores: 8
+      MemoryInMb: 16384
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: "X64"
+
+TorTypes:
+  - &torType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    Ports:
+      - {Index:  0, Wired: true, Item: {Type:   pdu, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 0}}
+
+PduTypes:
+  - &pduType1
+    Details:
+      Enabled: true
+      Condition: Operational
+    Ports:
+      - {Index:  0, Wired: true, Item: {Type:   tor, Id:  0, Port: 1}}
+      - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 0}}
+
+RackTypes:
+  - &rackType1
+    Details:
+      Enabled: true
+      Condition: Operational
+      Location: "Pacific NW, row 1, rack 1"
+      Notes: "rack definition, 1 pdu, 1 tor, 2 blades"
+    Blades:
+      - Index: 1
+        <<: *bladeType1
+      - Index: 2
+        <<: *bladeType2
+    Tors:
+      - Index: 0
+        <<: *torType1
+    Pdus:
+      - Index: 0
+        <<: *pduType1
+
+ZoneTypes:
+  - &zoneType1
+    Details:
+      Enabled: true
+      State: In_Service
+      Location: "DC-PNW-0"
+      Notes: "Base zone"
+    Racks:
+      - Name: rack1
+        <<: *rackType1
+        Details:
+          Enabled: true
+          Condition: Operational
+          Location: "DC-PNW-0-rack1"
+          Notes: "RackName: rack1"
+      - Name: rack2
+        <<: *rackType1
+        Details:
+          Enabled: true
+          Condition: Operational
+          Location: "DC-PNW-0-rack2"
+          Notes: "RackName: rack2"
+      - Name: rack3
+        <<: *rackType1
+        Details:
+          Enabled: true
+          Condition: Operational
+          Location: "DC-PNW-0-rack3"
+          Notes: "RackName: rack3"
+
+
+# Start of layout
+#
+Details:
+  Name: "Chained Add Rack"
+  Notes: "Test configuration based on the Chained Base configuration but with added rack."
+Regions:
+  - Name: region1
+    Details:
+      State: In_Service
+      Location: "Pacific NW"
+      Notes: "Test Region 1"
+    Zones:
+      - Name: zone1
+        <<: *zoneType1

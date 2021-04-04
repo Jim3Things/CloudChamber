@@ -517,9 +517,19 @@ func (m *Inventory) UpdateInventoryDefinition(ctx context.Context, path string) 
 		return err
 	}
 
+	tracing.UpdateSpanName(ctx,
+		"Read inventory definition with name %q from path %s",
+		rootFile.Details.Name,
+		path)
+
 	if err = m.reconcileNewInventory(ctx, rootFile); err != nil {
 		return err
 	}
+
+	tracing.UpdateSpanName(ctx,
+		"Reconciled inventory definition into store with name %q from path %s",
+		rootFile.Details.Name,
+		path)
 
 	return m.updateSummaryInformation(ctx)
 }
@@ -552,7 +562,7 @@ func (m *Inventory) reconcileNewInventoryRegion(
 	regionStore *Region,
 	regionFile  *pb.Definition_Region,
 ) error {
-	errNotFound := errors.ErrZoneNotFound{Region: regionStore.Region}
+	errNotFound := errors.ErrRegionNotFound{Region: regionStore.Region}
 
 	_, err := regionStore.Read(ctx)
 
@@ -567,7 +577,7 @@ func (m *Inventory) reconcileNewInventoryRegion(
 		}
 	} else if err != nil {
 		return err
-	} else if regionFile.GetDetails() != regionStore.GetDetails() {
+	} else if !regionStore.EqualDetails(regionFile.GetDetails()) {
 		tracing.Info(ctx, "   updating region %s", regionStore.Region)
 
 		regionStore.SetDetails(regionFile.GetDetails())
@@ -601,7 +611,7 @@ func (m *Inventory) reconcileNewInventoryZone(
 		}
 	} else if err != nil {
 		return err
-	} else if zoneFile.GetDetails() != zoneStore.GetDetails() {
+	} else if !zoneStore.EqualDetails(zoneFile.GetDetails()) {
 		tracing.Info(ctx, "   updating zone %s/%s", zoneStore.Region, zoneStore.Zone)
 
 		zoneStore.SetDetails(zoneFile.GetDetails())
@@ -635,7 +645,7 @@ func (m *Inventory) reconcileNewInventoryRack(
 		}
 	} else if err != nil {
 		return err
-	} else if rackFile.GetDetails() != rackStore.GetDetails() {
+	} else if !rackStore.EqualDetails(rackFile.GetDetails()) {
 		tracing.Info(ctx, "   updating rack %s/%s/%s", rackStore.Region, rackStore.Zone, rackStore.Rack)
 
 		rackStore.SetDetails(rackFile.GetDetails())
@@ -671,7 +681,7 @@ func (m *Inventory) reconcileNewInventoryPdu(
 		}
 	} else if err != nil {
 		return err
-	} else if pduFile.GetDetails() != pduStore.GetDetails() {
+	} else if !pduStore.Equal(pduFile) {
 		tracing.Info(ctx, "   updating pdu %s/%s/%s/%d", pduStore.Region, pduStore.Zone, pduStore.Rack, pduStore.ID)
 
 		ports := pduFile.GetPorts()
@@ -709,7 +719,7 @@ func (m *Inventory) reconcileNewInventoryTor(
 		}
 	} else if err != nil {
 		return err
-	} else if torFile.GetDetails() != torStore.GetDetails() {
+	} else if !torStore.Equal(torFile) {
 		tracing.Info(ctx, "   updating tor %s/%s/%s/%d", torStore.Region, torStore.Zone, torStore.Rack, torStore.ID)
 
 		ports := torFile.GetPorts()
@@ -748,7 +758,7 @@ func (m *Inventory) reconcileNewInventoryBlade(
 		}
 	} else if err != nil {
 		return err
-	} else if bladeFile.GetDetails() != bladeStore.GetDetails() {
+	} else if !bladeStore.Equal(bladeFile) {
 		tracing.Info(ctx, "   updating blade %s/%s/%s/%d", bladeStore.Region, bladeStore.Zone, bladeStore.Rack, bladeStore.ID)
 
 		bladeStore.SetDetails(bladeFile.GetDetails())
@@ -944,7 +954,7 @@ func (m *Inventory) reconcileNewInventory(
 								}
 							}
 
-							for index := range rackStore.Pdus {
+							for index := range rackStore.Blades {
 								blade, err := rack.NewBlade(index)
 								if err != nil {
 									return err
