@@ -66,11 +66,6 @@ type catBlade struct {
 	BootOnPowerOn bool
 }
 
-type catPort struct {
-	Wired bool
-	Item  portExTarget
-}
-
 // ----------
 
 

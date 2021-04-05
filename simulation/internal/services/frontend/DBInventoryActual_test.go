@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 )
 
 type InventoryActualTestSuite struct {
@@ -42,13 +43,14 @@ func (ts *InventoryActualTestSuite) TestLoadInventoryActual() {
 
 	ctx := context.Background()
 
-	zone, err := ts.db.inventory.NewZone(inventory.DefinitionTable, inventory.DefaultRegion, inventory.DefaultZone)
+	zone, err := ts.db.inventory.NewZone(namespace.DefinitionTable, inventory.DefaultRegion, inventory.DefaultZone)
 	require.NoError(err)
 	require.NotNil(zone)
 
 	_, rackNames, err := zone.ListChildren(ctx)
 	require.NoError(err)
 	require.NotNil(rackNames)
+
 	assert.Equal(len(ts.db.Actual.Racks), len(rackNames))
 
 	for _, rackName := range rackNames {

@@ -1,4 +1,4 @@
-package inventory
+package store
 
 import (
 	"context"
@@ -7,14 +7,12 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
 )
 
 var (
 	lock         sync.Mutex
-	globalCfg    *config.GlobalConfig
 	initialized  bool = false
 )
 
@@ -23,10 +21,9 @@ type testSuiteCore struct {
 
 	utf   *exporters.Exporter
 	cfg   *config.GlobalConfig
-	store *store.Store
 }
 
-func runOnce() (*config.GlobalConfig, error) {
+func runOnce() (cfg *config.GlobalConfig, err error) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -35,16 +32,18 @@ func runOnce() (*config.GlobalConfig, error) {
 
 		flag.Parse()
 
-		cfg, err := config.ReadGlobalConfig(*configPath)
+		cfg, err = config.ReadGlobalConfig(*configPath)
 		if err != nil {
 			return nil, err
 		}
 
-		globalCfg = cfg
+
+		Initialize(context.Background(), cfg)
+
 		initialized = true
 	}
 
-	return globalCfg, nil
+	return cfg, nil
 }
 
 func (ts *testSuiteCore) SetupSuite() {
@@ -56,22 +55,15 @@ func (ts *testSuiteCore) SetupSuite() {
 	ts.utf = exporters.NewExporter(exporters.NewUTForwarder())
 	exporters.ConnectToProvider(ts.utf)
 
-	store.Initialize(context.Background(), cfg)
-
 	ts.cfg = cfg
-	ts.store = store.NewStore()
 }
 
 func (ts *testSuiteCore) SetupTest() {
 	require := ts.Require()
 
 	require.NoError(ts.utf.Open(ts.T()))
-	require.NoError(ts.store.Connect())
 }
 
 func (ts *testSuiteCore) TearDownTest() {
-	ts.store.Disconnect()
 	ts.utf.Close()
 }
-
-
