@@ -94,7 +94,6 @@ func newStepper(startingPolicy int) *stepper {
 				{messages.TagReset, reset, pb.StepperState_invalid, sm.Stay},
 				{messages.TagGetStatus, getStatus, sm.Stay, sm.Stay},
 				{messages.TagStep, step, sm.Stay, sm.Stay},
-				{messages.TagNow, now, sm.Stay, sm.Stay},
 				{messages.TagDelay, nowaitDelay, sm.Stay, sm.Stay},
 				{messages.TagAutoStep, sm.Ignore, sm.Stay, sm.Stay},
 			},
@@ -111,7 +110,6 @@ func newStepper(startingPolicy int) *stepper {
 				{messages.TagReset, reset, pb.StepperState_invalid, sm.Stay},
 				{messages.TagGetStatus, getStatus, sm.Stay, sm.Stay},
 				{messages.TagStep, step, sm.Stay, sm.Stay},
-				{messages.TagNow, now, sm.Stay, sm.Stay},
 				{messages.TagDelay, delay, sm.Stay, sm.Stay},
 				{messages.TagAutoStep, sm.Ignore, sm.Stay, sm.Stay},
 			},
@@ -127,7 +125,6 @@ func newStepper(startingPolicy int) *stepper {
 				{messages.TagManualPolicy, policy, pb.StepperState_manual, sm.Stay},
 				{messages.TagReset, reset, pb.StepperState_invalid, sm.Stay},
 				{messages.TagGetStatus, getStatus, sm.Stay, sm.Stay},
-				{messages.TagNow, now, sm.Stay, sm.Stay},
 				{messages.TagDelay, delay, sm.Stay, sm.Stay},
 				{messages.TagAutoStep, autoStep, sm.Stay, sm.Stay},
 			},
@@ -356,7 +353,7 @@ func policy(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	s.epoch++
 	s.delay = 0
 
-	ch <- sm.SuccessResponse(s.latest)
+	ch <- statusResponse(machine, policyFromTag(m.Tag()))
 	return true
 }
 
@@ -385,7 +382,7 @@ func measuredPolicy(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	s.epoch++
 	s.delay = m.Delay
 
-	ch <- sm.SuccessResponse(s.latest)
+	ch <- statusResponse(machine, policyFromTag(m.Tag()))
 	return true
 }
 
@@ -402,6 +399,8 @@ func reset(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	ch := msg.Ch()
 	defer close(ch)
 
+	cancelAllWaiters(ctx, machine)
+
 	ch <- sm.SuccessResponse(s.latest)
 	return true
 }
@@ -410,21 +409,10 @@ func reset(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 func getStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	tracing.UpdateSpanName(ctx, "Getting the current simulated time service status")
 
-	s := machine.Parent.(*stepper)
-
 	ch := msg.Ch()
 	defer close(ch)
 
-	ch <- &sm.Response{
-		Err: nil,
-		At:  s.latest,
-		Msg: messages.NewStatusResponseBody(
-			s.epoch,
-			int64(s.waiters.Size()),
-			s.delay,
-			convertFromState(machine.CurrentIndex)),
-	}
-
+	ch <- statusResponse(machine, policyFromState(machine.CurrentIndex))
 	return true
 }
 
@@ -432,27 +420,12 @@ func getStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 func step(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	tracing.UpdateSpanName(ctx, "Advance the simulated time by 1 tick")
 
-	s := machine.Parent.(*stepper)
-
 	ch := msg.Ch()
 	defer close(ch)
 
 	advance(ctx, machine, 1)
 
-	ch <- sm.SuccessResponse(s.latest)
-	return true
-}
-
-// now returns the current simulated time tick.
-func now(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
-	tracing.UpdateSpanName(ctx, "Getting the current simulated time")
-
-	s := machine.Parent.(*stepper)
-
-	ch := msg.Ch()
-	defer close(ch)
-
-	ch <- sm.SuccessResponse(s.latest)
+	ch <- statusResponse(machine, policyFromState(machine.CurrentIndex))
 	return true
 }
 
@@ -475,7 +448,11 @@ func delay(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	return true
 }
 
-// autoStep
+// autoStep performs an automatic tick advancement.  Since this is based on a
+// wall clock timer, the advancement is guarded by a check to ensure that the
+// policy that is in force at this point matches the policy that was in force
+// when the wall clock timer was issued.  If it does not, then it is silently
+// dropped.
 func autoStep(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	m := msg.(*messages.AutoStep)
 	s := machine.Parent.(*stepper)
@@ -549,7 +526,7 @@ func checkForExpiry(ctx context.Context, machine *sm.SM) {
 
 	k, v := s.waiters.Min()
 	if k == nil {
-		tracing.Info(ctx, "No waiters found")
+		tracing.Debug(ctx, "No waiters found")
 		return
 	}
 
@@ -559,7 +536,7 @@ func checkForExpiry(ctx context.Context, machine *sm.SM) {
 	for key <= s.latest {
 		value := v.([]chan *sm.Response)
 		for _, ch := range value {
-			ch <- sm.SuccessResponse(s.latest)
+			ch <- statusResponse(machine, policyFromState(machine.CurrentIndex))
 			close(ch)
 			count++
 		}
@@ -573,12 +550,38 @@ func checkForExpiry(ctx context.Context, machine *sm.SM) {
 		key = k.(int64)
 	}
 
-	tracing.Info(ctx, "Completed %d waiters", count)
+	tracing.Debug(ctx, "Completed %d waiters", count)
 }
 
-// convertFromState translates the current state into a policy enum value that
+// cancelAllWaiters forcibly terminates all waiters, issuing a canceled notice
+// to each.  This is used when cleaning up the stepper internal state.
+func cancelAllWaiters(ctx context.Context, machine *sm.SM) {
+	s := machine.Parent.(*stepper)
+
+	count := 0
+
+	for _, k := range s.waiters.Keys() {
+		v, ok := s.waiters.Get(k)
+
+		if ok {
+			value := v.([]chan *sm.Response)
+			for _, ch := range value {
+				ch <- sm.FailedResponse(s.latest, errors.ErrTimerCanceled(-1))
+				close(ch)
+
+				count++
+			}
+		}
+	}
+
+	tracing.Debug(ctx, "Canceled %d outstanding waiters", count)
+
+	s.waiters = treemap.NewWith(utils.Int64Comparator)
+}
+
+// policyFromState translates the current state into a policy enum value that
 // can be used in the GetStatus response message.
-func convertFromState(state sm.StateIndex) int {
+func policyFromState(state sm.StateIndex) int {
 	switch state {
 	case pb.StepperState_manual:
 		return messages.PolicyManual
@@ -591,6 +594,41 @@ func convertFromState(state sm.StateIndex) int {
 
 	default:
 		return messages.PolicyInvalid
+	}
+}
+
+// policyFromTag translates the message tag into a policy enum value.  This is
+// used when the policy is changing, and the new state transition is committed
+// but not yet actioned.
+func policyFromTag(tag int) int {
+	switch tag {
+	case messages.TagManualPolicy:
+		return messages.PolicyManual
+
+	case messages.TagNoWaitPolicy:
+		return messages.PolicyNoWait
+
+	case messages.TagMeasuredPolicy:
+		return messages.PolicyMeasured
+
+	default:
+		return messages.PolicyInvalid
+	}
+}
+
+// statusResponse constructs a response that contains the current stepper
+// status.
+func statusResponse(machine *sm.SM, state int) *sm.Response {
+	s := machine.Parent.(*stepper)
+
+	return &sm.Response{
+		Err: nil,
+		At:  s.latest,
+		Msg: messages.NewStatusResponseBody(
+			s.epoch,
+			int64(s.waiters.Size()),
+			s.delay,
+			state),
 	}
 }
 

@@ -1552,3 +1552,15 @@ type ErrAlreadyClosed struct {
 func (e ErrAlreadyClosed) Error() string {
 	return fmt.Sprintf("CloudChamber: %s for %q is already closed", e.Type, e.Name)
 }
+
+type ErrTimerIdAlreadyExists int
+
+func (e ErrTimerIdAlreadyExists) Error() string {
+	return fmt.Sprintf("timer Id %d already exists", int64(e))
+}
+
+type ErrTimerCanceled int
+
+func (e ErrTimerCanceled) Error() string {
+	return fmt.Sprintf("timer Id %d has been canceled", int64(e))
+}

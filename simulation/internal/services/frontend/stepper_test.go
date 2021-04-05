@@ -1,7 +1,6 @@
 package frontend
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,7 +9,6 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
-	tsc "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	pbc "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
@@ -21,13 +19,6 @@ type StepperTestSuite struct {
 }
 
 func (ts *StepperTestSuite) stepperPath() string { return ts.baseURI + "/api/stepper" }
-
-func (ts *StepperTestSuite) reset() {
-	assert := ts.Assert()
-
-	err := tsc.Reset(context.Background())
-	assert.NoError(err, "Unexpected error when resetting the stepper service)")
-}
 
 func (ts *StepperTestSuite) setManual(match int64, cookies []*http.Cookie) []*http.Cookie {
 	assert := ts.Assert()
@@ -90,18 +81,18 @@ func (ts *StepperTestSuite) advance(cookies []*http.Cookie) (*pbc.Timestamp, []*
 	return res, response.Cookies()
 }
 
-func (ts *StepperTestSuite) after(after int64, cookies []*http.Cookie) (*pbc.Timestamp, []*http.Cookie) {
-	assert := ts.Assert()
+func (ts *StepperTestSuite) after(after int64, cookies []*http.Cookie) (*pb.StatusResponse, []*http.Cookie) {
+	require := ts.Require()
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=%d", ts.stepperPath(), after), nil)
 	response := ts.doHTTP(request, cookies)
 
-	assert.Equal(http.StatusOK, response.StatusCode)
+	require.Equal(http.StatusOK, response.StatusCode)
 
-	res := &pbc.Timestamp{}
+	res := &pb.StatusResponse{}
 	err := ts.getJSONBody(response, res)
 
-	assert.NoError(err, "Unexpected error, err: %v", err)
+	require.NoError(err)
 
 	return res, response.Cookies()
 }
@@ -120,7 +111,6 @@ func (ts *StepperTestSuite) TestGetStatus() {
 func (ts *StepperTestSuite) TestSetManual() {
 	assert := ts.Assert()
 
-	ts.reset()
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	stat, cookies := ts.getStatus(response.Cookies())
@@ -130,8 +120,8 @@ func (ts *StepperTestSuite) TestSetManual() {
 	assert.Equal(pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
 	assert.Equal(int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
 	assert.Equal(int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
-	assert.Equal(int64(0), res.Now.Ticks, "Unexpected current time")
-	assert.Equal(int64(0), res.WaiterCount, "Unexpected active waiter count")
+	assert.Equal(int64(0), res.Now, "Unexpected current time")
+	assert.LessOrEqual(int64(0), res.WaiterCount, "Unexpected active waiter count")
 	assert.Equal(stat.Epoch+1, res.Epoch, "Unexpected epoch value")
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
@@ -139,8 +129,6 @@ func (ts *StepperTestSuite) TestSetManual() {
 
 func (ts *StepperTestSuite) TestSetManualNoPrivilege() {
 	require := ts.Require()
-
-	ts.reset()
 
 	response := ts.doLogin(ts.adminAccountName(), ts.adminPassword(), nil)
 
@@ -164,7 +152,6 @@ func (ts *StepperTestSuite) TestSetManualNoPrivilege() {
 func (ts *StepperTestSuite) TestSetModeInvalid() {
 	assert := ts.Assert()
 
-	ts.reset()
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	res, cookies := ts.getStatus(response.Cookies())
@@ -187,8 +174,8 @@ func (ts *StepperTestSuite) TestSetModeInvalid() {
 	assert.Equal(pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
 	assert.Equal(int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
 	assert.Equal(int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
-	assert.Equal(int64(0), res.Now.Ticks, "Unexpected current time")
-	assert.Equal(int64(0), res.WaiterCount, "Unexpected active waiter count")
+	assert.Equal(int64(0), res.Now, "Unexpected current time")
+	assert.LessOrEqual(int64(0), res.WaiterCount, "Unexpected active waiter count")
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }
@@ -196,7 +183,6 @@ func (ts *StepperTestSuite) TestSetModeInvalid() {
 func (ts *StepperTestSuite) TestSetModeBadEpoch() {
 	assert := ts.Assert()
 
-	ts.reset()
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	stat, cookies := ts.getStatus(response.Cookies())
@@ -217,8 +203,8 @@ func (ts *StepperTestSuite) TestSetModeBadEpoch() {
 	assert.Equal(pb.StepperPolicy_Manual, res.Policy, "Unexpected policy")
 	assert.Equal(int64(0), res.MeasuredDelay.Seconds, "Unexpected delay")
 	assert.Equal(int32(0), res.MeasuredDelay.Nanos, "Unexpected delay")
-	assert.Equal(int64(0), res.Now.Ticks, "Unexpected current time")
-	assert.Equal(int64(0), res.WaiterCount, "Unexpected active waiter count")
+	assert.Equal(int64(0), res.Now, "Unexpected current time")
+	assert.LessOrEqual(int64(0), res.WaiterCount, "Unexpected active waiter count")
 	assert.Equal(stat.Epoch+1, res.Epoch, "Unexpected epoch")
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
@@ -227,7 +213,6 @@ func (ts *StepperTestSuite) TestSetModeBadEpoch() {
 func (ts *StepperTestSuite) TestAdvanceOne() {
 	assert := ts.Assert()
 
-	ts.reset()
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	stat, cookies := ts.getStatus(response.Cookies())
@@ -320,8 +305,6 @@ func (ts *StepperTestSuite) TestAdvanceMinusOne() {
 func (ts *StepperTestSuite) TestAdvanceNoPrivilege() {
 	require := ts.Require()
 
-	ts.reset()
-
 	response := ts.doLogin(ts.adminAccountName(), ts.adminPassword(), nil)
 
 	stat, cookies := ts.getStatus(response.Cookies())
@@ -369,9 +352,10 @@ func (ts *StepperTestSuite) TestAfter() {
 	ch := make(chan bool)
 
 	go func(ch chan<- bool, after int64, cookies []*http.Cookie) {
-		res, cookies2 = ts.after(after, cookies)
+		var waiter *pb.StatusResponse
+		waiter, cookies2 = ts.after(after, cookies)
 
-		assert.Less(after, res.Ticks)
+		assert.Less(after, waiter.Now)
 		ch <- true
 	}(ch, res.Ticks, cookies)
 
@@ -394,7 +378,7 @@ func (ts *StepperTestSuite) TestAfterBadPastTick() {
 	_, cookies = ts.advance(cookies)
 
 	res2, cookies := ts.after(res.Ticks, cookies)
-	assert.Less(res.Ticks, res2.Ticks)
+	assert.Less(res.Ticks, res2.Now)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), cookies)
 }

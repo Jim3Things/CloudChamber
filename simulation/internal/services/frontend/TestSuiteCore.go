@@ -89,16 +89,17 @@ func (ts *testSuiteCore) SetupSuite() {
 }
 
 func (ts *testSuiteCore) SetupTest() {
+	require := ts.Require()
+
 	_ = ts.utf.Open(ts.T())
 
 	ts.baseURI = fmt.Sprintf("http://localhost:%d", server.port)
 
-	err := timestamp.Reset(context.Background())
-	ts.Require().Nilf(err, "Reset failed")
-
 	ctx := context.Background()
 
-	ts.Require().Nil(timestamp.SetPolicy(ctx, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
+	require.NoError(timestamp.Reset(ctx))
+	_, err := timestamp.SetPolicy(ctx, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1)
+	require.NoError(err)
 }
 
 func (ts *testSuiteCore) TearDownTest() {

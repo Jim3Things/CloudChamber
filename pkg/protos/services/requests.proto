@@ -58,9 +58,6 @@ message PolicyRequest {
 // Define the request associated with a Step operation
 message StepRequest {}
 
-// Define the request associated with a current time query
-message NowRequest {}
-
 // Define the parameters when requesting a delay
 message DelayRequest {
     // The minimum simulated time before the delay is completed.
@@ -93,7 +90,7 @@ message StatusResponse {
     google.protobuf.Duration measuredDelay = 2;
 
     // Current simulated time
-    common.Timestamp now = 3;
+    int64 now = 3;
 
     // Number of active waiters (number of outstanding delay calls)
     int64 waiter_count = 4;

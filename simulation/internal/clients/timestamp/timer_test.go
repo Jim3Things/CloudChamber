@@ -172,8 +172,8 @@ func (ts *timerTestSuite) validateTimerState(timers *Timers, idLen int, waiterLe
 	timers.m.Lock()
 	defer timers.m.Unlock()
 
-	assert.Equal(idLen, len(timers.idMap))
-	assert.Equal(waiterLen, len(timers.waiters))
+	assert.Equal(idLen, timers.waiters.Count())
+	assert.Equal(waiterLen, timers.waiters.SecondaryCount())
 	assert.Equal(nextID, timers.nextID)
 	assert.Equal(active, timers.active)
 	assert.Equal(epoch, timers.epoch)

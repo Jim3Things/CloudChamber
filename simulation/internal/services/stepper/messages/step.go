@@ -2,6 +2,7 @@ package messages
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 )
@@ -17,6 +18,10 @@ func NewStep(ctx context.Context, ch chan *sm.Response) *Step {
 	msg.Initialize(ctx, TagStep, ch)
 
 	return msg
+}
+
+func (m *Step) String() string {
+	return "Step request"
 }
 
 // AutoStep is the message that requests the simulated time move forward by
@@ -40,4 +45,8 @@ func NewAutoStep(
 	msg.Guard = guard
 
 	return msg
+}
+
+func (m *AutoStep) String() string {
+	return fmt.Sprintf("AutoStep request(guard=%d)", m.Guard)
 }

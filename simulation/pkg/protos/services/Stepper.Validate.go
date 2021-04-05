@@ -30,12 +30,6 @@ func (x *StepRequest) Validate() error {
 	return nil
 }
 
-// Validate is a function to ensure that the get current time request values
-// are legal
-func (x *NowRequest) Validate() error {
-	return nil
-}
-
 // Validate is a function to ensure that the wait until request values are
 // legal
 func (x *DelayRequest) Validate() error {

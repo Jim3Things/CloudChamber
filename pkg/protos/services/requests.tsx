@@ -126,7 +126,7 @@ export interface StatusResponse {
   /** Current measured delay - should be zero if the policy is not "Measured" */
   measuredDelay: Duration;
   /** Current simulated time */
-  now: Timestamp;
+  now: number;
   /** Number of active waiters (number of outstanding delay calls) */
   waiterCount: number;
   /** Current policy version number */
@@ -419,7 +419,7 @@ export const StatusResponse = {
     return {
       policy: stepperPolicyFromJSON(object.policy),
       measuredDelay: durationFromJson(object.measuredDelay),
-      now: Timestamp.fromJSON(object.now),
+      now: asNumber(object.now),
       waiterCount: asNumber(object.waiterCount),
       epoch: asNumber(object.epoch),
     }

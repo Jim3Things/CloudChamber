@@ -18,3 +18,7 @@ func NewReset(ctx context.Context, ch chan *sm.Response) *Reset {
 
 	return msg
 }
+
+func (m *Reset) String() string {
+	return "Reset request"
+}

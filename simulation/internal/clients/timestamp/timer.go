@@ -28,17 +28,15 @@ type timerEntry struct {
 	msg interface{}
 }
 
+func (t *timerEntry) Key() int         { return t.id }
+func (t *timerEntry) Secondary() int64 { return t.dueTime }
+
 // Timers is
 type Timers struct {
 	m sync.Mutex
 
 	// waiters is the collection of current outstanding timers.
-	waiters map[int64][]*timerEntry
-
-	// idMap is an entry lookup aid that maps the timer ID to its associated
-	// dueTime.  This can be used as a key in the writers collection, limiting
-	// the search to only that key's list of entries.
-	idMap map[int]int64
+	waiters *common.Bimap
 
 	// nextID holds the timer ID to assign to the next timer created.
 	nextID int
@@ -61,8 +59,7 @@ type Timers struct {
 func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
 	return &Timers{
 		m:        sync.Mutex{},
-		waiters:  make(map[int64][]*timerEntry),
-		idMap:    make(map[int]int64),
+		waiters:  common.NewBimap(),
 		nextID:   1,
 		active:   false,
 		epoch:    1,
@@ -73,7 +70,7 @@ func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
 
 // Timer creates a new timer that operates in simulated time. The delay
 // parameter specifies the number of ticks to wait until the timer expires. At
-// that point, the supplied msg is sent on the completion channel specified by
+// that point, the supplied msg is sent on the Completion channel specified by
 // the parameter ch.  This function returns an id that can be used to cancel
 // the timer, and an error to indicate if the timer was successfully set.
 func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callback func(msg interface{})) (int, error) {
@@ -88,10 +85,7 @@ func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callba
 		msg:      msg,
 	}
 
-	t.idMap[entry.id] = entry.dueTime
-
-	entries, _ := t.waiters[entry.dueTime]
-	t.waiters[entry.dueTime] = append(entries, entry)
+	t.waiters.Add(entry)
 
 	t.nextID++
 
@@ -110,32 +104,16 @@ func (t *Timers) Cancel(timerID int) error {
 	t.m.Lock()
 	defer t.m.Unlock()
 
-	dueTime, ok := t.idMap[timerID]
-	if !ok {
+	if ok := t.waiters.Remove(timerID); !ok {
 		return errors.ErrTimerNotFound(timerID)
 	}
 
-	entries := t.waiters[dueTime]
-	for i, entry := range entries {
-		if entry.id == timerID {
-			entries = append(entries[:i], entries[i+1:]...)
-
-			if len(entries) > 0 {
-				t.waiters[dueTime] = entries
-			} else {
-				delete(t.waiters, dueTime)
-			}
-
-			delete(t.idMap, timerID)
-
-			_ = t.mayCancelListener()
-		}
-	}
+	_ = t.mayCancelListener()
 
 	return nil
 }
 
-// listener is the goroutine that waits for a new simulated time tick, and
+// listener is the goroutine that waits for a new simulated time Tick, and
 // then processes each expired timer.
 func (t *Timers) listener(epoch int, now int64) {
 	startCtx := context.Background()
@@ -155,7 +133,7 @@ func (t *Timers) listener(epoch int, now int64) {
 }
 
 // listenUntilFailure is the main worker logic in the listener goroutine.  It
-// wakes after each simulated time tick and signals all expired waiters.  It
+// wakes after each simulated time Tick and signals all expired waiters.  It
 // continues until either there are no more waiters, or until there is an error
 // in contacting the simulated time service.  Any decision to resume after some
 // interval or exit is then made by the caller.
@@ -166,7 +144,7 @@ func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) i
 	client := pb.NewStepperClient(conn)
 
 	for stop := false; err == nil && !stop; {
-		var resp *ct.Timestamp
+		var resp *pb.StatusResponse
 
 		resp, err = client.Delay(ctx, &pb.DelayRequest{
 			AtLeast: &ct.Timestamp{Ticks: now + 1},
@@ -176,7 +154,7 @@ func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) i
 		if err == nil {
 			var toSignal []*timerEntry
 
-			now = resp.Ticks
+			now = resp.Now
 
 			if toSignal, stop = t.getExpiredWaiters(now, epoch); toSignal != nil {
 				for _, entry := range toSignal {
@@ -207,15 +185,15 @@ func (t *Timers) getExpiredWaiters(now int64, epoch int) ([]*timerEntry, bool) {
 	// as the processing proceeds.
 	var toSignal []*timerEntry
 
-	for dueTime, entries := range t.waiters {
-		if dueTime <= now {
-			for _, entry := range entries {
-				toSignal = append(toSignal, entry)
-				delete(t.idMap, entry.id)
-			}
+	t.waiters.ForEachSecondary(func(key int64) bool {
+		return key <= now
+	}, func(item common.BimapItem) {
+		entry := item.(*timerEntry)
+		toSignal = append(toSignal, entry)
+	})
 
-			delete(t.waiters, dueTime)
-		}
+	for _, entry := range toSignal {
+		t.waiters.Remove(entry.Key())
 	}
 
 	return toSignal, t.mayCancelListener()
@@ -224,7 +202,7 @@ func (t *Timers) getExpiredWaiters(now int64, epoch int) ([]*timerEntry, bool) {
 // mayCancelListener checks if there are any waiters.  If there are none, then
 // it signals that the current listener goroutine should exit.
 func (t *Timers) mayCancelListener() bool {
-	if len(t.idMap) == 0 {
+	if t.waiters.Count() == 0 {
 		t.epoch++
 		t.active = false
 

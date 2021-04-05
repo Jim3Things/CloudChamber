@@ -20,6 +20,10 @@ func NewGetStatus(ctx context.Context, ch chan *sm.Response) *GetStatus {
 	return msg
 }
 
+func (m *GetStatus) String() string {
+	return "GetStatus request"
+}
+
 // StatusResponseBody contains the simulated time service's current execution
 // status.
 type StatusResponseBody struct {

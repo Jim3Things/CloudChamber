@@ -166,9 +166,11 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 		policy = pb.StepperPolicy_Manual
 
 	case "automatic":
+		tps := 1
+
 		delay = &duration.Duration{Seconds: 1, Nanos: 0}
 		if len(args) == 2 {
-			tps, err := strconv.Atoi(args[1])
+			tps, err = strconv.Atoi(args[1])
 			if err != nil || tps < 1 {
 				postHTTPError(ctx, w, NewErrInvalidStepperRate(args[1]))
 				return
@@ -180,7 +182,10 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		tracing.UpdateSpanName(ctx, "Set Simulated Time Policy To Automatic")
+		tracing.UpdateSpanName(
+			ctx,
+			"Set Simulated Time Policy To Automatic (%d ticks/second)",
+			tps)
 
 		policy = pb.StepperPolicy_Measured
 
@@ -189,12 +194,16 @@ func handleSetMode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = timestamp.SetPolicy(ctx, policy, delay, match); err != nil {
+	updates, err := timestamp.SetPolicy(ctx, policy, delay, match)
+	if err != nil {
 		postHTTPError(ctx, w, NewErrStepperFailedToSetPolicy())
 		return
 	}
 
 	w.Header().Set("ETag", formatAsEtag(match+1))
+
+	p := jsonpb.Marshaler{}
+	err = p.Marshal(w, updates)
 
 	httpErrorIf(ctx, w, err)
 }
@@ -206,7 +215,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	after := vars["after"]
 
-	var data timestamp.TimeData
+	var data timestamp.Completion
 
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Wait Until Simulated Time After..."),
@@ -227,7 +236,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 			}
 
 			tracing.UpdateSpanName(ctx, "Wait Until Simulated Time After %d", afterTick)
-			data = <-timestamp.After(ctx, &ct.Timestamp{Ticks: afterTick + 1})
+			data = <-timestamp.After(ctx, afterTick+1)
 			if data.Err != nil {
 				return data.Err
 			}
@@ -240,12 +249,12 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ctx = common.ContextWithTick(ctx, data.Time.Ticks)
+	ctx = common.ContextWithTick(ctx, data.Status.Now)
 
 	w.Header().Set("Content-Type", "application/json")
 
 	p := jsonpb.Marshaler{}
-	err = p.Marshal(w, data.Time)
+	err = p.Marshal(w, data.Status)
 
 	httpErrorIf(ctx, w, err)
 }
