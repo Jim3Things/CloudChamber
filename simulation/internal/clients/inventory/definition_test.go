@@ -3249,43 +3249,10 @@ func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileBasic() {
 	require.NoError(err)
 }
 
-func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileExtended() {
-	require := ts.Require()
-
-	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/extended")
-	require.NoError(err)
-}
-
 func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileReference() {
 	require := ts.Require()
 
 	_, err := ReadInventoryDefinitionFromFile(context.Background(), "./testdata/reference")
-	require.NoError(err)
-}
-
-func (ts *definitionTestSuite) TestWriteInventoryDefinitionExtended() {
-	require := ts.Require()
-
-	ctx := context.Background()
-
-	root, err := ts.inventory.readInventoryDefinitionFromStore(ctx)
-	require.NoError(err)
-
-	err = ts.inventory.deleteInventoryDefinitionFromStore(ctx, root)
-	require.NoError(err)
-
-	root, err = ReadInventoryDefinitionFromFile(ctx, "./testdata/extended")
-	require.NoError(err)
-	require.NotNil(root)
-
-	err = ts.inventory.writeInventoryDefinitionToStore(ctx, root)
-	require.NoError(err)
-
-	rootReload, err := ts.inventory.readInventoryDefinitionFromStore(ctx)
-	require.NoError(err)
-	require.NotNil(rootReload)
-
-	err = ts.inventory.deleteInventoryDefinitionFromStore(ctx, rootReload)
 	require.NoError(err)
 }
 
@@ -3298,18 +3265,6 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionBasic() {
 	require.NoError(err)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/basic")
-	require.NoError(err)
-}
-
-func (ts *definitionTestSuite) TestUpdateInventoryDefinitionExtended() {
-	require := ts.Require()
-
-	ctx := context.Background()
-
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/extended")
-	require.NoError(err)
-
-	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/extended")
 	require.NoError(err)
 }
 
@@ -3618,18 +3573,6 @@ func (ts *definitionTestSuite) TestDeleteInventoryDefinitionBasic() {
 	require.NoError(err)
 }
 
-func (ts *definitionTestSuite) TestDeleteInventoryDefinitionExtended() {
-	require := ts.Require()
-
-	ctx := context.Background()
-
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/extended")
-	require.NoError(err)
-
-	err = ts.inventory.DeleteInventoryDefinition(ctx)
-	require.NoError(err)
-}
-
 func (ts *definitionTestSuite) TestDeleteInventoryDefinitionSimple() {
 	require := ts.Require()
 
@@ -3642,6 +3585,6 @@ func (ts *definitionTestSuite) TestDeleteInventoryDefinitionSimple() {
 	require.NoError(err)
 }
 
-func TestInventoryTestSuite(t *testing.T) {
+func TestDefinitionTestSuite(t *testing.T) {
 	suite.Run(t, new(definitionTestSuite))
 }
