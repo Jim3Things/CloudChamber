@@ -3263,7 +3263,7 @@ func (ts *definitionTestSuite) TestReadInventoryDefinitionFromFileReference() {
 	require.NoError(err)
 }
 
-func (ts *definitionTestSuite) TestLoadInventoryIntoStore() {
+func (ts *definitionTestSuite) TestWriteInventoryDefinitionExtended() {
 	require := ts.Require()
 
 	ctx := context.Background()
@@ -3388,18 +3388,18 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedAddBlade() {
 	rackName   := "rack1"
 	bladeId    := int64(3)
 
-	ctx := context.Background()
-
-	blade, err := ts.inventory.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
-	require.NoError(err)
-	require.NotNil(blade)
-
 	errBladeNotFound := errors.ErrBladeNotFound{
 		Region: regionName,
 		Zone:   zoneName,
 		Rack:   rackName,
 		Blade:  bladeId,
 	}
+
+	blade, err := ts.inventory.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
+	require.NoError(err)
+	require.NotNil(blade)
+
+	ctx := context.Background()
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
@@ -3425,68 +3425,185 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedAddBlade() {
 	//
 	_, err = blade.Read(ctx)
 	require.ErrorIs(err, errBladeNotFound)
-
-
 }
 
 func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChangeBlade() {
 	require := ts.Require()
 
+	regionName := "region1"
+	zoneName   := "zone1"
+	rackName   := "rack1"
+	bladeId    := int64(1)
+
+	blade, err := ts.inventory.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
+	require.NoError(err)
+	require.NotNil(blade)
+
 	ctx := context.Background()
-
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
-	require.NoError(err)
-
-	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedChangeBlade")
-	require.NoError(err)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
+
+	// Check for the original state of the blade that is about to be modified
+	//
+	_, err = blade.Read(ctx)
+	require.NoError(err)
+
+	d := blade.GetDetails()
+
+	require.Equal(pb.Condition_operational, d.Condition)
+
+	// Now load the updated inventory
+	//
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedChangeBlade")
+	require.NoError(err)
+
+	// Check for the expected modified state of the blade that should have been updated
+	//
+	_, err = blade.Read(ctx)
+	require.NoError(err)
+
+	d = blade.GetDetails()
+
+	require.Equal(pb.Condition_not_in_service, d.Condition)
+
+	// Then change the blade back to its original condition and verify that.
+	//
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	require.NoError(err)
+
+	_, err = blade.Read(ctx)
+	require.NoError(err)
+
+	d = blade.GetDetails()
+
+	require.Equal(pb.Condition_operational, d.Condition)
 }
 
 func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRack() {
 	require := ts.Require()
 
+	regionName := "region1"
+	zoneName   := "zone1"
+	rackName   := "rack2"
+
+	errRackNotFound := errors.ErrRackNotFound{
+		Region: regionName,
+		Zone:   zoneName,
+		Rack:   rackName,
+	}
+
+	rack, err := ts.inventory.NewRack(namespace.DefinitionTable, regionName, zoneName, rackName)
+	require.NoError(err)
+	require.NotNil(rack)
+
 	ctx := context.Background()
 
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
+
+	// Check for the absence of the blade that is about to be added
+	//
+	_, err = rack.Read(ctx)
+	require.ErrorIs(err, errRackNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddRack")
 	require.NoError(err)
 
+	// Check that the rack has been properly loaded
+	//
+	_, err = rack.Read(ctx)
+	require.NoError(err)
+
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
+
+	// And finally, check that the rack has now been removed.
+	//
+	_, err = rack.Read(ctx)
+	require.ErrorIs(err, errRackNotFound)
 }
 
 func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddZone() {
 	require := ts.Require()
 
+	regionName := "region1"
+	zoneName   := "zone2"
+
+	errZoneNotFound := errors.ErrZoneNotFound{
+		Region: regionName,
+		Zone:   zoneName,
+	}
+
+	zone, err := ts.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
+	require.NoError(err)
+	require.NotNil(zone)
+
 	ctx := context.Background()
 
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
+
+	// Check for the absence of the zone that is about to be added
+	//
+	_, err = zone.Read(ctx)
+	require.ErrorIs(err, errZoneNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddZone")
 	require.NoError(err)
 
+	// Check that the zone has been properly loaded
+	//
+	_, err = zone.Read(ctx)
+	require.NoError(err)
+
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
+
+	// And finally, check that the zone has now been removed.
+	//
+	_, err = zone.Read(ctx)
+	require.ErrorIs(err, errZoneNotFound)
 }
 
 func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRegion() {
 	require := ts.Require()
 
+	regionName := "region2"
+
+	errRegionNotFound := errors.ErrRegionNotFound{
+		Region: regionName,
+	}
+
+	region, err := ts.inventory.NewRegion(namespace.DefinitionTable, regionName)
+	require.NoError(err)
+	require.NotNil(region)
+
 	ctx := context.Background()
 
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
+
+	// Check for the absence of the zone that is about to be added
+	//
+	_, err = region.Read(ctx)
+	require.ErrorIs(err, errRegionNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddRegion")
 	require.NoError(err)
 
+	// Check that the zone has been properly loaded
+	//
+	_, err = region.Read(ctx)
+	require.NoError(err)
+
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
+
+	// And finally, check that the zone has now been removed.
+	//
+	_, err = region.Read(ctx)
+	require.ErrorIs(err, errRegionNotFound)
 }
 
 func (ts *definitionTestSuite) TestDeleteInventoryDefinitionBasic() {
