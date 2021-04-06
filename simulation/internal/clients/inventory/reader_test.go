@@ -14,7 +14,7 @@ import (
 )
 
 type readerTestSuite struct {
-	testSuiteCore	
+	testSuiteCore
 }
 
 func (ts *readerTestSuite) SetupSuite() {
@@ -22,17 +22,13 @@ func (ts *readerTestSuite) SetupSuite() {
 }
 
 func (ts *readerTestSuite) SetupTest() {
-	require := ts.Require()
-
-	require.NoError(ts.utf.Open(ts.T()))
-	require.NoError(ts.store.Connect())
+	ts.testSuiteCore.SetupTest()
 
 	viper.Reset()
 }
 
 func (ts *readerTestSuite) TearDownTest() {
-	ts.store.Disconnect()
-	ts.utf.Close()
+	ts.testSuiteCore.TearDownTest()
 }
 
 // first inventory definition test
@@ -306,7 +302,7 @@ func (ts *readerTestSuite) TestReadInventoryDefinitionBasic() {
 				if !assert.Equal(rackName, rackExpectedName, "Found unexpected rack: %s", rackName) {
 					continue
 				}
-		
+
 				assert.True(rack.Details.Enabled)
 				assert.Equal(pb.Condition_operational, rack.Details.Condition)
 				assert.Equal("Pacific NW, row 1, rack 1", rack.Details.Location)

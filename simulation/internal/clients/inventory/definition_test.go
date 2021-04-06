@@ -417,16 +417,11 @@ func (ts *definitionTestSuite) SetupSuite() {
 }
 
 func (ts *definitionTestSuite) SetupTest() {
-	require := ts.Require()
-
-	require.NoError(ts.utf.Open(ts.T()))
-
-	require.NoError(ts.store.Connect())
+	ts.testSuiteCore.SetupTest()
 }
 
 func (ts *definitionTestSuite) TearDownTest() {
-	ts.store.Disconnect()
-	ts.utf.Close()
+	ts.testSuiteCore.TearDownTest()
 }
 
 func (ts *definitionTestSuite) TestNewRoot() {

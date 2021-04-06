@@ -873,8 +873,8 @@ func (m *Inventory) reconcileNewInventory(
 	}
 
 	// Now that new items and updates have been processed, iterate over the store
-	// based inventory and check it it is still present in the file based inventory.
-	// If not, then delete the items from the store.
+	// based inventory and check that all the items are still present in the file
+	// based inventory. If not, then delete the items from the store.
 	//
 	rootStore, err := m.readInventoryDefinitionFromStore(ctx)
 

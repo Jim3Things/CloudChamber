@@ -20,16 +20,11 @@ func (ts *definitionExtendedTestSuite) SetupSuite() {
 }
 
 func (ts *definitionExtendedTestSuite) SetupTest() {
-	require := ts.Require()
-
-	require.NoError(ts.utf.Open(ts.T()))
-
-	require.NoError(ts.store.Connect())
+	ts.testSuiteCore.SetupTest()
 }
 
 func (ts *definitionExtendedTestSuite) TearDownTest() {
-	ts.store.Disconnect()
-	ts.utf.Close()
+	ts.testSuiteCore.TearDownTest()
 }
 
 func (ts *definitionExtendedTestSuite) TestReadInventoryDefinitionFromFileExtended() {
