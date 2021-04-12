@@ -25,32 +25,51 @@ import (
 // The underlying data type is used as a discriminant to determine which order
 // the instance represents.
 type psItem interface {
-	common.BimapItem
+	common.MultiMapEntry
 	GetNotify() chan Completion
 }
+
+const (
+	dueTimeKey = 0
+	epochKey   = 1
+)
 
 // waiter describes a single registration for a notification when the simulated
 // time matches or exceeds the requested due time.
 type waiter struct {
-	id      int
-	dueTime int64
+	id      common.PrimaryKey
+	dueTime common.SecondaryKey
+	epoch   common.SecondaryKey
 	name    string
 	notify  chan Completion
 }
 
-func (w *waiter) Key() int                   { return w.id }
-func (w *waiter) Secondary() int64           { return w.dueTime }
+func (w *waiter) Primary() common.PrimaryKey { return w.id }
+
+func (w *waiter) Secondary(index int) common.SecondaryKey {
+	switch index {
+	case dueTimeKey:
+		return w.dueTime
+
+	case epochKey:
+		return w.epoch
+
+	default:
+		return nil
+	}
+}
+
 func (w *waiter) GetNotify() chan Completion { return w.notify }
 
 // canceler describes an order to cancel a previously registered waiter.
 type canceler struct {
-	id     int
+	id     common.PrimaryKey
 	notify chan Completion
 }
 
-func (w *canceler) Key() int                   { return w.id }
-func (w *canceler) Secondary() int64           { return -1 }
-func (w *canceler) GetNotify() chan Completion { return w.notify }
+func (w *canceler) Primary() common.PrimaryKey          { return w.id }
+func (w *canceler) Secondary(_ int) common.SecondaryKey { return nil }
+func (w *canceler) GetNotify() chan Completion          { return w.notify }
 
 // Completion contains the final result of the registered event notification.
 // It is either an updated status, or an error that arose during processing.
@@ -86,7 +105,7 @@ type Listener struct {
 	stopped chan bool // goroutine stopped, no more events will be sent
 
 	// waiters is the collection of current outstanding timers.
-	waiters *common.Bimap
+	waiters common.MultiMap
 
 	// connection data for contacting the simulated time service.
 	dialName string
@@ -107,7 +126,7 @@ func NewListener(ep string, dialOpts ...grpc.DialOption) *Listener {
 		stopper:  make(chan bool, 1),
 		stopped:  make(chan bool, 1),
 		working:  true,
-		waiters:  common.NewBimap(),
+		waiters:  common.NewMultiMap(2),
 		dialName: ep,
 		dialOpts: dialOpts,
 		now: &pb.StatusResponse{
@@ -132,7 +151,7 @@ func NewListener(ep string, dialOpts ...grpc.DialOption) *Listener {
 // value.  It returns the unique ID, that can be used to cancel the request, the
 // channel to listen for the notification event, and an error, if the request
 // could not be added.
-func (l *Listener) After(name string, dueTime int64) (int, chan Completion, error) {
+func (l *Listener) After(name string, dueTime int64, epoch int64) (int, chan Completion, error) {
 	l.m.Lock()
 	defer l.m.Unlock()
 
@@ -145,15 +164,16 @@ func (l *Listener) After(name string, dueTime int64) (int, chan Completion, erro
 	l.nextId++
 
 	s := &waiter{
-		id:      l.nextId,
+		id:      common.PrimaryKey(l.nextId),
 		dueTime: dueTime,
+		epoch:   epoch,
 		name:    name,
 		notify:  notify,
 	}
 
 	l.ps <- s
 
-	return s.id, notify, nil
+	return int(s.id), notify, nil
 }
 
 // Cancel attempts to cancel an outstanding notification request.  The id
@@ -171,7 +191,7 @@ func (l *Listener) Cancel(id int) (chan Completion, error) {
 	}
 
 	notify := make(chan Completion, 1)
-	s := &canceler{id: id, notify: notify}
+	s := &canceler{id: common.PrimaryKey(id), notify: notify}
 
 	l.ps <- s
 
@@ -272,24 +292,42 @@ func (l *Listener) listener() {
 // requested criteria are completed.
 func (l *Listener) processTick(t *tickEvent) {
 	l.now = latestEvent(l.now, t.tick)
-	var expired []*waiter
+	l.processSecondary(dueTimeKey, func(key interface{}) bool {
+		value := key.(int64)
+		return value <= l.now.Now
+	})
 
-	l.waiters.ForEachSecondary(func(key int64) bool {
-		return key <= l.now.Now
-	},
-		func(item common.BimapItem) {
-			s := item.(*waiter)
-			expired = append(expired, s)
-		})
-
-	for _, item := range expired {
-		l.send(item.notify, nil)
-		l.waiters.Remove(item.Key())
-	}
+	l.processSecondary(epochKey, func(key interface{}) bool {
+		value := key.(int64)
+		return value <= l.now.Epoch
+	})
 
 	if t.ack != nil {
 		t.ack <- true
 		close(t.ack)
+	}
+}
+
+// processSecondary handles all matches against the specified secondary key,
+// with an associated filter.  Each matching key has its list of items processed
+// as expired, with completion notifications sent and then removed.
+func (l *Listener) processSecondary(keyId int, filter func(key interface{}) bool) {
+	var expired []*waiter
+
+	l.waiters.ForEachSecondary(keyId, func(key common.SecondaryKey, items []common.PrimaryKey) {
+		if filter(key) {
+			for _, item := range items {
+				entry, ok := l.waiters.Get(item)
+				if ok {
+					expired = append(expired, entry.(*waiter))
+				}
+			}
+		}
+	})
+
+	for _, item := range expired {
+		l.send(item.notify, nil)
+		l.waiters.Remove(item.Primary())
 	}
 }
 
@@ -299,12 +337,15 @@ func (l *Listener) processTick(t *tickEvent) {
 func (l *Listener) processPubSub(item interface{}) {
 	switch pub := item.(type) {
 	case *waiter:
-		if _, ok := l.waiters.Get(pub.Key()); ok {
-			l.send(pub.notify, errors.ErrTimerIdAlreadyExists(pub.Key()))
+		if _, ok := l.waiters.Get(pub.Primary()); ok {
+			l.send(pub.notify, errors.ErrTimerIdAlreadyExists(pub.Primary()))
 			return
 		}
 
-		if pub.dueTime <= l.now.Now {
+		due := pub.dueTime.(int64)
+		afterEpoch := pub.epoch.(int64)
+
+		if due <= l.now.Now || afterEpoch <= l.now.Epoch {
 			l.send(pub.notify, nil)
 		} else {
 			l.waiters.Add(pub)
@@ -329,18 +370,16 @@ func (l *Listener) processPubSub(item interface{}) {
 
 // cancelAndDrainAll forcibly cancels all outstanding notification requests.
 func (l *Listener) cancelAndDrainAll() {
-	l.waiters.ForEachSecondary(
-		func(_ int64) bool { return true },
-		func(item common.BimapItem) {
-			s := item.(*waiter)
-			l.send(s.notify, errors.ErrTimerCanceled(s.Key()))
-		})
+	l.waiters.ForEach(func(item common.MultiMapEntry) {
+		s := item.(*waiter)
+		l.send(s.notify, errors.ErrTimerCanceled(s.Primary()))
+	})
 
 	l.waiters.Clear()
 
 	s, ok := <-l.ps
 	for ok {
-		l.send(s.GetNotify(), errors.ErrTimerCanceled(s.Key()))
+		l.send(s.GetNotify(), errors.ErrTimerCanceled(s.Primary()))
 		s, ok = <-l.ps
 	}
 }

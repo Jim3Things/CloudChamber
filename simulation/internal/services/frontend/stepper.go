@@ -236,7 +236,7 @@ func handleWaitFor(w http.ResponseWriter, r *http.Request) {
 			}
 
 			tracing.UpdateSpanName(ctx, "Wait Until Simulated Time After %d", afterTick)
-			data = <-timestamp.After(ctx, afterTick+1)
+			data = <-timestamp.After(ctx, afterTick+1, timestamp.NoEpochCheck)
 			if data.Err != nil {
 				return data.Err
 			}

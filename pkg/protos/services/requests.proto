@@ -198,3 +198,20 @@ message GetPolicyResponse {
 }
 
 // --- trace sink specific messages
+
+// +++ Watch response messages
+
+// Return a notification of a change in the CloudChamber status.
+message WatchResponse {
+    oneof event_type {
+        // expired is reported if there were no changes before the long wait 
+        // delay epxired.
+        bool expired = 1;
+
+        // status_response is reported if there was a change in the simulated
+        // time processing - either policy or simulated time tick.
+        StatusResponse status_response = 2;
+    }
+}
+
+// --- Watch response messages

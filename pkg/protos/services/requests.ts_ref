@@ -265,6 +265,11 @@ export interface GetPolicyResponse {
   firstId: number;
 }
 
+export interface WatchResponse {
+  expired: boolean | undefined;
+  statusResponse: StatusResponse | undefined;
+}
+
 const baseResetRequest: object = {};
 
 export const ResetRequest = {
@@ -625,6 +630,35 @@ export const GetPolicyResponse = {
     message.maxEntriesHeld !== undefined &&
       (obj.maxEntriesHeld = message.maxEntriesHeld);
     message.firstId !== undefined && (obj.firstId = message.firstId);
+    return obj;
+  },
+};
+
+const baseWatchResponse: object = {};
+
+export const WatchResponse = {
+  fromJSON(object: any): WatchResponse {
+    const message = { ...baseWatchResponse } as WatchResponse;
+    if (object.expired !== undefined && object.expired !== null) {
+      message.expired = Boolean(object.expired);
+    } else {
+      message.expired = undefined;
+    }
+    if (object.statusResponse !== undefined && object.statusResponse !== null) {
+      message.statusResponse = StatusResponse.fromJSON(object.statusResponse);
+    } else {
+      message.statusResponse = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: WatchResponse): unknown {
+    const obj: any = {};
+    message.expired !== undefined && (obj.expired = message.expired);
+    message.statusResponse !== undefined &&
+      (obj.statusResponse = message.statusResponse
+        ? StatusResponse.toJSON(message.statusResponse)
+        : undefined);
     return obj;
   },
 };

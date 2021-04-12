@@ -5,6 +5,7 @@ package timestamp
 
 import (
 	"context"
+	"math"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/duration"
@@ -14,6 +15,10 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 
 	"google.golang.org/grpc"
+)
+
+const (
+	NoEpochCheck = math.MaxInt64
 )
 
 var (
@@ -28,7 +33,7 @@ type timeClient interface {
 		delay *duration.Duration,
 		match int64) (*pb.StatusResponse, error)
 	advance(ctx context.Context) error
-	after(ctx context.Context, deadline int64) <-chan Completion
+	after(ctx context.Context, deadline int64, epoch int64) <-chan Completion
 	status(ctx context.Context) (*pb.StatusResponse, error)
 	reset(ctx context.Context) error
 }
@@ -54,7 +59,7 @@ func (n *notReady) advance(_ context.Context) error {
 	return errors.ErrClientNotReady("timestamp")
 }
 
-func (n *notReady) after(_ context.Context, _ int64) <-chan Completion {
+func (n *notReady) after(_ context.Context, _ int64, _ int64) <-chan Completion {
 	ch := make(chan Completion)
 	ch <- Completion{
 		Status: nil,
@@ -140,8 +145,8 @@ func (t *activeClient) advance(ctx context.Context) error {
 	return t.cleanup(client, err)
 }
 
-func (t *activeClient) after(_ context.Context, deadline int64) <-chan Completion {
-	_, ch, err := t.l.After("after", deadline)
+func (t *activeClient) after(_ context.Context, deadline int64, epoch int64) <-chan Completion {
+	_, ch, err := t.l.After("after", deadline, epoch)
 	if err != nil {
 		ch := make(chan Completion, 1)
 		ch <- Completion{
@@ -156,7 +161,7 @@ func (t *activeClient) after(_ context.Context, deadline int64) <-chan Completio
 }
 
 func (t *activeClient) status(ctx context.Context) (*pb.StatusResponse, error) {
-	ch := t.after(ctx, -1)
+	ch := t.after(ctx, -1, 0)
 	status := <-ch
 
 	if status.Err != nil {
@@ -238,8 +243,8 @@ func Advance(ctx context.Context) error {
 // After delays execution until the simulated time meets or exceeds the
 // specified deadline.  Completion is asynchronous, even if no delay is
 // required.
-func After(ctx context.Context, deadline int64) <-chan Completion {
-	return tsc.after(ctx, deadline)
+func After(ctx context.Context, deadline int64, epoch int64) <-chan Completion {
+	return tsc.after(ctx, deadline, epoch)
 }
 
 // Status retrieves the status of the Stepper service, including the current

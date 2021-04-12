@@ -16,10 +16,10 @@ import (
 // timerEntry describes a single active timer
 type timerEntry struct {
 	// id is the unique key assigned to this timer
-	id int
+	id common.PrimaryKey
 
 	// dueTime is the simulated time when this timer expires
-	dueTime int64
+	dueTime common.SecondaryKey
 
 	// ch is the channel that is to receive the expiration message
 	callback func(msg interface{})
@@ -28,15 +28,21 @@ type timerEntry struct {
 	msg interface{}
 }
 
-func (t *timerEntry) Key() int         { return t.id }
-func (t *timerEntry) Secondary() int64 { return t.dueTime }
+func (t *timerEntry) Primary() common.PrimaryKey { return t.id }
+func (t *timerEntry) Secondary(index int) common.SecondaryKey {
+	if index == 0 {
+		return t.dueTime
+	} else {
+		return nil
+	}
+}
 
 // Timers is
 type Timers struct {
 	m sync.Mutex
 
 	// waiters is the collection of current outstanding timers.
-	waiters *common.Bimap
+	waiters common.MultiMap
 
 	// nextID holds the timer ID to assign to the next timer created.
 	nextID int
@@ -59,7 +65,7 @@ type Timers struct {
 func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
 	return &Timers{
 		m:        sync.Mutex{},
-		waiters:  common.NewBimap(),
+		waiters:  common.NewMultiMap(1),
 		nextID:   1,
 		active:   false,
 		epoch:    1,
@@ -79,7 +85,7 @@ func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callba
 
 	now := common.TickFromContext(ctx)
 	entry := &timerEntry{
-		id:       t.nextID,
+		id:       common.PrimaryKey(t.nextID),
 		dueTime:  delay + now,
 		callback: callback,
 		msg:      msg,
@@ -95,7 +101,7 @@ func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callba
 		go t.listener(t.epoch, now)
 	}
 
-	return entry.id, nil
+	return int(entry.id), nil
 }
 
 // Cancel removes the designated waiting timer, or returns an error if it is
@@ -104,7 +110,7 @@ func (t *Timers) Cancel(timerID int) error {
 	t.m.Lock()
 	defer t.m.Unlock()
 
-	if ok := t.waiters.Remove(timerID); !ok {
+	if _, ok := t.waiters.Remove(common.PrimaryKey(timerID)); !ok {
 		return errors.ErrTimerNotFound(timerID)
 	}
 
@@ -185,15 +191,21 @@ func (t *Timers) getExpiredWaiters(now int64, epoch int) ([]*timerEntry, bool) {
 	// as the processing proceeds.
 	var toSignal []*timerEntry
 
-	t.waiters.ForEachSecondary(func(key int64) bool {
-		return key <= now
-	}, func(item common.BimapItem) {
-		entry := item.(*timerEntry)
-		toSignal = append(toSignal, entry)
-	})
+	t.waiters.ForEachSecondary(0,
+		func(key common.SecondaryKey, items []common.PrimaryKey) {
+			due := key.(int64)
+			if due <= now {
+				for _, item := range items {
+					entry, ok := t.waiters.Get(item)
+					if ok {
+						toSignal = append(toSignal, entry.(*timerEntry))
+					}
+				}
+			}
+		})
 
 	for _, entry := range toSignal {
-		t.waiters.Remove(entry.Key())
+		t.waiters.Remove(entry.Primary())
 	}
 
 	return toSignal, t.mayCancelListener()

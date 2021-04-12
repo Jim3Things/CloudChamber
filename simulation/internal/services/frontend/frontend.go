@@ -53,7 +53,13 @@ type Server struct {
 	startTime time.Time
 
 	sessions managedSessions
+
+	watchTimeout time.Duration
 }
+
+const (
+	maxWatchTimeout = 5
+)
 
 var (
 	// key must be 16, 24 or 32 bytes long (AES-128, AES-192 or AES-256)
@@ -125,6 +131,7 @@ func initHandlers() error {
 	simulationAddRoutes(routeAPI)
 	stepperAddRoutes(routeAPI)
 	usersAddRoutes(routeAPI)
+	watchAddRoutes(routeAPI)
 	workloadsAddRoutes(routeAPI)
 
 	// Add the file handling for any other paths.
@@ -201,6 +208,12 @@ func initService(cfg *config.GlobalConfig) error {
 	server.sessions = newSessionTable(
 		cfg.WebServer.ActiveSessionLimit,
 		time.Duration(cfg.WebServer.SessionInactivity)*time.Second)
+
+	server.watchTimeout = maxWatchTimeout * time.Second
+	if cfg.WebServer.SessionInactivity < (maxWatchTimeout * 2) {
+		server.watchTimeout = time.Duration(cfg.WebServer.SessionInactivity/2) * time.Second
+	}
+
 	server.startTime = time.Now()
 
 	if err := initHandlers(); err != nil {
