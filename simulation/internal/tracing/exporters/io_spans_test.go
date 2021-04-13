@@ -66,11 +66,11 @@ func (ts *ioSpanTestSuite) TestSingleRoot() {
 	s.add(entry, &io)
 
 	assert.Equal(
-		"\n[0102030405060708:0000000000000000] ok root ():\n"+
+		"\n1970-01-01T00:00:00Z:0s [0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
-			"      @   0: [D] (test1) text1\n"+
+			"    1970-01-01T00:00:00Z  @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
-			"      @   1: [D] (test2) text2\n"+
+			"    1970-01-01T00:00:00Z  @   1: [D] (test2) text2\n"+
 			"        stack2\n", io.String())
 
 	assert.Equal(0, len(s.known))
@@ -115,11 +115,11 @@ func (ts *ioSpanTestSuite) TestDoubleRoot() {
 	s.add(entry, &io)
 
 	assert.Equal(
-		"\n[0102030405060708:0000000000000000] ok root ():\n"+
+		"\n1970-01-01T00:00:00Z:0s [0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
-			"      @   0: [D] (test1) text1\n"+
+			"    1970-01-01T00:00:00Z  @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
-			"      @   1: [D] (test2) text2\n"+
+			"    1970-01-01T00:00:00Z  @   1: [D] (test2) text2\n"+
 			"        stack2\n", io.String())
 
 	assert.Equal(0, len(s.known))
@@ -129,11 +129,11 @@ func (ts *ioSpanTestSuite) TestDoubleRoot() {
 	s.add(entry2, &io)
 
 	assert.Equal(
-		"\n[1102030405060708:0000000000000000] ok root ():\n"+
+		"\n1970-01-01T00:00:00Z:0s [1102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
-			"      @   2: [D] (test3) text3\n"+
+			"    1970-01-01T00:00:00Z  @   2: [D] (test3) text3\n"+
 			"        stack3\n"+
-			"      @   3: [D] (test4) text4\n"+
+			"    1970-01-01T00:00:00Z  @   3: [D] (test4) text4\n"+
 			"        stack4\n",
 		io.String())
 
@@ -192,17 +192,17 @@ func (ts *ioSpanTestSuite) TestSimpleChildFirst() {
 	s.add(entry, &io)
 
 	assert.Equal(
-		"\n[0102030405060708:0000000000000000] ok root ():\n"+
+		"\n1970-01-01T00:00:00Z:0s [0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
-			"      @   0: [D] (test1) text1\n"+
+			"    1970-01-01T00:00:00Z  @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
-			"\n    [1102030405060708:0102030405060708] ok root ():\n"+
+			"\n    1970-01-01T00:00:00Z:0s [1102030405060708:0102030405060708] ok root ():\n"+
 			"        stacks\n\n"+
-			"          @   2: [D] (test3) text3\n"+
+			"        1970-01-01T00:00:00Z  @   2: [D] (test3) text3\n"+
 			"            stack3\n"+
-			"          @   3: [D] (test4) text4\n"+
+			"        1970-01-01T00:00:00Z  @   3: [D] (test4) text4\n"+
 			"            stack4\n"+
-			"      @   1: [D] (test2) text2\n"+
+			"    1970-01-01T00:00:00Z  @   1: [D] (test2) text2\n"+
 			"        stack2\n",
 		io.String())
 
@@ -262,17 +262,17 @@ func (ts *ioSpanTestSuite) TestSimpleChildLast() {
 	s.add(entry2, &io)
 
 	assert.Equal(
-		"\n[0102030405060708:0000000000000000] ok root ():\n"+
+		"\n1970-01-01T00:00:00Z:0s [0102030405060708:0000000000000000] ok root ():\n"+
 			"    stacks\n\n"+
-			"      @   0: [D] (test1) text1\n"+
+			"    1970-01-01T00:00:00Z  @   0: [D] (test1) text1\n"+
 			"        stack1\n"+
-			"\n    [1102030405060708:0102030405060708] ok root ():\n"+
+			"\n    1970-01-01T00:00:00Z:0s [1102030405060708:0102030405060708] ok root ():\n"+
 			"        stacks\n\n"+
-			"          @   2: [D] (test3) text3\n"+
+			"        1970-01-01T00:00:00Z  @   2: [D] (test3) text3\n"+
 			"            stack3\n"+
-			"          @   3: [D] (test4) text4\n"+
+			"        1970-01-01T00:00:00Z  @   3: [D] (test4) text4\n"+
 			"            stack4\n"+
-			"      @   1: [D] (test2) text2\n"+
+			"    1970-01-01T00:00:00Z  @   1: [D] (test2) text2\n"+
 			"        stack2\n",
 		io.String())
 

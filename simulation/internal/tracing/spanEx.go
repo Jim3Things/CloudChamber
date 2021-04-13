@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync/atomic"
+	"time"
 
 	"go.opentelemetry.io/otel/api/global"
 	"go.opentelemetry.io/otel/api/kv"
@@ -29,11 +30,19 @@ type SpanEx struct {
 	isInternal bool
 }
 
+func (s SpanEx) End(opt ...trace.EndOption) {
+	var opts []trace.EndOption
+	opts = append(opts, trace.WithEndTime(time.Now()))
+	opts = append(opts, opt...)
+
+	s.Span.End(opt...)
+}
+
 type decorator func(ctx context.Context) context.Context
 
 // Mask applies the policy that a child span of a span that is marked as
 // infrastructure (span kind is internal) should also be market as internal.
-func (s *SpanEx) Mask(kind trace.SpanKind) trace.SpanKind {
+func (s SpanEx) Mask(kind trace.SpanKind) trace.SpanKind {
 	if s.isInternal {
 		return trace.SpanKindInternal
 	}
@@ -154,7 +163,7 @@ func nullOption() trace.StartOption {
 // that the Cloud Chamber logging system expects
 func StartSpan(
 	ctx context.Context,
-	options ...StartSpanOption) (context.Context, trace.Span) {
+	options ...StartSpanOption) (context.Context, SpanEx) {
 	cfg := startSpanConfig{
 		name:        MethodName(2),
 		kind:        trace.SpanKindServer,
@@ -179,6 +188,7 @@ func StartSpan(
 	tr := global.TraceProvider().Tracer("")
 
 	ctxChild, span := tr.Start(ctx, cfg.name,
+		trace.WithStartTime(time.Now()),
 		trace.WithSpanKind(cfg.kind),
 		mayLinkTo(cfg.link),
 		mayLinkTag(cfg.linkTag),
@@ -187,8 +197,9 @@ func StartSpan(
 		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
 
 	if !cfg.newRoot && parent.SpanContext().HasSpanID() {
-		parent.AddEvent(
+		parent.AddEventWithTimestamp(
 			ctxChild,
+			time.Now(),
 			cfg.name,
 			kv.Int64(ActionKey, int64(pbl.Action_SpanStart)),
 			kv.Int64(StepperTicksKey, cfg.tick),
@@ -213,8 +224,9 @@ func StartSpan(
 // formatted string provided.  The span will end up with the last
 // name provided.
 func UpdateSpanName(ctx context.Context, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEvent(
+	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		MethodName(2),
 		kv.Int64(ActionKey, int64(pbl.Action_UpdateSpanName)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
@@ -226,8 +238,9 @@ func UpdateSpanName(ctx context.Context, a ...interface{}) {
 // UpdateSpanReason replaces the current span reason with the formatted
 // string provided.  The span will end up with the last reason provided.
 func UpdateSpanReason(ctx context.Context, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEvent(
+	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		MethodName(2),
 		kv.Int64(ActionKey, int64(pbl.Action_UpdateReason)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
@@ -241,8 +254,9 @@ func UpdateSpanReason(ctx context.Context, a ...interface{}) {
 // span should also provide, with the intention that a structured formatter can
 // place that target span in the correct place in the execution sequence.
 func AddLink(ctx context.Context, tag string) {
-	trace.SpanFromContext(ctx).AddEvent(
+	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		MethodName(2),
 		kv.Int64(ActionKey, int64(pbl.Action_AddLink)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),

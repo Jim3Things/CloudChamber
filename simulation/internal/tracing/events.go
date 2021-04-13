@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"regexp"
+	"time"
 
 	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
@@ -175,8 +176,9 @@ func Debug(ctx context.Context, a ...interface{}) {
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
 
-	trace.SpanFromContext(ctx).AddEvent(
+	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		MethodName(2),
 		res...)
 }
@@ -193,28 +195,10 @@ func Info(ctx context.Context, a ...interface{}) {
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
 
-	trace.SpanFromContext(ctx).AddEvent(
+	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		MethodName(2),
-		res...)
-}
-
-// OnEnter posts an informational trace event describing the entry into a
-// function
-func OnEnter(ctx context.Context, a ...interface{}) {
-	cfg := newTraceDetail()
-	start := addAnnotations(cfg, a)
-
-	res := append(
-		cfg.toKvPairs(),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
-
-	trace.SpanFromContext(ctx).AddEvent(
-		ctx,
-		fmt.Sprintf("On %q entry", MethodName(2)),
 		res...)
 }
 
@@ -230,8 +214,9 @@ func Warn(ctx context.Context, a ...interface{}) {
 		kv.String(StackTraceKey, StackTrace()),
 		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
 
-	trace.SpanFromContext(ctx).AddEvent(
+	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		MethodName(2),
 		res...)
 }
@@ -275,8 +260,9 @@ func Error(ctx context.Context, a ...interface{}) error {
 
 	res = append(res, kv.String(MessageTextKey, err.Error()))
 
-	trace.SpanFromContext(ctx).AddEvent(
+	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		fmt.Sprintf("Error from %q", MethodName(3)),
 		res...)
 

@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"go.opentelemetry.io/otel/api/kv"
 	"go.opentelemetry.io/otel/api/trace"
@@ -47,8 +48,9 @@ func Interceptor(
 
 	sev, resultMsg := decodeGrpcErr(err)
 
-	parent.AddEvent(
+	parent.AddEventWithTimestamp(
 		ctx,
+		time.Now(),
 		method,
 		kv.Int64(tracing.SeverityKey, int64(overrideSeverity(method, sev))),
 		kv.String(tracing.StackTraceKey, tracing.StackTrace()),
