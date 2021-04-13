@@ -17,18 +17,10 @@ type readerTestSuite struct {
 	testSuiteCore
 }
 
-func (ts *readerTestSuite) SetupSuite() {
-	ts.testSuiteCore.SetupSuite()
-}
-
 func (ts *readerTestSuite) SetupTest() {
 	ts.testSuiteCore.SetupTest()
 
 	viper.Reset()
-}
-
-func (ts *readerTestSuite) TearDownTest() {
-	ts.testSuiteCore.TearDownTest()
 }
 
 // first inventory definition test

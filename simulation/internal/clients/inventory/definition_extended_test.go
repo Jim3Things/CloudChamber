@@ -19,14 +19,6 @@ func (ts *definitionExtendedTestSuite) SetupSuite() {
 	ts.inventory = NewInventory(ts.cfg, ts.store)
 }
 
-func (ts *definitionExtendedTestSuite) SetupTest() {
-	ts.testSuiteCore.SetupTest()
-}
-
-func (ts *definitionExtendedTestSuite) TearDownTest() {
-	ts.testSuiteCore.TearDownTest()
-}
-
 func (ts *definitionExtendedTestSuite) TestReadInventoryDefinitionFromFileExtended() {
 	require := ts.Require()
 

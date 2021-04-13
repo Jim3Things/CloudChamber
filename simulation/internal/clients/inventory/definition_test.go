@@ -416,14 +416,6 @@ func (ts *definitionTestSuite) SetupSuite() {
 	ts.utf.Close()
 }
 
-func (ts *definitionTestSuite) SetupTest() {
-	ts.testSuiteCore.SetupTest()
-}
-
-func (ts *definitionTestSuite) TearDownTest() {
-	ts.testSuiteCore.TearDownTest()
-}
-
 func (ts *definitionTestSuite) TestNewRoot() {
 	assert := ts.Assert()
 	require := ts.Require()
