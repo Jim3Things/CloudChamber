@@ -1,5 +1,5 @@
 Details:
-  Name: "Basic Test Inventory"
+  Name: "Intermediate"
   Notes: "Test configuration comprising single region, with a single zone, with 2 racks, which each have a single pdu, a single tor and 4 blades."
 Regions:
   - Name: region1
@@ -35,7 +35,7 @@ Regions:
                 Capacity:
                   Cores: 16
                   MemoryInMb: 16384
-                  DiskInGb: 240 
+                  DiskInGb: 240
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
               - Index: 2
@@ -158,55 +158,55 @@ Regions:
                 Ports:
                   - Index: 0
                     Wired: true
-                    Item: 
+                    Item:
                       Type: pdu
                       Id: 0
                       Port: 1
                   - Index: 1
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 1
                       Port: 0
                   - Index: 2
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 2
                       Port: 1
                   - Index: 3
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 4
                       Port: 1
                   - Index: 5
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 5
                       Port: 1
                   - Index: 6
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 6
                       Port: 1
                   - Index: 7
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 7
                       Port: 1
                   - Index: 8
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 8
                       Port: 1
@@ -218,7 +218,7 @@ Regions:
                 Ports:
                   - Index: 0
                     Wired: true
-                    Item: 
+                    Item:
                       Type: tor
                       Id: 0
                       Port: 1
@@ -230,7 +230,7 @@ Regions:
                       Port: 0
                   - Index: 2
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 2
                       Port: 0
@@ -290,7 +290,7 @@ Regions:
                 Capacity:
                   Cores: 16
                   MemoryInMb: 16384
-                  DiskInGb: 240 
+                  DiskInGb: 240
                   NetworkBandwidthInMbps: 2048
                   Arch: "X64"
               - Index: 2
@@ -413,55 +413,55 @@ Regions:
                 Ports:
                   - Index: 0
                     Wired: true
-                    Item: 
+                    Item:
                       Type: pdu
                       Id: 0
                       Port: 1
                   - Index: 1
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 1
                       Port: 0
                   - Index: 2
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 2
                       Port: 1
                   - Index: 3
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 3
                       Port: 1
                   - Index: 4
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 4
                       Port: 1
                   - Index: 5
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 5
                       Port: 1
                   - Index: 6
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 6
                       Port: 1
                   - Index: 7
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 7
                       Port: 1
                   - Index: 8
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 8
                       Port: 1
@@ -473,7 +473,7 @@ Regions:
                 Ports:
                   - Index: 0
                     Wired: true
-                    Item: 
+                    Item:
                       Type: tor
                       Id: 0
                       Port: 1
@@ -485,7 +485,7 @@ Regions:
                       Port: 0
                   - Index: 2
                     Wired: true
-                    Item: 
+                    Item:
                       Type: blade
                       Id: 2
                       Port: 0

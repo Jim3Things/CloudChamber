@@ -92,7 +92,7 @@ type rootExDetails struct {
 type regionEx struct {
 	Name    string
 	Details regionExDetails
-	Zones   []zoneEx	
+	Zones   []zoneEx
 }
 
 type regionExDetails struct {
@@ -149,7 +149,7 @@ type pduEx struct {
 
 type pduExDetails struct {
 	Enabled  bool
-	Condition string	
+	Condition string
 }
 
 type torEx struct {
@@ -160,7 +160,7 @@ type torEx struct {
 
 type torExDetails struct {
 	Enabled  bool
-	Condition string	
+	Condition string
 }
 
 type bladeEx struct {
@@ -173,7 +173,7 @@ type bladeEx struct {
 
 type bladeExDetails struct {
 	Enabled  bool
-	Condition string	
+	Condition string
 }
 
 type bladeExCapacity struct {
@@ -205,11 +205,18 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Defi
 		tracing.AsInternal())
 	defer span.End()
 
-	viper.SetConfigName(defaultDefinitionFile)
-	viper.AddConfigPath(path)
-	viper.SetConfigType(defaultConfigType)
+	// Use a separate instance of viper to read in the inventory file to avoid
+	// problems with interference from the primary configuration file or when
+	// reading in the inventory from multiple differing locations for the
+	// inventory.
+	//
+	v := viper.New()
 
-	if err := viper.ReadInConfig(); err != nil {
+	v.SetConfigName(defaultDefinitionFile)
+	v.AddConfigPath(path)
+	v.SetConfigType(defaultConfigType)
+
+	if err := v.ReadInConfig(); err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
 			err = fmt.Errorf("no inventory definition found at %s/%s (%s)",
 				path,
@@ -224,7 +231,7 @@ func ReadInventoryDefinitionFromFile(ctx context.Context, path string) (*pb.Defi
 
 	// First we are going to put it into intermediate format
 	xfr := &rootEx{}
-	if err := viper.UnmarshalExact(xfr); err != nil {
+	if err := v.UnmarshalExact(xfr); err != nil {
 		return nil, tracing.Error(ctx, "unable to decode into struct, %v", err)
 	}
 
@@ -313,7 +320,7 @@ func toDefinitionRoot(xfrRoot *rootEx) (*pb.Definition_Root, error) {
 			},
 			Zones:   make(map[string]*pb.Definition_Zone, len(xfrRegion.Zones)),
 		}
-	
+
 		// Iterate over the set of zones in the supplied configuration
 		// and add an entry in the internal structs for that zone.
 		//

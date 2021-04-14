@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -381,14 +382,13 @@ func (store *Store) ReadWithDecode(
 //
 func (store *Store) Read(ctx context.Context, kr namespace.KeyRoot, n string) (value *string, revision int64, err error) {
 	revision = RevisionInvalid
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(kr)
+	k := namespace.GetKeyFromKeyRootAndName(kr, n)
 
 	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(fmt.Sprintf("Read value from namespace %s with prefix %s for key %s", n, prefix, k)),
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
-
-	prefix := namespace.GetNamespacePrefixFromKeyRoot(kr)
-
-	tracing.Info(ctx, "Request to read value of %q under prefix %q", n, prefix)
 
 	if err = store.disconnected(ctx); err != nil {
 		return nil, RevisionInvalid, err
@@ -407,7 +407,6 @@ func (store *Store) Read(ctx context.Context, kr namespace.KeyRoot, n string) (v
 		Conditions: make(map[string]Condition),
 	}
 
-	k := namespace.GetKeyFromKeyRootAndName(kr, n)
 	request.Records[k] = Record{Revision: RevisionInvalid}
 	request.Conditions[k] = ConditionUnconditional
 
@@ -433,9 +432,7 @@ func (store *Store) Read(ctx context.Context, kr namespace.KeyRoot, n string) (v
 				regexp.MustCompile(
 					`passwordHash\\\"\:(.*?),\\\"`),
 					`passwordHash\":\"...REDACTED...\",\"`),
-			"found record for %q under prefix %q, with revision %v and value %q",
-			n,
-			prefix,
+			"found record with revision %v and value %q",
 			rev,
 			val)
 
@@ -449,14 +446,13 @@ func (store *Store) Read(ctx context.Context, kr namespace.KeyRoot, n string) (v
 // Update is a function to conditionally update a value for a single key
 //
 func (store *Store) Update(ctx context.Context, r namespace.KeyRoot, n string, rev int64, v string) (revision int64, err error) {
-	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	defer span.End()
-
 	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 	k := namespace.GetKeyFromKeyRootAndName(r, n)
 
-	tracing.Info(ctx, "Request to update %q under prefix %q", n, prefix)
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(fmt.Sprintf("Request to update value in namespace %s with prefix %s for key %s", n, prefix, k)),
+		tracing.WithContextValue(timestamp.EnsureTickInContext))
+	defer span.End()
 
 	if err = store.disconnected(ctx); err != nil {
 		return RevisionInvalid, err
@@ -485,9 +481,13 @@ func (store *Store) Update(ctx context.Context, r namespace.KeyRoot, n string, r
 		return RevisionInvalid, err
 	}
 
-	tracing.Info(ctx,
-		"Updated record %q under prefix %q from revision %v to revision %v",
-		n, prefix, rev, resp.Revision)
+	tracing.UpdateSpanName(ctx,
+		"Updated value in namespace %s with prefix %s for key %s from revision %d to revision %d",
+		n,
+		prefix,
+		k,
+		rev,
+		resp.Revision)
 
 	return resp.Revision, nil
 }
@@ -668,19 +668,17 @@ func (store *Store) DeleteMultiple(ctx context.Context, r namespace.KeyRoot, kvs
 //		 an essentially infinite number of records.
 //
 func (store *Store) List(ctx context.Context, r namespace.KeyRoot, n string) (records *map[string]Record, revision int64, err error) {
+	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
+	k := namespace.GetKeyFromKeyRootAndName(r, n)
+
 	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(fmt.Sprintf("Request to list entries from namespace %s with prefix %s under key %s", n, prefix, k)),
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
-
-	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
-
-	tracing.Info(ctx, "Request to list keys under prefix %q", prefix)
 
 	if err = store.disconnected(ctx); err != nil {
 		return nil, RevisionInvalid, err
 	}
-
-	k := namespace.GetKeyFromKeyRootAndName(r, n)
 
 	response, err := store.ListWithPrefix(ctx, k)
 
@@ -703,7 +701,13 @@ func (store *Store) List(ctx context.Context, r namespace.KeyRoot, n string) (re
 		tracing.Info(ctx, "found record with key %q for name %q with revision %v", k, name, record.Revision)
 	}
 
-	tracing.Info(ctx, "returned %v records at store revision %v", len(response.Records), response.Revision)
+	tracing.UpdateSpanName(ctx,
+		"Listed %d entries in namespace %s with prefix %s for key %s at store revision %d",
+		len(response.Records),
+		n,
+		prefix,
+		k,
+		response.Revision)
 
 	return &recs, response.Revision, nil
 }

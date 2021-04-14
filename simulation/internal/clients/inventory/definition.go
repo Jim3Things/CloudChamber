@@ -624,11 +624,32 @@ func (r *Region) GetDetails() *pb.RegionDetails {
 // current object.
 //
 func (r *Region) GetDefinitionRegion() *pb.Definition_Region {
-
 	return &pb.Definition_Region{
 		Details: r.GetDetails(),
 		Zones:   make(map[string]*pb.Definition_Zone),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current region matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
+func (r *Region) Equal(d *pb.Definition_Region) bool {
+	return r.details.Equal(d.GetDetails())
+}
+
+// NotEqual is used to provide a simple equality check for use to determine
+// if the current region does not match the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
+func (r *Region) NotEqual(d *pb.Definition_Region) bool {
+	return !r.Equal(d)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -942,6 +963,28 @@ func (z *Zone) GetDefinitionZone() *pb.Definition_Zone {
 		Details: z.GetDetails(),
 		Racks:   make(map[string]*pb.Definition_Rack),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current zone matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
+func (z *Zone) Equal(d *pb.Definition_Zone) bool {
+	return z.details.Equal(d.GetDetails())
+}
+
+// NotEqual is used to provide a simple equality check for use to determine
+// if the current zone does not match the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
+func (z *Zone) NotEqual(d *pb.Definition_Zone) bool {
+	return !z.Equal(d)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -1396,6 +1439,28 @@ func (r *Rack) GetDefinitionRack() *pb.Definition_Rack {
 		Tors:    make(map[int64]*pb.Definition_Tor),
 		Blades:  make(map[int64]*pb.Definition_Blade),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current rack matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
+func (r *Rack) Equal(d *pb.Definition_Rack) bool {
+	return r.details.Equal(d.GetDetails())
+}
+
+// NotEqual is used to provide a simple equality check for use to determine
+// if the current rack do not match the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
+func (r *Rack) NotEqual(d *pb.Definition_Rack) bool {
+	return !r.Equal(d)
 }
 
 // GetDefinitionRackWithChildren returns a copy of the rack definition based on the contents of the
@@ -2080,6 +2145,24 @@ func (p *Pdu) GetPorts() *map[int64]*pb.PowerPort {
 	return clonePowerPorts(p.ports)
 }
 
+// EqualPorts is used to provide a simple equality check for use to determine
+// if the current ports match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (p *Pdu) EqualPorts(ports map[int64]*pb.PowerPort) bool {
+	if len(*p.ports) != len(ports) {
+		return false
+	}
+
+	for i, pp := range *p.ports {
+		if !pp.Equal(ports[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // GetDefinitionPdu returns a copy of the pdu definition based on the contents of the
 // current object.
 //
@@ -2090,6 +2173,22 @@ func (p *Pdu) GetDefinitionPdu() *pb.Definition_Pdu {
 	}
 
 	return pdu
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current pdu matches the supplied definition. Typically used when
+// looking to see if the record has been changed.
+//
+func (p *Pdu) Equal(d *pb.Definition_Pdu) bool {
+	return p.details.Equal(d.GetDetails()) && p.EqualPorts(d.GetPorts())
+}
+
+// NotEqual is used to provide a simple equality check for use to determine
+// if the current pdu do not match the supplied definition. Typically used when
+// looking to see if the record has been changed.
+//
+func (p *Pdu) NotEqual(d *pb.Definition_Pdu) bool {
+	return !p.Equal(d)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -2374,6 +2473,24 @@ func (t *Tor) GetPorts() *map[int64]*pb.NetworkPort {
 	return cloneNetworkPorts(t.ports)
 }
 
+// EqualPorts is used to provide a simple equality check for use to determine
+// if the current ports match those supplied. Typically used when looking
+// to see if the record has been changed.
+//
+func (t *Tor) EqualPorts(ports map[int64]*pb.NetworkPort) bool {
+	if len(*t.ports) != len(ports) {
+		return false
+	}
+
+	for i, np := range *t.ports {
+		if !np.Equal(ports[i]) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // GetDefinitionTor returns a copy of the tor definition based on the contents of the
 // current object.
 //
@@ -2384,6 +2501,22 @@ func (t *Tor) GetDefinitionTor() *pb.Definition_Tor {
 	}
 
 	return tor
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current tor matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (t *Tor) Equal(d *pb.Definition_Tor) bool {
+	return t.details.Equal(d.GetDetails()) && t.EqualPorts(d.GetPorts())
+}
+
+// NotEqual is used to provide a simple equality check for use to determine
+// if the current tor does not match the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (t *Tor) NotEqual(d *pb.Definition_Tor) bool {
+	return !t.Equal(d)
 }
 
 // Create is used to create a record in the underlying store for the
@@ -2723,6 +2856,25 @@ func (b *Blade) GetDefinitionBlade() *pb.Definition_Blade {
 		BootInfo:      b.GetBootInfo(),
 		BootOnPowerOn: b.GetBootOnPowerOn(),
 	}
+}
+
+// Equal is used to provide a simple equality check for use to determine
+// if the current blade matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (b *Blade) Equal(d *pb.Definition_Blade) bool {
+	return b.details.Equal(d.GetDetails()) &&
+		   b.capacity.Equal(d.GetCapacity()) &&
+		   b.bootInfo.Equal(d.GetBootInfo()) &&
+		   b.GetBootOnPowerOn() == d.GetBootOnPowerOn()
+}
+
+// NotEqual is used to provide a simple equality check for use to determine
+// if the current blade matches the supplied definition. Typically used
+// when looking to see if the record has been changed.
+//
+func (b *Blade) NotEqual(d *pb.Definition_Blade) bool {
+	return !b.Equal(d)
 }
 
 // Create is used to create a record in the underlying store for the

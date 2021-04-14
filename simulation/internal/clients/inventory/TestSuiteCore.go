@@ -73,5 +73,3 @@ func (ts *testSuiteCore) TearDownTest() {
 	ts.store.Disconnect()
 	ts.utf.Close()
 }
-
-
