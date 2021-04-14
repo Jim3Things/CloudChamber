@@ -110,10 +110,7 @@ func convertToInternalPolicyRequest(
 	m *pb.PolicyRequest,
 	ch chan *sm.Response) (sm.Envelope, error) {
 
-	interval, err := ptypes.Duration(m.MeasuredDelay)
-	if err != nil {
-		return nil, err
-	}
+	interval := m.MeasuredDelay.AsDuration()
 
 	switch m.Policy {
 	case pb.StepperPolicy_NoWait:
