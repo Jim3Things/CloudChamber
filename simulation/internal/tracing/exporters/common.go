@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	trace2 "go.opentelemetry.io/otel/api/trace"
 	"go.opentelemetry.io/otel/sdk/export/trace"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/protos/log"
@@ -36,6 +38,8 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 		StartingLink:   "",
 		LinkSpanID:     "",
 		LinkTraceID:    "",
+		StartedAt:      timestamppb.New(data.StartTime),
+		EndedAt:        timestamppb.New(data.EndTime),
 	}
 
 	for _, attr := range data.Attributes {
@@ -60,6 +64,7 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 			Text:        event.Name,
 			Tick:        -1,
 			EventAction: log.Action_Trace,
+			At:          timestamppb.New(event.Time),
 		}
 
 		for _, attr := range event.Attributes {
@@ -110,8 +115,12 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 	stack := doIndent(entry.GetStackTrace(), tab)
 
+	dur := entry.EndedAt.AsTime().Sub(entry.StartedAt.AsTime())
+
 	return doIndent(fmt.Sprintf(
-		"[%s:%s]%s%s%s %s %s (%s):\n%s\n",
+		"%s:%s [%s:%s]%s%s%s %s %s (%s):\n%s\n",
+		entry.StartedAt.AsTime().Format(time.RFC3339Nano),
+		dur.String(),
 		entry.GetSpanID(),
 		entry.GetParentID(),
 		formatLink(entry.GetStartingLink(), entry.GetLinkSpanID(), entry.GetLinkTraceID()),
@@ -145,13 +154,15 @@ func formatSpanStart(event *log.Event, leader string) string {
 
 	if event.GetTick() < 0 {
 		return doIndent(fmt.Sprintf(
-			"       : Start Child Span: %s\n%s\n",
+			"%s       : Start Child Span: %s\n%s\n",
+			event.At.AsTime().Format(time.RFC3339Nano),
 			event.GetSpanId(),
 			stack), leader)
 	}
 
 	return doIndent(fmt.Sprintf(
-		"  @%4d: Start Child Span: %s\n%s\n",
+		"%s  @%4d: Start Child Span: %s\n%s\n",
+		event.At.AsTime().Format(time.RFC3339Nano),
 		event.GetTick(),
 		event.GetSpanId(),
 		stack), leader)
@@ -162,13 +173,15 @@ func formatAddLink(event *log.Event, leader string) string {
 
 	if event.GetTick() < 0 {
 		return doIndent(fmt.Sprintf(
-			"       : Add link: %s\n%s\n",
+			"%s       : Add link: %s\n%s\n",
+			event.At.AsTime().Format(time.RFC3339Nano),
 			event.GetLinkId(),
 			stack), leader)
 	}
 
 	return doIndent(fmt.Sprintf(
-		"  @%4d: Add link: %s\n%s\n",
+		"%s  @%4d: Add link: %s\n%s\n",
+		event.At.AsTime().Format(time.RFC3339Nano),
 		event.GetTick(),
 		event.GetLinkId(),
 		stack), leader)
@@ -180,7 +193,8 @@ func formatNormalEvent(event *log.Event, leader string) string {
 
 	if event.GetTick() < 0 {
 		return doIndent(fmt.Sprintf(
-			"       : [%s] (%s) %s\n%s%s\n",
+			"%s       : [%s] (%s) %s\n%s%s\n",
+			event.At.AsTime().Format(time.RFC3339Nano),
 			severityFlag(event.GetSeverity()),
 			event.GetName(),
 			event.GetText(),
@@ -189,7 +203,8 @@ func formatNormalEvent(event *log.Event, leader string) string {
 	}
 
 	return doIndent(fmt.Sprintf(
-		"  @%4d: [%s] (%s) %s\n%s%s\n",
+		"%s  @%4d: [%s] (%s) %s\n%s%s\n",
+		event.At.AsTime().Format(time.RFC3339Nano),
 		event.GetTick(),
 		severityFlag(event.GetSeverity()),
 		event.GetName(),

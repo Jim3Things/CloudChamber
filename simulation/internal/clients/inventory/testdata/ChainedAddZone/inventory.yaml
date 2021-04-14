@@ -1,6 +1,4 @@
-# Simple test configuration comprising 1 region, with 1 zone, with the zone having 2 racks, with each rack having a single pdu, a single tor and 2 blades.
-#
-# Blades in rack1 have duplicate IDs.
+# Chained Add Zone - test configuration comprising 1 region, with 2 zone, with the zone having 2 racks, with each rack having a single pdu, a single tor and 2 blades.
 
 BladeTypeS:
   - &bladeType1
@@ -19,6 +17,22 @@ BladeTypeS:
       DiskInGb: 240
       NetworkBandwidthInMbps: 2048
       Arch: "X64"
+  - &bladeType2
+    Details:
+      Enabled: true
+      Condition: Operational
+    BootInfo:
+      Source: local
+      Image: standard.vhdx
+      Version: latest
+      Parameters: "-version=1 -node=$NODENAME$"
+    BootOnPowerOn: true
+    Capacity:
+      Cores: 8
+      MemoryInMb: 16384
+      DiskInGb: 120
+      NetworkBandwidthInMbps: 2048
+      Arch: "X64"
 
 TorTypes:
   - &torType1
@@ -28,7 +42,7 @@ TorTypes:
     Ports:
       - {Index:  0, Wired: true, Item: {Type:   pdu, Id:  0, Port: 1}}
       - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
-      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 0}}
 
 PduTypes:
   - &pduType1
@@ -38,7 +52,7 @@ PduTypes:
     Ports:
       - {Index:  0, Wired: true, Item: {Type:   tor, Id:  0, Port: 1}}
       - {Index:  1, Wired: true, Item: {Type: blade, Id:  1, Port: 0}}
-      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 1}}
+      - {Index:  2, Wired: true, Item: {Type: blade, Id:  2, Port: 0}}
 
 RackTypes:
   - &rackType1
@@ -50,38 +64,44 @@ RackTypes:
     Blades:
       - Index: 1
         <<: *bladeType1
-      - Index: 1
-        <<: *bladeType1
+      - Index: 2
+        <<: *bladeType2
     Tors:
       - Index: 0
         <<: *torType1
     Pdus:
       - Index: 0
         <<: *pduType1
-  - &rackType2
+
+ZoneTypes:
+  - &zoneType1
     Details:
       Enabled: true
-      Condition: Operational
-      Location: "Pacific NW, row 1, rack 1"
-      Notes: "rack definition, 1 pdu, 1 tor, 2 blades"
-    Blades:
-      - Index: 1
-        <<: *bladeType1
-      - Index: 2
-        <<: *bladeType1
-    Tors:
-      - Index: 0
-        <<: *torType1
-    Pdus:
-      - Index: 0
-        <<: *pduType1
+      State: In_Service
+      Location: "DC-PNW-0"
+      Notes: "Base zone"
+    Racks:
+      - Name: rack1
+        <<: *rackType1
+        Details:
+          Enabled: true
+          Condition: Operational
+          Location: "DC-PNW-0-rack1"
+          Notes: "RackName: rack1"
+      - Name: rack2
+        <<: *rackType1
+        Details:
+          Enabled: true
+          Condition: Operational
+          Location: "DC-PNW-0-rack2"
+          Notes: "RackName: rack2"
 
 
 # Start of layout
 #
 Details:
-  Name: "Bad Yaml Blade"
-  Notes: "Test configuration comprising 1 region, with 1 zone, with the zone having 2 racks, with each rack having a single pdu, a single tor and 2 blades. Blades in rack1 have duplicate IDs."
+  Name: "Chained Add Zone"
+  Notes: "Test configuration based on the Chained Base configuration but with added zone."
 Regions:
   - Name: region1
     Details:
@@ -90,13 +110,6 @@ Regions:
       Notes: "Test Region 1"
     Zones:
       - Name: zone1
-        Details:
-          Enabled: true
-          State: In_Service
-          Location: "Pacific NW, row 1"
-          Notes: "Simple zone definition"
-        Racks:
-          - Name: rack1
-            <<: *rackType1
-          - Name: rack2
-            <<: *rackType2
+        <<: *zoneType1
+      - Name: zone2
+        <<: *zoneType1

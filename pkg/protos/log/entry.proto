@@ -18,6 +18,8 @@ syntax = "proto3";
 
 package log;
 
+import "google/protobuf/timestamp.proto";
+
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/log";
 option csharp_namespace = "CloudChamber.Protos.Log";
 
@@ -114,6 +116,9 @@ message Event {
 
     // Outgoing link ID.  Ignored if the action is not AddLink.
     string link_id = 9;
+
+    // Real-world time when this event occurred.
+    google.protobuf.Timestamp at = 10;
 }
 
 // Describe a full correlated span, consisting of zero or more events.
@@ -150,4 +155,8 @@ message Entry {
     // where the request to start a new related span was made.
     string link_spanID = 11;
     string link_traceID = 12;
+
+    // Real-world time when this span started and ended.
+    google.protobuf.Timestamp started_at = 13;
+    google.protobuf.Timestamp ended_at = 14;
 }
