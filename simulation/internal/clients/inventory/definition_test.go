@@ -3551,25 +3551,77 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRegion() {
 func (ts *definitionTestSuite) TestDeleteInventoryDefinitionBasic() {
 	require := ts.Require()
 
+	regionName := "region1"
+	zoneName := "zone1"
+	rackName := "rack1"
+	torId := int64(0)
+
+	errTorNotFound := errors.ErrTorNotFound{Region: regionName, Zone: zoneName, Rack: rackName, Tor: torId}
+
+	tor, err := ts.inventory.NewTor(namespace.DefinitionTable, regionName, zoneName, rackName, torId)
+	require.NoError(err)
+	require.NotNil(tor)
+
 	ctx := context.Background()
 
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/basic")
+	// Verify the sameple tor is not currently present in the inventory.
+	//
+	_, err = tor.Read(ctx)
+	require.ErrorIs(err, errTorNotFound)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/basic")
+	require.NoError(err)
+
+	// Verify the sameple tor is now present in the inventory.
+	//
+	_, err = tor.Read(ctx)
 	require.NoError(err)
 
 	err = ts.inventory.DeleteInventoryDefinition(ctx)
 	require.NoError(err)
+
+	// Verify the sameple tor has been removed from the inventory.
+	//
+	_, err = tor.Read(ctx)
+	require.ErrorIs(err, errTorNotFound)
 }
 
 func (ts *definitionTestSuite) TestDeleteInventoryDefinitionSimple() {
 	require := ts.Require()
 
+	regionName := "region1"
+	zoneName := "zone1"
+	rackName := "rack2"
+	bladeId := int64(2)
+
+	errBladeNotFound := errors.ErrBladeNotFound{Region: regionName, Zone: zoneName, Rack: rackName, Blade: bladeId}
+
+	blade, err := ts.inventory.NewBlade(namespace.DefinitionTable, regionName, zoneName, rackName, bladeId)
+	require.NoError(err)
+	require.NotNil(blade)
+
 	ctx := context.Background()
 
-	err := ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/simple")
+	// Verify the sameple blade is not currently present in the inventory.
+	//
+	_, err = blade.Read(ctx)
+	require.ErrorIs(err, errBladeNotFound)
+
+	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/simple")
+	require.NoError(err)
+
+	// Verify the sameple blade is now present in the inventory.
+	//
+	_, err = blade.Read(ctx)
 	require.NoError(err)
 
 	err = ts.inventory.DeleteInventoryDefinition(ctx)
 	require.NoError(err)
+
+	// Verify the sameple blade has been removed from the inventory.
+	//
+	_, err = blade.Read(ctx)
+	require.ErrorIs(err, errBladeNotFound)
 }
 
 func TestDefinitionTestSuite(t *testing.T) {
