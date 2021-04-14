@@ -260,7 +260,7 @@ func Reset(ctx context.Context) error {
 	return tsc.reset(ctx)
 }
 
-// Tick provides the current simulated time Tick, or '-1' if the simulated time
+// Tick provides the current simulated time tick, or '-1' if the simulated time
 // cannot be retrieved (e.g. during startup)
 func Tick(ctx context.Context) int64 {
 	res, err := tsc.status(ctx)
@@ -271,7 +271,7 @@ func Tick(ctx context.Context) int64 {
 	return res.Now
 }
 
-// EnsureTickInContext checks if a simulated time Tick is already present in
+// EnsureTickInContext checks if a simulated time tick is already present in
 // the context.  If not, it stores the current simulated time.
 func EnsureTickInContext(ctx context.Context) context.Context {
 	if common.ContextHasTick(ctx) {
@@ -281,7 +281,7 @@ func EnsureTickInContext(ctx context.Context) context.Context {
 	return common.ContextWithTick(ctx, Tick(ctx))
 }
 
-// OutsideTime forces the simulated time Tick in the context to be '-1', which
+// OutsideTime forces the simulated time tick in the context to be '-1', which
 // is the designator for an operation that is outside the simulated time flow.
 func OutsideTime(ctx context.Context) context.Context {
 	return common.ContextWithTick(ctx, -1)

@@ -70,7 +70,7 @@ func (t *Ticker) Stop() {
 	t.stop = true
 }
 
-// listener is the goroutine that waits for a new simulated time Tick, and
+// listener is the goroutine that waits for a new simulated time tick, and
 // then processes each expired timer.
 func (t *Ticker) listener() {
 	now := int64(-1)
@@ -106,7 +106,7 @@ func (t *Ticker) listener() {
 }
 
 // listenUntilFailure is the main worker logic in the listener goroutine.  It
-// wakes after each simulated time Tick and signals the event.  It continues
+// wakes after each simulated time tick and signals the event.  It continues
 // until there is an error in contacting the simulated time service.  Any
 // decision to resume after some interval or exit is then made by the caller.
 func (t *Ticker) listenUntilFailure(ctx context.Context, now int64) (int64, bool) {

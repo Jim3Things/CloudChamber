@@ -35,10 +35,10 @@ type MultiMap interface {
 	// found, or false, if it was not.
 	Get(key PrimaryKey) (MultiMapEntry, bool)
 
-	// GetSecondary returns the primary keys for entries that match the supplied
-	// value for the secondary key at the index.  The second return value is
-	// true, if it was found, or false, if it was not.
-	GetSecondary(index int, key SecondaryKey) ([]PrimaryKey, bool)
+	// GetPrimaryKeysFromSecondary returns the primary keys for entries that
+	// match the supplied value for the secondary key at the index.  The second
+	// return value is true, if it was found, or false, if it was not.
+	GetPrimaryKeysFromSecondary(index int, key SecondaryKey) ([]PrimaryKey, bool)
 
 	// Add attempts to add the supplied entry to the MultiMap instance.  It
 	// returns true if the new entry was inserted; false, if it was not.  The
@@ -63,8 +63,8 @@ type MultiMap interface {
 	// Count returns the number of entries held in this MultiMap instance.
 	Count() int
 
-	// Count returns the number of unique secondary keys held in this MultiMap
-	// instance for the specified secondary key index.
+	// SecondaryCount returns the number of unique secondary keys held in this
+	// MultiMap instance for the specified secondary key index.
 	SecondaryCount(index int) int
 
 	// Clear removes all existing entries and resets all secondary keys indices.
@@ -98,7 +98,9 @@ func (m *MultiMapImpl) Get(key PrimaryKey) (MultiMapEntry, bool) {
 	return v, ok
 }
 
-func (m *MultiMapImpl) GetSecondary(index int, key SecondaryKey) ([]PrimaryKey, bool) {
+func (m *MultiMapImpl) GetPrimaryKeysFromSecondary(
+	index int,
+	key SecondaryKey) ([]PrimaryKey, bool) {
 	if index < 0 || index >= len(m.secondaries) {
 		return nil, false
 	}
@@ -161,7 +163,9 @@ func (m *MultiMapImpl) ForEach(action func(item MultiMapEntry)) {
 	}
 }
 
-func (m *MultiMapImpl) ForEachSecondary(index int, action func(key SecondaryKey, items []PrimaryKey)) {
+func (m *MultiMapImpl) ForEachSecondary(
+	index int,
+	action func(key SecondaryKey, items []PrimaryKey)) {
 	if index < 0 || index >= len(m.secondaries) {
 		return
 	}

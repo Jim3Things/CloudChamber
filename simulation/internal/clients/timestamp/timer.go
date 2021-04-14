@@ -76,7 +76,7 @@ func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
 
 // Timer creates a new timer that operates in simulated time. The delay
 // parameter specifies the number of ticks to wait until the timer expires. At
-// that point, the supplied msg is sent on the Completion channel specified by
+// that point, the supplied msg is sent on the completion channel specified by
 // the parameter ch.  This function returns an id that can be used to cancel
 // the timer, and an error to indicate if the timer was successfully set.
 func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callback func(msg interface{})) (int, error) {
@@ -119,7 +119,7 @@ func (t *Timers) Cancel(timerID int) error {
 	return nil
 }
 
-// listener is the goroutine that waits for a new simulated time Tick, and
+// listener is the goroutine that waits for a new simulated time tick, and
 // then processes each expired timer.
 func (t *Timers) listener(epoch int, now int64) {
 	startCtx := context.Background()
@@ -139,7 +139,7 @@ func (t *Timers) listener(epoch int, now int64) {
 }
 
 // listenUntilFailure is the main worker logic in the listener goroutine.  It
-// wakes after each simulated time Tick and signals all expired waiters.  It
+// wakes after each simulated time tick and signals all expired waiters.  It
 // continues until either there are no more waiters, or until there is an error
 // in contacting the simulated time service.  Any decision to resume after some
 // interval or exit is then made by the caller.

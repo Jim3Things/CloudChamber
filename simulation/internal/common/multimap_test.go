@@ -50,12 +50,12 @@ func (ts *MultiMapTestSuite) TestAdd() {
 	require.True(ok)
 	require.Equal(item, v)
 
-	slots, ok := m.GetSecondary(0, int64(2))
+	slots, ok := m.GetPrimaryKeysFromSecondary(0, int64(2))
 	require.True(ok)
 	require.Equal(1, len(slots))
 	require.EqualValues(1, slots[0])
 
-	slots, ok = m.GetSecondary(1, int64(3))
+	slots, ok = m.GetPrimaryKeysFromSecondary(1, int64(3))
 	require.True(ok)
 	require.Equal(1, len(slots))
 	require.EqualValues(1, slots[0])
@@ -82,12 +82,12 @@ func (ts *MultiMapTestSuite) TestAddMissingSecondary() {
 	require.True(ok)
 	require.Equal(item, v)
 
-	slots, ok := m.GetSecondary(0, int64(2))
+	slots, ok := m.GetPrimaryKeysFromSecondary(0, int64(2))
 	require.True(ok)
 	require.Equal(1, len(slots))
 	require.EqualValues(1, slots[0])
 
-	slots, ok = m.GetSecondary(1, int64(3))
+	slots, ok = m.GetPrimaryKeysFromSecondary(1, int64(3))
 	require.False(ok)
 }
 
@@ -264,11 +264,11 @@ func (ts *MultiMapTestSuite) TestGetSecondaryBadIndex() {
 	require.True(m.Add(newEntry(2, 3)))
 	require.True(m.Add(newEntry(3, 3, 4)))
 
-	v, ok := m.GetSecondary(3, 1)
+	v, ok := m.GetPrimaryKeysFromSecondary(3, 1)
 	require.False(ok)
 	require.Nil(v)
 
-	v, ok = m.GetSecondary(-1, 1)
+	v, ok = m.GetPrimaryKeysFromSecondary(-1, 1)
 	require.False(ok)
 	require.Nil(v)
 }
