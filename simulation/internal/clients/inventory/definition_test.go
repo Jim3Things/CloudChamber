@@ -3304,9 +3304,8 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedNoChange() {
 	// Since nothing changed, we expect no events.
 	//
 	select {
-	case ev, ok := <-watch.Events:
-		require.False(ok)
-		require.Nil(ev)
+	case <-watch.Events:
+		require.Fail("Should not get here - expecting no events from channel")
 
 	default:
 		// Nothing to do.

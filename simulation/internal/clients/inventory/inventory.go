@@ -832,8 +832,7 @@ func (m *Inventory) reconcileOldInventoryPdus(
 			return err
 		}
 
-		_, ok := (*pdusFile)[index]
-		if !ok {
+		if _, ok := (*pdusFile)[index]; !ok {
 			if _, err = pdu.Delete(ctx, true); err != nil {
 				return err
 			}
@@ -855,8 +854,7 @@ func (m *Inventory) reconcileOldInventoryTors(
 			return err
 		}
 
-		_, ok := (*torsFile)[index]
-		if !ok {
+		if _, ok := (*torsFile)[index]; !ok {
 			if _, err = tor.Delete(ctx, true); err != nil {
 				return err
 			}
@@ -878,8 +876,7 @@ func (m *Inventory) reconcileOldInventoryBlades(
 			return err
 		}
 
-		_, ok := (*bladesFile)[index]
-		if !ok {
+		if _, ok := (*bladesFile)[index]; !ok {
 			if _, err = blade.Delete(ctx, true); err != nil {
 				return err
 			}
