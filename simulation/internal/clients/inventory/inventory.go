@@ -570,7 +570,7 @@ func (m *Inventory) reconcileNewInventoryRegion(
 		regionStore.SetDetails(regionFile.GetDetails())
 
 		_, err = regionStore.Create(ctx)
-	} else if err == nil && regionStore.NotEqualDetails(regionFile.GetDetails()) {
+	} else if err == nil && regionStore.NotEqual(regionFile) {
 		tracing.Info(ctx, "updating region %s", regionStore.Region)
 
 		regionStore.SetDetails(regionFile.GetDetails())
@@ -594,7 +594,7 @@ func (m *Inventory) reconcileNewInventoryZone(
 		zoneStore.SetDetails(zoneFile.GetDetails())
 
 		_, err = zoneStore.Create(ctx)
-	} else if err == nil && zoneStore.NotEqualDetails(zoneFile.GetDetails()) {
+	} else if err == nil && zoneStore.NotEqual(zoneFile) {
 		tracing.Info(ctx, "updating zone %s/%s", zoneStore.Region, zoneStore.Zone)
 
 		zoneStore.SetDetails(zoneFile.GetDetails())
@@ -618,7 +618,7 @@ func (m *Inventory) reconcileNewInventoryRack(
 		rackStore.SetDetails(rackFile.GetDetails())
 
 		_, err = rackStore.Create(ctx)
-	} else if err == nil && rackStore.NotEqualDetails(rackFile.GetDetails()) {
+	} else if err == nil && rackStore.NotEqual(rackFile) {
 		tracing.Info(ctx, "updating rack %s/%s/%s", rackStore.Region, rackStore.Zone, rackStore.Rack)
 
 		rackStore.SetDetails(rackFile.GetDetails())

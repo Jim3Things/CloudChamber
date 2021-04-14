@@ -620,30 +620,10 @@ func (r *Region) GetDetails() *pb.RegionDetails {
 	return cloneRegionDetails(r.details)
 }
 
-// EqualDetails is used to provide a simple equality check for use to determine
-// if the current details match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (r *Region) EqualDetails(details *pb.RegionDetails) bool {
-	return r.details.Name == details.Name &&
-	r.details.State == details.State &&
-	r.details.Location == details.Location &&
-	r.details.Notes == details.Notes
-}
-
-// NotEqualDetails is used to provide a simple equality check for use to determine
-// if the current details do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (r *Region) NotEqualDetails(details *pb.RegionDetails) bool {
-	return !r.EqualDetails(details)
-	}
-
 // GetDefinitionRegion returns a copy of the rack definition based on the contents of the
 // current object.
 //
 func (r *Region) GetDefinitionRegion() *pb.Definition_Region {
-
 	return &pb.Definition_Region{
 		Details: r.GetDetails(),
 		Zones:   make(map[string]*pb.Definition_Zone),
@@ -654,13 +634,19 @@ func (r *Region) GetDefinitionRegion() *pb.Definition_Region {
 // if the current region matches the supplied definition. Typically used
 // when looking to see if the record has been changed.
 //
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
 func (r *Region) Equal(d *pb.Definition_Region) bool {
-	return r.EqualDetails(d.Details)
+	return r.details.Equal(d.GetDetails())
 }
 
 // NotEqual is used to provide a simple equality check for use to determine
 // if the current region does not match the supplied definition. Typically used
 // when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
 //
 func (r *Region) NotEqual(d *pb.Definition_Region) bool {
 	return !r.Equal(d)
@@ -968,25 +954,6 @@ func (z *Zone) GetDetails() *pb.ZoneDetails {
 	return cloneZoneDetails(z.details)
 }
 
-// EqualDetails is used to provide a simple equality check for use to determine
-// if the current details match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (z *Zone) EqualDetails(details *pb.ZoneDetails) bool {
-	return z.details.Enabled == details.Enabled &&
-	z.details.State == details.State &&
-	z.details.Location == details.Location &&
-	z.details.Notes == details.Notes
-}
-
-// NotEqualDetails is used to provide a simple equality check for use to determine
-// if the current details do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (z *Zone) NotEqualDetails(details *pb.ZoneDetails) bool {
-	return !z.EqualDetails(details)
-}
-
 // GetDefinitionZone returns a copy of the rack definition based on the contents of the
 // current object.
 //
@@ -1002,13 +969,19 @@ func (z *Zone) GetDefinitionZone() *pb.Definition_Zone {
 // if the current zone matches the supplied definition. Typically used
 // when looking to see if the record has been changed.
 //
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
 func (z *Zone) Equal(d *pb.Definition_Zone) bool {
-	return z.EqualDetails(d.Details)
+	return z.details.Equal(d.GetDetails())
 }
 
 // NotEqual is used to provide a simple equality check for use to determine
 // if the current zone does not match the supplied definition. Typically used
 // when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
 //
 func (z *Zone) NotEqual(d *pb.Definition_Zone) bool {
 	return !z.Equal(d)
@@ -1455,25 +1428,6 @@ func (r *Rack) GetDetails() *pb.RackDetails {
 	return cloneRackDetails(r.details)
 }
 
-// EqualDetails is used to provide a simple equality check for use to determine
-// if the current details match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (r *Rack) EqualDetails(details *pb.RackDetails) bool {
-	return r.details.Enabled == details.Enabled &&
-	r.details.Condition == details.Condition &&
-	r.details.Location == details.Location &&
-	r.details.Notes == details.Notes
-}
-
-// NotEqualDetails is used to provide a simple equality check for use to determine
-// if the current details do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (r *Rack) NotEqualDetails(details *pb.RackDetails) bool {
-	return !r.EqualDetails(details)
-}
-
 // GetDefinitionRack returns a copy of the rack definition based on the contents of the
 // current object.
 //
@@ -1491,13 +1445,19 @@ func (r *Rack) GetDefinitionRack() *pb.Definition_Rack {
 // if the current rack matches the supplied definition. Typically used
 // when looking to see if the record has been changed.
 //
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
+//
 func (r *Rack) Equal(d *pb.Definition_Rack) bool {
-	return r.EqualDetails(d.Details)
+	return r.details.Equal(d.GetDetails())
 }
 
 // NotEqual is used to provide a simple equality check for use to determine
 // if the current rack do not match the supplied definition. Typically used
 // when looking to see if the record has been changed.
+//
+// Note: only considers information relating to the parent object and does
+//       not include comparisons for any descendants.
 //
 func (r *Rack) NotEqual(d *pb.Definition_Rack) bool {
 	return !r.Equal(d)
@@ -2162,23 +2122,6 @@ func (p *Pdu) GetDetails() *pb.PduDetails {
 	return clonePduDetails(p.details)
 }
 
-// EqualDetails is used to provide a simple equality check for use to determine
-// if the current details match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (p *Pdu) EqualDetails(details *pb.PduDetails) bool {
-	return p.details.Enabled == details.Enabled &&
-	p.details.Condition == details.Condition
-}
-
-// NotEqualDetails is used to provide a simple equality check for use to determine
-// if the current details do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (p *Pdu) NotEqualDetails(details *pb.PduDetails) bool {
-	return !p.EqualDetails(details)
-}
-
 // SetPorts is used to attach some power port information to the object.
 //
 // The port information is not persisted to the store until an Update()
@@ -2212,19 +2155,12 @@ func (p *Pdu) EqualPorts(ports map[int64]*pb.PowerPort) bool {
 	}
 
 	for i, pp := range *p.ports {
-		if !pp.EqualPort(ports[i]) {
+		if !pp.Equal(ports[i]) {
 			return false
 		}
 	}
 
 	return true
-}
-// NotEqualPorts is used to provide a simple equality check for use to determine
-// if the current ports do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (p *Pdu) NotEqualPorts(ports map[int64]*pb.PowerPort) bool {
-	return !p.EqualPorts(ports)
 }
 
 // GetDefinitionPdu returns a copy of the pdu definition based on the contents of the
@@ -2244,7 +2180,7 @@ func (p *Pdu) GetDefinitionPdu() *pb.Definition_Pdu {
 // looking to see if the record has been changed.
 //
 func (p *Pdu) Equal(d *pb.Definition_Pdu) bool {
-	return p.EqualDetails(d.Details) && p.EqualPorts(d.Ports)
+	return p.details.Equal(d.GetDetails()) && p.EqualPorts(d.GetPorts())
 }
 
 // NotEqual is used to provide a simple equality check for use to determine
@@ -2514,23 +2450,6 @@ func (t *Tor) GetDetails() *pb.TorDetails {
 	return cloneTorDetails(t.details)
 }
 
-// EqualDetails is used to provide a simple equality check for use to determine
-// if the current details match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (t *Tor) EqualDetails(details *pb.TorDetails) bool {
-	return t.details.Enabled == details.Enabled &&
-	t.details.Condition == details.Condition
-}
-
-// NotEqualDetails is used to provide a simple equality check for use to determine
-// if the current details do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (t *Tor) NotEqualDetails(details *pb.TorDetails) bool {
-	return !t.EqualDetails(details)
-}
-
 // SetPorts is used to attach some network port information to the object.
 //
 // The port information is not persisted to the store until an Update()
@@ -2564,20 +2483,12 @@ func (t *Tor) EqualPorts(ports map[int64]*pb.NetworkPort) bool {
 	}
 
 	for i, np := range *t.ports {
-		if !np.EqualPort(ports[i]) {
+		if !np.Equal(ports[i]) {
 			return false
 		}
 	}
 
 	return true
-}
-
-// NotEqualPorts is used to provide a simple equality check for use to determine
-// if the current ports do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (t *Tor) NotEqualPorts(ports map[int64]*pb.NetworkPort) bool {
-	return !t.EqualPorts(ports)
 }
 
 // GetDefinitionTor returns a copy of the tor definition based on the contents of the
@@ -2597,7 +2508,7 @@ func (t *Tor) GetDefinitionTor() *pb.Definition_Tor {
 // when looking to see if the record has been changed.
 //
 func (t *Tor) Equal(d *pb.Definition_Tor) bool {
-	return t.EqualDetails(d.Details) && t.EqualPorts(d.Ports)
+	return t.details.Equal(d.GetDetails()) && t.EqualPorts(d.GetPorts())
 }
 
 // NotEqual is used to provide a simple equality check for use to determine
@@ -2875,23 +2786,6 @@ func (b *Blade) GetDetails() *pb.BladeDetails {
 	return cloneBladeDetails(b.details)
 }
 
-// EqualDetails is used to provide a simple equality check for use to determine
-// if the current details match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (b *Blade) EqualDetails(d *pb.BladeDetails) bool {
-	return b.details.Enabled == d.Enabled &&
-	b.details.Condition == d.Condition
-}
-
-// NotEqualDetails is used to provide a simple equality check for use to determine
-// if the current details do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (b *Blade) NotEqualDetails(d *pb.BladeDetails) bool {
-	return !b.EqualDetails(d)
-}
-
 // SetCapacity is used to attach some capacity information to the object.
 //
 // The capacity information is not persisted to the store until an Update()
@@ -2913,30 +2807,6 @@ func (b *Blade) SetCapacity(capacity *pb.BladeCapacity) {
 //
 func (b *Blade) GetCapacity() *pb.BladeCapacity {
 	return cloneBladeCpacity(b.capacity)
-}
-
-// EqualCapacity is used to provide a simple equality check for use to determine
-// if the current capacity match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (b *Blade) EqualCapacity(c *pb.BladeCapacity) bool {
-	if b.capacity.Arch == c.Arch &&
-	b.capacity.Cores == c.Cores &&
-	b.capacity.DiskInGb == c.DiskInGb &&
-	b.capacity.MemoryInMb == c.MemoryInMb &&
-	b.capacity.NetworkBandwidthInMbps == c.NetworkBandwidthInMbps {
-		return true
-	}
-
-	return false
-}
-
-// NotEqualCapacity is used to provide a simple equality check for use to determine
-// if the current capacity do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (b *Blade) NotEqualCapacity(c *pb.BladeCapacity) bool {
-	return !b.EqualCapacity(c)
 }
 
 // SetBootInfo is used to attach some boot information to the object.
@@ -2962,25 +2832,6 @@ func (b *Blade) GetBootInfo() *pb.BladeBootInfo {
 	return cloneBootInfo(b.bootInfo)
 }
 
-// EqualBootInfo is used to provide a simple equality check for use to determine
-// if the current capacity match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (b *Blade) EqualBootInfo(i *pb.BladeBootInfo) bool {
-	return b.bootInfo.Source == i.Source &&
-	b.bootInfo.Image == i.Image &&
-	b.bootInfo.Version == i.Version &&
-	b.bootInfo.Parameters == i.Parameters
-}
-
-// NotEqualBootInfo is used to provide a simple equality check for use to determine
-// if the current capacity do not match those supplied. Typically used when looking
-// to see if the record has been changed.
-//
-func (b *Blade) NotEqualBootInfo(i *pb.BladeBootInfo) bool {
-	return !b.EqualBootInfo(i)
-}
-
 // SetBootPowerOn is used to set the boot power on flag
 //
 func (b *Blade) SetBootPowerOn(bootOnPowerOn bool) {
@@ -2993,22 +2844,6 @@ func (b *Blade) SetBootPowerOn(bootOnPowerOn bool) {
 //
 func (b *Blade) GetBootOnPowerOn() bool {
 	return b.bootOnPowerOn
-}
-
-// EqualBootInfo is used to provide a simple equality check for use to determine
-// if the current power on field matches that supplied. Typically used when
-// looking to see if the record has been changed.
-//
-func (b *Blade) EqualBootOnPowerOn(p bool) bool {
-	return b.bootOnPowerOn == p
-}
-
-// NotEqualBootOnPowerOn is used to provide a simple equality check for use to determine
-// if the current power on field does not match that supplied. Typically used when
-// looking to see if the record has been changed.
-//
-func (b *Blade) NotEqualBootOnPowerOn(p bool) bool {
-	return !b.EqualBootOnPowerOn(p)
 }
 
 // GetDefinitionBlade returns a copy of the blade definition based on the contents of the
@@ -3028,10 +2863,10 @@ func (b *Blade) GetDefinitionBlade() *pb.Definition_Blade {
 // when looking to see if the record has been changed.
 //
 func (b *Blade) Equal(d *pb.Definition_Blade) bool {
-	return b.EqualDetails(d.GetDetails()) &&
-		   b.EqualCapacity(d.GetCapacity()) &&
-		   b.EqualBootInfo(d.GetBootInfo()) &&
-		   b.EqualBootOnPowerOn(d.GetBootOnPowerOn())
+	return b.details.Equal(d.GetDetails()) &&
+		   b.capacity.Equal(d.GetCapacity()) &&
+		   b.bootInfo.Equal(d.GetBootInfo()) &&
+		   b.GetBootOnPowerOn() == d.GetBootOnPowerOn()
 }
 
 // NotEqual is used to provide a simple equality check for use to determine
