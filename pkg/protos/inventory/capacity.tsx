@@ -3,17 +3,17 @@ import { asArray, asBool, asNumber, asString, asItem, Duration, durationFromJson
 
 export const protobufPackage = "inventory";
 
-// /**
-//  * Defines the data structures used to describe the capacity of an inventory
-//  * item. Capacity is a multi-dimensional aspect of any inventory item, since
-//  * each item has multiple internal resources, any one or combination of which
-//  * can be exhausted.
-//  *
-//  * The multi-dimensionality is important for schedulers to understand, as the
-//  * exhaustion of one dimension can lead to a case where the other unused
-//  * capacity dimensions are stranded.  For instance, if all cores are consumed
-//  * then no free memory, disk, or other dimensions of a blade can be used.
-//  */
+/**
+ * Defines the data structures used to describe the capacity of an inventory
+ * item. Capacity is a multi-dimensional aspect of any inventory item, since
+ * each item has multiple internal resources, any one or combination of which
+ * can be exhausted.
+ *
+ * The multi-dimensionality is important for schedulers to understand, as the
+ * exhaustion of one dimension can lead to a case where the other unused
+ * capacity dimensions are stranded.  For instance, if all cores are consumed
+ * then no free memory, disk, or other dimensions of a blade can be used.
+ */
 
 /** Define the set of known accelerators, such as GPUs or FPGAs. */
 export interface Accelerator {
@@ -54,15 +54,19 @@ export interface BladeCapacity {
 //   accelerators: Accelerator[];
 // }
 
-// const baseAccelerator: object = {};
-
 export const Accelerator = {
   fromJSON(object: any): Accelerator {
     return {
-      v100: asString(object.v100),
+      v100: asItem<Accelerator_NVIDIAV100|undefined>(Accelerator_NVIDIAV100.fromJSON, object.v100, undefined),
     }
   },
 }
+
+export const Accelerator_NVIDIAV100 = {
+  fromJSON(_: any): Accelerator_NVIDIAV100 {
+    return {  } as Accelerator_NVIDIAV100
+  },
+};
 
 export const BladeCapacity = {
   fromJSON(object: any): BladeCapacity {

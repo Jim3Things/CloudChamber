@@ -580,8 +580,8 @@ export const GetPolicyResponse = {
 export const WatchResponse = {
   fromJSON(object: any): WatchResponse {
     return {
-      expired: asBool(object.expired),
-      statusResponse: asItem<StatusResponse>(StatusResponse.fromJSON, object.statusResponse, undefined),0
+      expired: asItem<boolean | undefined>(Boolean, object.expired, undefined),
+      statusResponse: asItem<StatusResponse | undefined>(StatusResponse.fromJSON, object.statusResponse, undefined),
     }
   }
 }
