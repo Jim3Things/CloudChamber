@@ -83,9 +83,6 @@ export interface PolicyRequest {
 /** Define the request associated with a Step operation */
 export interface StepRequest {}
 
-/** Define the request associated with a current time query */
-export interface NowRequest {}
-
 /** Define the parameters when requesting a delay */
 export interface DelayRequest {
   /** The minimum simulated time before the delay is completed. */
@@ -121,7 +118,7 @@ export interface StatusResponse {
   /** Current measured delay - should be zero if the policy is not "Measured" */
   measuredDelay: Duration | undefined;
   /** Current simulated time */
-  now: Timestamp | undefined;
+  now: number;
   /** Number of active waiters (number of outstanding delay calls) */
   waiterCount: number;
   /** Current policy version number */
@@ -268,6 +265,11 @@ export interface GetPolicyResponse {
   firstId: number;
 }
 
+export interface WatchResponse {
+  expired: boolean | undefined;
+  statusResponse: StatusResponse | undefined;
+}
+
 const baseResetRequest: object = {};
 
 export const ResetRequest = {
@@ -327,20 +329,6 @@ export const StepRequest = {
   },
 
   toJSON(_: StepRequest): unknown {
-    const obj: any = {};
-    return obj;
-  },
-};
-
-const baseNowRequest: object = {};
-
-export const NowRequest = {
-  fromJSON(_: any): NowRequest {
-    const message = { ...baseNowRequest } as NowRequest;
-    return message;
-  },
-
-  toJSON(_: NowRequest): unknown {
     const obj: any = {};
     return obj;
   },
@@ -409,7 +397,12 @@ export const AutoStepRequest = {
   },
 };
 
-const baseStatusResponse: object = { policy: 0, waiterCount: 0, epoch: 0 };
+const baseStatusResponse: object = {
+  policy: 0,
+  now: 0,
+  waiterCount: 0,
+  epoch: 0,
+};
 
 export const StatusResponse = {
   fromJSON(object: any): StatusResponse {
@@ -425,9 +418,9 @@ export const StatusResponse = {
       message.measuredDelay = undefined;
     }
     if (object.now !== undefined && object.now !== null) {
-      message.now = Timestamp.fromJSON(object.now);
+      message.now = Number(object.now);
     } else {
-      message.now = undefined;
+      message.now = 0;
     }
     if (object.waiterCount !== undefined && object.waiterCount !== null) {
       message.waiterCount = Number(object.waiterCount);
@@ -450,8 +443,7 @@ export const StatusResponse = {
       (obj.measuredDelay = message.measuredDelay
         ? Duration.toJSON(message.measuredDelay)
         : undefined);
-    message.now !== undefined &&
-      (obj.now = message.now ? Timestamp.toJSON(message.now) : undefined);
+    message.now !== undefined && (obj.now = message.now);
     message.waiterCount !== undefined &&
       (obj.waiterCount = message.waiterCount);
     message.epoch !== undefined && (obj.epoch = message.epoch);
@@ -638,6 +630,35 @@ export const GetPolicyResponse = {
     message.maxEntriesHeld !== undefined &&
       (obj.maxEntriesHeld = message.maxEntriesHeld);
     message.firstId !== undefined && (obj.firstId = message.firstId);
+    return obj;
+  },
+};
+
+const baseWatchResponse: object = {};
+
+export const WatchResponse = {
+  fromJSON(object: any): WatchResponse {
+    const message = { ...baseWatchResponse } as WatchResponse;
+    if (object.expired !== undefined && object.expired !== null) {
+      message.expired = Boolean(object.expired);
+    } else {
+      message.expired = undefined;
+    }
+    if (object.statusResponse !== undefined && object.statusResponse !== null) {
+      message.statusResponse = StatusResponse.fromJSON(object.statusResponse);
+    } else {
+      message.statusResponse = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: WatchResponse): unknown {
+    const obj: any = {};
+    message.expired !== undefined && (obj.expired = message.expired);
+    message.statusResponse !== undefined &&
+      (obj.statusResponse = message.statusResponse
+        ? StatusResponse.toJSON(message.statusResponse)
+        : undefined);
     return obj;
   },
 };

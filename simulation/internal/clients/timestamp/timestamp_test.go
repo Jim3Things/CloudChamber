@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
-	ct "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 )
 
@@ -20,12 +20,12 @@ type timestampTestSuite struct {
 func (ts *timestampTestSuite) verifyNow(ctx context.Context, tick int64) {
 	require := ts.Require()
 
-	now, err := Now(ctx)
+	status, err := Status(ctx)
 	require.NoError(err)
-	require.Equal(tick, now.Ticks)
+	require.EqualValues(tick, status.Now)
 }
 
-func (ts *timestampTestSuite) TestNow() {
+func (ts *timestampTestSuite) TestStatus() {
 	require := ts.Require()
 
 	ctx := context.Background()
@@ -39,7 +39,7 @@ func (ts *timestampTestSuite) TestNow() {
 	ts.verifyNow(ctx, 1)
 }
 
-func (ts *timestampTestSuite) TestTimestamp_After() {
+func (ts *timestampTestSuite) TestAfter() {
 	require := ts.Require()
 	assert := ts.Assert()
 
@@ -50,10 +50,10 @@ func (ts *timestampTestSuite) TestTimestamp_After() {
 	ch := make(chan bool)
 
 	go func(deadline int64, res chan<- bool) {
-		data := <-After(ctx, &ct.Timestamp{Ticks: deadline})
+		data := <-After(ctx, deadline, NoEpochCheck)
 
 		require.NoError(data.Err)
-		assert.GreaterOrEqual(deadline, data.Time.Ticks)
+		assert.GreaterOrEqual(deadline, data.Status.Now)
 		res <- true
 	}(3, ch)
 
@@ -62,6 +62,35 @@ func (ts *timestampTestSuite) TestTimestamp_After() {
 	assert.True(common.DoNotCompleteWithin(ch, 2*time.Second))
 
 	require.NoError(Advance(ctx))
+	assert.True(common.CompleteWithin(ch, 2*time.Second))
+}
+
+func (ts *timestampTestSuite) TestAfterEpoch() {
+	require := ts.Require()
+	assert := ts.Assert()
+
+	ctx := context.Background()
+
+	status, err := Status(ctx)
+	require.NoError(err)
+
+	ch := make(chan bool)
+
+	go func(res chan<- bool) {
+		target := status.Epoch + 1
+		data := <-After(ctx, status.Now+1, target)
+
+		require.NoError(data.Err)
+		assert.GreaterOrEqual(target, data.Status.Now)
+		res <- true
+	}(ch)
+
+	_, err = SetPolicy(ctx, pb.StepperPolicy_Manual, &duration.Duration{
+		Seconds: 0,
+		Nanos:   0,
+	}, -1)
+	require.NoError(err)
+
 	assert.True(common.CompleteWithin(ch, 2*time.Second))
 }
 
@@ -91,10 +120,12 @@ func (ts *timestampTestSuite) TestForcedError() {
 
 	require.Equal(testErr, acl.cleanup(client, testErr))
 
-	cts, err := client2.Now(ctx, &pb.NowRequest{})
-	_, err = Now(ctx)
+	cts, err := client2.GetStatus(ctx, &pb.GetStatusRequest{})
 	require.NoError(err)
-	assert.Equal(int64(0), cts.Ticks)
+
+	_, err = Status(ctx)
+	require.NoError(err)
+	assert.Equal(int64(0), cts.Now)
 }
 
 func TestTimestampTestSuite(t *testing.T) {

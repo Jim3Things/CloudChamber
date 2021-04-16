@@ -2,10 +2,9 @@
 // in the Cloud Chamber backend.
 
 // Known stepper policies
-import {failIfError, getJson} from "./Session";
+import {getErrorDetails, getJson} from "./Session";
 import {StatusResponse, StepperPolicy} from "../pkg/protos/services/requests";
 import {Duration} from "../pkg/protos/utils";
-import {Timestamp} from "../pkg/protos/common/Timestamp"
 
 // +++ Stepper mode handling
 
@@ -92,7 +91,11 @@ function durationToRate(item: Duration | undefined) : number {
 // Signature for the notification handler that wants to receive stepper time
 // change events
 export interface ChangeHandlerFunc {
-    (cur: TimeContext): any;
+    (cur: TimeContext): any
+}
+
+export interface ErrorHandlerFunc {
+    (text: string): any
 }
 
 // Utility class that provides a proxy to the Cloud Chamber Stepper REST service.
@@ -116,11 +119,13 @@ export class StepperProxy {
     epoch: number = 0
 
     onChangeHandler?: ChangeHandlerFunc;
+    onErrorHandler?: ErrorHandlerFunc
 
     // Construct the proxy, with the notification handler, and kick off the
     // processing
-    constructor(handler: ChangeHandlerFunc) {
+    constructor(handler: ChangeHandlerFunc, errorHandler: ErrorHandlerFunc) {
         this.onChangeHandler = handler
+        this.onErrorHandler = errorHandler
     }
 
     // Get the initial status, load it as context, and then start the
@@ -128,10 +133,7 @@ export class StepperProxy {
     getStatus() {
         getJson<any>(new Request("/api/stepper", {method: "GET"}))
             .then((value: any) => {
-                const status = StatusResponse.fromJSON(value)
-                this.cur.mode = policyToMode(status.policy)
-                this.cur.rate = durationToRate(status.measuredDelay)
-                this.cur.now = status.now.ticks
+                this.updateStatus(value)
 
                 // Update the UI at the start, so we can minimize the delay in
                 // getting the initial screen
@@ -157,27 +159,22 @@ export class StepperProxy {
     advance() {
         getJson<any>(new Request("/api/stepper?advance", {method: "PUT"}))
             .then((item) => {
-                const value = Timestamp.fromJSON(item)
-                this.cur.rate = 0
-                this.cur.mode = StepperMode.Paused
+                this.updateStatus(item)
 
-                this.cur.now = value.ticks
                 this.notify()
             })
+            .catch((msg: any) => this.sendError(msg))
     }
 
     // Set the simulated time mode and ticks-per-second rate
-    setMode(mode: StepperMode, postfix: string): Promise<any> {
+    setMode(mode: StepperMode, postfix: string): Promise<StatusResponse> {
         const path= "/api/stepper?mode=" + modeToString(mode) + postfix
         const request = new Request(path, {method: "PUT"})
         request.headers.append("If-Match", "-1")
 
-        return fetch(request)
-            .then((resp) => {
-                failIfError(request, resp)
-
-                this.cur.mode = mode
-                return resp.blob()
+        return getJson<any>(request)
+            .then((item) => {
+                return this.updateStatus(item)
             })
     }
 
@@ -186,6 +183,14 @@ export class StepperProxy {
         if (this.onChangeHandler) {
             this.onChangeHandler(this.cur);
         }
+    }
+
+    sendError(msg: any) {
+        getErrorDetails(msg, (details: string) => {
+            if (this.onErrorHandler) {
+                this.onErrorHandler(details)
+            }
+        })
     }
 
     // Notify the Stepper of a policy event.  Note that repeated calls are
@@ -197,41 +202,47 @@ export class StepperProxy {
         // a fake delay for the response.
         switch (policy) {
             case SetStepperPolicy.Pause:
-                this.setMode(StepperMode.Paused, "")
-                    .then(() => {
-                        this.cur.rate = 0
-
-                        // Ensure the status bar mode gets updated
-                        this.notify()
-                    })
+                if (this.cur.mode !== StepperMode.Paused) {
+                    this.setMode(StepperMode.Paused, "")
+                        .then(() => {
+                            // Ensure the status bar mode gets updated
+                            this.notify()
+                        })
+                        .catch((msg: any) => this.sendError(msg))
+                }
                 break;
 
             case SetStepperPolicy.Step:
-                this.setMode(StepperMode.Paused, "")
-                    .then(() => this.advance())
+                if (this.cur.mode !== StepperMode.Paused) {
+                    this.setMode(StepperMode.Paused, "")
+                        .then(() => {
+                            this.advance()
+                        })
+                        .catch((msg: any) => this.sendError(msg))
+                } else {
+                    this.advance()
+                }
                 break;
 
             case SetStepperPolicy.Run:
-                this.setMode(StepperMode.Running, ":1")
-                    .then(() => {
-                        this.cur.mode = StepperMode.Running;
-                        this.cur.rate = 1;
-
-                        // Ensure the status bar mode gets updated
-                        this.notify()
-                    })
+                if (this.cur.mode !== StepperMode.Running || this.cur.rate !== 1) {
+                    this.setMode(StepperMode.Running, ":1")
+                        .then(() => {
+                            // Ensure the status bar mode gets updated
+                            this.notify()
+                        })
+                        .catch((msg: any) => this.sendError(msg))
+                }
                 break;
 
             case SetStepperPolicy.Faster:
-                const rate = this.cur.rate = Math.min(this.cur.rate + 1, 5)
+                const rate = Math.min(this.cur.rate + 1, 5)
                 this.setMode(StepperMode.Running, ":" + rate)
                     .then(() => {
-                        this.cur.mode = StepperMode.Running;
-                        this.cur.rate = rate;
-
                         // Ensure the status bar mode gets updated
                         this.notify()
                     })
+                    .catch((msg: any) => this.sendError(msg))
                 break;
         }
     }
@@ -245,9 +256,8 @@ export class StepperProxy {
 
         if (lastEpoch === this.epoch) {
             getJson<any>(request, this.getSignal())
-                .then((item)=> {
-                    const value = Timestamp.fromJSON(item)
-                    this.cur.now = value.ticks
+                .then((item) => {
+                    this.updateStatus(item)
                     this.notify()
                     this.updateNow(lastEpoch)
                 })
@@ -275,5 +285,16 @@ export class StepperProxy {
         }
 
         return this.abortController.signal
+    }
+
+    updateStatus(value: any): StatusResponse {
+        console.log(value)
+        const status = StatusResponse.fromJSON(value)
+        console.log(status)
+        this.cur.mode = policyToMode(status.policy)
+        this.cur.rate = durationToRate(status.measuredDelay)
+        this.cur.now = status.now
+
+        return status
     }
 }

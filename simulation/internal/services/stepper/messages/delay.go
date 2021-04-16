@@ -2,6 +2,7 @@ package messages
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 )
@@ -20,4 +21,8 @@ func NewDelay(ctx context.Context, dueTime int64, ch chan *sm.Response) *Delay {
 	msg.DueTime = dueTime
 
 	return msg
+}
+
+func (m *Delay) String() string {
+	return fmt.Sprintf("Delay request(dueTime: %d tick)", m.DueTime)
 }

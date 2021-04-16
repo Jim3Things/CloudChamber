@@ -39,7 +39,7 @@
 
     It "Fails to step the time manually" {
         $user = New-CcUser -Session $sess -Name "cliTest" -Enabled -Password "fooBar"
-        
+
         $sess = Disconnect-CcAccount -Session $sess
         $sess = Connect-CcAccount -ClusterUri http://localhost:8080 -Name cliTest -Password fooBar
 
@@ -90,11 +90,11 @@
         $policy.Policy | Should Be Measured
         $tag = $policy.ETag
 
-        $newTick = Wait-CcTime -Session $sess -Until $waitTick
+        $res = Wait-CcTime -Session $sess -Until $waitTick
 
         $tag = Suspend-CcTime -Session $sess -Revision $tag
 
-        $newTick | Should BeGreaterThan $tick
+        $res.Now | Should BeGreaterThan $tick
     }
 }
 

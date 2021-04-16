@@ -16,10 +16,10 @@ import (
 // timerEntry describes a single active timer
 type timerEntry struct {
 	// id is the unique key assigned to this timer
-	id int
+	id common.PrimaryKey
 
 	// dueTime is the simulated time when this timer expires
-	dueTime int64
+	dueTime common.SecondaryKey
 
 	// ch is the channel that is to receive the expiration message
 	callback func(msg interface{})
@@ -28,17 +28,21 @@ type timerEntry struct {
 	msg interface{}
 }
 
+func (t *timerEntry) Primary() common.PrimaryKey { return t.id }
+func (t *timerEntry) Secondary(index int) common.SecondaryKey {
+	if index == 0 {
+		return t.dueTime
+	} else {
+		return nil
+	}
+}
+
 // Timers is
 type Timers struct {
 	m sync.Mutex
 
 	// waiters is the collection of current outstanding timers.
-	waiters map[int64][]*timerEntry
-
-	// idMap is an entry lookup aid that maps the timer ID to its associated
-	// dueTime.  This can be used as a key in the writers collection, limiting
-	// the search to only that key's list of entries.
-	idMap map[int]int64
+	waiters common.MultiMap
 
 	// nextID holds the timer ID to assign to the next timer created.
 	nextID int
@@ -61,8 +65,7 @@ type Timers struct {
 func NewTimers(ep string, dialOpts ...grpc.DialOption) *Timers {
 	return &Timers{
 		m:        sync.Mutex{},
-		waiters:  make(map[int64][]*timerEntry),
-		idMap:    make(map[int]int64),
+		waiters:  common.NewMultiMap(1),
 		nextID:   1,
 		active:   false,
 		epoch:    1,
@@ -82,16 +85,13 @@ func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callba
 
 	now := common.TickFromContext(ctx)
 	entry := &timerEntry{
-		id:       t.nextID,
+		id:       common.PrimaryKey(t.nextID),
 		dueTime:  delay + now,
 		callback: callback,
 		msg:      msg,
 	}
 
-	t.idMap[entry.id] = entry.dueTime
-
-	entries, _ := t.waiters[entry.dueTime]
-	t.waiters[entry.dueTime] = append(entries, entry)
+	t.waiters.Add(entry)
 
 	t.nextID++
 
@@ -101,7 +101,7 @@ func (t *Timers) Timer(ctx context.Context, delay int64, msg interface{}, callba
 		go t.listener(t.epoch, now)
 	}
 
-	return entry.id, nil
+	return int(entry.id), nil
 }
 
 // Cancel removes the designated waiting timer, or returns an error if it is
@@ -110,27 +110,11 @@ func (t *Timers) Cancel(timerID int) error {
 	t.m.Lock()
 	defer t.m.Unlock()
 
-	dueTime, ok := t.idMap[timerID]
-	if !ok {
+	if _, ok := t.waiters.Remove(common.PrimaryKey(timerID)); !ok {
 		return errors.ErrTimerNotFound(timerID)
 	}
 
-	entries := t.waiters[dueTime]
-	for i, entry := range entries {
-		if entry.id == timerID {
-			entries = append(entries[:i], entries[i+1:]...)
-
-			if len(entries) > 0 {
-				t.waiters[dueTime] = entries
-			} else {
-				delete(t.waiters, dueTime)
-			}
-
-			delete(t.idMap, timerID)
-
-			_ = t.mayCancelListener()
-		}
-	}
+	_ = t.mayCancelListener()
 
 	return nil
 }
@@ -166,7 +150,7 @@ func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) i
 	client := pb.NewStepperClient(conn)
 
 	for stop := false; err == nil && !stop; {
-		var resp *ct.Timestamp
+		var resp *pb.StatusResponse
 
 		resp, err = client.Delay(ctx, &pb.DelayRequest{
 			AtLeast: &ct.Timestamp{Ticks: now + 1},
@@ -176,7 +160,7 @@ func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) i
 		if err == nil {
 			var toSignal []*timerEntry
 
-			now = resp.Ticks
+			now = resp.Now
 
 			if toSignal, stop = t.getExpiredWaiters(now, epoch); toSignal != nil {
 				for _, entry := range toSignal {
@@ -207,15 +191,21 @@ func (t *Timers) getExpiredWaiters(now int64, epoch int) ([]*timerEntry, bool) {
 	// as the processing proceeds.
 	var toSignal []*timerEntry
 
-	for dueTime, entries := range t.waiters {
-		if dueTime <= now {
-			for _, entry := range entries {
-				toSignal = append(toSignal, entry)
-				delete(t.idMap, entry.id)
+	t.waiters.ForEachSecondary(0,
+		func(key common.SecondaryKey, items []common.PrimaryKey) {
+			due := key.(int64)
+			if due <= now {
+				for _, item := range items {
+					entry, ok := t.waiters.Get(item)
+					if ok {
+						toSignal = append(toSignal, entry.(*timerEntry))
+					}
+				}
 			}
+		})
 
-			delete(t.waiters, dueTime)
-		}
+	for _, entry := range toSignal {
+		t.waiters.Remove(entry.Primary())
 	}
 
 	return toSignal, t.mayCancelListener()
@@ -224,7 +214,7 @@ func (t *Timers) getExpiredWaiters(now int64, epoch int) ([]*timerEntry, bool) {
 // mayCancelListener checks if there are any waiters.  If there are none, then
 // it signals that the current listener goroutine should exit.
 func (t *Timers) mayCancelListener() bool {
-	if len(t.idMap) == 0 {
+	if t.waiters.Count() == 0 {
 		t.epoch++
 		t.active = false
 

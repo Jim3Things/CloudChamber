@@ -85,7 +85,7 @@ func StartSimSupportServices() (*config.GlobalConfig, error) {
 
 		// Force the initial state to manual so that the setup tracing works
 		// correctly (and does not produce spurious trace errors)
-		if err = timestamp.SetPolicy(
+		if _, err = timestamp.SetPolicy(
 			context.Background(),
 			services.StepperPolicy_Manual,
 			&duration.Duration{Seconds: 0}, -1); err != nil {
