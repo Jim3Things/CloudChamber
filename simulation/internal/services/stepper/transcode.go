@@ -14,7 +14,6 @@ import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/stepper/messages"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
-	"github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 )
 
@@ -29,9 +28,6 @@ func toInternal(
 	ch chan *sm.Response) (sm.Envelope, error) {
 
 	switch m := msg.(type) {
-	case *pb.NowRequest:
-		return messages.NewNow(ctx, ch), nil
-
 	case *pb.PolicyRequest:
 		return convertToInternalPolicyRequest(ctx, m, ch)
 
@@ -56,16 +52,6 @@ func toInternal(
 
 // +++ Return type conversions
 
-// toExternalTimeStamp translates the response into a Timestamp protobuf
-// message, or an error if required.
-func toExternalTimeStamp(rsp *sm.Response) (*common.Timestamp, error) {
-	if rsp.Err != nil {
-		return nil, rsp.Err
-	}
-
-	return &common.Timestamp{Ticks: rsp.At}, nil
-}
-
 // toExternalStatusResponse translates teh response into a StatusResponse
 // protobuf message, or an error if required.
 func toExternalStatusResponse(rsp *sm.Response) (*pb.StatusResponse, error) {
@@ -81,7 +67,7 @@ func toExternalStatusResponse(rsp *sm.Response) (*pb.StatusResponse, error) {
 	return &pb.StatusResponse{
 		Policy:        convertToExternalPolicy(body.Policy),
 		MeasuredDelay: ptypes.DurationProto(body.MeasuredDelay),
-		Now:           &common.Timestamp{Ticks: rsp.At},
+		Now:           rsp.At,
 		Epoch:         body.Guard,
 		WaiterCount:   body.Waiters,
 	}, nil

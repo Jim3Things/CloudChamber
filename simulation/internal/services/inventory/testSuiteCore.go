@@ -42,14 +42,16 @@ func (ts *testSuiteCore) SetupSuite() {
 }
 
 func (ts *testSuiteCore) SetupTest() {
-	_ = ts.utf.Open(ts.T())
+	require := ts.Require()
 
-	err := timestamp.Reset(context.Background())
-	ts.Require().Nilf(err, "Reset failed")
+	_ = ts.utf.Open(ts.T())
 
 	ctx := context.Background()
 
-	ts.Require().Nil(timestamp.SetPolicy(ctx, services.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
+	require.NoError(timestamp.Reset(ctx))
+	_, err := timestamp.SetPolicy(ctx, services.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1)
+	require.NoError(err)
+
 	ts.timers = setup.InitTimers()
 }
 
@@ -69,7 +71,7 @@ func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.Definition_Rack {
 			Details:  &pb.BladeDetails{},
 			Capacity: &pb.BladeCapacity{},
 			BootInfo: &pb.BladeBootInfo{},
-		}	
+		}
 	}
 
 	rackDef.Pdus[0] = &pb.Definition_Pdu{

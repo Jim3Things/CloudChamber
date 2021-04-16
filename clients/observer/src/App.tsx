@@ -14,6 +14,7 @@ import {LogProxy} from "./proxies/LogProxy";
 import {Organizer} from "./Log/Organizer";
 import {SettingsState} from "./Settings";
 import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests";
+import {ErrorSnackbar} from "./common/ErrorSnackbar";
 
 interface Props {
 
@@ -37,6 +38,7 @@ interface State {
     logonPassword: string
     logonError: string
     settings: SettingsState
+    snackText: string
 }
 
 // Format and display the logon dialog box if we do not have an active
@@ -80,6 +82,10 @@ export class App extends Component<Props & any, State> {
 
     onTimeEvent = (cur: TimeContext) => {
         this.setState({ cur: cur });
+    }
+
+    onErrorEvent = (details: string) => {
+        this.setState({ snackText: details })
     }
 
     onNewLogEvent = (toHold: number, events: GetAfterResponse) => {
@@ -148,12 +154,18 @@ export class App extends Component<Props & any, State> {
                 />
             </RenderIf>
 
+            <ErrorSnackbar
+                open={this.state.snackText !== ""}
+                onClose={() => this.setState({snackText: ""})}
+                autoHideDuration={4000}
+                message={this.state.snackText} />
+
         </div>;
     }
 
     state: State = {
         StepperPolicy: SetStepperPolicy.Pause,
-        stepperProxy: new StepperProxy(this.onTimeEvent),
+        stepperProxy: new StepperProxy(this.onTimeEvent, this.onErrorEvent),
         usersProxy: new UsersProxy(),
         inventoryProxy: new InventoryProxy(),
         pingProxy: new PingProxy(),
@@ -182,7 +194,8 @@ export class App extends Component<Props & any, State> {
                 showDebug: true,
                 showInfra: true
             }
-        }
+        },
+        snackText: ""
     };
 }
 

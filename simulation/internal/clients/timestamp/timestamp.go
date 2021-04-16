@@ -5,16 +5,20 @@ package timestamp
 
 import (
 	"context"
+	"math"
 	"sync"
 
 	"github.com/golang/protobuf/ptypes/duration"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
-	ct "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 
 	"google.golang.org/grpc"
+)
+
+const (
+	NoEpochCheck = math.MaxInt64
 )
 
 var (
@@ -23,19 +27,15 @@ var (
 
 type timeClient interface {
 	initialize(name string, opts ...grpc.DialOption) error
-	setPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error
+	setPolicy(
+		ctx context.Context,
+		policy pb.StepperPolicy,
+		delay *duration.Duration,
+		match int64) (*pb.StatusResponse, error)
 	advance(ctx context.Context) error
-	now(ctx context.Context) (*ct.Timestamp, error)
-	after(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData
+	after(ctx context.Context, deadline int64, epoch int64) <-chan Completion
 	status(ctx context.Context) (*pb.StatusResponse, error)
 	reset(ctx context.Context) error
-}
-
-// TimeData defines the value returned from a delay wait.  This is more than
-// the simple timestamp inasmuch as the delay call can fail asynchronously.
-type TimeData struct {
-	Time *ct.Timestamp
-	Err  error
 }
 
 // notReady is the uninitialized timestamp client, which only returns an error
@@ -47,23 +47,23 @@ func (n notReady) initialize(name string, opts ...grpc.DialOption) error {
 }
 
 // SetPolicy sets the stepper policy
-func (n *notReady) setPolicy(_ context.Context, _ pb.StepperPolicy, _ *duration.Duration, _ int64) error {
-	return errors.ErrClientNotReady("timestamp")
+func (n *notReady) setPolicy(
+	_ context.Context,
+	_ pb.StepperPolicy,
+	_ *duration.Duration,
+	_ int64) (*pb.StatusResponse, error) {
+	return nil, errors.ErrClientNotReady("timestamp")
 }
 
 func (n *notReady) advance(_ context.Context) error {
 	return errors.ErrClientNotReady("timestamp")
 }
 
-func (n *notReady) now(_ context.Context) (*ct.Timestamp, error) {
-	return nil, errors.ErrClientNotReady("timestamp")
-}
-
-func (n *notReady) after(_ context.Context, _ *ct.Timestamp) <-chan TimeData {
-	ch := make(chan TimeData)
-	ch <- TimeData{
-		Time: nil,
-		Err:  errors.ErrClientNotReady("timestamp"),
+func (n *notReady) after(_ context.Context, _ int64, _ int64) <-chan Completion {
+	ch := make(chan Completion)
+	ch <- Completion{
+		Status: nil,
+		Err:    errors.ErrClientNotReady("timestamp"),
 	}
 
 	return ch
@@ -83,40 +83,48 @@ type activeClient struct {
 	dialName string
 	dialOpts []grpc.DialOption
 
+	l      *Listener
 	conn   *grpc.ClientConn
 	client pb.StepperClient
 	m      *sync.Mutex
 }
 
 func newTimeClient(dialName string, opts ...grpc.DialOption) timeClient {
-	return &activeClient{
+	ac := &activeClient{
 		dialName: dialName,
 		dialOpts: append([]grpc.DialOption{}, opts...),
 		conn:     nil,
 		client:   nil,
 		m:        &sync.Mutex{},
 	}
+
+	ac.l = NewListener(dialName, opts...)
+
+	return ac
 }
 
 func (t *activeClient) setPolicy(
 	ctx context.Context,
 	policy pb.StepperPolicy,
 	delay *duration.Duration,
-	match int64) error {
+	match int64) (*pb.StatusResponse, error) {
 	client, err := t.dial()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	_, err = client.SetPolicy(
+	status, err := client.SetPolicy(
 		ctx,
 		&pb.PolicyRequest{
 			Policy:        policy,
 			MeasuredDelay: delay,
 			MatchEpoch:    match,
 		})
+	if err == nil {
+		t.l.UpdateStatus(status)
+	}
 
-	return err
+	return status, err
 }
 
 func (t *activeClient) initialize(_ string, _ ...grpc.DialOption) error {
@@ -129,64 +137,53 @@ func (t *activeClient) advance(ctx context.Context) error {
 		return err
 	}
 
-	_, err = client.Step(ctx, &pb.StepRequest{})
+	status, err := client.Step(ctx, &pb.StepRequest{})
+	if err == nil {
+		t.l.UpdateStatus(status)
+	}
 
 	return t.cleanup(client, err)
 }
 
-func (t *activeClient) now(ctx context.Context) (*ct.Timestamp, error) {
-	client, err := t.dial()
+func (t *activeClient) after(_ context.Context, deadline int64, epoch int64) <-chan Completion {
+	_, ch, err := t.l.After("after", deadline, epoch)
 	if err != nil {
-		return nil, err
+		ch := make(chan Completion, 1)
+		ch <- Completion{
+			Status: nil,
+			Err:    errors.ErrTimerCanceled(-1),
+		}
+		close(ch)
+		return ch
 	}
-
-	stamp, err := client.Now(ctx, &pb.NowRequest{})
-	return stamp, t.cleanup(client, err)
-}
-
-func (t *activeClient) after(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
-	ch := make(chan TimeData)
-
-	go func(ctx context.Context, res chan<- TimeData) {
-		client, err := t.dial()
-		if err != nil {
-			res <- TimeData{
-				Time: nil,
-				Err:  err,
-			}
-			return
-		}
-
-		rsp, err := client.Delay(ctx, &pb.DelayRequest{AtLeast: deadline, Jitter: 0})
-
-		if err != nil {
-			res <- TimeData{Time: nil, Err: t.cleanup(client, err)}
-			return
-		}
-		res <- TimeData{Time: rsp, Err: nil}
-	}(ctx, ch)
 
 	return ch
 }
 
 func (t *activeClient) status(ctx context.Context) (*pb.StatusResponse, error) {
-	client, err := t.dial()
-	if err != nil {
-		return nil, err
+	ch := t.after(ctx, -1, 0)
+	status := <-ch
+
+	if status.Err != nil {
+		return nil, status.Err
 	}
 
-	rsp, err := client.GetStatus(ctx, &pb.GetStatusRequest{})
-	return rsp, t.cleanup(client, err)
+	return status.Status, nil
 }
 
 func (t *activeClient) reset(ctx context.Context) error {
+	t.l.Stop()
+
 	client, err := t.dial()
 	if err != nil {
 		return err
 	}
 
 	_, err = client.Reset(ctx, &pb.ResetRequest{})
-	return t.cleanup(client, err)
+	err = t.cleanup(client, err)
+	t.l = NewListener(t.dialName, t.dialOpts...)
+
+	return err
 }
 
 // dial abstracts the connection logic to the trace sink service.  It caches
@@ -234,7 +231,7 @@ func InitTimestamp(name string, opts ...grpc.DialOption) error {
 }
 
 // SetPolicy sets the stepper policy
-func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) error {
+func SetPolicy(ctx context.Context, policy pb.StepperPolicy, delay *duration.Duration, match int64) (*pb.StatusResponse, error) {
 	return tsc.setPolicy(ctx, policy, delay, match)
 }
 
@@ -243,19 +240,15 @@ func Advance(ctx context.Context) error {
 	return tsc.advance(ctx)
 }
 
-// Now gets the current simulated time.
-func Now(ctx context.Context) (*ct.Timestamp, error) {
-	return tsc.now(ctx)
-}
-
 // After delays execution until the simulated time meets or exceeds the
 // specified deadline.  Completion is asynchronous, even if no delay is
 // required.
-func After(ctx context.Context, deadline *ct.Timestamp) <-chan TimeData {
-	return tsc.after(ctx, deadline)
+func After(ctx context.Context, deadline int64, epoch int64) <-chan Completion {
+	return tsc.after(ctx, deadline, epoch)
 }
 
-// Status retrieves the status of the Stepper service
+// Status retrieves the status of the Stepper service, including the current
+// simulated time.
 func Status(ctx context.Context) (*pb.StatusResponse, error) {
 	return tsc.status(ctx)
 }
@@ -267,15 +260,15 @@ func Reset(ctx context.Context) error {
 	return tsc.reset(ctx)
 }
 
-// Tick provides the current simulated time Tick, or '-1' if the simulated time
+// Tick provides the current simulated time tick, or '-1' if the simulated time
 // cannot be retrieved (e.g. during startup)
 func Tick(ctx context.Context) int64 {
-	now, err := tsc.now(ctx)
+	res, err := tsc.status(ctx)
 	if err != nil {
 		return -1
 	}
 
-	return now.Ticks
+	return res.Now
 }
 
 // EnsureTickInContext checks if a simulated time tick is already present in

@@ -12,7 +12,6 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
-	"github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 )
 
@@ -36,7 +35,7 @@ func Register(ctx context.Context, s *grpc.Server, starting pb.StepperPolicy) er
 	return nil
 }
 
-func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Empty, error) {
+func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*pb.StatusResponse, error) {
 	if err := in.Validate(); err != nil {
 		return nil, err
 	}
@@ -46,10 +45,10 @@ func (s *server) SetPolicy(ctx context.Context, in *pb.PolicyRequest) (*empty.Em
 		return nil, err
 	}
 
-	return toExternalEmptyResponse(rsp)
+	return toExternalStatusResponse(rsp)
 }
 
-func (s *server) Step(ctx context.Context, in *pb.StepRequest) (*empty.Empty, error) {
+func (s *server) Step(ctx context.Context, in *pb.StepRequest) (*pb.StatusResponse, error) {
 	if err := in.Validate(); err != nil {
 		return nil, err
 	}
@@ -59,10 +58,10 @@ func (s *server) Step(ctx context.Context, in *pb.StepRequest) (*empty.Empty, er
 		return nil, err
 	}
 
-	return toExternalEmptyResponse(rsp)
+	return toExternalStatusResponse(rsp)
 }
 
-func (s *server) Now(ctx context.Context, in *pb.NowRequest) (*common.Timestamp, error) {
+func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*pb.StatusResponse, error) {
 	if err := in.Validate(); err != nil {
 		return nil, err
 	}
@@ -72,20 +71,7 @@ func (s *server) Now(ctx context.Context, in *pb.NowRequest) (*common.Timestamp,
 		return nil, err
 	}
 
-	return toExternalTimeStamp(rsp)
-}
-
-func (s *server) Delay(ctx context.Context, in *pb.DelayRequest) (*common.Timestamp, error) {
-	if err := in.Validate(); err != nil {
-		return nil, err
-	}
-
-	rsp, err := s.invoke(ctx, in)
-	if err != nil {
-		return nil, err
-	}
-
-	return toExternalTimeStamp(rsp)
+	return toExternalStatusResponse(rsp)
 }
 
 func (s *server) Reset(ctx context.Context, in *pb.ResetRequest) (*empty.Empty, error) {

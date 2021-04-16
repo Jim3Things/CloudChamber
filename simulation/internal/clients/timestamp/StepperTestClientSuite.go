@@ -56,11 +56,11 @@ func (ts *stepperTestClientSuite) SetupTest() {
 
 	_ = ts.utf.Open(ts.T())
 
-	require.NoError(Reset(context.Background()))
-
 	ctx := context.Background()
 
-	require.NoError(SetPolicy(ctx, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1))
+	require.NoError(Reset(ctx))
+	_, err := SetPolicy(ctx, pb.StepperPolicy_Manual, &duration.Duration{Seconds: 0}, -1)
+	require.NoError(err)
 }
 
 func (ts *stepperTestClientSuite) TearDownTest() {

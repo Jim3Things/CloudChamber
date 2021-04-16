@@ -81,10 +81,10 @@ func (ts *StepperTestSuite) bufDialer(_ context.Context, _ string) (net.Conn, er
 func (ts *StepperTestSuite) callNow(ctx context.Context) int64 {
 	require := ts.Require()
 
-	resp, err := ts.client.Now(ctx, &pb.NowRequest{})
+	resp, err := ts.client.GetStatus(ctx, &pb.GetStatusRequest{})
 	require.NoError(err)
 
-	return resp.GetTicks()
+	return resp.GetNow()
 }
 
 func (ts *StepperTestSuite) callNowVerify(ctx context.Context, expected int64) {
@@ -113,7 +113,7 @@ func (ts *StepperTestSuite) testGetStatus(
 	resp, err := ts.client.GetStatus(ctx, &pb.GetStatusRequest{})
 	assert.NoError(err)
 
-	assert.GreaterOrEqual(minTime, resp.Now.Ticks)
+	assert.GreaterOrEqual(minTime, resp.Now)
 
 	assert.Equal(policy, resp.Policy)
 	assert.Equal(duration.Seconds, resp.MeasuredDelay.Seconds)
@@ -150,11 +150,11 @@ func (ts *StepperTestSuite) testDelay(ctx context.Context, atLeast int64, jitter
 	maxLegal := start + atLeast + jitter
 
 	assert.True(
-		resp.Ticks >= minLegal && resp.Ticks <= maxLegal,
+		resp.Now >= minLegal && resp.Now <= maxLegal,
 		"Delay out of range, should be %d - %d, is %d",
 		minLegal,
 		maxLegal,
-		resp.Ticks)
+		resp.Now)
 
 	log("Delay subtest complete")
 }
@@ -396,7 +396,7 @@ func (ts *StepperTestSuite) TestStepper_Manual() {
 	go func(res chan<- bool) {
 		rsp, err2 := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
 		assert.NoError(err2)
-		assert.Equal(rsp.Ticks, int64(3))
+		assert.Equal(rsp.Now, int64(3))
 
 		res <- true
 	}(ch)
@@ -461,10 +461,6 @@ func (ts *StepperTestSuite) TestInvalidOperations() {
 	assert := ts.Assert()
 
 	ctx := context.Background()
-
-	nowRsp, err := ts.client.Now(ctx, &pb.NowRequest{})
-	assert.Error(err)
-	assert.Nil(nowRsp)
 
 	stepRsp, err := ts.client.Step(ctx, &pb.StepRequest{})
 	assert.Error(err)

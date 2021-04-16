@@ -53,7 +53,7 @@ export interface Duration {
 function parseNano(val: string) : number {
     let nanoIndex = val.indexOf("n")
     if (nanoIndex > -1) {
-        return +val.substr(0, nanoIndex - 1)
+        return +val.substr(0, nanoIndex)
     }
 
     return 0
@@ -65,7 +65,7 @@ export function durationFromJson(duration: string | undefined) : Duration {
    	if (duration !== undefined && duration !== null) {
 		let indexS = duration.indexOf("s")
 		if (indexS > -1) {
-		    const segment1 = duration.substr(0, indexS - 1)
+		    const segment1 = duration.substr(0, indexS)
 		    val.seconds = +segment1
 
 		    val.nanos = parseNano(duration.substr(indexS + 1))

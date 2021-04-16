@@ -100,9 +100,9 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "GetNowError", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var now = JsonParser.Default.Parse<Timestamp>(msg);
+            var res = JsonParser.Default.Parse<Timestamp>(msg);
 
-            WriteObject(now.Ticks);
+            WriteObject(res.Ticks);
         }
     }
 
@@ -221,7 +221,7 @@ namespace CloudChamber.Cmdlets
     ///     supplied deadline.
     /// </summary>
     [Cmdlet(VerbsLifecycle.Wait, Names.Time)]
-    [OutputType(typeof(long))]
+    [OutputType(typeof(StatusResponse))]
     public class WaitTimeCmdlet : StepperCmdlets
     {
         /// <summary>
@@ -237,9 +237,9 @@ namespace CloudChamber.Cmdlets
             ThrowOnHttpFailure(resp, "WaitUntilTimeError", null);
 
             var msg = resp.Content.ReadAsStringAsync().Result;
-            var now = JsonParser.Default.Parse<Timestamp>(msg);
+            var res = JsonParser.Default.Parse<StatusResponse>(msg);
 
-            WriteObject(now.Ticks);
+            WriteObject(res);
         }
     }
 }

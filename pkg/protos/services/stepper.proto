@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package services;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
 import "github.com/Jim3Things/CloudChamber/pkg/protos/services/requests.proto";
 
 import "google/protobuf/empty.proto";
@@ -19,18 +18,15 @@ option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/se
 service Stepper {
     // Set the stepper's policy governing the rate and conditions
     // for the simulated time to move forward.
-    rpc SetPolicy(PolicyRequest) returns (google.protobuf.Empty);
+    rpc SetPolicy(PolicyRequest) returns (StatusResponse);
 
     // When the stepper policy is for manual single-stepping, this
     // function forces a single step forward in simulated time.
-    rpc Step(StepRequest) returns (google.protobuf.Empty);
-
-    // Get the current simulated time.
-    rpc Now(NowRequest) returns (common.Timestamp);
+    rpc Step(StepRequest) returns (StatusResponse);
 
     // Delay the simulated time by a specified amount +/- an allowed variance.
     // Do not return until that new time is current.
-    rpc Delay(DelayRequest) returns (common.Timestamp);
+    rpc Delay(DelayRequest) returns (StatusResponse);
 
     // Forcibly reset the stepper's internal state back to its starting
     // point.

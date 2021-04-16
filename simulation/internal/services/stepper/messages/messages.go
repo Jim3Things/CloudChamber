@@ -11,8 +11,6 @@ const (
 
 	TagStep
 
-	TagNow
-
 	TagDelay
 
 	TagReset
