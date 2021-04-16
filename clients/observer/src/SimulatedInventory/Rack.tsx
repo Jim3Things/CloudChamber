@@ -1,15 +1,16 @@
 // Display a rack, with its contents
 
 import React, {FunctionComponent} from "react";
-import {JsonBladeCapacity, RackDetails} from "../proxies/InventoryProxy";
+import {RackDetails} from "../proxies/InventoryProxy";
 import {Colors} from "./SimulatedInventory";
 import {Blade} from "./Blade";
 import {Tor} from "./Tor";
 import {PDU} from "./PDU";
+import {BladeCapacity} from "../pkg/protos/inventory/capacity";
 
 export const Rack : FunctionComponent<{
     bladeLimit: number,
-    capacityLimit: JsonBladeCapacity,
+    capacityLimit: BladeCapacity,
     rack: RackDetails,
     palette: Colors}> = ({bladeLimit, capacityLimit, rack, palette}) => {
     const bladeHeight = 20

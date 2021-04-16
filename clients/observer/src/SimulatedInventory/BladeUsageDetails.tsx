@@ -10,6 +10,9 @@ const useStyles = makeStyles((theme) =>
         cell: {
             backgroundColor: theme.palette.action.hover
         },
+        noBorder: {
+            borderStyle: "none",
+        },
     }),
 );
 
@@ -43,6 +46,16 @@ function bladeStatusIcon(state: PhysicalState) {
     }
 }
 
+function acceleratorText(details: BladeDetails) {
+    const accel = details.capacity.accelerators.join(", ")
+
+    if (accel.length > 0) {
+        return " with accelerators " + accel
+    }
+
+    return ""
+}
+
 // Construct the details display showing the usage of a blade, its overall
 // capacity, and what remains available.
 export function BladeUsageDetails(props: { index: number, details: BladeDetails }) {
@@ -53,9 +66,11 @@ export function BladeUsageDetails(props: { index: number, details: BladeDetails 
 
     return <Table size="small">
         <TableHead>
-            <TableRow>
+            <TableRow className={classes.noBorder}>
                 <TableCell align="center" colSpan={6}>
                     Details for blade {props.index}
+                    <br/>
+                    (Uses {props.details.capacity.arch} processors{acceleratorText(props.details)})
                 </TableCell>
             </TableRow>
             <TableRow>

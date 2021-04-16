@@ -2,6 +2,7 @@
 // service in the Cloud Chamber backend
 
 import {failIfError} from "./Session";
+import {BladeCapacity} from "../pkg/protos/inventory/capacity";
 
 // Define the inventory schema as supplied by the REST service
 
@@ -9,17 +10,10 @@ export interface JsonRackSummary {
     uri: string
 }
 
-export interface JsonBladeCapacity {
-    cores: number,
-    memoryInMb: number,
-    diskInGb: number,
-    networkBandwidthInMbps: number
-}
-
 export interface JsonZoneSummary {
     racks: any,
     maxBladeCount: number,
-    maxCapacity: JsonBladeCapacity
+    maxCapacity: BladeCapacity
 }
 
 export interface JsonTor {
@@ -58,7 +52,7 @@ export interface InstanceDetails {
 
 // Describe a blade
 export interface BladeDetails {
-    capacity: JsonBladeCapacity // total capacity present in the blade
+    capacity: BladeCapacity // total capacity present in the blade
     state: PhysicalState        // The physical blade's health state
     usage: InstanceDetails[]    // Details on the workload instances present
 }
@@ -89,7 +83,7 @@ export interface RackDetails {
 export interface ClusterDetails {
     name: string                // Descriptive name for the cluster
     maxBladeCount: number,
-    maxCapacity: JsonBladeCapacity
+    maxCapacity: BladeCapacity
     racks: Map<string, RackDetails>   // .. and the racks that make it up
 }
 
@@ -184,9 +178,9 @@ export class InventoryProxy {
                 // Rack summary data above.
                 let newRack: RackDetails = {...rack, detailsLoaded: true }
                 for (const name of Object.getOwnPropertyNames(value.blades)) {
-                    const blade: JsonBladeCapacity = {...value.blades[name]}
+                    const blade: BladeCapacity = BladeCapacity.fromJSON(value.blades[name])
                     newRack.blades.set(+name, {
-                        capacity: { ...blade },
+                        capacity: blade,
                         state: PhysicalState.healthy,
                         usage: InventoryProxy.fakeUsage(blade.cores)
                     })

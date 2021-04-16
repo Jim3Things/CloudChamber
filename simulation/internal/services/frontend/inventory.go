@@ -262,6 +262,7 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 // view.
 func transformRack(rd *pb.Definition_Rack) (*pb.External_Rack, error) {
 	rack := &pb.External_Rack{
+		Details: rd.GetDetails(),
 		Pdu:    &pb.External_Pdu{},
 		Tor:    &pb.External_Tor{},
 		Blades: make(map[int64]*pb.BladeCapacity),

@@ -44,7 +44,9 @@ export class SimulatedInventory extends Component<Props, State> {
                 cores: 0,
                 diskInGb: 0,
                 memoryInMb: 0,
-                networkBandwidthInMbps: 0
+                networkBandwidthInMbps: 0,
+                arch: "",
+                accelerators: [],
             },
             maxBladeCount: 1,
             racks: new Map<string, RackDetails>()
