@@ -73,7 +73,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	zone, err := dbInventory.GetZone(ctx, inventory.DefaultRegion, inventory.DefaultZone)
+	zoneDetails, err := dbInventory.GetZoneDetails(ctx, inventory.DefaultRegion, inventory.DefaultZone)
 	if err != nil {
 		postHTTPError(ctx, w, errors.ErrInventoryNotAvailable)
 		return
@@ -84,7 +84,7 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		MaxBladeCount: int64(memoData.MaxBladeCount),
 		MaxCapacity:   memoData.MaxCapacity,
 		Name:          inventory.DefaultZone,
-		Details:       zone.Details,
+		Details:       zoneDetails,
 	}
 
 	tracing.Info(
