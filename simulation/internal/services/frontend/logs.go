@@ -60,7 +60,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 
 	data := <-ch
 	if data.Err != nil {
-		postHTTPError(ctx, w, err)
+		postHTTPError(ctx, w, data.Err)
 		return
 	}
 

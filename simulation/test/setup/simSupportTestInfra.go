@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
@@ -51,6 +52,7 @@ func StartSimSupportServices() (*config.GlobalConfig, error) {
 			grpc.WithContextDialer(bufDialer),
 			grpc.WithInsecure(),
 			grpc.WithUnaryInterceptor(ct.Interceptor),
+			grpc.WithConnectParams(limits.BackoffSettings),
 		}
 
 		configPath := flag.String("config", "./testdata", "path to the configuration file")

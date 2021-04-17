@@ -3,7 +3,6 @@ package exporters
 import (
 	"context"
 	"reflect"
-	"time"
 
 	"google.golang.org/grpc"
 
@@ -110,12 +109,6 @@ func (sf *SinkForwarder) waitForConnection() {
 		if sf.conn, err = grpc.Dial(sf.endpoint, sf.opts...); err != nil {
 			sf.conn = nil
 
-			ms := reconnectBackoff * sf.connectCount
-			if ms > maxBackoff {
-				ms = maxBackoff
-			}
-
-			time.Sleep(time.Duration(ms) * time.Millisecond)
 			sf.connectCount++
 		} else {
 			sf.client = pb.NewTraceSinkClient(sf.conn)

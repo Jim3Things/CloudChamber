@@ -3,6 +3,7 @@ package inventory
 import (
 	"context"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"google.golang.org/grpc"
 
 	ic "github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
@@ -34,21 +35,27 @@ func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
 	if err := ts.InitTimestamp(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor)); err != nil {
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	); err != nil {
 		return err
 	}
 
 	if err := tsc.InitSinkClient(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor)); err != nil {
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	); err != nil {
 		return err
 	}
 
 	timers := ts.NewTimers(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 
 	s := &server{
 		racks:  make(map[string]*Rack),
@@ -100,7 +107,7 @@ func (s *server) initializeInventory(cfg *config.GlobalConfig) error {
 	st.Initialize(ctx, cfg)
 	s.store = st.NewStore()
 	s.inventory = ic.NewInventory(cfg, s.store)
-	
+
 	if err := s.inventory.Start(ctx); err != nil {
 		return err
 	}

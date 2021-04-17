@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
 
@@ -60,7 +61,9 @@ func (ts *StepperTestSuite) SetupTest() {
 		"test_channel",
 		grpc.WithContextDialer(ts.bufDialer),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(clienttrace.Interceptor))
+		grpc.WithUnaryInterceptor(clienttrace.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 	require.NoError(err)
 
 	ts.client = pb.NewStepperClient(ts.conn)

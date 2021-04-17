@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -58,7 +59,9 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 		"bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 	assert.Nilf(t, err, "Failed to dial bufnet: %v", err)
 
 	client = pb.NewTraceSinkClient(conn)

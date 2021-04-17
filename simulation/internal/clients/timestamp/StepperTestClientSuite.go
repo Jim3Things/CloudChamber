@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc"
@@ -45,6 +46,7 @@ func (ts *stepperTestClientSuite) SetupSuite() {
 		grpc.WithContextDialer(ts.bufDialer),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ctrc.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
 	}
 
 	ts.ensureStepperStarted()
