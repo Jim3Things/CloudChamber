@@ -1,0 +1,357 @@
+/* eslint-disable */
+import {
+  RackDetails,
+  ZoneDetails,
+} from "../../../../../../github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common";
+import { BladeCapacity } from "../../../../../../github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity";
+
+export const protobufPackage = "inventory";
+
+export interface External {}
+
+/** Power distribution unit.  Network accessible power controller */
+export interface External_Pdu {}
+
+/** Rack-level network switch. */
+export interface External_Tor {}
+
+export interface External_Rack {
+  details: RackDetails | undefined;
+  pdu: External_Pdu | undefined;
+  tor: External_Tor | undefined;
+  /**
+   * specify the blades in the rack.  Each blade is defined by an integer index within that
+   * rack, which is used here as the key.
+   */
+  blades: { [key: number]: BladeCapacity };
+}
+
+export interface External_Rack_BladesEntry {
+  key: number;
+  value: BladeCapacity | undefined;
+}
+
+/**
+ * Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in
+ * the map below.
+ */
+export interface External_Zone {
+  racks: { [key: string]: External_Rack };
+}
+
+export interface External_Zone_RacksEntry {
+  key: string;
+  value: External_Rack | undefined;
+}
+
+/** Rack list entry item */
+export interface External_RackSummary {
+  /** host relative URI that can be used to retrieve its details */
+  uri: string;
+}
+
+/** Summary of the full inventory */
+export interface External_ZoneSummary {
+  /** Summary information about all known racks */
+  racks: { [key: string]: External_RackSummary };
+  /** The largest number of blades held in any rack */
+  maxBladeCount: number;
+  /** The largest capacity values found in any blade */
+  maxCapacity: BladeCapacity | undefined;
+  /** Overview detail */
+  details: ZoneDetails | undefined;
+  /** Friendly name for the zone */
+  name: string;
+}
+
+export interface External_ZoneSummary_RacksEntry {
+  key: string;
+  value: External_RackSummary | undefined;
+}
+
+const baseExternal: object = {};
+
+export const External = {
+  fromJSON(_: any): External {
+    const message = { ...baseExternal } as External;
+    return message;
+  },
+
+  toJSON(_: External): unknown {
+    const obj: any = {};
+    return obj;
+  },
+};
+
+const baseExternal_Pdu: object = {};
+
+export const External_Pdu = {
+  fromJSON(_: any): External_Pdu {
+    const message = { ...baseExternal_Pdu } as External_Pdu;
+    return message;
+  },
+
+  toJSON(_: External_Pdu): unknown {
+    const obj: any = {};
+    return obj;
+  },
+};
+
+const baseExternal_Tor: object = {};
+
+export const External_Tor = {
+  fromJSON(_: any): External_Tor {
+    const message = { ...baseExternal_Tor } as External_Tor;
+    return message;
+  },
+
+  toJSON(_: External_Tor): unknown {
+    const obj: any = {};
+    return obj;
+  },
+};
+
+const baseExternal_Rack: object = {};
+
+export const External_Rack = {
+  fromJSON(object: any): External_Rack {
+    const message = { ...baseExternal_Rack } as External_Rack;
+    message.blades = {};
+    if (object.details !== undefined && object.details !== null) {
+      message.details = RackDetails.fromJSON(object.details);
+    } else {
+      message.details = undefined;
+    }
+    if (object.pdu !== undefined && object.pdu !== null) {
+      message.pdu = External_Pdu.fromJSON(object.pdu);
+    } else {
+      message.pdu = undefined;
+    }
+    if (object.tor !== undefined && object.tor !== null) {
+      message.tor = External_Tor.fromJSON(object.tor);
+    } else {
+      message.tor = undefined;
+    }
+    if (object.blades !== undefined && object.blades !== null) {
+      Object.entries(object.blades).forEach(([key, value]) => {
+        message.blades[Number(key)] = BladeCapacity.fromJSON(value);
+      });
+    }
+    return message;
+  },
+
+  toJSON(message: External_Rack): unknown {
+    const obj: any = {};
+    message.details !== undefined &&
+      (obj.details = message.details
+        ? RackDetails.toJSON(message.details)
+        : undefined);
+    message.pdu !== undefined &&
+      (obj.pdu = message.pdu ? External_Pdu.toJSON(message.pdu) : undefined);
+    message.tor !== undefined &&
+      (obj.tor = message.tor ? External_Tor.toJSON(message.tor) : undefined);
+    obj.blades = {};
+    if (message.blades) {
+      Object.entries(message.blades).forEach(([k, v]) => {
+        obj.blades[k] = BladeCapacity.toJSON(v);
+      });
+    }
+    return obj;
+  },
+};
+
+const baseExternal_Rack_BladesEntry: object = { key: 0 };
+
+export const External_Rack_BladesEntry = {
+  fromJSON(object: any): External_Rack_BladesEntry {
+    const message = {
+      ...baseExternal_Rack_BladesEntry,
+    } as External_Rack_BladesEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = Number(object.key);
+    } else {
+      message.key = 0;
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = BladeCapacity.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Rack_BladesEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? BladeCapacity.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Zone: object = {};
+
+export const External_Zone = {
+  fromJSON(object: any): External_Zone {
+    const message = { ...baseExternal_Zone } as External_Zone;
+    message.racks = {};
+    if (object.racks !== undefined && object.racks !== null) {
+      Object.entries(object.racks).forEach(([key, value]) => {
+        message.racks[key] = External_Rack.fromJSON(value);
+      });
+    }
+    return message;
+  },
+
+  toJSON(message: External_Zone): unknown {
+    const obj: any = {};
+    obj.racks = {};
+    if (message.racks) {
+      Object.entries(message.racks).forEach(([k, v]) => {
+        obj.racks[k] = External_Rack.toJSON(v);
+      });
+    }
+    return obj;
+  },
+};
+
+const baseExternal_Zone_RacksEntry: object = { key: "" };
+
+export const External_Zone_RacksEntry = {
+  fromJSON(object: any): External_Zone_RacksEntry {
+    const message = {
+      ...baseExternal_Zone_RacksEntry,
+    } as External_Zone_RacksEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = String(object.key);
+    } else {
+      message.key = "";
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = External_Rack.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Zone_RacksEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? External_Rack.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_RackSummary: object = { uri: "" };
+
+export const External_RackSummary = {
+  fromJSON(object: any): External_RackSummary {
+    const message = { ...baseExternal_RackSummary } as External_RackSummary;
+    if (object.uri !== undefined && object.uri !== null) {
+      message.uri = String(object.uri);
+    } else {
+      message.uri = "";
+    }
+    return message;
+  },
+
+  toJSON(message: External_RackSummary): unknown {
+    const obj: any = {};
+    message.uri !== undefined && (obj.uri = message.uri);
+    return obj;
+  },
+};
+
+const baseExternal_ZoneSummary: object = { maxBladeCount: 0, name: "" };
+
+export const External_ZoneSummary = {
+  fromJSON(object: any): External_ZoneSummary {
+    const message = { ...baseExternal_ZoneSummary } as External_ZoneSummary;
+    message.racks = {};
+    if (object.racks !== undefined && object.racks !== null) {
+      Object.entries(object.racks).forEach(([key, value]) => {
+        message.racks[key] = External_RackSummary.fromJSON(value);
+      });
+    }
+    if (object.maxBladeCount !== undefined && object.maxBladeCount !== null) {
+      message.maxBladeCount = Number(object.maxBladeCount);
+    } else {
+      message.maxBladeCount = 0;
+    }
+    if (object.maxCapacity !== undefined && object.maxCapacity !== null) {
+      message.maxCapacity = BladeCapacity.fromJSON(object.maxCapacity);
+    } else {
+      message.maxCapacity = undefined;
+    }
+    if (object.details !== undefined && object.details !== null) {
+      message.details = ZoneDetails.fromJSON(object.details);
+    } else {
+      message.details = undefined;
+    }
+    if (object.name !== undefined && object.name !== null) {
+      message.name = String(object.name);
+    } else {
+      message.name = "";
+    }
+    return message;
+  },
+
+  toJSON(message: External_ZoneSummary): unknown {
+    const obj: any = {};
+    obj.racks = {};
+    if (message.racks) {
+      Object.entries(message.racks).forEach(([k, v]) => {
+        obj.racks[k] = External_RackSummary.toJSON(v);
+      });
+    }
+    message.maxBladeCount !== undefined &&
+      (obj.maxBladeCount = message.maxBladeCount);
+    message.maxCapacity !== undefined &&
+      (obj.maxCapacity = message.maxCapacity
+        ? BladeCapacity.toJSON(message.maxCapacity)
+        : undefined);
+    message.details !== undefined &&
+      (obj.details = message.details
+        ? ZoneDetails.toJSON(message.details)
+        : undefined);
+    message.name !== undefined && (obj.name = message.name);
+    return obj;
+  },
+};
+
+const baseExternal_ZoneSummary_RacksEntry: object = { key: "" };
+
+export const External_ZoneSummary_RacksEntry = {
+  fromJSON(object: any): External_ZoneSummary_RacksEntry {
+    const message = {
+      ...baseExternal_ZoneSummary_RacksEntry,
+    } as External_ZoneSummary_RacksEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = String(object.key);
+    } else {
+      message.key = "";
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = External_RackSummary.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_ZoneSummary_RacksEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? External_RackSummary.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};

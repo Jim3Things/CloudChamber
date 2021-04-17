@@ -73,10 +73,18 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	zoneDetails, err := dbInventory.GetZoneDetails(ctx, inventory.DefaultRegion, inventory.DefaultZone)
+	if err != nil {
+		postHTTPError(ctx, w, errors.ErrInventoryNotAvailable)
+		return
+	}
+
 	res := &pb.External_ZoneSummary{
 		Racks:         make(map[string]*pb.External_RackSummary, memoData.RackCount),
 		MaxBladeCount: int64(memoData.MaxBladeCount),
 		MaxCapacity:   memoData.MaxCapacity,
+		Name:          inventory.DefaultZone,
+		Details:       zoneDetails,
 	}
 
 	tracing.Info(
@@ -262,9 +270,10 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 // view.
 func transformRack(rd *pb.Definition_Rack) (*pb.External_Rack, error) {
 	rack := &pb.External_Rack{
-		Pdu:    &pb.External_Pdu{},
-		Tor:    &pb.External_Tor{},
-		Blades: make(map[int64]*pb.BladeCapacity),
+		Details: rd.GetDetails(),
+		Pdu:     &pb.External_Pdu{},
+		Tor:     &pb.External_Tor{},
+		Blades:  make(map[int64]*pb.BladeCapacity),
 	}
 
 	for i, blade := range rd.Blades {

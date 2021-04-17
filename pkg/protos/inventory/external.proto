@@ -9,6 +9,7 @@ syntax = "proto3";
 package inventory;
 
 import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory";
 option csharp_namespace = "CloudChamber.Protos.Inventory";
@@ -30,15 +31,17 @@ message External {
     }
 
     message Rack {
+        RackDetails details = 1;
+
         // This assumes a single overhead item per rack.  May want to allow multiple to handle
         // subdivisions for power or network, say.
 
-        Pdu pdu = 1;
-        Tor tor = 2;
+        Pdu pdu = 2;
+        Tor tor = 3;
 
         // specify the blades in the rack.  Each blade is defined by an integer index within that
         // rack, which is used here as the key.
-        map<int64, BladeCapacity> blades = 3;
+        map<int64, BladeCapacity> blades = 4;
     }
 
     // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in
@@ -67,5 +70,11 @@ message External {
 
         // The largest capacity values found in any blade
         BladeCapacity max_capacity = 3;
+
+        // Overview detail 
+        ZoneDetails details = 4;
+
+        // Friendly name for the zone
+        string name = 5;
     }
 }

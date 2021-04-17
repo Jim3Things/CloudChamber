@@ -205,9 +205,26 @@ func (m *DBInventory) ScanZonesInRegion(ctx context.Context, regionName string, 
 	return nil
 }
 
-// GetZone returns the zone details to match the supplied rackID
+// GetZone returns the zone details and a map for the rack details for the zone
+// specified by the regionName and zoneName.
 //
 func (m *DBInventory) GetZone(ctx context.Context, regionName string, zoneName string) (*pb.Definition_Zone, error) {
+	details, err := m.GetZoneDetails(ctx, regionName, zoneName)
+	if err != nil {
+		return nil, err
+	}
+
+	z := &pb.Definition_Zone{
+		Details: details,
+		Racks: make(map[string]*pb.Definition_Rack),
+	}
+
+	return z, nil
+}
+
+// GetZoneDetails returns the detail information about the zone specified by
+// the regionName and zoneName.
+func (m *DBInventory) GetZoneDetails(ctx context.Context, regionName string, zoneName string) (*pb.ZoneDetails, error) {
 	zone, err := m.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, "", 0)
@@ -218,14 +235,8 @@ func (m *DBInventory) GetZone(ctx context.Context, regionName string, zoneName s
 		return nil, m.transformError(err, regionName, zoneName, "", 0)
 	}
 
-	z := &pb.Definition_Zone{
-		Details: zone.GetDetails(),
-		Racks: make(map[string]*pb.Definition_Rack),
-	}
-
-	return z, nil
+	return zone.GetDetails(), nil
 }
-
 
 // ScanRacksInZone scans the set of known racks in the store, invoking the supplied
 // function with each entry.

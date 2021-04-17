@@ -7,12 +7,12 @@ import {
     BladeDetails,
     InstanceDetails,
     InstanceState,
-    JsonBladeCapacity,
     PhysicalState
 } from "../proxies/InventoryProxy";
 import {Colors} from "./SimulatedInventory";
 import {Opacity, PhysicalBox} from "./PhysicalBox";
 import {BladeUsageDetails} from "./BladeUsageDetails";
+import {BladeCapacity} from "../pkg/protos/inventory/capacity";
 
 const useStyles = makeStyles((theme) =>
     createStyles({
@@ -48,7 +48,7 @@ function statusToColor(state: InstanceState, palette: Colors): string {
 // Construct the details needed to place the usage rectangles
 function formBladeDetailBoxes(
     instances: InstanceDetails[],
-    capacity: JsonBladeCapacity,
+    capacity: BladeCapacity,
     bladeWidth: number,
     boundingState: PhysicalState,
     palette: Colors): detailBox[] {
@@ -95,7 +95,7 @@ export const Blade: FunctionComponent<{
             height: number,
             index: number,
             details: BladeDetails,
-            limits: JsonBladeCapacity,
+            limits: BladeCapacity,
             palette: Colors
         }> = (props) => {
     const classes = useStyles();

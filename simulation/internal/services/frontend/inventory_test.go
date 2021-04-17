@@ -79,7 +79,6 @@ func (ts *InventoryTestSuite) TestListRacks() {
 
 // Inventory rack read test
 func (ts *InventoryTestSuite) TestRackRead() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -89,19 +88,23 @@ func (ts *InventoryTestSuite) TestRackRead() {
 
 	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	require.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	require.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
 	rack := &pb.External_Rack{}
-	err := ts.getJSONBody(response, rack)
-	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
+	require.NoError(ts.getJSONBody(response, rack))
 
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	require.True(rack.GetDetails().GetEnabled())
+	require.Equal(pb.Condition_operational, rack.GetDetails().GetCondition())
+	require.Equal("Pacific NW, rack 1", rack.GetDetails().GetLocation())
+	require.Equal("rack definition, 1 pdu, 1 tor, 8 blades", rack.GetDetails().GetNotes())
+
 	require.NotNil(rack.Blades)
-	assert.Equal(8, len(rack.Blades))
+	require.Equal(8, len(rack.Blades))
 	_, ok := rack.Blades[1]
-	assert.True(ok, "Blade 1 not found")
+	require.True(ok, "Blade 1 not found")
 	_, ok = rack.Blades[2]
-	assert.True(ok, "Blade 2 not found")
+	require.True(ok, "Blade 2 not found")
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
