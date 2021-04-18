@@ -65,6 +65,9 @@ export class LogProxy {
                     this.notify(entries)
                     this.getLogs(lastEpoch)
                 })
+                .catch(() => {
+                    window.setTimeout(() => this.start(), 100);
+                })
         }
     }
 

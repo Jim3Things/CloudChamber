@@ -14,6 +14,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	ct "github.com/Jim3Things/CloudChamber/simulation/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
@@ -58,7 +59,9 @@ func commonSetup(t *testing.T) (context.Context, *grpc.ClientConn) {
 		"bufnet",
 		grpc.WithContextDialer(bufDialer),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 	assert.Nilf(t, err, "Failed to dial bufnet: %v", err)
 
 	client = pb.NewTraceSinkClient(conn)

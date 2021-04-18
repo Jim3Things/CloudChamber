@@ -10,6 +10,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/stepper"
 	ctrc "github.com/Jim3Things/CloudChamber/simulation/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
@@ -45,6 +46,7 @@ func (ts *stepperTestClientSuite) SetupSuite() {
 		grpc.WithContextDialer(ts.bufDialer),
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(ctrc.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
 	}
 
 	ts.ensureStepperStarted()

@@ -123,6 +123,7 @@ func (acl *activeClient) getTraces(ctx context.Context, start int64, maxCount in
 				Traces: nil,
 				Err:    err,
 			}
+			close(res)
 			return
 		}
 
@@ -133,6 +134,7 @@ func (acl *activeClient) getTraces(ctx context.Context, start int64, maxCount in
 		})
 
 		res <- traceData{Traces: rsp, Err: acl.cleanup(client, err)}
+		close(res)
 	}(ch)
 
 	return ch

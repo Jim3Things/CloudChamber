@@ -30,6 +30,7 @@ import (
 	"github.com/gorilla/sessions"
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/simulation/internal/clients/trace_sink"
@@ -154,7 +155,9 @@ func initClients(cfg *config.GlobalConfig) error {
 	err := ts.InitTimestamp(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 
 	if err != nil {
 		return err
@@ -163,7 +166,9 @@ func initClients(cfg *config.GlobalConfig) error {
 	err = tsc.InitSinkClient(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 
 	return err
 }
