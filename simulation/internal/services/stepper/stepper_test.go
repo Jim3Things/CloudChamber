@@ -7,13 +7,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/golang/protobuf/ptypes/duration"
 	"github.com/stretchr/testify/suite"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	clienttrace "github.com/Jim3Things/CloudChamber/simulation/internal/tracing/client"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"

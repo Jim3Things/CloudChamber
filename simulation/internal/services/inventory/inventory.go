@@ -3,10 +3,10 @@ package inventory
 import (
 	"context"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"google.golang.org/grpc"
 
 	ic "github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	ns "github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	st "github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"

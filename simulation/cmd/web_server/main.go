@@ -7,9 +7,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/frontend"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"

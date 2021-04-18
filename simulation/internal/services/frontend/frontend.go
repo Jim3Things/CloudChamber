@@ -25,12 +25,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/simulation/internal/clients/trace_sink"

@@ -7,11 +7,11 @@ import (
 	"log"
 	"net"
 
-	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/golang/protobuf/ptypes/duration"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/test/bufconn"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/trace_sink"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
