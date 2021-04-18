@@ -9,12 +9,12 @@ import {getErrorDetails, Session, SessionUser} from "./proxies/Session";
 import {RenderIf} from "./common/If";
 import {MainPage} from "./MainPage/Main";
 import {Login} from "./MainPage/Login";
-import {PingProxy} from "./proxies/PingProxy";
 import {LogProxy} from "./proxies/LogProxy";
 import {Organizer} from "./Log/Organizer";
 import {SettingsState} from "./Settings";
 import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests";
 import {ErrorSnackbar} from "./common/ErrorSnackbar";
+import {WatchProxy} from "./proxies/WatchProxy";
 
 interface Props {
 
@@ -23,9 +23,9 @@ interface Props {
 interface State {
     StepperPolicy: SetStepperPolicy,
     stepperProxy: StepperProxy,
+    watchProxy: WatchProxy,
     usersProxy: UsersProxy,
     inventoryProxy: InventoryProxy,
-    pingProxy: PingProxy,
     logProxy: LogProxy,
     session: Session,
     organizer: Organizer,
@@ -58,9 +58,8 @@ export class App extends Component<Props & any, State> {
                         logonPassword: "",
                         logonError: ""
                     })
-                this.state.stepperProxy.getStatus()
-                this.state.pingProxy.start()
                 this.state.logProxy.start()
+                this.state.watchProxy.start()
             })
             .catch(msg => getErrorDetails(msg, details =>
                 this.setState({
@@ -73,7 +72,7 @@ export class App extends Component<Props & any, State> {
 
     stepperPolicyEvent = (policy: SetStepperPolicy) => {
         this.setState({StepperPolicy: policy});
-        this.state.stepperProxy.changePolicy(policy);
+        this.state.stepperProxy.changePolicy(policy, this.state.cur);
     }
 
     settingsChangeEvent = (settings: SettingsState) => {
@@ -113,9 +112,8 @@ export class App extends Component<Props & any, State> {
                 // We're logged out.  Set the state and cancel the
                 // background calls for the next tick
                 this.setState({activeSession: false})
-                this.state.stepperProxy.cancelUpdates()
-                this.state.pingProxy.cancel()
                 this.state.logProxy.cancelUpdates()
+                this.state.watchProxy.cancel()
             })
     }
 
@@ -165,10 +163,10 @@ export class App extends Component<Props & any, State> {
 
     state: State = {
         StepperPolicy: SetStepperPolicy.Pause,
-        stepperProxy: new StepperProxy(this.onTimeEvent, this.onErrorEvent),
+        stepperProxy: new StepperProxy(this.onErrorEvent),
+        watchProxy: new WatchProxy(this.onTimeEvent),
         usersProxy: new UsersProxy(),
         inventoryProxy: new InventoryProxy(),
-        pingProxy: new PingProxy(),
         logProxy: new LogProxy(this.onNewLogEvent),
         session: new Session(),
         activeSession: false,
