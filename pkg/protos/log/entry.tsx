@@ -3,6 +3,11 @@ import { asArray, asBool, asItem, asNumber, asString } from "../utils"
 /* eslint-disable */
 export const protobufPackage = "log";
 
+const nullTraceID: string = "00000000000000000000000000000000"
+const missingSpanID: string = "Missing"
+
+export const nullSpanID: string = "0000000000000000"
+
 /** Describe the type of impact that this event has on a module. */
 export enum Impact {
   Invalid = 0,
@@ -42,25 +47,6 @@ export function impactFromJSON(object: any): Impact {
     case "UNRECOGNIZED":
     default:
       return Impact.UNRECOGNIZED;
-  }
-}
-
-export function impactToJSON(object: Impact): string {
-  switch (object) {
-    case Impact.Invalid:
-      return "Invalid";
-    case Impact.Read:
-      return "Read";
-    case Impact.Create:
-      return "Create";
-    case Impact.Modify:
-      return "Modify";
-    case Impact.Delete:
-      return "Delete";
-    case Impact.Execute:
-      return "Execute";
-    default:
-      return "UNKNOWN";
   }
 }
 
@@ -178,13 +164,18 @@ export function severityFromJSON(object: any): Severity {
 }
 
 /** Describe an impacted module */
-export interface Module {
+export class Module {
   impact: Impact;
   name: string;
+
+  constructor(object: any) {
+    this.impact = impactFromJSON(object.impact)
+    this.name = asString(object.name)
+  }
 }
 
 /** Define an individual trace event */
-export interface Event {
+export class Event {
   /** Simulated time when it was logged. */
   tick: number;
   /** Event severity */
@@ -203,10 +194,22 @@ export interface Event {
   spanId: string;
   /** Outgoing link ID.  Ignored if the action is not AddLink. */
   linkId: string;
-}
+
+  constructor(object: any) {
+    this.impacted = asArray<Module>((v) => new Module(v), object.impacted)
+    this.tick = asNumber(object.tick)
+    this.severity = severityFromJSON(object.severity)
+    this.name = asString(object.name)
+    this.text = asString(object.text)
+    this.stackTrace = asString(object.stackTrace)
+    this.eventAction = actionFromJSON(object.eventAction)
+    this.spanId = asItem<string>(String, object.spanId, nullSpanID)
+    this.linkId = asString(object.linkId)
+  }
+};
 
 /** Describe a full correlated span, consisting of zero or more events. */
-export interface Entry {
+export class Entry {
   /** Name of the span */
   name: string;
   /** The IDs for the span, and its parent */
@@ -237,55 +240,19 @@ export interface Entry {
    */
   linkSpanID: string;
   linkTraceID: string;
-}
 
-const baseModule: object = { impact: 0, name: "" };
-
-const nullTraceID: string = "00000000000000000000000000000000"
-const missingSpanID: string = "Missing"
-
-export const nullSpanID: string = "0000000000000000"
-
-export const Module = {
-  fromJSON(object: any): Module {
-    return {
-      impact: impactFromJSON(object.impact),
-      name: asString(object.name),
-    }
-  },
-};
-
-export const Event = {
-  fromJSON(object: any): Event {
-    return {
-      impacted: asArray<Module>(Module.fromJSON, object.impacted),
-      tick: asNumber(object.tick),
-      severity: severityFromJSON(object.severity),
-      name: asString(object.name),
-      text: asString(object.text),
-      stackTrace: asString(object.stackTrace),
-      eventAction: actionFromJSON(object.eventAction),
-      spanId: asItem<string>(String, object.spanId, nullSpanID),
-      linkId: asString(object.linkId),
-    }
-  },
-};
-
-export const Entry = {
-  fromJSON(object: any): Entry {
-    return {
-      event: asArray<Event>(Event.fromJSON, object.event),
-      name: asString(object.name),
-      spanID: asItem<string>(String, object.spanID, missingSpanID),
-      parentID: asItem<string>(String, object.parentID, nullSpanID),
-      traceID: asItem<string>(String, object.traceID, nullTraceID),
-      status: asString(object.status),
-      stackTrace: asString(object.stackTrace),
-      infrastructure: asBool(object.infrastructure),
-      reason: asString(object.reason),
-      startingLink: asString(object.startingLink),
-      linkSpanID: asItem<string>(String, object.linkSpanID, nullSpanID),
-      linkTraceID: asItem<string>(String, object.linkTraceID, nullTraceID),
-    }
-  },
+  constructor(object: any) {
+    this.event = asArray<Event>((v) => new Event(v), object.event)
+    this.name = asString(object.name)
+    this.spanID = asItem<string>(String, object.spanID, missingSpanID)
+    this.parentID = asItem<string>(String, object.parentID, nullSpanID)
+    this.traceID = asItem<string>(String, object.traceID, nullTraceID)
+    this.status = asString(object.status)
+    this.stackTrace = asString(object.stackTrace)
+    this.infrastructure = asBool(object.infrastructure)
+    this.reason = asString(object.reason)
+    this.startingLink = asString(object.startingLink)
+    this.linkSpanID = asItem<string>(String, object.linkSpanID, nullSpanID)
+    this.linkTraceID = asItem<string>(String, object.linkTraceID, nullTraceID)
+  }
 };

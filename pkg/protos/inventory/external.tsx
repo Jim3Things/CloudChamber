@@ -1,19 +1,23 @@
 /* eslint-disable */
 import { RackDetails, ZoneDetails } from "./common";
 import { BladeCapacity } from "./capacity";
-import { asArray, asBool, asNumber, asItem, asString, Duration, durationFromJson } from "../utils"
+import { asNumber, asString } from "../utils"
 
 export const protobufPackage = "inventory";
 
 // export interface External {}
 
 /** Power distribution unit.  Network accessible power controller */
-export interface External_Pdu {}
+export class External_Pdu {
+  constructor(object: any) {}
+}
 
 /** Rack-level network switch. */
-export interface External_Tor {}
+export class External_Tor {
+  constructor(object: any) {}
+}
 
-export interface External_Rack {
+export class External_Rack {
   details: RackDetails
   pdu: External_Pdu
   tor: External_Tor
@@ -21,108 +25,74 @@ export interface External_Rack {
    * specify the blades in the rack.  Each blade is defined by an integer index within that
    * rack, which is used here as the key.
    */
-  blades: { [key: number]: BladeCapacity }
+  blades: Map<number, BladeCapacity>
+
+  constructor(object: any) {
+    this.details = new RackDetails(object.details)
+    this.pdu = new External_Pdu(object.pdu)
+    this.tor = new External_Tor(object.tor)
+    this.blades = new Map<number, BladeCapacity>()
+
+    if (object.blades !== undefined && object.blades !== null) {
+      Object.entries(object.blades).forEach(([key, value]) => {
+        this.blades.set(Number(key), new BladeCapacity(value))
+      });
+    }
+  }
 }
 
 /**
  * Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in
  * the map below.
  */
-export interface External_Zone {
-  racks: { [key: string]: External_Rack };
+export class External_Zone {
+  racks: Map<string, External_Rack>
+
+  constructor(object: any) {
+    this.racks = new Map<string, External_Rack>()
+
+    if (object.racks !== undefined && object.racks !== null) {
+      Object.entries(object.racks).forEach(([key, value]) => {
+        this.racks.set(key, new External_Rack(value))
+      });
+    }
+  }
 }
 
 /** Rack list entry item */
-export interface External_RackSummary {
+export class External_RackSummary {
   /** host relative URI that can be used to retrieve its details */
   uri: string;
+
+  constructor(object: any) {
+    this.uri = asString(object.uri)
+  }
 }
 
 /** Summary of the full inventory */
-export interface External_ZoneSummary {
+export class External_ZoneSummary {
   name: string
 
   /** Summary information about all known racks */
-  racks: { [key: string]: External_RackSummary };
+  racks: Map<string, External_RackSummary>
   /** The largest number of blades held in any rack */
   maxBladeCount: number;
   /** The largest capacity values found in any blade */
   maxCapacity: BladeCapacity;
 
   details: ZoneDetails
-}
 
-export const External_Pdu = {
-  fromJSON(_: any): External_Pdu {
-    return { } as External_Pdu
-  },
-};
-
-export const External_Tor = {
-  fromJSON(_: any): External_Tor {
-    return {  } as External_Tor
-  },
-}
-
-export const External_Rack = {
-  fromJSON(object: any): External_Rack {
-    const rack: External_Rack = {
-      details: RackDetails.fromJSON(object.details),
-      pdu: External_Pdu.fromJSON(object.pdu),
-      tor: External_Tor.fromJSON(object.tor),
-      blades: {}
-    }
-
-    if (object.blades !== undefined && object.blades !== null) {
-      Object.entries(object.blades).forEach(([key, value]) => {
-        rack.blades[Number(key)] = BladeCapacity.fromJSON(value);
-      });
-    }
-
-    return rack
-  },
-};
-
-export const External_Zone = {
-  fromJSON(object: any): External_Zone {
-    const zone: External_Zone = {
-      racks: {}
-    }
+  constructor(object: any) {
+    this.name = asString(object.name)
+    this.maxBladeCount = asNumber(object.maxBladeCount)
+    this.maxCapacity = new BladeCapacity(object.maxCapacity)
+    this.details = new ZoneDetails(object.details)
+    this.racks = new Map<string, External_RackSummary>()
 
     if (object.racks !== undefined && object.racks !== null) {
       Object.entries(object.racks).forEach(([key, value]) => {
-        zone.racks[key] = External_Rack.fromJSON(value);
+        this.racks.set(key, new External_RackSummary(value))
       });
     }
-
-    return zone
-  },
-}
-
-export const External_RackSummary = {
-  fromJSON(object: any): External_RackSummary {
-    return {
-      uri: asString(object.uri),
-    }
-  }
-}
-
-export const External_ZoneSummary = {
-  fromJSON(object: any): External_ZoneSummary {
-    const summary: External_ZoneSummary = {
-      name: asString(object.name),
-      maxBladeCount: asNumber(object.maxBladeCount),
-      maxCapacity: BladeCapacity.fromJSON(object.maxCapacity),
-      details: ZoneDetails.fromJSON(object.details),
-      racks: {}
-    }
-
-    if (object.racks !== undefined && object.racks !== null) {
-      Object.entries(object.racks).forEach(([key, value]) => {
-        summary.racks[key] = External_RackSummary.fromJSON(value);
-      });
-    }
-
-    return summary
   }
 }

@@ -6,7 +6,7 @@
 // TODO: Investigate having these produced directly from the originating
 //       protobuf file.
 
-import {ETagHeader, failIfError, getETag} from "./Session";
+import {ETagHeader, failIfError, getETag, getJson} from "./Session";
 import {Rights, UserList, UserPassword, UserUpdate} from "../pkg/protos/admin/users";
 
 export interface PublicUserDetails {
@@ -56,12 +56,7 @@ export class UsersProxy {
         const path = "/api/users/"
         const request = new Request(path, {method: "GET"})
 
-        return fetch(request)
-            .then((resp: Response) => {
-                failIfError(request, resp)
-
-                return resp.json() as Promise<UserList>
-            })
+        return getJson<UserList>(request)
     }
 
     // Add a new user.

@@ -1,7 +1,7 @@
 // This modules contains the proxy handler for calling the REST inventory management
 // service in the Cloud Chamber backend
 
-import {failIfError} from "./Session";
+import {getJson} from "./Session";
 import {BladeCapacity} from "../pkg/protos/inventory/capacity";
 import {External_Rack, External_ZoneSummary} from "../pkg/protos/inventory/external";
 
@@ -64,36 +64,47 @@ export interface ClusterDetails {
 }
 
 export class InventoryProxy {
+    // Build up some fake usage, ensuring that it will fit...
+    private static fakeUsage(avail: number): InstanceDetails[] {
+        if (avail >= 8) {
+            return [
+                {usage: 2, state: InstanceState.running},
+                {usage: 1, state: InstanceState.escrow},
+                {usage: 3, state: InstanceState.running},
+                {usage: 2, state: InstanceState.faulted}
+            ]
+        }
+
+        if (avail >= 4) {
+            return [
+                {usage: 1, state: InstanceState.running},
+                {usage: 1, state: InstanceState.escrow},
+                {usage: 1, state: InstanceState.running},
+                {usage: 1, state: InstanceState.faulted}
+            ]
+        }
+
+        return [
+            {usage: 1, state: InstanceState.running},
+        ]
+    }
+
     // Get the top level description of the target cluster
     public getCluster(): Promise<ClusterDetails> {
         const path = "/api/racks"
-        const request = new Request(path, { method: "GET" })
+        const request = new Request(path, {method: "GET"})
 
-        return fetch(request)
-            .then((resp: Response) => {
-                failIfError(request, resp)
-
-                return resp.json() as Promise<External_ZoneSummary>
-            })
-            .then((zone: External_ZoneSummary) => {
-                let data : ClusterDetails = {
+        return getJson<any>(request)
+            .then((item: any) => {
+                const zone = new External_ZoneSummary(item)
+                let data: ClusterDetails = {
                     name: zone.name + " (location: " + zone.details.location + ")",
                     maxBladeCount: zone.maxBladeCount,
                     maxCapacity: zone.maxCapacity,
                     racks: new Map<string, RackDetails>()
                 }
 
-                // Getting the rack summary information is a bit harder.  The
-                // Json has it in a form that turns the racks collection into
-                // a typescript object with fields that are named based on the
-                // keys in the map.
-                //
-                // So we use reflection to get each entry in the map and then
-                // use the '...xxx' notation to move the value into a properly
-                // typed entry, and then put that into racks Map (along with
-                // some temporary state)
-                for (const name of Object.getOwnPropertyNames(zone.racks)) {
-                    const rack = zone.racks[name]
+                zone.racks.forEach((rack, name) => {
                     data.racks.set(name, {
                         blades: new Map<number, BladeDetails>(),
                         pdu: {
@@ -107,59 +118,31 @@ export class InventoryProxy {
                         detailsLoaded: false,
                         uri: rack.uri
                     })
-                }
+                })
 
                 return data
             })
     }
 
-    // Build up some fake usage, ensuring that it will fit...
-    private static fakeUsage(avail: number): InstanceDetails[] {
-        if (avail >= 8) {
-            return [
-                { usage: 2, state: InstanceState.running },
-                { usage: 1, state: InstanceState.escrow },
-                { usage: 3, state: InstanceState.running },
-                { usage: 2, state: InstanceState.faulted}
-            ]
-        }
-
-        if (avail >= 4) {
-            return [
-                { usage: 1, state: InstanceState.running },
-                { usage: 1, state: InstanceState.escrow },
-                { usage: 1, state: InstanceState.running },
-                { usage: 1, state: InstanceState.faulted}
-            ]
-        }
-
-        return [
-            { usage: 1, state: InstanceState.running },
-        ]
-    }
-
     // Get the detail information for a rack.
     public getRackDetails(rack: RackDetails): Promise<RackDetails> {
-        const request = new Request(rack.uri, { method: "GET" })
+        const request = new Request(rack.uri, {method: "GET"})
 
-        return fetch(request)
-            .then((resp: Response) => {
-                failIfError(request, resp)
-
-                return resp.json() as Promise<External_Rack>
-            })
-            .then((value: External_Rack) => {
+        return getJson<any>(request)
+            .then((item: any) => {
                 // Processing here is similar to the processing of the
                 // Rack summary data above.
-                let newRack: RackDetails = {...rack, detailsLoaded: true }
-                for (const name of Object.getOwnPropertyNames(value.blades)) {
-                    const blade = BladeCapacity.fromJSON(value.blades[parseInt(name)])
-                    newRack.blades.set(+name, {
+                const value = new External_Rack(item)
+                let newRack: RackDetails = {...rack, detailsLoaded: true}
+
+                value.blades.forEach((blade, key) => {
+                    newRack.blades.set(key, {
                         capacity: blade,
                         state: PhysicalState.healthy,
                         usage: InventoryProxy.fakeUsage(blade.cores)
                     })
-                }
+                })
+
                 return newRack
             })
     }

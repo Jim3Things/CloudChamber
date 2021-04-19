@@ -75,7 +75,7 @@ export class WatchProxy {
 
             getJson<any>(new Request(route, {method: "GET"}), this.getSignal())
                 .then((value: any) => {
-                    const response = WatchResponse.fromJSON(value)
+                    const response = new WatchResponse(value)
                     const sr = response.statusResponse
 
                     if (sr !== undefined) {
