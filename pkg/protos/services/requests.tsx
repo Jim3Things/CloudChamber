@@ -1,7 +1,6 @@
 /* eslint-disable */
 import { asArray, asBool, asNumber, asItem, Duration, durationFromJson } from "../utils"
 
-import { Timestamp } from "../common/Timestamp";
 import { Entry } from "../log/entry";
 
 export const protobufPackage = "services";
@@ -50,21 +49,6 @@ export function stepperPolicyFromJSON(object: any): StepperPolicy {
     case "UNRECOGNIZED":
     default:
       return StepperPolicy.UNRECOGNIZED;
-  }
-}
-
-export function stepperPolicyToJSON(object: StepperPolicy): string {
-  switch (object) {
-    case StepperPolicy.Invalid:
-      return "Invalid";
-    case StepperPolicy.NoWait:
-      return "NoWait";
-    case StepperPolicy.Measured:
-      return "Measured";
-    case StepperPolicy.Manual:
-      return "Manual";
-    default:
-      return "UNKNOWN";
   }
 }
 
@@ -120,7 +104,7 @@ export function stepperPolicyToJSON(object: StepperPolicy): string {
 // }
 
 /** Define the current status response message */
-export interface StatusResponse {
+export class StatusResponse {
   /** Current stepper policy */
   policy: StepperPolicy;
   /** Current measured delay - should be zero if the policy is not "Measured" */
@@ -131,6 +115,14 @@ export interface StatusResponse {
   waiterCount: number;
   /** Current policy version number */
   epoch: number;
+
+  constructor(object: any) {
+    this.policy = stepperPolicyFromJSON(object.policy)
+    this.measuredDelay = durationFromJson(object.measuredDelay)
+    this.now = asNumber(object.now)
+    this.waiterCount = asNumber(object.waiterCount)
+    this.epoch = asNumber(object.epoch)
+  }
 }
 
 // /**
@@ -240,7 +232,7 @@ export interface StatusResponse {
 // }
 
 /** Return the traces for the request */
-export interface GetAfterResponse {
+export class GetAfterResponse {
   /**
    * The highest trace id returned.  Use this as the id on the next GetAfter
    * call in order to start returning the traces that immediately follow.
@@ -253,29 +245,47 @@ export interface GetAfterResponse {
   missed: boolean;
   /** Set of trace entries we're returning */
   entries: GetAfterResponse_traceEntry[];
+
+  constructor(object: any) {
+    this.entries = asArray<GetAfterResponse_traceEntry>((v) => new GetAfterResponse_traceEntry(v), object.entries)
+    this.lastId = asNumber(object.lastId)
+    this.missed = asBool(object.missed)
+  }
 }
 
-export interface GetAfterResponse_traceEntry {
+export class GetAfterResponse_traceEntry {
   /** Sequential id for this trace */
   id: number;
   /** Contents of the trace entry */
   entry: Entry;
+
+  constructor(object: any) {
+    this.id = asNumber(object.id)
+    this.entry = asItem<Entry>((v) => new Entry(v), object.entry, new Entry({}))
+  }
 }
 
-/** (Empty) payload to request the current policy */
-// export interface GetPolicyRequest {}
-
 /** Return the active policies for the trace sink service */
-export interface GetPolicyResponse {
+export class GetPolicyResponse {
   /** The limit on the number of entries held in the trace sink */
   maxEntriesHeld: number;
   /** Earliest trace entry currently held. */
   firstId: number;
+
+  constructor(object: any) {
+    this.maxEntriesHeld = asNumber(object.maxEntriesHeld)
+    this.firstId = asNumber(object.firstId)
+  }
 }
 
-export interface WatchResponse {
+export class WatchResponse {
   expired: boolean | undefined;
   statusResponse: StatusResponse | undefined;
+
+  constructor(object: any) {
+      this.expired = asItem<boolean | undefined>(Boolean, object.expired, undefined)
+      this.statusResponse = asItem<StatusResponse | undefined>((v) => new StatusResponse(v), object.statusResponse, undefined)
+  }
 }
 
 // const baseResetRequest: object = {};
@@ -419,18 +429,6 @@ export interface WatchResponse {
 //   },
 // };
 
-export const StatusResponse = {
-  fromJSON(object: any): StatusResponse {
-    return {
-      policy: stepperPolicyFromJSON(object.policy),
-      measuredDelay: durationFromJson(object.measuredDelay),
-      now: asNumber(object.now),
-      waiterCount: asNumber(object.waiterCount),
-      epoch: asNumber(object.epoch),
-    }
-  },
-};
-
 // const baseStepperState: object = { smState: 0 };
 
 // export const StepperState = {
@@ -505,25 +503,6 @@ export const StatusResponse = {
 //   },
 // };
 
-export const GetAfterResponse = {
-  fromJSON(object: any): GetAfterResponse {
-    return {
-      entries: asArray<GetAfterResponse_traceEntry>(GetAfterResponse_traceEntry.fromJSON, object.entries),
-      lastId: asNumber(object.lastId),
-      missed: asBool(object.missed),
-    }
-  },
-};
-
-export const GetAfterResponse_traceEntry = {
-  fromJSON(object: any): GetAfterResponse_traceEntry {
-    return {
-      id: asNumber(object.id),
-      entry: asItem<Entry>(Entry.fromJSON, object.entry, Entry.fromJSON({})),
-    }
-  },
-};
-
 // const baseGetPolicyRequest: object = {};
 
 // export const GetPolicyRequest = {
@@ -537,15 +516,6 @@ export const GetAfterResponse_traceEntry = {
 //     return obj;
 //   },
 // };
-
-export const GetPolicyResponse = {
-  fromJSON(object: any): GetPolicyResponse {
-    return {
-      maxEntriesHeld: asNumber(object.maxEntriesHeld),
-      firstId: asNumber(object.firstId),
-    }
-  },
-};
 
 
 // const basePingResponse: object = {};
@@ -577,11 +547,3 @@ export const GetPolicyResponse = {
 //   },
 // };
 
-export const WatchResponse = {
-  fromJSON(object: any): WatchResponse {
-    return {
-      expired: asItem<boolean | undefined>(Boolean, object.expired, undefined),
-      statusResponse: asItem<StatusResponse | undefined>(StatusResponse.fromJSON, object.statusResponse, undefined),
-    }
-  }
-}

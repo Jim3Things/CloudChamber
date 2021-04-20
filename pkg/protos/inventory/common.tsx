@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { asArray, asBool, asNumber, asItem, asString, Duration, durationFromJson } from "../utils"
+import { asBool, asString } from "../utils"
 
 export const protobufPackage = "inventory";
 
@@ -282,7 +282,7 @@ export function stateFromJSON(object: any): State {
  * This assumes a single overhead item per rack.  May want to allow multiple to handle
  * subdivisions for power or network, say.
  */
-export interface RackDetails {
+export class RackDetails {
   /**
    * Whether or not the rack as a whole is enabled. This is orthogonal to the condition
    * of the rack. To schedule resources within the rack, the rack must be both enabled
@@ -307,9 +307,16 @@ export interface RackDetails {
    * purposes only.
    */
   notes: string;
+
+  constructor(object: any) {
+    this.enabled = asBool(object.enabled)
+    this.condition = conditionFromJSON(object.condition)
+    this.location = asString(object.location)
+    this.notes = asString(object.notes)
+  }
 }
 
-export interface ZoneDetails {
+export class ZoneDetails {
   /**
    * Whether or not the zone as a whole is enabled. This is orthogonal to the condition
    * of the zone. To schedule resources within the zone, the zone must be both enabled
@@ -334,6 +341,13 @@ export interface ZoneDetails {
    * purposes only.
    */
   notes: string;
+
+  constructor(object: any) {
+    this.enabled = asBool(object.enabled)
+    this.state = stateFromJSON(object.state)
+    this.location = asString(object.location)
+    this.notes = asString(object.notes)
+  }
 }
 
 // export interface RegionDetails {
@@ -590,28 +604,6 @@ export interface ZoneDetails {
 //     return obj;
 //   },
 // };
-
-export const RackDetails = {
-  fromJSON(object: any): RackDetails {
-    return {
-      enabled: asBool(object.enabled),
-      condition: conditionFromJSON(object.condition),
-      location: asString(object.location),
-      notes: asString(object.notes),
-    }
-  }
-}
-
-export const ZoneDetails = {
-  fromJSON(object: any): ZoneDetails {
-    return {
-      enabled: asBool(object.enabled),
-      state: stateFromJSON(object.state),
-      location: asString(object.location),
-      notes: asString(object.notes),
-    }
-  }
-}
 
 // const baseRegionDetails: object = {
 //   name: "",
