@@ -50,12 +50,10 @@ func (ts *InventoryTestSuite) TestListRacks() {
 
 	request := httptest.NewRequest("GET", ts.racksPath(), nil)
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.HTTPStatusOK(response)
 
 	list := &pb.External_ZoneSummary{}
-	err := ts.getJSONBody(response, list)
-	assert.Nilf(err, "Failed to convert racks list to valid json.  err: %v", err)
+	assert.NoError(ts.getJSONBody(response, list))
 
 	assert.Equal(int64(8), list.MaxBladeCount)
 	assert.Equal(int64(32), list.MaxCapacity.Cores)
@@ -88,8 +86,7 @@ func (ts *InventoryTestSuite) TestRackRead() {
 
 	response = ts.doHTTP(request, response.Cookies())
 
-	require.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
-	require.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	require.HTTPStatusOK(response)
 
 	rack := &pb.External_Rack{}
 	require.NoError(ts.getJSONBody(response, rack))
@@ -131,7 +128,7 @@ func (ts *InventoryTestSuite) TestListBlades() {
 
 	request := httptest.NewRequest("GET", ts.bladesInPath("rack1"), nil)
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	body, err := ts.getBody(response)
 	assert.Equal("text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
@@ -240,13 +237,11 @@ func (ts *InventoryTestSuite) TestBladeRead() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	blade := &pb.BladeCapacity{}
-	err := ts.getJSONBody(response, blade)
-	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
+	assert.NoError(ts.getJSONBody(response, blade))
 
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(int64(16), blade.Cores)
 	assert.Equal(int64(16384), blade.MemoryInMb)
 	assert.Equal("X64", blade.Arch)
@@ -266,13 +261,11 @@ func (ts *InventoryTestSuite) TestBlade2Read() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned the Blade: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	blade := &pb.BladeCapacity{}
-	err := ts.getJSONBody(response, blade)
-	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
+	assert.NoError(ts.getJSONBody(response, blade))
 
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 	assert.Equal(int64(32), blade.Cores)
 	assert.Equal(int64(16384), blade.MemoryInMb)
 	assert.Equal("X64", blade.Arch)

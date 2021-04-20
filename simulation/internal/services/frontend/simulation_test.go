@@ -33,9 +33,9 @@ func (ts *SimulationTestSuite) TestSimulationSummary() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
+
 	status := &pb.SimulationStatus{}
-	err := ts.getJSONBody(response, status)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	startTime, err := ptypes.Timestamp(status.FrontEndStartedAt)
 	require.NoError(err)
@@ -60,9 +60,9 @@ func (ts *SimulationTestSuite) TestActiveSessionList() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
+
 	status := &pb.SessionSummary{}
-	err := ts.getJSONBody(response, status)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	require.Equal(1, len(status.Sessions))
 
@@ -100,8 +100,7 @@ func (ts *SimulationTestSuite) TestSessionStatus() {
 
 	response = ts.doHTTP(request, response.Cookies())
 	status := &pb.SessionSummary{}
-	err := ts.getJSONBody(response, status)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	request = httptest.NewRequest("GET", status.Sessions[0].Uri, nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -110,8 +109,7 @@ func (ts *SimulationTestSuite) TestSessionStatus() {
 	require.Equal(http.StatusOK, response.StatusCode)
 
 	entry := &pb.SessionStatus{}
-	err = ts.getJSONBody(response, entry)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	tmo, err := ptypes.Timestamp(entry.Timeout)
 	require.NoError(err)
@@ -131,9 +129,9 @@ func (ts *SimulationTestSuite) TestSessionStatusNoPrivilege() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
+
 	status := &pb.SessionSummary{}
-	err := ts.getJSONBody(response, status)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	_, cookies := ts.ensureAccount("alice", ts.aliceDef, response.Cookies())
 
@@ -161,8 +159,7 @@ func (ts *SimulationTestSuite) TestDeleteSession() {
 
 	response = ts.doHTTP(request, response.Cookies())
 	status := &pb.SessionSummary{}
-	err := ts.getJSONBody(response, status)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	request = httptest.NewRequest("GET", status.Sessions[0].Uri, nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -171,8 +168,7 @@ func (ts *SimulationTestSuite) TestDeleteSession() {
 	require.Equal(http.StatusOK, response.StatusCode)
 
 	entry := &pb.SessionStatus{}
-	err = ts.getJSONBody(response, entry)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	require.Equal(strings.ToLower(ts.adminAccountName()), strings.ToLower(entry.UserName))
 
@@ -196,9 +192,9 @@ func (ts *SimulationTestSuite) TestDeleteNoPrivilege() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
+
 	status := &pb.SessionSummary{}
-	err := ts.getJSONBody(response, status)
-	require.NoError(err)
+	require.NoError(ts.getJSONBody(response, status))
 
 	_, cookies := ts.ensureAccount("alice", ts.aliceDef, response.Cookies())
 

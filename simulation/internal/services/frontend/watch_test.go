@@ -45,9 +45,7 @@ func (ts *WatchTestSuite) advance() *pbc.Timestamp {
 	ts.cookies = response.Cookies()
 
 	res := &pbc.Timestamp{}
-	err := ts.getJSONBody(response, res)
-
-	require.NoError(err, "Unexpected error, err: %v", err)
+	require.NoError(ts.getJSONBody(response, res))
 
 	return res
 

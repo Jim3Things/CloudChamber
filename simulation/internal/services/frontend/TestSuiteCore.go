@@ -12,17 +12,16 @@ import (
 	"net/http/httptest"
 	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/suite"
-
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/protos/admin"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
+	"github.com/Jim3Things/CloudChamber/simulation/test"
 	"github.com/Jim3Things/CloudChamber/simulation/test/setup"
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/duration"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -35,7 +34,7 @@ var (
 )
 
 type testSuiteCore struct {
-	suite.Suite
+	test.SuiteX
 
 	baseURI string
 
@@ -144,7 +143,12 @@ func (ts *testSuiteCore) getBody(resp *http.Response) ([]byte, error) {
 
 // Get the body of a response, unmarshalled into the supplied message structure
 func (ts *testSuiteCore) getJSONBody(resp *http.Response, v proto.Message) error {
+	require := ts.Require()
+
 	defer func() { _ = resp.Body.Close() }()
+
+	require.HTTPContentTypeJson(resp)
+
 	return jsonpb.Unmarshal(resp.Body, v)
 }
 
@@ -180,11 +184,12 @@ func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.C
 
 	request := httptest.NewRequest("PUT", path, strings.NewReader(password))
 	response := ts.doHTTP(request, cookies)
+	require.HTTPStatusOK(response)
+
 	_, err := ts.getBody(response)
 
 	require.NoError(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
 	require.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	require.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
 
 	return response
 }
@@ -199,10 +204,11 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 
 	request := httptest.NewRequest("PUT", path, nil)
 	response := ts.doHTTP(request, cookies)
+	assert.HTTPStatusOK(response)
+
 	_, err := ts.getBody(response)
 
-	assert.Nilf(err, "Failed to read body returned from call to handler for route %v: %v", user, err)
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", user, err)
 
 	return response
 }
@@ -216,20 +222,20 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 		ctx := context.Background()
 
 		_ = ts.utf.Open(ts.T())
+		defer ts.utf.Close()
 
 		// Start the test web service, which all tests will use
 		require.NoError(initService(ts.cfg))
 		initServiceDone = true
 
 		// Load the standard inventory into the store which all tests will use
-		err := dbInventory.inventory.UpdateInventoryDefinition(ctx, ts.cfg.Inventory.InventoryDefinition)
-		require.NoError(err)
+		require.NoError(
+			dbInventory.inventory.UpdateInventoryDefinition(
+				ctx,
+				ts.cfg.Inventory.InventoryDefinition))
 
 		// Need to reload the actual inventory after loading the store.
-		err = dbInventory.LoadInventoryActual(ctx, true)
-		require.NoError(err)
-
-		ts.utf.Close()
+		require.NoError(dbInventory.LoadInventoryActual(ctx, true))
 	}
 }
 
@@ -282,7 +288,7 @@ func (ts *testSuiteCore) ensureAccount(
 	req.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(req, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	ts.knownNames[path] = path
 

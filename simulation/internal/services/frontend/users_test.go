@@ -33,13 +33,10 @@ func (ts *UserTestSuite) userRead(path string, cookies []*http.Cookie) (*http.Re
 
 	response := ts.doHTTP(request, cookies)
 
-	assert.Equal(http.StatusOK, response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	user := &pb.UserPublic{}
-	err := ts.getJSONBody(response, user)
-	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
-
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.NoError(ts.getJSONBody(response, user))
 
 	return response, user
 }
@@ -83,7 +80,7 @@ func (ts *UserTestSuite) userUpdate(
 	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response := ts.doHTTP(request, cookies)
-	assert.Equal(http.StatusOK, response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	tag, err := parseETag(response.Header.Get("ETag"))
 	assert.NoError(err)
@@ -117,7 +114,7 @@ func (ts *UserTestSuite) TestLoginSessionSimple() {
 	log(string(body))
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// ... and logout, which should succeed
 	//     (note that this also checks that the username match is case insensitive)
@@ -134,7 +131,7 @@ func (ts *UserTestSuite) TestLoginSessionSimple() {
 	log(string(body))
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 }
 
 func (ts *UserTestSuite) TestLoginSessionRepeat() {
@@ -144,27 +141,27 @@ func (ts *UserTestSuite) TestLoginSessionRepeat() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// ... and logout, which should succeed
 	//
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// login for the second iteration, should succeed
 	response = ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), response.Cookies())
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// ... and logout, which should succeed
 	//
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 }
 
 func (ts *UserTestSuite) TestLoginDupLogins() {
@@ -175,7 +172,7 @@ func (ts *UserTestSuite) TestLoginDupLogins() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// now repeat the attempt to login again, which should fail
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.admin()), strings.NewReader(ts.adminPassword()))
@@ -187,7 +184,7 @@ func (ts *UserTestSuite) TestLoginDupLogins() {
 	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 	assert.Equal(
 		fmt.Sprintf("%s\n", errors.ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
@@ -202,7 +199,7 @@ func (ts *UserTestSuite) TestLoginDupLogins() {
 	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 	assert.Equal(
 		fmt.Sprintf("%s\n", errors.ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
@@ -223,7 +220,7 @@ func (ts *UserTestSuite) TestLoginLogoutDiffAccounts() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// ... next we need a second account that we're sure exists
 	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
@@ -240,7 +237,7 @@ func (ts *UserTestSuite) TestLoginLogoutDiffAccounts() {
 	log(string(body))
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 
 	// ... and logout, which should succeed
 	//
@@ -258,14 +255,14 @@ func (ts *UserTestSuite) TestDoubleLogout() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// ... logout, which should succeed
 	//
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// ... logout again, which should fail
 	//
@@ -279,7 +276,7 @@ func (ts *UserTestSuite) TestDoubleLogout() {
 	log(string(body))
 
 	assert.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 }
 
 func (ts *UserTestSuite) TestLoginSessionBadPassword() {
@@ -363,7 +360,7 @@ func (ts *UserTestSuite) TestCreate() {
 	logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
 	log(string(body))
 
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 	assert.Equal(
 		"User \"Alice2\" created, enabled: true, rights: ", string(body),
 		"Handler returned unexpected response body: %v", string(body))
@@ -395,7 +392,7 @@ func (ts *UserTestSuite) TestCreateDup() {
 	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
 	log(string(body))
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 	assert.Equal(
 		"CloudChamber: user \"Alice\" already exists\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
@@ -424,7 +421,7 @@ func (ts *UserTestSuite) TestCreateBadData() {
 	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
 	log(string(body))
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 	assert.Equal(
 		"json: cannot unmarshal number into Go value of type bool\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
@@ -501,12 +498,10 @@ func (ts *UserTestSuite) TestList() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	users := &pb.UserList{}
-	err := ts.getJSONBody(response, users)
-	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
+	assert.HTTPStatusOK(response)
 
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	users := &pb.UserList{}
+	assert.NoError(ts.getJSONBody(response, users))
 
 	// Now verify that the list of names matches our expectations.
 	// First, form an array of names from the returned structure
@@ -569,13 +564,10 @@ func (ts *UserTestSuite) TestRead() {
 
 	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	user := &pb.UserPublic{}
-	err := ts.getJSONBody(response, user)
-	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
-
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
+	assert.NoError(ts.getJSONBody(response, user))
 
 	match, err := parseETag(response.Header.Get("ETag"))
 	assert.NoError(err, "failed to convert the ETag to valid int64")
@@ -602,9 +594,9 @@ func (ts *UserTestSuite) TestReadUnknownUser() {
 	log(string(body))
 
 	assert.NoError(err, "Expected no error in getting body.  err=%v", err)
-	assert.NotEqual("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPContentTypeNotJson(response)
+	assert.HTTPStatusEqual(http.StatusNotFound, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -627,9 +619,9 @@ func (ts *UserTestSuite) TestReadNoPrivilege() {
 	log(string(body))
 
 	assert.NoError(err, "Expected no error in getting body.  err=%v", err)
-	assert.NotEqual("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
-	assert.Equal(http.StatusForbidden, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPContentTypeNotJson(response)
+	assert.HTTPStatusEqual(http.StatusForbidden, response)
 
 	ts.doLogout("alice", response.Cookies())
 }
@@ -660,7 +652,7 @@ func (ts *UserTestSuite) TestOperationIllegal() {
 	logf("[?op]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	log(string(body))
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 	assert.Equal(
 		"CloudChamber: invalid user operation requested (?op=) for user \"alice\"\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
@@ -676,7 +668,7 @@ func (ts *UserTestSuite) TestOperationIllegal() {
 	logf("[?op=testInvalid]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
 	log(string(body))
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusEqual(http.StatusBadRequest, response)
 	assert.Equal(
 		"CloudChamber: invalid user operation requested (?op=testInvalid) for user \"alice\"\n", string(body),
 		"Handler returned unexpected response body: %v", string(body))
@@ -712,11 +704,9 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, cookies)
-	assert.Equal("application/json", strings.ToLower(response.Header.Get("Content-Type")))
 
 	user := &pb.UserPublic{}
-	err = ts.getJSONBody(response, user)
-	assert.NoError(err, "Failed to convert body to valid json.  err: %v", err)
+	assert.NoError(ts.getJSONBody(response, user))
 
 	match, err := parseETag(response.Header.Get("ETag"))
 	assert.NoError(err, "failed to convert the ETag to valid int64")
@@ -972,7 +962,7 @@ func (ts *UserTestSuite) TestDelete() {
 	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
 	log(string(body))
 
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 	delete(ts.knownNames, ts.aliceName())
 
 	// Now verify the deletion by trying to get the user
@@ -1078,7 +1068,7 @@ func (ts *UserTestSuite) TestSetPassword() {
 
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	response, match := ts.setPassword(ts.aliceName(), aliceUpd, rev, cookies)
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -1094,11 +1084,11 @@ func (ts *UserTestSuite) TestSetPassword() {
 
 	// Now verify that the password was changed, by trying to log in again
 	response = ts.doLogin(ts.aliceName(), aliceNewPassword, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// Now set the password back
 	response, _ = ts.setPassword(ts.aliceName(), aliceRevert, match, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
@@ -1124,7 +1114,7 @@ func (ts *UserTestSuite) TestSetPasswordForce() {
 
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	response, match := ts.setPassword(ts.aliceName(), aliceUpd, rev, cookies)
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -1140,11 +1130,11 @@ func (ts *UserTestSuite) TestSetPasswordForce() {
 
 	// Now verify that the password was changed, by trying to log in again
 	response = ts.doLogin(ts.aliceName(), aliceNewPassword, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	// Now set the password back
 	response, _ = ts.setPassword(ts.aliceName(), aliceRevert, match, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
@@ -1181,7 +1171,7 @@ func (ts *UserTestSuite) TestSetPasswordBadPassword() {
 
 	// Now verify that the password was not changed, by trying to log in again
 	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
@@ -1220,7 +1210,7 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 
 	// Now verify that the password was not changed, by trying to log in again
 	response = ts.doLogin("Admin", ts.adminPassword(), response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	ts.doLogout("Admin", response.Cookies())
 }
@@ -1256,8 +1246,7 @@ func (ts *UserTestSuite) TestSetRights() {
 	response, match := ts.userUpdate(ts.alice(), upd, rev, response.Cookies())
 
 	user := &pb.UserPublic{}
-	err = ts.getJSONBody(response, user)
-	assert.NoError(err)
+	assert.NoError(ts.getJSONBody(response, user))
 
 	require.Less(rev, match)
 	require.Equal(newRights, user.Rights)
@@ -1278,8 +1267,7 @@ func (ts *UserTestSuite) TestSetRights() {
 	response, match = ts.userUpdate(ts.alice(), upd, rev, response.Cookies())
 
 	user = &pb.UserPublic{}
-	err = ts.getJSONBody(response, user)
-	assert.NoError(err)
+	assert.NoError(ts.getJSONBody(response, user))
 
 	require.Less(rev, match)
 	require.Equal(newRights, user.Rights)

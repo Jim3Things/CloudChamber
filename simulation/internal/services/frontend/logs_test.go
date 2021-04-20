@@ -28,12 +28,10 @@ func (ts *LogTestSuite) getPolicy(cookies []*http.Cookie) (*pb.GetPolicyResponse
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.logsPath(), "/policy"), nil)
 	response := ts.doHTTP(request, cookies)
 
-	assert.Equal(http.StatusOK, response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	res := &pb.GetPolicyResponse{}
-	err := ts.getJSONBody(response, res)
-
-	assert.NoError(err, "Unexpected error, err: %v", err)
+	assert.NoError(ts.getJSONBody(response, res))
 
 	return res, response.Cookies()
 }
@@ -48,12 +46,10 @@ func (ts *LogTestSuite) getAfter(
 	request := httptest.NewRequest("GET", path, nil)
 	response := ts.doHTTP(request, cookies)
 
-	assert.Equal(http.StatusOK, response.StatusCode)
+	assert.HTTPStatusOK(response)
 
 	res := &pb.GetAfterResponse{}
-	err := ts.getJSONBody(response, res)
-
-	assert.NoError(err, "Unexpected error, err: %v", err)
+	assert.NoError(ts.getJSONBody(response, res))
 
 	return res, response.Cookies()
 }
@@ -62,8 +58,7 @@ func (ts *LogTestSuite) TestGetPolicy() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	err := tsc.Reset(context.Background())
-	require.NoError(err)
+	require.NoError(tsc.Reset(context.Background()))
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -78,37 +73,32 @@ func (ts *LogTestSuite) TestGetPolicyNoSession() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	err := tsc.Reset(context.Background())
-	require.NoError(err)
+	require.NoError(tsc.Reset(context.Background()))
 
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.logsPath(), "/policy"), nil)
 	response := ts.doHTTP(request, nil)
 
 	assert.Equal(http.StatusForbidden, response.StatusCode)
-	assert.NoError(err)
 }
 
 func (ts *LogTestSuite) TestGetAfterNoSession() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	err := tsc.Reset(context.Background())
-	require.NoError(err)
+	require.NoError(tsc.Reset(context.Background()))
 
 	path := fmt.Sprintf("%s?from=0&for=100", ts.logsPath())
 	request := httptest.NewRequest("GET", path, nil)
 	response := ts.doHTTP(request, nil)
 
 	assert.Equal(http.StatusForbidden, response.StatusCode)
-	assert.NoError(err)
 }
 
 func (ts *LogTestSuite) TestGetAfterBadStart() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	err := tsc.Reset(context.Background())
-	require.NoError(err)
+	require.NoError(tsc.Reset(context.Background()))
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -125,8 +115,7 @@ func (ts *LogTestSuite) TestGetAfterBadCount() {
 	require := ts.Require()
 	assert := ts.Assert()
 
-	err := tsc.Reset(context.Background())
-	require.NoError(err)
+	require.NoError(tsc.Reset(context.Background()))
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -166,8 +155,7 @@ func (ts *LogTestSuite) TestGetAfter() {
 		Reason:         "My Reason",
 	}
 
-	err := tsc.Reset(context.Background())
-	require.NoError(err)
+	require.NoError(tsc.Reset(context.Background()))
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -209,8 +197,7 @@ func (ts *LogTestSuite) TestGetAfter() {
 
 	assert.True(common.DoNotCompleteWithin(ch, time.Duration(100)*time.Millisecond))
 
-	err = tsc.Append(context.Background(), entry)
-	require.NoError(err)
+	require.NoError(tsc.Append(context.Background(), entry))
 
 	assert.True(common.CompleteWithin(ch, time.Second))
 
