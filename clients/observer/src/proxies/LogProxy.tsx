@@ -29,9 +29,9 @@ export class LogProxy {
 
     start() {
         const request = new Request("/api/logs/policy", {method: "GET"})
-        getJson<GetPolicyResponse>(request, this.getSignal())
+        getJson<any>(request, this.getSignal())
             .then(jsonPolicy => {
-                const policy = GetPolicyResponse.fromJSON(jsonPolicy)
+                const policy = new GetPolicyResponse(jsonPolicy)
                 this.startId = policy.firstId
                 this.maxHeld = policy.maxEntriesHeld
                 this.getLogs(this.epoch)
@@ -57,9 +57,9 @@ export class LogProxy {
     getLogs(lastEpoch: number) {
         if (lastEpoch === this.epoch) {
             const request = new Request("/api/logs?from=" + this.startId + "&for=100", {method: "GET"})
-            getJson<GetAfterResponse>(request, this.getSignal())
+            getJson<any>(request, this.getSignal())
                 .then(jsonMsg => {
-                    const entries = GetAfterResponse.fromJSON(jsonMsg)
+                    const entries = new GetAfterResponse(jsonMsg)
 
                     this.startId = entries.lastId
                     this.notify(entries)

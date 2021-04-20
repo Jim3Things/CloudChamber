@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { asArray, asBool, asNumber, asString, asItem, Duration, durationFromJson } from "../utils"
+import { asArray, asNumber, asString, asItem } from "../utils"
 
 export const protobufPackage = "inventory";
 
@@ -16,14 +16,20 @@ export const protobufPackage = "inventory";
  */
 
 /** Define the set of known accelerators, such as GPUs or FPGAs. */
-export interface Accelerator {
+export class Accelerator {
   v100: Accelerator_NVIDIAV100 | undefined;
+
+  constructor(object: any) {
+    this.v100 = asItem<Accelerator_NVIDIAV100|undefined>((v) => new Accelerator_NVIDIAV100(v), object.v100, undefined)
+  }
 }
 
-export interface Accelerator_NVIDIAV100 {}
+export class Accelerator_NVIDIAV100 {
+  constructor(object: any) {}
+}
 
 /** Defines the capacity dimensions and values for a blade */
-export interface BladeCapacity {
+export class BladeCapacity {
   /** The number of cores on the blade. */
   cores: number;
   /** The amount of memory, in megabytes */
@@ -39,6 +45,15 @@ export interface BladeCapacity {
   arch: string;
   /** Supply the set of accelerators for this blade, including none. */
   accelerators: Accelerator[];
+
+  constructor(object: any) {
+      this.cores = asNumber(object.cores)
+      this.memoryInMb = asNumber(object.memoryInMb)
+      this.diskInGb = asNumber(object.diskInGb)
+      this.networkBandwidthInMbps = asNumber(object.networkBandwidthInMbps)
+      this.arch = asString(object.arch)
+      this.accelerators = asArray((v) => new Accelerator(v), object.accelerators)
+  }
 }
 
 // export interface InstanceRequirements {
@@ -53,33 +68,6 @@ export interface BladeCapacity {
 //   /** Supply the set of accelerators required by this instance, including none. */
 //   accelerators: Accelerator[];
 // }
-
-export const Accelerator = {
-  fromJSON(object: any): Accelerator {
-    return {
-      v100: asItem<Accelerator_NVIDIAV100|undefined>(Accelerator_NVIDIAV100.fromJSON, object.v100, undefined),
-    }
-  },
-}
-
-export const Accelerator_NVIDIAV100 = {
-  fromJSON(_: any): Accelerator_NVIDIAV100 {
-    return {  } as Accelerator_NVIDIAV100
-  },
-};
-
-export const BladeCapacity = {
-  fromJSON(object: any): BladeCapacity {
-    return {
-      cores: asNumber(object.cores),
-      memoryInMb: asNumber(object.memoryInMb),
-      diskInGb: asNumber(object.diskInGb),
-      networkBandwidthInMbps: asNumber(object.networkBandwidthInMbps),
-      arch: asString(object.arch),
-      accelerators: asArray(Accelerator.fromJSON, object.accelerators),
-    }
-  }
-}
 
 // const baseInstanceRequirements: object = {
 //   cores: 0,
