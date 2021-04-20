@@ -517,33 +517,20 @@ export class WatchResponse {
 //   },
 // };
 
+export const GetPolicyResponse = {
+  fromJSON(object: any): GetPolicyResponse {
+    return {
+      maxEntriesHeld: asNumber(object.maxEntriesHeld),
+      firstId: asNumber(object.firstId),
+    }
+  },
+};
 
-// const basePingResponse: object = {};
-
-// export const PingResponse = {
-//   fromJSON(object: any): PingResponse {
-//     const message = { ...basePingResponse } as PingResponse;
-//     if (object.expired !== undefined && object.expired !== null) {
-//       message.expired = Boolean(object.expired);
-//     } else {
-//       message.expired = undefined;
-//     }
-//     if (object.statusResponse !== undefined && object.statusResponse !== null) {
-//       message.statusResponse = StatusResponse.fromJSON(object.statusResponse);
-//     } else {
-//       message.statusResponse = undefined;
-//     }
-//     return message;
-//   },
-
-//   toJSON(message: PingResponse): unknown {
-//     const obj: any = {};
-//     message.expired !== undefined && (obj.expired = message.expired);
-//     message.statusResponse !== undefined &&
-//       (obj.statusResponse = message.statusResponse
-//         ? StatusResponse.toJSON(message.statusResponse)
-//         : undefined);
-//     return obj;
-//   },
-// };
-
+export const WatchResponse = {
+  fromJSON(object: any): WatchResponse {
+    return {
+      expired: asItem<boolean | undefined>(Boolean, object.expired, undefined),
+      statusResponse: asItem<StatusResponse | undefined>(StatusResponse.fromJSON, object.statusResponse, undefined),
+    }
+  }
+}
