@@ -516,21 +516,3 @@ export class WatchResponse {
 //     return obj;
 //   },
 // };
-
-export const GetPolicyResponse = {
-  fromJSON(object: any): GetPolicyResponse {
-    return {
-      maxEntriesHeld: asNumber(object.maxEntriesHeld),
-      firstId: asNumber(object.firstId),
-    }
-  },
-};
-
-export const WatchResponse = {
-  fromJSON(object: any): WatchResponse {
-    return {
-      expired: asItem<boolean | undefined>(Boolean, object.expired, undefined),
-      statusResponse: asItem<StatusResponse | undefined>(StatusResponse.fromJSON, object.statusResponse, undefined),
-    }
-  }
-}
