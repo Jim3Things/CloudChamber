@@ -128,7 +128,6 @@ func initHandlers() error {
 	injectionAddRoutes(routeAPI)
 	inventoryAddRoutes(routeAPI)
 	logsAddRoutes(routeAPI)
-	pingAddRoutes(routeAPI)
 	simulationAddRoutes(routeAPI)
 	stepperAddRoutes(routeAPI)
 	usersAddRoutes(routeAPI)

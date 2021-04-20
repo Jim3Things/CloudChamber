@@ -11,17 +11,6 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 )
 
-const (
-	// maxRetryLimit is the maximum backoff value.  The increasing backoff will
-	// level out at this value, irregardless of how long the stepper is not
-	// available.
-	maxRetryLimit = 5
-
-	// perRetryDuration is the number of milliseconds to wait per backoff
-	// increment.
-	perRetryDuration = 100
-)
-
 // Ticker is a mechanism that continuously requests notification of the next
 // simulated tick, until it is ordered to stop.
 type Ticker struct {
