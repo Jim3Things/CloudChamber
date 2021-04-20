@@ -250,13 +250,6 @@ export class GetAfterResponse {
     this.entries = asArray<GetAfterResponse_traceEntry>((v) => new GetAfterResponse_traceEntry(v), object.entries)
     this.lastId = asNumber(object.lastId)
     this.missed = asBool(object.missed)
-    // this.entries = []
-
-    // if (object.entries !== undefined && object.entries !== null) {
-    //   for (const e of object.entries) {
-    //     this.entries.push(new GetAfterResponse_traceEntry(e))
-    //   }
-    // }
   }
 }
 
