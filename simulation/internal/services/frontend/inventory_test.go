@@ -50,7 +50,7 @@ func (ts *InventoryTestSuite) TestListRacks() {
 
 	request := httptest.NewRequest("GET", ts.racksPath(), nil)
 	response = ts.doHTTP(request, response.Cookies())
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	list := &pb.External_ZoneSummary{}
 	assert.NoError(ts.getJSONBody(response, list))
@@ -86,7 +86,7 @@ func (ts *InventoryTestSuite) TestRackRead() {
 
 	response = ts.doHTTP(request, response.Cookies())
 
-	require.HTTPStatusOK(response)
+	require.HTTPRSuccess(response)
 
 	rack := &pb.External_Rack{}
 	require.NoError(ts.getJSONBody(response, rack))
@@ -116,7 +116,7 @@ func (ts *InventoryTestSuite) TestUnknownRack() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusNotFound, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -128,7 +128,7 @@ func (ts *InventoryTestSuite) TestListBlades() {
 
 	request := httptest.NewRequest("GET", ts.bladesInPath("rack1"), nil)
 	response = ts.doHTTP(request, response.Cookies())
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	body, err := ts.getBody(response)
 	assert.Equal("text/plain; charset=utf-8", strings.ToLower(response.Header.Get("Content-Type")))
@@ -164,7 +164,7 @@ func (ts *InventoryTestSuite) TestUnknownBlade() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusNotFound, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -178,7 +178,7 @@ func (ts *InventoryTestSuite) TestNegativeBlade() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusNotFound, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -192,7 +192,7 @@ func (ts *InventoryTestSuite) TestZeroBlade() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusNotFound, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -206,10 +206,7 @@ func (ts *InventoryTestSuite) TestStringBlade() {
 	request.Header.Set("Content-Type", "application/json")
 	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(
-		http.StatusBadRequest,
-		response.StatusCode,
-		"Handler returned the expected error: %d", response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -223,7 +220,7 @@ func (ts *InventoryTestSuite) TestBadRackBlade() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.Equal(http.StatusNotFound, response.StatusCode, "Handler returned the expected error: %v", response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusNotFound, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -237,7 +234,7 @@ func (ts *InventoryTestSuite) TestBladeRead() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	blade := &pb.BladeCapacity{}
 	assert.NoError(ts.getJSONBody(response, blade))
@@ -261,7 +258,7 @@ func (ts *InventoryTestSuite) TestBlade2Read() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	blade := &pb.BladeCapacity{}
 	assert.NoError(ts.getJSONBody(response, blade))
@@ -284,8 +281,7 @@ func (ts *InventoryTestSuite) TestNoSession() {
 	request := httptest.NewRequest("GET", ts.racksPath(), nil)
 	response := ts.doHTTP(request, nil)
 
-	assert.Equal(http.StatusForbidden, response.StatusCode,
-		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
+	assert.HTTPRStatusEqual(http.StatusForbidden, response)
 }
 
 func (ts *InventoryTestSuite) TestNoSessionRack() {
@@ -294,8 +290,7 @@ func (ts *InventoryTestSuite) TestNoSessionRack() {
 	request := httptest.NewRequest("GET", ts.rackInPath("rack1"), nil)
 	response := ts.doHTTP(request, nil)
 
-	assert.Equal(http.StatusForbidden, response.StatusCode,
-		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
+	assert.HTTPRStatusEqual(http.StatusForbidden, response)
 }
 
 func (ts *InventoryTestSuite) TestNoSessionBlade() {
@@ -304,8 +299,7 @@ func (ts *InventoryTestSuite) TestNoSessionBlade() {
 	request := httptest.NewRequest("GET", ts.bladeInPath("rack1", 1), nil)
 	response := ts.doHTTP(request, nil)
 
-	assert.Equal(http.StatusForbidden, response.StatusCode,
-		"Handler returned %v, rather than %v", response.StatusCode, http.StatusForbidden)
+	assert.HTTPRStatusEqual(http.StatusForbidden, response)
 }
 
 func TestInventoryTestSuite(t *testing.T) {

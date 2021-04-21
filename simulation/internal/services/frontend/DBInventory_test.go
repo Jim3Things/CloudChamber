@@ -117,7 +117,7 @@ func (ts *DBInventoryTestSuite) cleanRack(regionName string, zoneName string, ra
 		return err
 	}
 
-	err := ts.db.ScanBladesInRack(ctx, regionName, zoneName, rackName, func(index int64)error {
+	err := ts.db.ScanBladesInRack(ctx, regionName, zoneName, rackName, func(index int64) error {
 		_, err := ts.db.DeleteBlade(ctx, regionName, zoneName, rackName, index)
 		return err
 	})
@@ -539,9 +539,9 @@ func (ts *DBInventoryTestSuite) TestGetRegion() {
 	require := ts.Require()
 
 	expected := &pb.RegionDetails{
-		State: pb.State_in_service,
+		State:    pb.State_in_service,
 		Location: "Pacific NW",
-		Notes: "Standard Test Region",
+		Notes:    "Standard Test Region",
 	}
 
 	ctx, span := tracing.StartSpan(
@@ -557,7 +557,6 @@ func (ts *DBInventoryTestSuite) TestGetRegion() {
 	assert.Equal(expected.Location, region.Details.Location)
 	assert.Equal(expected.Notes, region.Details.Notes)
 }
-
 
 func (ts *DBInventoryTestSuite) TestScanZonesInRegion() {
 	assert := ts.Assert()
@@ -589,10 +588,10 @@ func (ts *DBInventoryTestSuite) TestGetZone() {
 	require := ts.Require()
 
 	expected := &pb.ZoneDetails{
-		Enabled: true,
-		State: pb.State_in_service,
+		Enabled:  true,
+		State:    pb.State_in_service,
 		Location: "Pacific NW, standard Zone",
-		Notes: "Standard Test Zone definition",
+		Notes:    "Standard Test Zone definition",
 	}
 
 	ctx, span := tracing.StartSpan(
@@ -677,17 +676,17 @@ func (ts *DBInventoryTestSuite) TestGetRackInZone() {
 	require := ts.Require()
 
 	expectedDetails := &pb.RackDetails{
-		Enabled: true,
+		Enabled:   true,
 		Condition: pb.Condition_operational,
-		Location: "Pacific NW, rack 1",
-		Notes: "rack definition, 1 pdu, 1 tor, 8 blades",
+		Location:  "Pacific NW, rack 1",
+		Notes:     "rack definition, 1 pdu, 1 tor, 8 blades",
 	}
 
 	expectedPdus := map[int64]*pb.Definition_Pdu{
-		int64(0) : {
+		int64(0): {
 			Details: &pb.PduDetails{Enabled: true, Condition: pb.Condition_operational},
 			Ports: map[int64]*pb.PowerPort{
-				int64(0): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_tor,   Id: int64(0), Port: int64(0)}},
+				int64(0): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_tor, Id: int64(0), Port: int64(0)}},
 				int64(1): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_blade, Id: int64(1), Port: int64(0)}},
 				int64(2): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_blade, Id: int64(2), Port: int64(0)}},
 				int64(3): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_blade, Id: int64(3), Port: int64(0)}},
@@ -701,10 +700,10 @@ func (ts *DBInventoryTestSuite) TestGetRackInZone() {
 	}
 
 	expectedTors := map[int64]*pb.Definition_Tor{
-		int64(0) : {
+		int64(0): {
 			Details: &pb.TorDetails{Enabled: true, Condition: pb.Condition_operational},
 			Ports: map[int64]*pb.NetworkPort{
-				int64(0): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_pdu,   Id: int64(0), Port: int64(0)}},
+				int64(0): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_pdu, Id: int64(0), Port: int64(0)}},
 				int64(1): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_blade, Id: int64(1), Port: int64(0)}},
 				int64(2): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_blade, Id: int64(2), Port: int64(0)}},
 				int64(3): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_blade, Id: int64(3), Port: int64(0)}},
@@ -961,9 +960,9 @@ func (ts *DBInventoryTestSuite) TestUpdatePdu() {
 	}
 
 	pdu2 := &pb.Definition_Pdu{
-		Details: &pb.PduDetails{Enabled: false,	Condition: pb.Condition_out_for_repair},
+		Details: &pb.PduDetails{Enabled: false, Condition: pb.Condition_out_for_repair},
 		Ports: map[int64]*pb.PowerPort{
-			int64(0): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_tor,   Id: int64(0), Port: int64(0)}},
+			int64(0): {Wired: true, Item: &pb.Hardware{Type: pb.Hardware_tor, Id: int64(0), Port: int64(0)}},
 		},
 	}
 
@@ -971,7 +970,7 @@ func (ts *DBInventoryTestSuite) TestUpdatePdu() {
 	require.NoError(err)
 	assert.Less(int64(0), revCreate)
 
-	p1, revRead1, err := ts.db.ReadPdu(ctx, ts.regionName, ts.zoneName, rackName,ts.pduID)
+	p1, revRead1, err := ts.db.ReadPdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID)
 	assert.NoError(err)
 	assert.Equal(revCreate, revRead1)
 	require.NotNil(p1)
@@ -1054,7 +1053,7 @@ func (ts *DBInventoryTestSuite) TestUpdateBlade() {
 		Capacity:      &pb.BladeCapacity{Cores: 16, MemoryInMb: 16384, DiskInGb: 240, NetworkBandwidthInMbps: 2048, Arch: "X64"},
 		BootInfo:      &pb.BladeBootInfo{Source: pb.BladeBootInfo_network, Image: "standard.vhdx", Version: "latest", Parameters: "-version=1 -node=R1Z1R1B1"},
 		BootOnPowerOn: true,
-}
+	}
 
 	blade2 := &pb.Definition_Blade{
 		Details:       &pb.BladeDetails{Enabled: true, Condition: pb.Condition_retiring},
@@ -1324,5 +1323,3 @@ func (ts *DBInventoryTestSuite) TestDeleteBlade() {
 	assert.Equal(int64(InvalidRev), revRead2)
 	assert.Nil(b2)
 }
-
-

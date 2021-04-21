@@ -61,6 +61,8 @@ func handlerSimStatus(w http.ResponseWriter, r *http.Request) {
 		InactivityTimeout: ptypes.DurationProto(server.sessions.inactivity()),
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, status)
 
@@ -93,6 +95,8 @@ func handlerSimSessionList(w http.ResponseWriter, r *http.Request) {
 	}
 
 	b := common.URLPrefix(r)
+
+	w.Header().Set("Content-Type", "application/json")
 
 	for _, key := range server.sessions.knownIDs() {
 		list.Sessions = append(list.Sessions, &pb.SessionSummary_Session{
@@ -162,6 +166,8 @@ func handlerSimSessionDetail(w http.ResponseWriter, r *http.Request) {
 		"Getting Details for Session %d (user %q)",
 		id,
 		session.name)
+
+	w.Header().Set("Content-Type", "application/json")
 
 	p := jsonpb.Marshaler{}
 	err = p.Marshal(w, resp)

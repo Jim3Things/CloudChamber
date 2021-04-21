@@ -28,7 +28,7 @@ func (ts *StepperTestSuite) setManual(match int64, cookies []*http.Cookie) []*ht
 
 	response := ts.doHTTP(request, cookies)
 
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 	assert.Equal(formatAsEtag(match+1), response.Header.Get("ETag"))
 
 	return response.Cookies()
@@ -40,7 +40,7 @@ func (ts *StepperTestSuite) getNow(cookies []*http.Cookie) (*pbc.Timestamp, []*h
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.stepperPath(), "/now"), nil)
 	response := ts.doHTTP(request, cookies)
 
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	res := &pbc.Timestamp{}
 	assert.NoError(ts.getJSONBody(response, res))
@@ -54,7 +54,7 @@ func (ts *StepperTestSuite) getStatus(cookies []*http.Cookie) (*pb.StatusRespons
 	request := httptest.NewRequest("GET", ts.stepperPath(), nil)
 	response := ts.doHTTP(request, cookies)
 
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	res := &pb.StatusResponse{}
 	assert.NoError(ts.getJSONBody(response, res))
@@ -67,7 +67,7 @@ func (ts *StepperTestSuite) advance(cookies []*http.Cookie) (*pbc.Timestamp, []*
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance"), nil)
 	response := ts.doHTTP(request, cookies)
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	res := &pbc.Timestamp{}
 	assert.NoError(ts.getJSONBody(response, res))
@@ -81,7 +81,7 @@ func (ts *StepperTestSuite) after(after int64, cookies []*http.Cookie) (*pb.Stat
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=%d", ts.stepperPath(), after), nil)
 	response := ts.doHTTP(request, cookies)
 
-	require.HTTPStatusOK(response)
+	require.HTTPRSuccess(response)
 
 	res := &pb.StatusResponse{}
 	require.NoError(ts.getJSONBody(response, res))
@@ -136,7 +136,7 @@ func (ts *StepperTestSuite) TestSetManualNoPrivilege() {
 	_, err := ts.getBody(response)
 	require.NoError(err)
 
-	require.Equal(http.StatusForbidden, response.StatusCode)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
@@ -154,7 +154,7 @@ func (ts *StepperTestSuite) TestSetModeInvalid() {
 
 	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	body, err := ts.getBody(response)
 	assert.NoError(err)
@@ -185,7 +185,7 @@ func (ts *StepperTestSuite) TestSetModeBadEpoch() {
 
 	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	body, err := ts.getBody(response)
 	assert.NoError(err)
@@ -235,7 +235,7 @@ func (ts *StepperTestSuite) TestAdvanceTwo() {
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance=2"), nil)
 	response = ts.doHTTP(request, cookies)
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	res2 := &pbc.Timestamp{}
 	assert.NoError(ts.getJSONBody(response, res2))
@@ -259,7 +259,7 @@ func (ts *StepperTestSuite) TestAdvanceNotANumber() {
 	response = ts.doHTTP(request, cookies)
 	body, err := ts.getBody(response)
 
-	assert.HTTPStatusEqual(http.StatusBadRequest, response)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	assert.NoError(err)
 	assert.Equal(
@@ -280,7 +280,7 @@ func (ts *StepperTestSuite) TestAdvanceMinusOne() {
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance=-1"), nil)
 	response = ts.doHTTP(request, cookies)
 
-	assert.HTTPStatusEqual(http.StatusBadRequest, response)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	body, err := ts.getBody(response)
 
@@ -309,7 +309,7 @@ func (ts *StepperTestSuite) TestAdvanceNoPrivilege() {
 	_, err := ts.getBody(response)
 	require.NoError(err)
 
-	require.HTTPStatusEqual(http.StatusForbidden, response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
@@ -322,7 +322,7 @@ func (ts *StepperTestSuite) TestSetManualBadRate() {
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?mode=manual=10"), nil)
 	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -384,7 +384,7 @@ func (ts *StepperTestSuite) TestAfterBadTick() {
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s/now?after=-1", ts.stepperPath()), nil)
 	response = ts.doHTTP(request, cookies)
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }

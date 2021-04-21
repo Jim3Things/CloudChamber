@@ -64,7 +64,7 @@ func (ts *SimulationTestSuite) TestActiveSessionList() {
 	status := &pb.SessionSummary{}
 	require.NoError(ts.getJSONBody(response, status))
 
-	require.Equal(1, len(status.Sessions))
+	require.Len(status.Sessions, 1)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -85,7 +85,7 @@ func (ts *SimulationTestSuite) TestListNoPrivilege() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	require.Equal(http.StatusForbidden, response.StatusCode)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
 	ts.doLogout("alice", response.Cookies())
 }
@@ -106,10 +106,10 @@ func (ts *SimulationTestSuite) TestSessionStatus() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	require.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	entry := &pb.SessionStatus{}
-	require.NoError(ts.getJSONBody(response, status))
+	require.NoError(ts.getJSONBody(response, entry))
 
 	tmo, err := ptypes.Timestamp(entry.Timeout)
 	require.NoError(err)
@@ -142,7 +142,7 @@ func (ts *SimulationTestSuite) TestSessionStatusNoPrivilege() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	require.Equal(http.StatusForbidden, response.StatusCode)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
 	ts.doLogout("alice", response.Cookies())
 }
@@ -151,8 +151,6 @@ func (ts *SimulationTestSuite) TestDeleteSession() {
 	require := ts.Require()
 
 	response := ts.doLogin(ts.adminAccountName(), ts.adminPassword(), nil)
-	require.Equal(1, len(response.Cookies()))
-	require.Equal(http.StatusOK, response.StatusCode)
 
 	request := httptest.NewRequest("GET", ts.sessionListPath(), nil)
 	request.Header.Set("Content-Type", "application/json")
@@ -165,22 +163,22 @@ func (ts *SimulationTestSuite) TestDeleteSession() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	require.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	entry := &pb.SessionStatus{}
-	require.NoError(ts.getJSONBody(response, status))
+	require.NoError(ts.getJSONBody(response, entry))
 
 	require.Equal(strings.ToLower(ts.adminAccountName()), strings.ToLower(entry.UserName))
 
 	request = httptest.NewRequest("DELETE", status.Sessions[0].Uri, nil)
 	response = ts.doHTTP(request, response.Cookies())
-	require.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	request = httptest.NewRequest("GET", status.Sessions[0].Uri, nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	require.Equal(http.StatusForbidden, response.StatusCode)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 }
 
 func (ts *SimulationTestSuite) TestDeleteNoPrivilege() {
@@ -203,7 +201,7 @@ func (ts *SimulationTestSuite) TestDeleteNoPrivilege() {
 
 	request = httptest.NewRequest("DELETE", status.Sessions[0].Uri, nil)
 	response = ts.doHTTP(request, response.Cookies())
-	require.Equal(http.StatusForbidden, response.StatusCode)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
 	ts.doLogout("alice", response.Cookies())
 }

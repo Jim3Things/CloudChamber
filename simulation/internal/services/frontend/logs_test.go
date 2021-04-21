@@ -28,7 +28,7 @@ func (ts *LogTestSuite) getPolicy(cookies []*http.Cookie) (*pb.GetPolicyResponse
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.logsPath(), "/policy"), nil)
 	response := ts.doHTTP(request, cookies)
 
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	res := &pb.GetPolicyResponse{}
 	assert.NoError(ts.getJSONBody(response, res))
@@ -46,7 +46,7 @@ func (ts *LogTestSuite) getAfter(
 	request := httptest.NewRequest("GET", path, nil)
 	response := ts.doHTTP(request, cookies)
 
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	res := &pb.GetAfterResponse{}
 	assert.NoError(ts.getJSONBody(response, res))
@@ -78,7 +78,7 @@ func (ts *LogTestSuite) TestGetPolicyNoSession() {
 	request := httptest.NewRequest("GET", fmt.Sprintf("%s%s", ts.logsPath(), "/policy"), nil)
 	response := ts.doHTTP(request, nil)
 
-	assert.Equal(http.StatusForbidden, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusForbidden, response)
 }
 
 func (ts *LogTestSuite) TestGetAfterNoSession() {
@@ -91,7 +91,7 @@ func (ts *LogTestSuite) TestGetAfterNoSession() {
 	request := httptest.NewRequest("GET", path, nil)
 	response := ts.doHTTP(request, nil)
 
-	assert.Equal(http.StatusForbidden, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusForbidden, response)
 }
 
 func (ts *LogTestSuite) TestGetAfterBadStart() {
@@ -106,7 +106,7 @@ func (ts *LogTestSuite) TestGetAfterBadStart() {
 	request := httptest.NewRequest("GET", path, nil)
 	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
@@ -123,7 +123,7 @@ func (ts *LogTestSuite) TestGetAfterBadCount() {
 	request := httptest.NewRequest("GET", path, nil)
 	response = ts.doHTTP(request, response.Cookies())
 
-	assert.Equal(http.StatusBadRequest, response.StatusCode)
+	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }

@@ -34,7 +34,7 @@ var (
 )
 
 type testSuiteCore struct {
-	test.SuiteX
+	test.Suite
 
 	baseURI string
 
@@ -54,7 +54,8 @@ func (ts *testSuiteCore) userPath() string         { return ts.baseURI + "/api/u
 func (ts *testSuiteCore) admin() string            { return ts.userPath() + ts.adminAccountName() }
 func (ts *testSuiteCore) aliceName() string        { return "Alice" }
 func (ts *testSuiteCore) alice() string            { return ts.userPath() + ts.aliceName() }
-func (ts *testSuiteCore) bob() string              { return ts.userPath() + "Bob" }
+func (ts *testSuiteCore) bobName() string          { return "Bob" }
+func (ts *testSuiteCore) bob() string              { return ts.userPath() + ts.bobName() }
 func (ts *testSuiteCore) alicePassword() string    { return "test" }
 func (ts *testSuiteCore) bobPassword() string      { return "test2" }
 
@@ -147,7 +148,7 @@ func (ts *testSuiteCore) getJSONBody(resp *http.Response, v proto.Message) error
 
 	defer func() { _ = resp.Body.Close() }()
 
-	require.HTTPContentTypeJson(resp)
+	require.HTTPRContentTypeJson(resp)
 
 	return jsonpb.Unmarshal(resp.Body, v)
 }
@@ -184,19 +185,20 @@ func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.C
 
 	request := httptest.NewRequest("PUT", path, strings.NewReader(password))
 	response := ts.doHTTP(request, cookies)
-	require.HTTPStatusOK(response)
+
+	require.HTTPRSuccess(response)
+	require.HTTPRHasCookie(sessionCookieName, response)
 
 	_, err := ts.getBody(response)
 
 	require.NoError(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
-	require.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
 
 	return response
 }
 
 // Log the specified user out of CloudChamber
 func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Response {
-	assert := ts.Assert()
+	require := ts.Require()
 	logf := ts.T().Logf
 
 	path := fmt.Sprintf("%s%s?op=logout", ts.userPath(), user)
@@ -204,11 +206,13 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 
 	request := httptest.NewRequest("PUT", path, nil)
 	response := ts.doHTTP(request, cookies)
-	assert.HTTPStatusOK(response)
+
+	require.HTTPRSuccess(response)
+	require.HTTPRHasCookie(sessionCookieName, response)
 
 	_, err := ts.getBody(response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", user, err)
+	require.NoError(err, "Failed to read body returned from call to handler for route %v: %v", user, err)
 
 	return response
 }
@@ -288,7 +292,7 @@ func (ts *testSuiteCore) ensureAccount(
 	req.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(req, response.Cookies())
-	assert.HTTPStatusOK(response)
+	assert.HTTPRSuccess(response)
 
 	ts.knownNames[path] = path
 
