@@ -26,17 +26,17 @@ func (ts *UserTestSuite) SetupSuite() {
 }
 
 func (ts *UserTestSuite) userRead(path string, cookies []*http.Cookie) (*http.Response, *pb.UserPublic) {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	request := httptest.NewRequest("GET", path, nil)
 	request.Header.Set("Content-Type", "application/json")
 
 	response := ts.doHTTP(request, cookies)
 
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	user := &pb.UserPublic{}
-	assert.NoError(ts.getJSONBody(response, user))
+	require.NoError(ts.getJSONBody(response, user))
 
 	return response, user
 }
@@ -46,10 +46,10 @@ func (ts *UserTestSuite) setPassword(
 	upd *pb.UserPassword,
 	rev int64,
 	cookies []*http.Cookie) (*http.Response, int64) {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	r, err := ts.toJSONReader(upd)
-	assert.NoError(err)
+	require.NoError(err)
 
 	path := ts.userPath() + name + "?password"
 
@@ -60,7 +60,7 @@ func (ts *UserTestSuite) setPassword(
 	response := ts.doHTTP(request, cookies)
 
 	match, err := parseETag(response.Header.Get("ETag"))
-	assert.NoError(err)
+	require.NoError(err)
 
 	return response, match
 }
@@ -70,20 +70,21 @@ func (ts *UserTestSuite) userUpdate(
 	upd *pb.UserUpdate,
 	rev int64,
 	cookies []*http.Cookie) (*http.Response, int64) {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	r, err := ts.toJSONReader(upd)
-	assert.NoError(err, "Failed to format UserUpdate, err = %v", err)
+	require.NoError(err, "Failed to format UserUpdate, err = %v", err)
 
 	request := httptest.NewRequest("PUT", path, r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response := ts.doHTTP(request, cookies)
-	assert.HTTPRSuccess(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRSuccess(response)
 
 	tag, err := parseETag(response.Header.Get("ETag"))
-	assert.NoError(err)
+	require.NoError(err)
 
 	return response, tag
 }
@@ -100,38 +101,31 @@ func (ts *UserTestSuite) userUpdate(
 // +++ Login tests
 
 func (ts *UserTestSuite) TestLoginSessionSimple() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.admin()), strings.NewReader(ts.adminPassword()))
+
 	response := ts.doHTTP(request, nil)
-	body, err := ts.getBody(response)
-	assert.NoError(err)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRSuccess(response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRSuccess(response)
+	body := ts.getBody(response)
+	require.Equal("User \"admin\" logged in\n", string(body))
 
 	// ... and logout, which should succeed
 	//     (note that this also checks that the username match is case insensitive)
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s?op=logout", strings.ToUpper(ts.admin())), nil)
+
 	response = ts.doHTTP(request, response.Cookies())
-	body, err = ts.getBody(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRSuccess(response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(
-		err,
-		"Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
-
-	logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRSuccess(response)
+	body = ts.getBody(response)
+	require.Equal("User \"admin\" logged out\n", string(body))
 }
 
 func (ts *UserTestSuite) TestLoginSessionRepeat() {
@@ -151,39 +145,36 @@ func (ts *UserTestSuite) TestLoginSessionRepeat() {
 }
 
 func (ts *UserTestSuite) TestLoginDupLogins() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
+	require := ts.Require()
 
 	// login for the first time, should succeed
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	// now repeat the attempt to login again, which should fail
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.admin()), strings.NewReader(ts.adminPassword()))
+
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
+	body := ts.getBody(response)
 
-	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
-	assert.Equal(
+	require.Equal(
 		fmt.Sprintf("%s\n", errors.ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
 	// .. and let's just try with another user, which should also fail
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s?op=login", ts.bob()), strings.NewReader("test2"))
+
 	response = ts.doHTTP(request, response.Cookies())
-	body, err = ts.getBody(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.bob(), err)
+	body = ts.getBody(response)
 
-	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
-	assert.Equal(
+	require.Equal(
 		fmt.Sprintf("%s\n", errors.ErrUserAlreadyLoggedIn.Error()), string(body),
 		"Handler returned unexpected response body: %v", string(body))
 
@@ -193,9 +184,7 @@ func (ts *UserTestSuite) TestLoginDupLogins() {
 }
 
 func (ts *UserTestSuite) TestLoginLogoutDiffAccounts() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	// login for the first time, should succeed
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -206,16 +195,16 @@ func (ts *UserTestSuite) TestLoginLogoutDiffAccounts() {
 	// ... and now try to logout from it, which should not succeed
 	//
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=logout", ts.alice()), nil)
+
 	response = ts.doHTTP(request, cookies)
-	body, err := ts.getBody(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.alice(), err)
-
-	logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: user \"alice\" not logged into this session\n",
+		string(body))
 
 	// ... and logout, which should succeed
 	//
@@ -223,9 +212,7 @@ func (ts *UserTestSuite) TestLoginLogoutDiffAccounts() {
 }
 
 func (ts *UserTestSuite) TestDoubleLogout() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	// login for the first time, should succeed
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -237,22 +224,20 @@ func (ts *UserTestSuite) TestDoubleLogout() {
 	// ... logout again, which should fail
 	//
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s?op=logout", ts.admin()), nil)
+
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
-
-	logf("[?op=logout]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: user \"admin\" not logged into this session\n",
+		string(body))
 }
 
 func (ts *UserTestSuite) TestLoginSessionBadPassword() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	// login for the first time, should succeed
 	request := httptest.NewRequest(
@@ -260,15 +245,14 @@ func (ts *UserTestSuite) TestLoginSessionBadPassword() {
 		fmt.Sprintf("%s?op=login", ts.admin()),
 		strings.NewReader(ts.adminPassword()+"rubbish"))
 	response := ts.doHTTP(request, nil)
-	body, err := ts.getBody(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
-
-	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: authentication failed, invalid user name or password\n",
+		string(body))
 
 	// Now just validate that there really isn't an active session here.
 	response = ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), response.Cookies())
@@ -277,9 +261,7 @@ func (ts *UserTestSuite) TestLoginSessionBadPassword() {
 }
 
 func (ts *UserTestSuite) TestLoginSessionNoUser() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	// login for the first time, the http call should succeed, but fail the login
 	request := httptest.NewRequest(
@@ -287,15 +269,14 @@ func (ts *UserTestSuite) TestLoginSessionNoUser() {
 		fmt.Sprintf("%s%s?op=login", ts.admin(), "Bogus"),
 		strings.NewReader(ts.adminPassword()))
 	response := ts.doHTTP(request, nil)
-	body, err := ts.getBody(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRStatusEqual(http.StatusNotFound, response)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.admin(), err)
-
-	logf("[?op=login]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRHasCookie(sessionCookieName, response)
-	assert.HTTPRStatusEqual(http.StatusNotFound, response)
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: authentication failed, invalid user name or password\n",
+		string(body))
 
 	// Now just validate that there really isn't an active session here.
 	response = ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), response.Cookies())
@@ -308,14 +289,12 @@ func (ts *UserTestSuite) TestLoginSessionNoUser() {
 // +++ User creation tests
 
 func (ts *UserTestSuite) TestCreate() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	path := ts.alice() + "2"
 
 	r, err := ts.toJSONReader(ts.aliceDef)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -323,29 +302,24 @@ func (ts *UserTestSuite) TestCreate() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRSuccess(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", path, err)
-
-	logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRSuccess(response)
-	assert.Equal(
-		"User \"Alice2\" created, enabled: true, rights: ", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body := ts.getBody(response)
+	require.Equal(
+		"User \"Alice2\" created, enabled: true, rights: ",
+		string(body))
 
 	ts.knownNames[path] = path
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestCreateDup() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	r, err := ts.toJSONReader(ts.aliceDef)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -355,25 +329,19 @@ func (ts *UserTestSuite) TestCreateDup() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, cookies)
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
-
-	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
-	assert.Equal(
-		"CloudChamber: user \"Alice\" already exists\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: user \"Alice\" already exists\n", string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestCreateBadData() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -384,28 +352,23 @@ func (ts *UserTestSuite) TestCreateBadData() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
-
-	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
-	assert.Equal(
-		"json: cannot unmarshal number into Go value of type bool\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body := ts.getBody(response)
+	require.Equal(
+		"json: cannot unmarshal number into Go value of type bool\n",
+		string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestCreateNoPrivilege() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	r, err := ts.toJSONReader(ts.bobDef)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	response := ts.doLogin(ts.aliceName(), ts.alicePassword(), nil)
 
@@ -413,46 +376,34 @@ func (ts *UserTestSuite) TestCreateNoPrivilege() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
-
-	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
-	assert.Equal(
-		"CloudChamber: permission denied\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: permission denied\n", string(body))
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestCreateNoSession() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	path := ts.alice() + "2"
 
 	r, err := ts.toJSONReader(ts.aliceDef)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	request := httptest.NewRequest("POST", path, r)
 	request.Header.Set("Content-Type", "application/json")
 
 	response := ts.doHTTP(request, nil)
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
-
-	logf("[%s]: SC=%v, Content-Type='%v'\n", path, response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
-	assert.Equal(
-		"CloudChamber: permission denied\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: permission denied\n", string(body))
 }
 
 // --- User creation tests
@@ -460,7 +411,7 @@ func (ts *UserTestSuite) TestCreateNoSession() {
 // +++ Known users list tests
 
 func (ts *UserTestSuite) TestList() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -468,18 +419,18 @@ func (ts *UserTestSuite) TestList() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	users := &pb.UserList{}
-	assert.NoError(ts.getJSONBody(response, users))
+	require.NoError(ts.getJSONBody(response, users))
 
 	// Now verify that the list of names matches our expectations.
 	// First, form an array of names from the returned structure
 	addresses := make([]string, 0, len(users.Users))
 	for _, entry := range users.Users {
-		assert.True(strings.HasSuffix(entry.Uri, entry.Name))
+		require.True(strings.HasSuffix(entry.Uri, entry.Name))
 		if strings.EqualFold(entry.Name, ts.adminAccountName()) {
-			assert.True(entry.Protected)
+			require.True(entry.Protected)
 		}
 
 		addresses = append(addresses, entry.Uri)
@@ -495,13 +446,13 @@ func (ts *UserTestSuite) TestList() {
 		keys = append(keys, k)
 	}
 
-	assert.ElementsMatchf(keys, addresses, "elements did not match\nReturned Value: %s\nMatch Values: %v", addresses, keys)
+	require.ElementsMatch(keys, addresses)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestListNoPrivilege() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
@@ -512,10 +463,11 @@ func (ts *UserTestSuite) TestListNoPrivilege() {
 	request := httptest.NewRequest("GET", ts.userPath(), nil)
 
 	response = ts.doHTTP(request, response.Cookies())
-	_, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err)
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	_ = ts.getBody(response)
 
 	ts.doLogout("alice", response.Cookies())
 }
@@ -525,7 +477,7 @@ func (ts *UserTestSuite) TestListNoPrivilege() {
 // +++ Get user details tests
 
 func (ts *UserTestSuite) TestRead() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -533,26 +485,24 @@ func (ts *UserTestSuite) TestRead() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	user := &pb.UserPublic{}
-	assert.NoError(ts.getJSONBody(response, user))
+	require.NoError(ts.getJSONBody(response, user))
 
 	match, err := parseETag(response.Header.Get("ETag"))
-	assert.NoError(err, "failed to convert the ETag to valid int64")
-	assert.Less(int64(1), match)
+	require.NoError(err, "failed to convert the ETag to valid int64")
+	require.Less(int64(1), match)
 
-	assert.True(user.Enabled)
-	assert.True(user.Rights.CanManageAccounts)
-	assert.True(user.NeverDelete)
+	require.True(user.Enabled)
+	require.True(user.Rights.CanManageAccounts)
+	require.True(user.NeverDelete)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestReadUnknownUser() {
-	assert := ts.Assert()
-	log := ts.T().Log
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -560,20 +510,18 @@ func (ts *UserTestSuite) TestReadUnknownUser() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
-	log(string(body))
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
+	require.HTTPRStatusEqual(http.StatusNotFound, response)
 
-	assert.NoError(err, "Expected no error in getting body.  err=%v", err)
-
-	assert.HTTPRContentTypeNotJson(response)
-	assert.HTTPRStatusEqual(http.StatusNotFound, response)
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: user \"baduser\" not found\n", string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestReadNoPrivilege() {
-	assert := ts.Assert()
-	log := ts.T().Log
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
@@ -585,13 +533,12 @@ func (ts *UserTestSuite) TestReadNoPrivilege() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
-	log(string(body))
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
-	assert.NoError(err, "Expected no error in getting body.  err=%v", err)
-
-	assert.HTTPRContentTypeNotJson(response)
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: permission denied\n", string(body))
 
 	ts.doLogout("alice", response.Cookies())
 }
@@ -601,9 +548,7 @@ func (ts *UserTestSuite) TestReadNoPrivilege() {
 // +++ User operation (?op=) tests
 
 func (ts *UserTestSuite) TestOperationIllegal() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	// Verify a bunch of failure cases. Specifically,
 	// - that a naked op fails
@@ -615,33 +560,27 @@ func (ts *UserTestSuite) TestOperationIllegal() {
 	response := ts.doHTTP(request, nil)
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.alice(), err)
-
-	logf("[?op]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
-	assert.Equal(
-		"CloudChamber: invalid user operation requested (?op=) for user \"alice\"\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: invalid user operation requested (?op=) for user \"alice\"\n",
+		string(body))
 
 	// Case 2, check that an invalid op fails
 	//
 	request = httptest.NewRequest("PUT", fmt.Sprintf("%s?op=testInvalid", ts.alice()), nil)
 	response = ts.doHTTP(request, response.Cookies())
-	body, err = ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.alice(), err)
-
-	logf("[?op=testInvalid]: SC=%v, Content-Type='%v'\n", response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
-	assert.Equal(
-		"CloudChamber: invalid user operation requested (?op=testInvalid) for user \"alice\"\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body = ts.getBody(response)
+	require.Equal(
+		"CloudChamber: invalid user operation requested (?op=testInvalid) for user \"alice\"\n",
+		string(body))
 }
 
 // --- User operation (?op=) tests
@@ -649,7 +588,7 @@ func (ts *UserTestSuite) TestOperationIllegal() {
 // +++ Update user tests
 
 func (ts *UserTestSuite) TestUpdateSuccess() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled: true,
@@ -666,7 +605,7 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	r, err := ts.toJSONReader(aliceUpd)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("PUT", ts.alice(), r)
@@ -676,10 +615,10 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	response = ts.doHTTP(request, cookies)
 
 	user := &pb.UserPublic{}
-	assert.NoError(ts.getJSONBody(response, user))
+	require.NoError(ts.getJSONBody(response, user))
 
 	match, err := parseETag(response.Header.Get("ETag"))
-	assert.NoError(err, "failed to convert the ETag to valid int64")
+	require.NoError(err, "failed to convert the ETag to valid int64")
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -689,21 +628,19 @@ func (ts *UserTestSuite) TestUpdateSuccess() {
 	//
 	// So a "rev + 1" style test is not appropriate.
 	//
-	assert.Less(rev, match)
+	require.Less(rev, match)
 
-	assert.True(user.Enabled)
-	assert.Equal(aliceUpd.Rights, user.Rights)
-	assert.False(user.NeverDelete)
+	require.True(user.Enabled)
+	require.Equal(aliceUpd.Rights, user.Rights)
+	require.False(user.NeverDelete)
 
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestUpdateBadData() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
-	log := ts.T().Log
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -717,24 +654,20 @@ func (ts *UserTestSuite) TestUpdateBadData() {
 	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, cookies)
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Failed to read body returned from call to handler for route %v: %v", ts.userPath(), err)
-
-	logf("[%s]: SC=%v, Content-Type='%v'\n", ts.userPath(), response.StatusCode, response.Header.Get("Content-Type"))
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
-	assert.Equal(
-		"json: cannot unmarshal number into Go value of type bool\n", string(body),
-		"Handler returned unexpected response body: %v", string(body))
+	body := ts.getBody(response)
+	require.Equal(
+		"json: cannot unmarshal number into Go value of type bool\n",
+		string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestUpdateBadMatch() {
-	assert := ts.Assert()
-	log := ts.T().Log
+	require := ts.Require()
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled: true,
@@ -744,7 +677,7 @@ func (ts *UserTestSuite) TestUpdateBadMatch() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	r, err := ts.toJSONReader(aliceUpd)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("PUT", ts.alice(), r)
@@ -756,19 +689,20 @@ func (ts *UserTestSuite) TestUpdateBadMatch() {
 	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, cookies)
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusConflict, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	log(string(body))
-	assert.NoError(err, "Failed to get response body.  err: %v", err)
-
-	assert.HTTPRStatusEqual(http.StatusConflict, response)
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: user \"alice\" has a newer version than expected\n",
+		string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
-	assert := ts.Assert()
-	log := ts.T().Log
+	require := ts.Require()
 
 	aliceUpd := &pb.UserDefinition{
 		Password: ts.alicePassword(),
@@ -779,7 +713,7 @@ func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	r, err := ts.toJSONReader(aliceUpd)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	request := httptest.NewRequest("PUT", ts.alice(), r)
@@ -788,19 +722,20 @@ func (ts *UserTestSuite) TestUpdateBadMatchSyntax() {
 	request.Header.Set("If-Match", "\"abc\"")
 
 	response = ts.doHTTP(request, cookies)
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	log(string(body))
-	assert.NoError(err, "Failed to get response body.  err: %v", err)
-
-	assert.HTTPRStatusEqual(http.StatusBadRequest, response)
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: match value \"\\\"abc\\\"\" is not recognized as a valid integer\n",
+		string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestUpdateNoUser() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
+	require := ts.Require()
 
 	upd := &pb.UserUpdate{
 		Enabled: true,
@@ -810,25 +745,25 @@ func (ts *UserTestSuite) TestUpdateNoUser() {
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	r, err := ts.toJSONReader(upd)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.userPath(), "BadUser"), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", formatAsEtag(1))
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
-	logf(string(body))
-	assert.NoError(err, "Error reading body, err = %v", err)
+	require.HTTPRStatusEqual(http.StatusNotFound, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.HTTPRStatusEqual(http.StatusNotFound, response)
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: user \"baduser\" not found\n", string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestUpdateNoPrivilege() {
-	assert := ts.Assert()
-	logf := ts.T().Logf
+	require := ts.Require()
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled: true,
@@ -843,25 +778,25 @@ func (ts *UserTestSuite) TestUpdateNoPrivilege() {
 	response = ts.doLogin(ts.bobName(), ts.bobPassword(), response.Cookies())
 
 	r, err := ts.toJSONReader(aliceUpd)
-	assert.NoError(err, "Failed to format UserDefinition, err = %v", err)
+	require.NoError(err, "Failed to format UserDefinition, err = %v", err)
 
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
-	assert.NoError(err)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	logf(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: permission denied\n", string(body))
 
 	ts.doLogout(ts.bobName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestUpdateExpandRights() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	aliceUpd := &pb.UserUpdate{
 		Enabled: true,
@@ -882,32 +817,31 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
 	response, rev = ts.userUpdate(ts.alice(), aliceOriginal, rev, cookies)
-	_, err := ts.getBody(response)
-	assert.NoError(err)
+	_ = ts.getBody(response)
 
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
 	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
 
 	r, err := ts.toJSONReader(aliceUpd)
-	assert.NoError(err, "Failed to format UserUpdate, err = %v", err)
+	require.NoError(err, "Failed to format UserUpdate, err = %v", err)
 
 	request := httptest.NewRequest("PUT", ts.alice(), r)
 	request.Header.Set("Content-Type", "application/json")
 	request.Header.Set("If-Match", formatAsEtag(rev))
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
-	assert.NoError(err)
-	assert.Equal("CloudChamber: permission denied\n", string(body))
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	body := ts.getBody(response)
+	require.NoError(err)
+	require.Equal("CloudChamber: permission denied\n", string(body))
 
 	// Now verify that the entry has not been changed
 	response, user := ts.userRead(ts.alice(), response.Cookies())
-	assert.Equal(aliceOriginal.Rights, user.Rights)
-	assert.True(user.Enabled)
-	assert.False(user.NeverDelete)
+	require.Equal(aliceOriginal.Rights, user.Rights)
+	require.True(user.Enabled)
+	require.False(user.NeverDelete)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
@@ -917,8 +851,7 @@ func (ts *UserTestSuite) TestUpdateExpandRights() {
 // +++ Delete user tests
 
 func (ts *UserTestSuite) TestDelete() {
-	assert := ts.Assert()
-	log := ts.T().Log
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
@@ -927,12 +860,13 @@ func (ts *UserTestSuite) TestDelete() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, cookies)
-	body, err := ts.getBody(response)
+	require.HTTPRSuccess(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
-	log(string(body))
+	body := ts.getBody(response)
+	require.Equal("User \"alice\" deleted.", string(body))
 
-	assert.HTTPRSuccess(response)
 	delete(ts.knownNames, ts.aliceName())
 
 	// Now verify the deletion by trying to get the user
@@ -940,19 +874,18 @@ func (ts *UserTestSuite) TestDelete() {
 	request = httptest.NewRequest("GET", ts.alice(), nil)
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err = ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusNotFound, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusNotFound, response)
+	body = ts.getBody(response)
+	require.Equal("CloudChamber: user \"alice\" not found\n", string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestDeleteNoUser() {
-	assert := ts.Assert()
-	log := ts.T().Log
+	require := ts.Require()
 
 	path := ts.alice() + "Bogus"
 
@@ -962,19 +895,18 @@ func (ts *UserTestSuite) TestDeleteNoUser() {
 	request.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusNotFound, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err, "Unable to retrieve response body, err = %v", err)
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusNotFound, response)
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: user \"alicebogus\" not found\n", string(body))
 
 	ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestDeleteNoPrivilege() {
-	assert := ts.Assert()
-	log := ts.T().Log
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 	_, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
@@ -986,29 +918,32 @@ func (ts *UserTestSuite) TestDeleteNoPrivilege() {
 	request := httptest.NewRequest("DELETE", ts.alice(), nil)
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err)
-	log(string(body))
-
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	body := ts.getBody(response)
+	require.Equal("CloudChamber: permission denied\n", string(body))
 
 	ts.doLogout(ts.bobName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestDeleteProtected() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
 
 	request := httptest.NewRequest("DELETE", ts.admin(), nil)
 
 	response = ts.doHTTP(request, response.Cookies())
-	body, err := ts.getBody(response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
-	assert.NoError(err)
-	assert.Equal("CloudChamber: user \"admin\" is protected and cannot be deleted\n", string(body))
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	body := ts.getBody(response)
+	require.Equal(
+		"CloudChamber: user \"admin\" is protected and cannot be deleted\n",
+		string(body))
 
 	ts.doLogout(ts.adminAccountName(), response.Cookies())
 }
@@ -1018,7 +953,7 @@ func (ts *UserTestSuite) TestDeleteProtected() {
 // +++ SetPassword user tests
 
 func (ts *UserTestSuite) TestSetPassword() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	aliceNewPassword := ts.alicePassword() + "xxx"
 
@@ -1038,7 +973,7 @@ func (ts *UserTestSuite) TestSetPassword() {
 
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	response, match := ts.setPassword(ts.aliceName(), aliceUpd, rev, cookies)
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -1048,7 +983,7 @@ func (ts *UserTestSuite) TestSetPassword() {
 	//
 	// So a "rev + 1" style test is not appropriate.
 	//
-	assert.Less(rev, match)
+	require.Less(rev, match)
 
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
@@ -1057,13 +992,13 @@ func (ts *UserTestSuite) TestSetPassword() {
 
 	// Now set the password back
 	response, _ = ts.setPassword(ts.aliceName(), aliceRevert, match, response.Cookies())
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestSetPasswordForce() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	aliceNewPassword := ts.alicePassword() + "xxx"
 
@@ -1083,7 +1018,7 @@ func (ts *UserTestSuite) TestSetPasswordForce() {
 
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 	response, match := ts.setPassword(ts.aliceName(), aliceUpd, rev, cookies)
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	// Note: since ensureAccount() will attempt to re-use an existing account, all we know is
 	// that by the time it returns there will be an account, and the returned revision is the
@@ -1093,7 +1028,7 @@ func (ts *UserTestSuite) TestSetPasswordForce() {
 	//
 	// So a "rev + 1" style test is not appropriate.
 	//
-	assert.Less(rev, match)
+	require.Less(rev, match)
 
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
@@ -1102,13 +1037,13 @@ func (ts *UserTestSuite) TestSetPasswordForce() {
 
 	// Now set the password back
 	response, _ = ts.setPassword(ts.aliceName(), aliceRevert, match, response.Cookies())
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	ts.doLogout(ts.aliceName(), response.Cookies())
 }
 
 func (ts *UserTestSuite) TestSetPasswordBadPassword() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	aliceNewPassword := ts.alicePassword() + "xxx"
 
@@ -1123,7 +1058,7 @@ func (ts *UserTestSuite) TestSetPasswordBadPassword() {
 	rev, cookies := ts.ensureAccount(ts.aliceName(), ts.aliceDef, response.Cookies())
 
 	r, err := ts.toJSONReader(aliceUpd)
-	assert.NoError(err, "Failed to format UserPassword, err = %v", err)
+	require.NoError(err, "Failed to format UserPassword, err = %v", err)
 
 	path := ts.alice() + "?password"
 
@@ -1133,7 +1068,7 @@ func (ts *UserTestSuite) TestSetPasswordBadPassword() {
 
 	response = ts.doHTTP(request, cookies)
 
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 
 	response = ts.doLogout(ts.randomCase(ts.adminAccountName()), response.Cookies())
 
@@ -1144,7 +1079,7 @@ func (ts *UserTestSuite) TestSetPasswordBadPassword() {
 }
 
 func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
-	assert := ts.Assert()
+	require := ts.Require()
 
 	adminNewPassword := ts.adminPassword() + "xxx"
 
@@ -1161,7 +1096,7 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 	response = ts.doLogin(ts.aliceName(), ts.alicePassword(), response.Cookies())
 
 	r, err := ts.toJSONReader(adminUpd)
-	assert.NoError(err, "Failed to format UserPassword, err = %v", err)
+	require.NoError(err, "Failed to format UserPassword, err = %v", err)
 
 	path := ts.admin() + "?password"
 
@@ -1170,8 +1105,9 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 	request.Header.Set("If-Match", formatAsEtag(-1))
 
 	response = ts.doHTTP(request, response.Cookies())
-
-	assert.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+	require.HTTPRContentTypeEqual("text/plain; charset=utf-8", response)
 
 	response = ts.doLogout(ts.aliceName(), response.Cookies())
 
@@ -1184,7 +1120,6 @@ func (ts *UserTestSuite) TestSetPasswordNoPrivilege() {
 // --- SetPassword user tests
 
 func (ts *UserTestSuite) TestSetRights() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	response := ts.doLogin(ts.randomCase(ts.adminAccountName()), ts.adminPassword(), nil)
@@ -1212,7 +1147,7 @@ func (ts *UserTestSuite) TestSetRights() {
 	response, match := ts.userUpdate(ts.alice(), upd, rev, response.Cookies())
 
 	user := &pb.UserPublic{}
-	assert.NoError(ts.getJSONBody(response, user))
+	require.NoError(ts.getJSONBody(response, user))
 
 	require.Less(rev, match)
 	require.Equal(newRights, user.Rights)
@@ -1233,7 +1168,7 @@ func (ts *UserTestSuite) TestSetRights() {
 	response, match = ts.userUpdate(ts.alice(), upd, rev, response.Cookies())
 
 	user = &pb.UserPublic{}
-	assert.NoError(ts.getJSONBody(response, user))
+	require.NoError(ts.getJSONBody(response, user))
 
 	require.Less(rev, match)
 	require.Equal(newRights, user.Rights)

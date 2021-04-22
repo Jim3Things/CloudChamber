@@ -130,7 +130,6 @@ func (ts *DBInventoryTestSuite) cleanRack(regionName string, zoneName string, ra
 }
 
 func (ts *DBInventoryTestSuite) TestCreateRegion() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -148,18 +147,17 @@ func (ts *DBInventoryTestSuite) TestCreateRegion() {
 
 	revCreate, err := ts.db.CreateRegion(ctx, ts.regionName, region)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	r, revRead, err := ts.db.ReadRegion(ctx, ts.regionName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead)
+	require.NoError(err)
+	require.Equal(revCreate, revRead)
 	require.NotNil(r)
 
-	assert.Equal(region.Details, r.Details)
+	require.Equal(region.Details, r.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestCreateZone() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -178,18 +176,17 @@ func (ts *DBInventoryTestSuite) TestCreateZone() {
 
 	revCreate, err := ts.db.CreateZone(ctx, ts.regionName, ts.zoneName, zone)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	z, revRead, err := ts.db.ReadZone(ctx, ts.regionName, ts.zoneName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead)
+	require.NoError(err)
+	require.Equal(revCreate, revRead)
 	require.NotNil(z)
 
-	assert.Equal(zone.Details, z.Details)
+	require.Equal(zone.Details, z.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestCreateRack() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -210,18 +207,17 @@ func (ts *DBInventoryTestSuite) TestCreateRack() {
 	require.NoError(err)
 
 	r, revRead, err := ts.db.ReadRack(ctx, ts.regionName, ts.zoneName, ts.rackName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead)
+	require.NoError(err)
+	require.Equal(revCreate, revRead)
 	require.NotNil(r)
 
-	assert.Equal(rack.Details.Enabled, r.Details.Enabled)
-	assert.Equal(rack.Details.Condition, r.Details.Condition)
-	assert.Equal(rack.Details.Location, r.Details.Location)
-	assert.Equal(rack.Details.Notes, r.Details.Notes)
+	require.Equal(rack.Details.Enabled, r.Details.Enabled)
+	require.Equal(rack.Details.Condition, r.Details.Condition)
+	require.Equal(rack.Details.Location, r.Details.Location)
+	require.Equal(rack.Details.Notes, r.Details.Notes)
 }
 
 func (ts *DBInventoryTestSuite) TestCreatePdu() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -308,33 +304,32 @@ func (ts *DBInventoryTestSuite) TestCreatePdu() {
 	require.NoError(err)
 
 	t, revRead, err := ts.db.ReadPdu(ctx, ts.regionName, ts.zoneName, ts.rackName, pduID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead)
+	require.NoError(err)
+	require.Equal(revCreate, revRead)
 	require.NotNil(t)
 
-	assert.Equal(pdu.Details.Enabled, t.Details.Enabled)
-	assert.Equal(pdu.Details.Condition, t.Details.Condition)
-	assert.Equal(len(pdu.Ports), len(t.Ports))
+	require.Equal(pdu.Details.Enabled, t.Details.Enabled)
+	require.Equal(pdu.Details.Condition, t.Details.Condition)
+	require.Equal(len(pdu.Ports), len(t.Ports))
 
 	for i, p := range pdu.Ports {
 		tp, ok := t.Ports[i]
-		assert.True(ok)
-		assert.Equal(p.Wired, tp.Wired)
+		require.True(ok)
+		require.Equal(p.Wired, tp.Wired)
 
 		if p.Item == nil {
-			assert.Nil(tp.Item)
+			require.Nil(tp.Item)
 		} else {
 			require.NotNil(tp.Item)
 
-			assert.Equal(p.Item.Type, tp.Item.Type)
-			assert.Equal(p.Item.Id, tp.Item.Id)
-			assert.Equal(p.Item.Port, tp.Item.Port)
+			require.Equal(p.Item.Type, tp.Item.Type)
+			require.Equal(p.Item.Id, tp.Item.Id)
+			require.Equal(p.Item.Port, tp.Item.Port)
 		}
 	}
 }
 
 func (ts *DBInventoryTestSuite) TestCreateTor() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -421,33 +416,32 @@ func (ts *DBInventoryTestSuite) TestCreateTor() {
 	require.NoError(err)
 
 	t, revRead, err := ts.db.ReadTor(ctx, ts.regionName, ts.zoneName, ts.rackName, torID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead)
+	require.NoError(err)
+	require.Equal(revCreate, revRead)
 	require.NotNil(t)
 
-	assert.Equal(tor.Details.Enabled, t.Details.Enabled)
-	assert.Equal(tor.Details.Condition, t.Details.Condition)
-	assert.Equal(len(tor.Ports), len(t.Ports))
+	require.Equal(tor.Details.Enabled, t.Details.Enabled)
+	require.Equal(tor.Details.Condition, t.Details.Condition)
+	require.Equal(len(tor.Ports), len(t.Ports))
 
 	for i, p := range tor.Ports {
 		tp, ok := t.Ports[i]
-		assert.True(ok)
-		assert.Equal(p.Wired, tp.Wired)
+		require.True(ok)
+		require.Equal(p.Wired, tp.Wired)
 
 		if p.Item == nil {
-			assert.Nil(tp.Item)
+			require.Nil(tp.Item)
 		} else {
 			require.NotNil(tp.Item)
 
-			assert.Equal(p.Item.Type, tp.Item.Type)
-			assert.Equal(p.Item.Id, tp.Item.Id)
-			assert.Equal(p.Item.Port, tp.Item.Port)
+			require.Equal(p.Item.Type, tp.Item.Type)
+			require.Equal(p.Item.Id, tp.Item.Id)
+			require.Equal(p.Item.Port, tp.Item.Port)
 		}
 	}
 }
 
 func (ts *DBInventoryTestSuite) TestCreateBlade() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -483,26 +477,26 @@ func (ts *DBInventoryTestSuite) TestCreateBlade() {
 	require.NoError(err)
 
 	b, revRead, err := ts.db.ReadBlade(ctx, ts.regionName, ts.zoneName, ts.rackName, bladeID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead)
+	require.NoError(err)
+	require.Equal(revCreate, revRead)
 	require.NotNil(b)
 
-	assert.Equal(blade.Details.Enabled, b.Details.Enabled)
-	assert.Equal(blade.Details.Condition, b.Details.Condition)
+	require.Equal(blade.Details.Enabled, b.Details.Enabled)
+	require.Equal(blade.Details.Condition, b.Details.Condition)
 
-	assert.Equal(blade.Capacity.Cores, b.Capacity.Cores)
-	assert.Equal(blade.Capacity.MemoryInMb, b.Capacity.MemoryInMb)
-	assert.Equal(blade.Capacity.DiskInGb, b.Capacity.DiskInGb)
-	assert.Equal(blade.Capacity.NetworkBandwidthInMbps, b.Capacity.NetworkBandwidthInMbps)
-	assert.Equal(blade.Capacity.Arch, b.Capacity.Arch)
-	assert.Equal(blade.Capacity.Accelerators, b.Capacity.Accelerators)
+	require.Equal(blade.Capacity.Cores, b.Capacity.Cores)
+	require.Equal(blade.Capacity.MemoryInMb, b.Capacity.MemoryInMb)
+	require.Equal(blade.Capacity.DiskInGb, b.Capacity.DiskInGb)
+	require.Equal(blade.Capacity.NetworkBandwidthInMbps, b.Capacity.NetworkBandwidthInMbps)
+	require.Equal(blade.Capacity.Arch, b.Capacity.Arch)
+	require.Equal(blade.Capacity.Accelerators, b.Capacity.Accelerators)
 
-	assert.Equal(blade.BootOnPowerOn, b.BootOnPowerOn)
+	require.Equal(blade.BootOnPowerOn, b.BootOnPowerOn)
 
-	assert.Equal(blade.BootInfo.Source, b.BootInfo.Source)
-	assert.Equal(blade.BootInfo.Image, b.BootInfo.Image)
-	assert.Equal(blade.BootInfo.Version, b.BootInfo.Version)
-	assert.Equal(blade.BootInfo.Parameters, b.BootInfo.Parameters)
+	require.Equal(blade.BootInfo.Source, b.BootInfo.Source)
+	require.Equal(blade.BootInfo.Image, b.BootInfo.Image)
+	require.Equal(blade.BootInfo.Version, b.BootInfo.Version)
+	require.Equal(blade.BootInfo.Parameters, b.BootInfo.Parameters)
 }
 
 func TestDBInventoryTestSuite(t *testing.T) {
@@ -510,7 +504,6 @@ func TestDBInventoryTestSuite(t *testing.T) {
 }
 
 func (ts *DBInventoryTestSuite) TestScanRegions() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	expected := []string{
@@ -531,11 +524,10 @@ func (ts *DBInventoryTestSuite) TestScanRegions() {
 	})
 
 	require.NoError(err)
-	assert.ElementsMatch(expected, actual)
+	require.ElementsMatch(expected, actual)
 }
 
 func (ts *DBInventoryTestSuite) TestGetRegion() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	expected := &pb.RegionDetails{
@@ -553,13 +545,12 @@ func (ts *DBInventoryTestSuite) TestGetRegion() {
 	require.NoError(err)
 	require.NotNil(region)
 
-	assert.Equal(expected.State, region.Details.State)
-	assert.Equal(expected.Location, region.Details.Location)
-	assert.Equal(expected.Notes, region.Details.Notes)
+	require.Equal(expected.State, region.Details.State)
+	require.Equal(expected.Location, region.Details.Location)
+	require.Equal(expected.Notes, region.Details.Notes)
 }
 
 func (ts *DBInventoryTestSuite) TestScanZonesInRegion() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	expected := []string{
@@ -580,11 +571,10 @@ func (ts *DBInventoryTestSuite) TestScanZonesInRegion() {
 	})
 
 	require.NoError(err)
-	assert.ElementsMatch(expected, actual)
+	require.ElementsMatch(expected, actual)
 }
 
 func (ts *DBInventoryTestSuite) TestGetZone() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	expected := &pb.ZoneDetails{
@@ -605,14 +595,13 @@ func (ts *DBInventoryTestSuite) TestGetZone() {
 
 	actual := zone.GetDetails()
 
-	assert.Equal(expected.Enabled, actual.Enabled)
-	assert.Equal(expected.State, actual.State)
-	assert.Equal(expected.Location, actual.Location)
-	assert.Equal(expected.Notes, actual.Notes)
+	require.Equal(expected.Enabled, actual.Enabled)
+	require.Equal(expected.State, actual.State)
+	require.Equal(expected.Location, actual.Location)
+	require.Equal(expected.Notes, actual.Notes)
 }
 
 func (ts *DBInventoryTestSuite) TestScanRacksInZone() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	expected := []string{
@@ -636,11 +625,10 @@ func (ts *DBInventoryTestSuite) TestScanRacksInZone() {
 	})
 
 	require.NoError(err)
-	assert.ElementsMatch(expected, actual)
+	require.ElementsMatch(expected, actual)
 }
 
 func (ts *DBInventoryTestSuite) TestScanBladesInRack() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	expected := []int64{
@@ -668,11 +656,10 @@ func (ts *DBInventoryTestSuite) TestScanBladesInRack() {
 	})
 
 	require.NoError(err)
-	assert.ElementsMatch(expected, actual)
+	require.ElementsMatch(expected, actual)
 }
 
 func (ts *DBInventoryTestSuite) TestGetRackInZone() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	expectedDetails := &pb.RackDetails{
@@ -788,11 +775,10 @@ func (ts *DBInventoryTestSuite) TestGetRackInZone() {
 	require.NotNil(rack.Tors)
 	require.NotNil(rack.Blades)
 
-	assert.Equal(expectedRack, rack)
+	require.Equal(expectedRack, rack)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateRegion() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -818,29 +804,28 @@ func (ts *DBInventoryTestSuite) TestUpdateRegion() {
 
 	revCreate, err := ts.db.CreateRegion(ctx, ts.regionName, region1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	r1, revRead1, err := ts.db.ReadRegion(ctx, ts.regionName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
 	require.Equal(region1.Details, r1.Details)
 
 	revUpdate, err := ts.db.UpdateRegion(ctx, ts.regionName, region2)
 	require.NoError(err)
-	assert.Less(revCreate, revUpdate)
+	require.Less(revCreate, revUpdate)
 
 	r2, revRead2, err := ts.db.ReadRegion(ctx, ts.regionName)
-	assert.NoError(err)
-	assert.Equal(revUpdate, revRead2)
+	require.NoError(err)
+	require.Equal(revUpdate, revRead2)
 	require.NotNil(r1)
 
-	assert.Equal(region2.Details, r2.Details)
+	require.Equal(region2.Details, r2.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateZone() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -868,29 +853,28 @@ func (ts *DBInventoryTestSuite) TestUpdateZone() {
 
 	revCreate, err := ts.db.CreateZone(ctx, ts.regionName, ts.zoneName, zone1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	z1, revRead1, err := ts.db.ReadZone(ctx, ts.regionName, ts.zoneName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(z1)
 
 	require.Equal(zone1.Details, z1.Details)
 
 	revUpdate, err := ts.db.UpdateZone(ctx, ts.regionName, ts.zoneName, zone2)
 	require.NoError(err)
-	assert.Less(revCreate, revUpdate)
+	require.Less(revCreate, revUpdate)
 
 	z2, revRead2, err := ts.db.ReadZone(ctx, ts.regionName, ts.zoneName)
-	assert.NoError(err)
-	assert.Equal(revUpdate, revRead2)
+	require.NoError(err)
+	require.Equal(revUpdate, revRead2)
 	require.NotNil(z1)
 
-	assert.Equal(zone2.Details, z2.Details)
+	require.Equal(zone2.Details, z2.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateRack() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -920,29 +904,28 @@ func (ts *DBInventoryTestSuite) TestUpdateRack() {
 
 	revCreate, err := ts.db.CreateRack(ctx, ts.regionName, ts.zoneName, rackName, rack1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	r1, revRead1, err := ts.db.ReadRack(ctx, ts.regionName, ts.zoneName, rackName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
 	require.Equal(rack1.Details, r1.Details)
 
 	revUpdate, err := ts.db.UpdateRack(ctx, ts.regionName, ts.zoneName, rackName, rack2)
 	require.NoError(err)
-	assert.Less(revCreate, revUpdate)
+	require.Less(revCreate, revUpdate)
 
 	r2, revRead2, err := ts.db.ReadRack(ctx, ts.regionName, ts.zoneName, rackName)
-	assert.NoError(err)
-	assert.Equal(revUpdate, revRead2)
+	require.NoError(err)
+	require.Equal(revUpdate, revRead2)
 	require.NotNil(r1)
 
-	assert.Equal(rack2.Details, r2.Details)
+	require.Equal(rack2.Details, r2.Details)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdatePdu() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -968,29 +951,28 @@ func (ts *DBInventoryTestSuite) TestUpdatePdu() {
 
 	revCreate, err := ts.db.CreatePdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID, pdu1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	p1, revRead1, err := ts.db.ReadPdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(p1)
 
 	require.Equal(pdu1, p1)
 
 	revUpdate, err := ts.db.UpdatePdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID, pdu2)
 	require.NoError(err)
-	assert.Less(revCreate, revUpdate)
+	require.Less(revCreate, revUpdate)
 
 	p2, revRead2, err := ts.db.ReadPdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID)
-	assert.NoError(err)
-	assert.Equal(revUpdate, revRead2)
+	require.NoError(err)
+	require.Equal(revUpdate, revRead2)
 	require.NotNil(p1)
 
-	assert.Equal(pdu2, p2)
+	require.Equal(pdu2, p2)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateTor() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1016,29 +998,28 @@ func (ts *DBInventoryTestSuite) TestUpdateTor() {
 
 	revCreate, err := ts.db.CreateTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID, tor1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	t1, revRead1, err := ts.db.ReadTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(t1)
 
 	require.Equal(tor1, t1)
 
 	revUpdate, err := ts.db.UpdateTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID, tor2)
 	require.NoError(err)
-	assert.Less(revCreate, revUpdate)
+	require.Less(revCreate, revUpdate)
 
 	t2, revRead2, err := ts.db.ReadTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID)
-	assert.NoError(err)
-	assert.Equal(revUpdate, revRead2)
+	require.NoError(err)
+	require.Equal(revUpdate, revRead2)
 	require.NotNil(t1)
 
-	assert.Equal(tor2, t2)
+	require.Equal(tor2, t2)
 }
 
 func (ts *DBInventoryTestSuite) TestUpdateBlade() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1064,29 +1045,28 @@ func (ts *DBInventoryTestSuite) TestUpdateBlade() {
 
 	revCreate, err := ts.db.CreateBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID, blade1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	b1, revRead1, err := ts.db.ReadBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(b1)
 
 	require.Equal(blade1, b1)
 
 	revUpdate, err := ts.db.UpdateBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID, blade2)
 	require.NoError(err)
-	assert.Less(revCreate, revUpdate)
+	require.Less(revCreate, revUpdate)
 
 	b2, revRead2, err := ts.db.ReadBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID)
-	assert.NoError(err)
-	assert.Equal(revUpdate, revRead2)
+	require.NoError(err)
+	require.Equal(revUpdate, revRead2)
 	require.NotNil(b1)
 
-	assert.Equal(blade2, b2)
+	require.Equal(blade2, b2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeleteRegion() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1106,27 +1086,26 @@ func (ts *DBInventoryTestSuite) TestDeleteRegion() {
 
 	revCreate, err := ts.db.CreateRegion(ctx, regionName, region1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	r1, revRead1, err := ts.db.ReadRegion(ctx, regionName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
-	assert.Equal(region1.Details, r1.Details)
+	require.Equal(region1.Details, r1.Details)
 
 	revDelete, err := ts.db.DeleteRegion(ctx, regionName)
 	require.NoError(err)
-	assert.Less(revCreate, revDelete)
+	require.Less(revCreate, revDelete)
 
 	r2, revRead2, err := ts.db.ReadRegion(ctx, regionName)
 	require.Equal(err, errors.ErrRegionNotFound{Region: regionName})
-	assert.Equal(int64(InvalidRev), revRead2)
-	assert.Nil(r2)
+	require.Equal(int64(InvalidRev), revRead2)
+	require.Nil(r2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeleteZone() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1147,27 +1126,26 @@ func (ts *DBInventoryTestSuite) TestDeleteZone() {
 
 	revCreate, err := ts.db.CreateZone(ctx, ts.regionName, zoneName, zone1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	z1, revRead1, err := ts.db.ReadZone(ctx, ts.regionName, zoneName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(z1)
 
-	assert.Equal(zone1.Details, z1.Details)
+	require.Equal(zone1.Details, z1.Details)
 
 	revDelete, err := ts.db.DeleteZone(ctx, ts.regionName, zoneName)
 	require.NoError(err)
-	assert.Less(revCreate, revDelete)
+	require.Less(revCreate, revDelete)
 
 	z2, revRead2, err := ts.db.ReadZone(ctx, ts.regionName, zoneName)
 	require.Equal(err, errors.ErrZoneNotFound{Region: ts.regionName, Zone: zoneName})
-	assert.Equal(int64(InvalidRev), revRead2)
-	assert.Nil(z2)
+	require.Equal(int64(InvalidRev), revRead2)
+	require.Nil(z2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeleteRack() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1188,27 +1166,26 @@ func (ts *DBInventoryTestSuite) TestDeleteRack() {
 
 	revCreate, err := ts.db.CreateRack(ctx, ts.regionName, ts.zoneName, rackName, rack)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	r1, revRead1, err := ts.db.ReadRack(ctx, ts.regionName, ts.zoneName, rackName)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(r1)
 
-	assert.Equal(rack.Details, r1.Details)
+	require.Equal(rack.Details, r1.Details)
 
 	revDelete, err := ts.db.DeleteRack(ctx, ts.regionName, ts.zoneName, rackName)
 	require.NoError(err)
-	assert.Less(revCreate, revDelete)
+	require.Less(revCreate, revDelete)
 
 	r2, revRead2, err := ts.db.ReadRack(ctx, ts.regionName, ts.zoneName, rackName)
 	require.Equal(err, errors.ErrRackNotFound{Region: ts.regionName, Zone: ts.zoneName, Rack: rackName})
-	assert.Equal(int64(InvalidRev), revRead2)
-	assert.Nil(r2)
+	require.Equal(int64(InvalidRev), revRead2)
+	require.Nil(r2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeletePdu() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1227,27 +1204,26 @@ func (ts *DBInventoryTestSuite) TestDeletePdu() {
 
 	revCreate, err := ts.db.CreatePdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID, pdu)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	p1, revRead1, err := ts.db.ReadPdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(p1)
 
-	assert.Equal(pdu.Details, p1.Details)
+	require.Equal(pdu.Details, p1.Details)
 
 	revDelete, err := ts.db.DeletePdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID)
 	require.NoError(err)
-	assert.Less(revCreate, revDelete)
+	require.Less(revCreate, revDelete)
 
 	p2, revRead2, err := ts.db.ReadPdu(ctx, ts.regionName, ts.zoneName, rackName, ts.pduID)
 	require.Equal(err, errors.ErrPduNotFound{Region: ts.regionName, Zone: ts.zoneName, Rack: rackName, Pdu: ts.pduID})
-	assert.Equal(int64(InvalidRev), revRead2)
-	assert.Nil(p2)
+	require.Equal(int64(InvalidRev), revRead2)
+	require.Nil(p2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeleteTor() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1266,27 +1242,26 @@ func (ts *DBInventoryTestSuite) TestDeleteTor() {
 
 	revCreate, err := ts.db.CreateTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID, tor)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	t1, revRead1, err := ts.db.ReadTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(t1)
 
-	assert.Equal(tor.Details, t1.Details)
+	require.Equal(tor.Details, t1.Details)
 
 	revDelete, err := ts.db.DeleteTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID)
 	require.NoError(err)
-	assert.Less(revCreate, revDelete)
+	require.Less(revCreate, revDelete)
 
 	t2, revRead2, err := ts.db.ReadTor(ctx, ts.regionName, ts.zoneName, rackName, ts.torID)
 	require.Equal(err, errors.ErrTorNotFound{Region: ts.regionName, Zone: ts.zoneName, Rack: rackName, Tor: ts.torID})
-	assert.Equal(int64(InvalidRev), revRead2)
-	assert.Nil(t2)
+	require.Equal(int64(InvalidRev), revRead2)
+	require.Nil(t2)
 }
 
 func (ts *DBInventoryTestSuite) TestDeleteBlade() {
-	assert := ts.Assert()
 	require := ts.Require()
 
 	ctx, span := tracing.StartSpan(
@@ -1305,21 +1280,21 @@ func (ts *DBInventoryTestSuite) TestDeleteBlade() {
 
 	revCreate, err := ts.db.CreateBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID, blade1)
 	require.NoError(err)
-	assert.Less(int64(0), revCreate)
+	require.Less(int64(0), revCreate)
 
 	b1, revRead1, err := ts.db.ReadBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID)
-	assert.NoError(err)
-	assert.Equal(revCreate, revRead1)
+	require.NoError(err)
+	require.Equal(revCreate, revRead1)
 	require.NotNil(b1)
 
-	assert.Equal(blade1, b1)
+	require.Equal(blade1, b1)
 
 	revDelete, err := ts.db.DeleteBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID)
 	require.NoError(err)
-	assert.Less(revCreate, revDelete)
+	require.Less(revCreate, revDelete)
 
 	b2, revRead2, err := ts.db.ReadBlade(ctx, ts.regionName, ts.zoneName, rackName, ts.bladeID)
 	require.Equal(err, errors.ErrBladeNotFound{Region: ts.regionName, Zone: ts.zoneName, Rack: rackName, Blade: ts.bladeID})
-	assert.Equal(int64(InvalidRev), revRead2)
-	assert.Nil(b2)
+	require.Equal(int64(InvalidRev), revRead2)
+	require.Nil(b2)
 }

@@ -189,8 +189,9 @@ func (ts *WatchTestSuite) TestBadValue() {
 
 	response := ts.doHTTP(request, ts.cookies)
 	require.HTTPRStatusEqual(http.StatusBadRequest, response)
-	body, err := ts.getBody(response)
-	require.NoError(err)
+
+	body := ts.getBody(response)
+
 	require.Equal(
 		"CloudChamber: the \"epoch\" field's value \"foo\" could not be parsed as a decimal number\n",
 		string(body))

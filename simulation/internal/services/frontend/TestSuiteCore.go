@@ -12,6 +12,10 @@ import (
 	"net/http/httptest"
 	"strings"
 
+	"github.com/golang/protobuf/jsonpb"
+	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes/duration"
+
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
@@ -19,9 +23,6 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 	"github.com/Jim3Things/CloudChamber/simulation/test"
 	"github.com/Jim3Things/CloudChamber/simulation/test/setup"
-	"github.com/golang/protobuf/jsonpb"
-	"github.com/golang/protobuf/proto"
-	"github.com/golang/protobuf/ptypes/duration"
 )
 
 // The constants and global variables here are limited to items that needed by
@@ -137,9 +138,15 @@ func (ts *testSuiteCore) doHTTP(req *http.Request, cookies []*http.Cookie) *http
 }
 
 // Get the body of a response, and close it
-func (ts *testSuiteCore) getBody(resp *http.Response) ([]byte, error) {
+func (ts *testSuiteCore) getBody(resp *http.Response) []byte {
+	require := ts.Require()
+
 	defer func() { _ = resp.Body.Close() }()
-	return ioutil.ReadAll(resp.Body)
+
+	data, err := ioutil.ReadAll(resp.Body)
+	require.NoError(err)
+
+	return data
 }
 
 // Get the body of a response, unmarshalled into the supplied message structure
@@ -187,11 +194,9 @@ func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.C
 	response := ts.doHTTP(request, cookies)
 
 	require.HTTPRSuccess(response)
-	require.HTTPRHasCookie(sessionCookieName, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
 
-	_, err := ts.getBody(response)
-
-	require.NoError(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
+	_ = ts.getBody(response)
 
 	return response
 }
@@ -208,11 +213,9 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 	response := ts.doHTTP(request, cookies)
 
 	require.HTTPRSuccess(response)
-	require.HTTPRHasCookie(sessionCookieName, response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
 
-	_, err := ts.getBody(response)
-
-	require.NoError(err, "Failed to read body returned from call to handler for route %v: %v", user, err)
+	_ = ts.getBody(response)
 
 	return response
 }
@@ -233,13 +236,14 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 		initServiceDone = true
 
 		// Load the standard inventory into the store which all tests will use
-		require.NoError(
-			dbInventory.inventory.UpdateInventoryDefinition(
+		err := dbInventory.inventory.UpdateInventoryDefinition(
 				ctx,
-				ts.cfg.Inventory.InventoryDefinition))
+				ts.cfg.Inventory.InventoryDefinition)
+		require.NoError(err)
 
 		// Need to reload the actual inventory after loading the store.
-		require.NoError(dbInventory.LoadInventoryActual(ctx, true))
+		err = dbInventory.LoadInventoryActual(ctx, true)
+		require.NoError(err)
 	}
 }
 
@@ -254,7 +258,7 @@ func (ts *testSuiteCore) ensureAccount(
 	user string,
 	u *admin.UserDefinition,
 	cookies []*http.Cookie) (int64, []*http.Cookie) {
-	assert := ts.Assert()
+	require := ts.Require()
 	logf := ts.T().Logf
 
 	path := ts.userPath() + user
@@ -271,7 +275,7 @@ func (ts *testSuiteCore) ensureAccount(
 		var rev int64
 		tagString := response.Header.Get("ETag")
 		rev, err := parseETag(tagString)
-		assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
+		require.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 		return rev, response.Cookies()
 	}
@@ -284,7 +288,7 @@ func (ts *testSuiteCore) ensureAccount(
 
 	p := jsonpb.Marshaler{}
 	err := p.Marshal(w, u)
-	assert.NoError(err)
+	require.NoError(err)
 	_ = w.Flush()
 	r := bufio.NewReader(&buf)
 
@@ -292,13 +296,13 @@ func (ts *testSuiteCore) ensureAccount(
 	req.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(req, response.Cookies())
-	assert.HTTPRSuccess(response)
+	require.HTTPRSuccess(response)
 
 	ts.knownNames[path] = path
 
 	tagString := response.Header.Get("ETag")
 	tag, err := parseETag(tagString)
-	assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
+	require.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 	return tag, response.Cookies()
 }
