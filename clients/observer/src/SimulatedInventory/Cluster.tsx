@@ -43,33 +43,33 @@ const useStyles = makeStyles(() => ({
     }
 }));
 
-export const Cluster: FunctionComponent<{
+export function Cluster(props: {
             cluster: ClusterDetails,
             palette: Colors
-        }> = ({cluster, palette}) => {
+        }) {
     const classes = useStyles();
 
     return (
         <table>
             <tbody>
                 <tr className={classes.th}>
-                    <td className={classes.tdClusterName} colSpan={Math.max(cluster.racks.size, 1)}>{cluster.name}</td>
+                    <td className={classes.tdClusterName} colSpan={Math.max(props.cluster.racks.size, 1)}>{props.cluster.name}</td>
                 </tr>
                 <tr className={classes.tr}>
-                    {Array.from(cluster.racks.keys()).map((name) =>
+                    {Array.from(props.cluster.racks.keys()).map((name) =>
                         (
-                            <td className={classes.rackName}>{name}</td>
+                            <td className={classes.rackName}>{props.name}</td>
                         ))}
                 </tr>
                 <tr className={classes.tr}>
-                    {Array.from(cluster.racks.values()).map((rack) =>
+                    {Array.from(props.cluster.racks.values()).map((rack) =>
                         (
                             <td className={classes.td}>
                                 <Rack
-                                    bladeLimit={cluster.maxBladeCount}
-                                    capacityLimit={cluster.maxCapacity}
+                                    bladeLimit={props.cluster.maxBladeCount}
+                                    capacityLimit={props.cluster.maxCapacity}
                                     rack={rack}
-                                    palette={palette}
+                                    palette={props.palette}
                                 />
                             </td>
                         ))}
