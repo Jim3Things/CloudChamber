@@ -15,13 +15,13 @@ import (
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/duration"
-	"github.com/stretchr/testify/suite"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/protos/admin"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
+	"github.com/Jim3Things/CloudChamber/simulation/test"
 	"github.com/Jim3Things/CloudChamber/simulation/test/setup"
 )
 
@@ -35,7 +35,7 @@ var (
 )
 
 type testSuiteCore struct {
-	suite.Suite
+	test.Suite
 
 	baseURI string
 
@@ -55,7 +55,8 @@ func (ts *testSuiteCore) userPath() string         { return ts.baseURI + "/api/u
 func (ts *testSuiteCore) admin() string            { return ts.userPath() + ts.adminAccountName() }
 func (ts *testSuiteCore) aliceName() string        { return "Alice" }
 func (ts *testSuiteCore) alice() string            { return ts.userPath() + ts.aliceName() }
-func (ts *testSuiteCore) bob() string              { return ts.userPath() + "Bob" }
+func (ts *testSuiteCore) bobName() string          { return "Bob" }
+func (ts *testSuiteCore) bob() string              { return ts.userPath() + ts.bobName() }
 func (ts *testSuiteCore) alicePassword() string    { return "test" }
 func (ts *testSuiteCore) bobPassword() string      { return "test2" }
 
@@ -137,14 +138,25 @@ func (ts *testSuiteCore) doHTTP(req *http.Request, cookies []*http.Cookie) *http
 }
 
 // Get the body of a response, and close it
-func (ts *testSuiteCore) getBody(resp *http.Response) ([]byte, error) {
+func (ts *testSuiteCore) getBody(resp *http.Response) []byte {
+	require := ts.Require()
+
 	defer func() { _ = resp.Body.Close() }()
-	return ioutil.ReadAll(resp.Body)
+
+	data, err := ioutil.ReadAll(resp.Body)
+	require.NoError(err)
+
+	return data
 }
 
 // Get the body of a response, unmarshalled into the supplied message structure
 func (ts *testSuiteCore) getJSONBody(resp *http.Response, v proto.Message) error {
+	require := ts.Require()
+
 	defer func() { _ = resp.Body.Close() }()
+
+	require.HTTPRContentTypeJson(resp)
+
 	return jsonpb.Unmarshal(resp.Body, v)
 }
 
@@ -180,18 +192,18 @@ func (ts *testSuiteCore) doLogin(user string, password string, cookies []*http.C
 
 	request := httptest.NewRequest("PUT", path, strings.NewReader(password))
 	response := ts.doHTTP(request, cookies)
-	_, err := ts.getBody(response)
 
-	require.NoError(err, "Failed to read body returned from call to handler for route %q: %v", path, err)
-	require.Equal(1, len(response.Cookies()), "Unexpected number of cookies found")
-	require.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	require.HTTPRSuccess(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+
+	_ = ts.getBody(response)
 
 	return response
 }
 
 // Log the specified user out of CloudChamber
 func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Response {
-	assert := ts.Assert()
+	require := ts.Require()
 	logf := ts.T().Logf
 
 	path := fmt.Sprintf("%s%s?op=logout", ts.userPath(), user)
@@ -199,10 +211,11 @@ func (ts *testSuiteCore) doLogout(user string, cookies []*http.Cookie) *http.Res
 
 	request := httptest.NewRequest("PUT", path, nil)
 	response := ts.doHTTP(request, cookies)
-	_, err := ts.getBody(response)
 
-	assert.Nilf(err, "Failed to read body returned from call to handler for route %v: %v", user, err)
-	assert.Equal(http.StatusOK, response.StatusCode, "Handler returned unexpected error: %v", response.StatusCode)
+	require.HTTPRSuccess(response)
+	require.HTTPRHasCookiesExact(response, sessionCookieName)
+
+	_ = ts.getBody(response)
 
 	return response
 }
@@ -216,20 +229,21 @@ func (ts *testSuiteCore) ensureServicesStarted() {
 		ctx := context.Background()
 
 		_ = ts.utf.Open(ts.T())
+		defer ts.utf.Close()
 
 		// Start the test web service, which all tests will use
 		require.NoError(initService(ts.cfg))
 		initServiceDone = true
 
 		// Load the standard inventory into the store which all tests will use
-		err := dbInventory.inventory.UpdateInventoryDefinition(ctx, ts.cfg.Inventory.InventoryDefinition)
+		err := dbInventory.inventory.UpdateInventoryDefinition(
+				ctx,
+				ts.cfg.Inventory.InventoryDefinition)
 		require.NoError(err)
 
 		// Need to reload the actual inventory after loading the store.
 		err = dbInventory.LoadInventoryActual(ctx, true)
 		require.NoError(err)
-
-		ts.utf.Close()
 	}
 }
 
@@ -244,7 +258,7 @@ func (ts *testSuiteCore) ensureAccount(
 	user string,
 	u *admin.UserDefinition,
 	cookies []*http.Cookie) (int64, []*http.Cookie) {
-	assert := ts.Assert()
+	require := ts.Require()
 	logf := ts.T().Logf
 
 	path := ts.userPath() + user
@@ -261,7 +275,7 @@ func (ts *testSuiteCore) ensureAccount(
 		var rev int64
 		tagString := response.Header.Get("ETag")
 		rev, err := parseETag(tagString)
-		assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
+		require.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 		return rev, response.Cookies()
 	}
@@ -274,7 +288,7 @@ func (ts *testSuiteCore) ensureAccount(
 
 	p := jsonpb.Marshaler{}
 	err := p.Marshal(w, u)
-	assert.NoError(err)
+	require.NoError(err)
 	_ = w.Flush()
 	r := bufio.NewReader(&buf)
 
@@ -282,13 +296,13 @@ func (ts *testSuiteCore) ensureAccount(
 	req.Header.Set("Content-Type", "application/json")
 
 	response = ts.doHTTP(req, response.Cookies())
-	assert.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	ts.knownNames[path] = path
 
 	tagString := response.Header.Get("ETag")
 	tag, err := parseETag(tagString)
-	assert.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
+	require.NoError(err, "Error parsing ETag. tag = %q, err = %v", tagString, err)
 
 	return tag, response.Cookies()
 }
