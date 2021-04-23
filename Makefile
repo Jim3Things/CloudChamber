@@ -1,6 +1,14 @@
 PROJECT = $(GOPATH)/src/github.com/Jim3Things/CloudChamber
 
-PROJECT_UI = clients/observer/build
+OBSERVER_UI = clients/observer
+OBSERVER_UI_BUILD = $(OBSERVER_UI)/build
+
+ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
+CssFiles = $(wildcard $(1)/*.css)
+SvgFiles = $(wildcard $(1)/*.svg)
+TsFiles  = $(wildcard $(1)/*.ts)
+TsxFiles = $(wildcard $(1)/*.tsx)
+
 
 PROTO_FILES = \
     pkg/protos/admin/simulation.proto \
@@ -25,7 +33,6 @@ PROTO_FILES = \
     pkg/protos/services/requests.proto \
     pkg/protos/services/stepper.proto \
     pkg/protos/services/trace_sink.proto
-
 
 PROTO_GEN_FILES = \
     pkg/protos/admin/simulation.pb.go \
@@ -76,7 +83,6 @@ PROTO_TS_GEN_FILES = \
     pkg/protos/admin/users.ts \
     pkg/protos/common/completion.ts \
     pkg/protos/common/timestamp.ts \
-    pkg/protos/log/entry.ts \
     pkg/protos/inventory/capacity.ts \
     pkg/protos/inventory/common.ts \
     pkg/protos/inventory/actual.ts \
@@ -85,13 +91,21 @@ PROTO_TS_GEN_FILES = \
     pkg/protos/inventory/internal.ts \
     pkg/protos/inventory/store.ts \
     pkg/protos/inventory/target.ts \
+    pkg/protos/log/entry.ts \
     pkg/protos/workload/actual.ts \
     pkg/protos/workload/external.ts \
     pkg/protos/workload/internal.ts \
     pkg/protos/workload/target.ts \
     pkg/protos/services/requests.ts
 
-ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
+PROTO_TSX_FILES = \
+    $(call TsxFiles, pkg/protos/admin) \
+    $(call TsxFiles, pkg/protos/common) \
+    $(call TsxFiles, pkg/protos/inventory) \
+    $(call TsxFiles, pkg/protos/log) \
+    $(call TsxFiles, pkg/protos/services) \
+    $(call TsxFiles, pkg/protos)
+
 
 SRC_ERRORS = \
 	$(call ProdFiles, simulation/pkg/errors)
@@ -200,6 +214,8 @@ SRC_WEBSERVER = \
 	$(SRC_TRACING_SETUP)
 
 
+
+
 SERVICES = \
     simulation/deployments/controllerd.exe \
     simulation/deployments/inventoryd.exe \
@@ -220,9 +236,13 @@ ARTIFACTS = \
     simulation/deployments/StartEtcd.cmd \
     simulation/deployments/MonitorEtcd.cmd
 
+OBSERVER = \
+    $(OBSERVER_UI_BUILD)/asset-manifest.json \
+    $(OBSERVER_UI_BUILD)/index.html
 
 
-INSTALL_KIT = $(SERVICES) $(ARTIFACTS)
+
+INSTALL_KIT = $(SERVICES) $(ARTIFACTS) $(OBSERVER)
 
 
 
@@ -258,10 +278,20 @@ MD = mkdir -p
 RM-RECURSIVE = $(RM) -r
 
 
+define run-proto-grpc = 
+	$(PROTOC_GRPC) $^
+endef
+
+
+define run-go-build =
+	go build -o $(PROJECT)/$@ $(PROJECT)/$<
+endef
+
+
 
 all: build run_tests
 
-build: $(PROTO_TS_GEN_FILES) $(PROTO_CS_GEN_FILES) $(SERVICES) $(ARTIFACTS)
+build: $(SERVICES) $(ARTIFACTS) $(OBSERVER_UI)
 
 protogen: $(PROTO_GEN_FILES) $(PROTO_GEN_CS_FILES) $(PROTO_TS_GEN_FILES)
 
@@ -277,8 +307,8 @@ copy_to: $(ARTIFACTS)
 install: $(INSTALL_KIT)
 	$(MD) $(INSTALL_TARGET)
 	$(CP) $(INSTALL_KIT) $(INSTALL_TARGET)/
-	$(CP) $(PROJECT_UI)/*.* $(INSTALL_TARGET)/
-	$(CP-RECURSIVE) $(PROJECT_UI)/static $(INSTALL_TARGET)/
+	$(CP) $(OBSERVER_UI_BUILD)/*.* $(INSTALL_TARGET)/
+	$(CP-RECURSIVE) $(OBSERVER_UI_BUILD)/static $(INSTALL_TARGET)/
 
 
 .PHONY : install_clean
@@ -310,6 +340,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 
 clean:
 	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(PROTO_CS_GEN_FILES) $(PROTO_TS_GEN_FILES) $(VERSION_MARKER)
+	$(MAKE) -C $(OBSERVER_UI) clean
 
 
 .PHONY : test
@@ -326,17 +357,32 @@ test: run_tests
 %.ts : %.proto
 	$(PROTOC_PBUF_TS) $(PROJECT)/$<
 
+
+#pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+#pkg/protos/services/monitor.pb.go: pkg/protos/services/monitor.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+#pkg/protos/services/stepper.pb.go: pkg/protos/services/stepper.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+#pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+
 pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
-	$(PROTOC_GRPC) $(PROJECT)/$<
+	$(run-proto-grpc)
 
 pkg/protos/services/monitor.pb.go: pkg/protos/services/monitor.proto
-	$(PROTOC_GRPC) $(PROJECT)/$<
+	$(run-proto-grpc)
 
 pkg/protos/services/stepper.pb.go: pkg/protos/services/stepper.proto
-	$(PROTOC_GRPC) $(PROJECT)/$<
+	$(run-proto-grpc)
 
 pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
-	$(PROTOC_GRPC) $(PROJECT)/$<
+	$(run-proto-grpc)
+
 
 
 $(VERSION_MARKER) &: $(SRC_VERSION)
@@ -377,3 +423,6 @@ simulation/deployments/StartCloudChamber.cmd : simulation/scripts/StartCloudCham
 
 simulation/deployments/MonitorEtcd.cmd : simulation/scripts/MonitorEtcd.cmd
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
+
+
+
