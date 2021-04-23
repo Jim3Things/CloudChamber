@@ -39,7 +39,6 @@ func (ts *InventoryActualTestSuite) TearDownTest() {
 
 func (ts *InventoryActualTestSuite) TestLoadInventoryActual() {
 	require := ts.Require()
-	assert := ts.Assert()
 
 	ctx := context.Background()
 
@@ -51,7 +50,7 @@ func (ts *InventoryActualTestSuite) TestLoadInventoryActual() {
 	require.NoError(err)
 	require.NotNil(rackNames)
 
-	assert.Equal(len(ts.db.Actual.Racks), len(rackNames))
+	require.Equal(len(ts.db.Actual.Racks), len(rackNames))
 
 	for _, rackName := range rackNames {
 		r, ok := ts.db.Actual.Racks[rackName]
@@ -65,18 +64,18 @@ func (ts *InventoryActualTestSuite) TestLoadInventoryActual() {
 		require.NoError(err)
 		require.NotNil(bladeIDs)
 
-		assert.Equal(len(bladeIDs), len(r.Blades))
+		require.Equal(len(bladeIDs), len(r.Blades))
 
 		for _, bladeID := range bladeIDs {
 			b, ok := r.Blades[bladeID]
 			require.True(ok)
 
-			assert.Equal(bladeWorking, b.State)
+			require.Equal(bladeWorking, b.State)
 		}
 
-		assert.Equal(rackWorking, r.State)
-		assert.Equal(torWorking, r.Tor.State)
-		assert.Equal(pduWorking, r.Pdu.State)
+		require.Equal(rackWorking, r.State)
+		require.Equal(torWorking, r.Tor.State)
+		require.Equal(pduWorking, r.Pdu.State)
 	}
 }
 
