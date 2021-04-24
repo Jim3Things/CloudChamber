@@ -3,18 +3,17 @@
 // holds the details for each rack
 
 import React from "react";
-import {ClusterDetails} from "../proxies/InventoryProxy";
+import {ClusterDetails, RackDetails} from "../proxies/InventoryProxy";
 import {makeStyles} from "@material-ui/core/styles";
 import {Colors} from "./SimulatedInventory";
 import {Rack} from "./Rack";
+import {Container, Item} from "../common/Cells";
+import {Typography} from "@material-ui/core";
 
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme) => ({
     th: {
-        textAlign: "center",
-        alignContent: "center",
-        border: "0px",
-        padding: "1px",
-        fontSize: "medium"
+        border: "1px solid darkgrey",
+        padding: "1px"
     },
     tr: {
         border: "0px",
@@ -31,15 +30,15 @@ const useStyles = makeStyles(() => ({
         border: "0px",
         padding: "1px",
         alignContent: "start",
-        verticalAlign: "top"
+        verticalAlign: "top",
+        textAlign: "center",
     },
     rackName: {
         textAlign: "center",
         alignContent: "center",
-        fontSize: "medium",
-        border: "3px solid lightgrey",
-        padding: "0px",
-        verticalAlign: "top"
+        align: "center",
+        backgroundColor: theme.palette.background.paper,
+        padding: theme.spacing(1),
     }
 }));
 
@@ -50,31 +49,32 @@ export function Cluster(props: {
     const classes = useStyles();
 
     return (
-        <table>
-            <tbody>
-                <tr className={classes.th}>
-                    <td className={classes.tdClusterName} colSpan={Math.max(props.cluster.racks.size, 1)}>{props.cluster.name}</td>
-                </tr>
-                <tr className={classes.tr}>
-                    {Array.from(props.cluster.racks.keys()).map((name) =>
-                        (
-                            <td className={classes.rackName}>{name}</td>
-                        ))}
-                </tr>
-                <tr className={classes.tr}>
-                    {Array.from(props.cluster.racks.values()).map((rack) =>
-                        (
-                            <td className={classes.td}>
-                                <Rack
-                                    bladeLimit={props.cluster.maxBladeCount}
-                                    capacityLimit={props.cluster.maxCapacity}
-                                    rack={rack}
-                                    palette={props.palette}
-                                />
-                            </td>
-                        ))}
-                </tr>
-            </tbody>
-        </table>
+        <Container xs={12}>
+            <Container xs={12} className={classes.th}>
+                <Item xs={12} className={classes.tdClusterName}>
+                    <Typography variant="h4">
+                        {props.cluster.name}
+                    </Typography>
+                </Item>
+            </Container>
+            <Container xs={12} className={classes.tr}>
+                {Array.from(props.cluster.racks.keys()).map((name) => (
+                    <Item className={classes.td}>
+                        <div>
+                            <Typography className={classes.rackName} >
+                                {name}
+                            </Typography>
+                        </div>
+
+                        <Rack
+                            bladeLimit={props.cluster.maxBladeCount}
+                            capacityLimit={props.cluster.maxCapacity}
+                            rack={props.cluster.racks.get(name) as RackDetails}
+                            palette={props.palette}
+                        />
+                    </Item>
+                ))}
+            </Container>
+        </Container>
     )
 }
