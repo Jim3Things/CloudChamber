@@ -6,48 +6,48 @@
 // (powered off, if the 'false' state is intentional, faulted if it
 // is not)
 
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {PduDetails} from "../proxies/InventoryProxy";
 import {Colors} from "./SimulatedInventory";
 import {Opacity, PhysicalBox} from "./PhysicalBox";
 import {Connectors} from "./Connectors";
 
-export const PDU: FunctionComponent<{
+export function PDU(props: {
     x: number,
     y: number,
     width: number,
     height: number,
     details: PduDetails,
     palette: Colors
-}> = ({x, y, width, height, details, palette}) => {
+}) {
     const offset = 60
-    const connectionWidth = width - offset
+    const connectionWidth = props.width - offset
 
     return (
         <React.Fragment>
             <PhysicalBox
-                x={x}
-                y={y}
-                width={width}
-                height={height}
-                state={details.state}
-                palette={palette}/>
+                x={props.x}
+                y={props.y}
+                width={props.width}
+                height={props.height}
+                state={props.details.state}
+                palette={props.palette}/>
 
             <text
                 x={10}
-                y={height + y - 2}
+                y={props.height + props.y - 2}
                 textAnchor={"center"}>PDU
             </text>
 
             <Connectors
                 x={offset}
-                y={y}
+                y={props.y}
                 width={connectionWidth}
-                height={height}
-                state={details.powerTo}
-                onColor={palette.runningColor}
-                offColor={palette.faultedColor}
-                opacity={Opacity(details.state)} />
+                height={props.height}
+                state={props.details.powerTo}
+                onColor={props.palette.runningColor}
+                offColor={props.palette.faultedColor}
+                opacity={Opacity(props.details.state)} />
 
         </React.Fragment>
     )

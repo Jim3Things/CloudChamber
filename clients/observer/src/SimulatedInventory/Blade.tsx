@@ -1,4 +1,4 @@
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {grey} from "@material-ui/core/colors";
 import {createStyles, Popover} from "@material-ui/core";
 import {makeStyles} from "@material-ui/core/styles";
@@ -88,7 +88,7 @@ function formBladeDetailBoxes(
 // --- Detail SVGRect boundary calculations
 
 // This method draws a blade, accounting for its state and usage
-export const Blade: FunctionComponent<{
+export function Blade(props: {
             x: number,
             y: number,
             width: number,
@@ -97,7 +97,7 @@ export const Blade: FunctionComponent<{
             details: BladeDetails,
             limits: BladeCapacity,
             palette: Colors
-        }> = (props) => {
+}) {
     const classes = useStyles();
 
     const [anchorEl, setAnchorEl] = React.useState<SVGSVGElement | null>(null);

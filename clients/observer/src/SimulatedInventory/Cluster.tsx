@@ -2,7 +2,7 @@
 // name as the first row The second row holds the rack names, and the third row
 // holds the details for each rack
 
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {ClusterDetails} from "../proxies/InventoryProxy";
 import {makeStyles} from "@material-ui/core/styles";
 import {Colors} from "./SimulatedInventory";
@@ -58,7 +58,7 @@ export function Cluster(props: {
                 <tr className={classes.tr}>
                     {Array.from(props.cluster.racks.keys()).map((name) =>
                         (
-                            <td className={classes.rackName}>{props.name}</td>
+                            <td className={classes.rackName}>{name}</td>
                         ))}
                 </tr>
                 <tr className={classes.tr}>

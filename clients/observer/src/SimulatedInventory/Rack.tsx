@@ -1,6 +1,6 @@
 // Display a rack, with its contents
 
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {RackDetails} from "../proxies/InventoryProxy";
 import {Colors} from "./SimulatedInventory";
 import {Blade} from "./Blade";

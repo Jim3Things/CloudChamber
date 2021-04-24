@@ -1,7 +1,7 @@
 // Settings manages the transient view settings for the UI via a defined state
 // structure held by the app, and a dialog for manipulating it.
 
-import React, {FunctionComponent} from 'react';
+import React from 'react';
 import { makeStyles, Theme, createStyles } from '@material-ui/core/styles';
 import SettingsIcon from '@material-ui/icons/Settings';
 import {
@@ -45,10 +45,10 @@ const useStyles = makeStyles((theme: Theme) =>
 
 // Settings manages a settings icon button that opens a dialog when clicked.
 // It also provides a pass-through for the settings state update handlers.
-export const Settings: FunctionComponent<{
+export function Settings(props: {
     settings: SettingsState,
     onChange: (settings: SettingsState) => void
-}> = (props) => {
+})  {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [working, setWorking] = React.useState<SettingsState>(props.settings)
 
@@ -91,13 +91,13 @@ export const Settings: FunctionComponent<{
 
 // SettingsDialog displays and manages the dialog that supports editing of the
 // current display settings.
-export const SettingsDialog: FunctionComponent<{
+export function SettingsDialog(props: {
     open: boolean,
     settings:SettingsState,
     onChange: (settings: SettingsState) => void,
     onCancel: () => void,
     onSave: () => void
-}> = (props) => {
+})  {
     const classes = useStyles();
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -4,46 +4,46 @@
 // TODO: Figure out how/if to show connections to the individual instances via
 //       an SDN setup
 
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {TorDetails} from "../proxies/InventoryProxy";
 import {Colors} from "./SimulatedInventory";
 import {Opacity, PhysicalBox} from "./PhysicalBox";
 import {Connectors} from "./Connectors";
 
-export const Tor: FunctionComponent<{
+export function Tor(props: {
     x: number,
     y: number,
     width: number,
     height: number,
     details: TorDetails,
     palette: Colors
-}> = ({x, y, width, height, details, palette}) => {
+}) {
     const offset = 60
-    const connectionWidth = width - offset
+    const connectionWidth = props.width - offset
 
     return (
         <React.Fragment>
             <PhysicalBox
-                x={x}
-                y={y}
-                width={width}
-                height={height}
-                state={details.state}
-                palette={palette}/>
+                x={props.x}
+                y={props.y}
+                width={props.width}
+                height={props.height}
+                state={props.details.state}
+                palette={props.palette}/>
 
             <text
                 x={10}
-                y={height + y - 2}
+                y={props.height + props.y - 2}
                 textAnchor={"center"}>TOR</text>
 
             <Connectors
                 x={offset}
-                y={y}
+                y={props.y}
                 width={connectionWidth}
-                height={height}
-                state={details.linkTo}
-                onColor={palette.runningColor}
-                offColor={palette.faultedColor} opacity={Opacity(details.state)} />
+                height={props.height}
+                state={props.details.linkTo}
+                onColor={props.palette.runningColor}
+                offColor={props.palette.faultedColor} opacity={Opacity(props.details.state)} />
 
         </React.Fragment>
     )

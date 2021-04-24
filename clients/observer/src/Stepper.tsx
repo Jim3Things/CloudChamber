@@ -1,14 +1,14 @@
-import React, {FunctionComponent} from 'react';
+import React from 'react';
 import {IconButton} from "@material-ui/core";
 import {FastForward, Pause, PlayArrow, SkipNextOutlined} from '@material-ui/icons';
 
 import './App.css';
 import {SetStepperPolicy} from "./proxies/StepperProxy";
 
-export const Stepper: FunctionComponent<{onPolicyEvent?: (policy: SetStepperPolicy) => any}> = ({onPolicyEvent}) => {
+export function Stepper(props: {onPolicyEvent?: (policy: SetStepperPolicy) => any})  {
     const notify = (policy: SetStepperPolicy) => {
-        if (onPolicyEvent) {
-            onPolicyEvent(policy);
+        if (props.onPolicyEvent) {
+            props.onPolicyEvent(policy);
         }
     }
 
