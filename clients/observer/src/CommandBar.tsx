@@ -1,4 +1,4 @@
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {AppBar, IconButton, Tab, Tabs, Toolbar, Tooltip, Typography} from "@material-ui/core";
 import {makeStyles} from "@material-ui/core/styles";
 
@@ -26,7 +26,7 @@ const useStyles = makeStyles(() => ({
 // assumes that the current tab prop will be updated in response to a
 // onCommandSelect notification.
 
-export const CommandBar: FunctionComponent<{
+export function CommandBar(props: {
             tab: CommandTab,
             sessionUser: string,
             settings: SettingsState,
@@ -34,15 +34,7 @@ export const CommandBar: FunctionComponent<{
             onCommandSelect: (tab: CommandTab) => void,
             onSettingsChange: (settings: SettingsState) => void,
             onLogout: () => void
-}> = ({
-    tab,
-    sessionUser,
-    settings,
-    onPolicyEvent,
-    onCommandSelect,
-    onSettingsChange,
-    onLogout
-}) => {
+}) {
     const classes = useStyles();
 
     // Helper to decorate the tabs with unique IDs
@@ -58,8 +50,8 @@ export const CommandBar: FunctionComponent<{
         // Map the number to the command tab enum
         const tab: CommandTab = newValue;
 
-        if (onCommandSelect) {
-            onCommandSelect(tab)
+        if (props.onCommandSelect) {
+            props.onCommandSelect(tab)
         }
     }
 
@@ -67,7 +59,7 @@ export const CommandBar: FunctionComponent<{
         <div className={classes.root}>
             <AppBar position="static">
                 <Toolbar variant="dense">
-                    <Tabs value={tab} onChange={notify}>
+                    <Tabs value={props.tab} onChange={notify}>
                         <Tab wrapped label="Admin" {...tabProps(0)}/>
                         <Tab wrapped label="Workloads" {...tabProps(1)}/>
                         <Tab wrapped label="Inventory" {...tabProps(2)}/>
@@ -76,19 +68,19 @@ export const CommandBar: FunctionComponent<{
                     </Tabs>
                     <div className={classes.root}/>
                     <Typography variant="subtitle2">
-                        {sessionUser}&nbsp;
+                        {props.sessionUser}&nbsp;
                     </Typography>
                     <Tooltip title="log out">
                         <IconButton
                             color="inherit"
-                            onClick={() => onLogout()}>
+                            onClick={() => props.onLogout()}>
                                 <ExitToApp/>
                         </IconButton>
                     </Tooltip>
-                    <Stepper onPolicyEvent={onPolicyEvent}/>
+                    <Stepper onPolicyEvent={props.onPolicyEvent}/>
                     <Settings
-                        settings={settings}
-                        onChange={onSettingsChange}
+                        settings={props.settings}
+                        onChange={props.onSettingsChange}
                     />
                 </Toolbar>
             </AppBar>

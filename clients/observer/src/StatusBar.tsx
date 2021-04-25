@@ -1,11 +1,11 @@
-import React, {FunctionComponent} from 'react';
+import React from 'react';
 import {Badge, Toolbar} from "@material-ui/core";
 import {Pause, PlayArrow} from "@material-ui/icons";
 import {makeStyles} from "@material-ui/core/styles";
 
 import {StepperMode, TimeContext} from "./proxies/StepperProxy";
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
     root: {
         flexGrow: 1,
     },
@@ -19,7 +19,7 @@ const useStyles = makeStyles((theme) => ({
 // TODO: This currently only has information on the stepper status, others need to be
 //       added as they make sense.
 
-export const StatusBar: FunctionComponent<{ cur: TimeContext }> = ({cur}) => {
+export function StatusBar(props: { cur: TimeContext }) {
     const classes = useStyles();
 
     // Helpers to control visibility of the different type of execution icons
@@ -62,12 +62,12 @@ export const StatusBar: FunctionComponent<{ cur: TimeContext }> = ({cur}) => {
         <Toolbar variant="dense">
             <div className={classes.root}/>
             <div>
-                {badgeIcon(cur)}
-                {playIcon(cur)}
-                {pauseIcon(cur)}
+                {badgeIcon(props.cur)}
+                {playIcon(props.cur)}
+                {pauseIcon(props.cur)}
             </div>
             &nbsp;&nbsp;
-            {cur.now}
+            {props.cur.now}
         </Toolbar>
         </div>
     );

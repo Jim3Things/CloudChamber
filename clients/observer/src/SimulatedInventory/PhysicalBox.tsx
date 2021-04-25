@@ -5,7 +5,7 @@
 // opacity based on the physical state.  This supports the ability to
 // 'grey out' physical boxes that are turned off.
 
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {PhysicalState} from "../proxies/InventoryProxy";
 import {Colors} from "./SimulatedInventory";
 
@@ -18,7 +18,7 @@ export const Opacity = (state: PhysicalState): number => {
     }
 }
 
-export const PhysicalBox: FunctionComponent<{
+export function PhysicalBox(props: {
     x: number,
     y: number,
     width: number,
@@ -29,7 +29,8 @@ export const PhysicalBox: FunctionComponent<{
     pointerEvents?: string | number,
     onMouseEnter?: React.MouseEventHandler<SVGSVGElement>,
     onMouseLeave?: React.MouseEventHandler<SVGSVGElement>,
-}> = (props) => {
+    children?: React.ReactNode
+}) {
     const borderColor = (state: PhysicalState): string => {
         switch (state) {
             case PhysicalState.healthy: return props.palette.runningColor

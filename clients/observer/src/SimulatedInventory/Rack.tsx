@@ -1,6 +1,6 @@
 // Display a rack, with its contents
 
-import React, {FunctionComponent} from "react";
+import React from "react";
 import {RackDetails} from "../proxies/InventoryProxy";
 import {Colors} from "./SimulatedInventory";
 import {Blade} from "./Blade";
@@ -8,16 +8,16 @@ import {Tor} from "./Tor";
 import {PDU} from "./PDU";
 import {BladeCapacity} from "../pkg/protos/inventory/capacity";
 
-export const Rack : FunctionComponent<{
+export function Rack(props: {
     bladeLimit: number,
     capacityLimit: BladeCapacity,
     rack: RackDetails,
-    palette: Colors}> = ({bladeLimit, capacityLimit, rack, palette}) => {
+    palette: Colors}) {
     const bladeHeight = 20
     const yGap = 1
     const headerSpace = 50
 
-    const rackHeight = ((bladeHeight + yGap) * bladeLimit) - yGap + headerSpace
+    const rackHeight = ((bladeHeight + yGap) * props.bladeLimit) - yGap + headerSpace
     let yPos = headerSpace
 
     return (
@@ -29,18 +29,18 @@ export const Rack : FunctionComponent<{
                 y={0}
                 width={160}
                 height={bladeHeight}
-                details={rack.tor}
-                palette={palette}/>
+                details={props.rack.tor}
+                palette={props.palette}/>
 
             <PDU
                 x={0}
                 y={bladeHeight + yGap}
                 width={160}
                 height={bladeHeight}
-                details={rack.pdu}
-                palette={palette}/>
+                details={props.rack.pdu}
+                palette={props.palette}/>
 
-            {Array.from(rack.blades).map((v) => {
+            {Array.from(props.rack.blades).map((v) => {
                 const thisY = yPos
                 yPos += bladeHeight + yGap
 
@@ -51,8 +51,8 @@ export const Rack : FunctionComponent<{
                     height={bladeHeight}
                     index={v[0]}
                     details={v[1]}
-                    limits={capacityLimit}
-                    palette={palette} />
+                    limits={props.capacityLimit}
+                    palette={props.palette} />
             })}
         </svg>
     )

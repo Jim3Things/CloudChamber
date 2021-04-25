@@ -13,7 +13,7 @@ import {LogProxy} from "./proxies/LogProxy";
 import {Organizer} from "./Log/Organizer";
 import {SettingsState} from "./Settings";
 import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests";
-import {ErrorSnackbar} from "./common/ErrorSnackbar";
+import {ErrorSnackbar} from "./common/Snackbar";
 import {WatchProxy} from "./proxies/WatchProxy";
 
 interface Props {

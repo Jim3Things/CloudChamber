@@ -1,6 +1,6 @@
 // This module contains the Administration sub-panel and associated dialogs
 
-import React, {Component} from "react";
+import React, {useEffect, useState} from "react";
 
 import {UserDetails, UsersProxy} from "../proxies/UsersProxy";
 import {getErrorDetails} from "../proxies/Session";
@@ -9,74 +9,52 @@ import {ListUsers} from "./UsersList";
 import {UserDetailsCard} from "./UserDetailsCard";
 import {RenderIf} from "../common/If";
 import {UserAddCard} from "./UserAddCard";
-import {SuccessSnackbar} from "../common/SuccessSnackbar";
-import {ErrorSnackbar} from "../common/ErrorSnackbar";
+import {ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar} from "../common/Snackbar";
 
 import {UserList, UserList_Entry} from "../../../../pkg/protos/admin/users"
 
-interface Props {
-    height: number
-    usersProxy: UsersProxy
+const initialSnackData: SnackData = {
+    message: "",
+    mode: MessageMode.None
+}
+
+const initialUsers: UserList_Entry[] = []
+
+export function AdminPanel(props: {
+    height: number,
+    usersProxy: UsersProxy,
     sessionUser: string
-}
+}) {
+    const [snackData, setSnackData] = useState(initialSnackData)
 
-enum MessageMode {
-    None = 0,                   // Show no snackbar
-    Success,                // Show the success snackbar
-    Error                   // Show the error snackbar
-}
+    const [users, setUsers] = useState(initialUsers)
+    const [addInProgress, setAddInProgress] = useState(false)
+    const [newUserName, setNewUserName] = useState("")
+    const [selectedUser, setSelectedUser] = useState("")
+    const [cleanUser, setCleanUser] = useState(new UserDetails())
+    const [editUser, setEditUser] = useState(new UserDetails())
+    const [detailsLoaded, setDetailsLoaded] = useState(false)
 
-interface State {
-    users: UserList_Entry[];    // Set of known user names
-
-    addInProgress: boolean      // True, if we're in the middle of an add user
-    newUserName: string;        // What is the new user name (add dialog)
-
-    selectedUser: string;       // Which username is currently selected
-    cleanUser: UserDetails      // The user details, unchanged, for the selected user
-    editUser: UserDetails;      // User details, either update or add ops
-    detailsLoaded: boolean
-
-    snackMode: MessageMode      // Which snackbar to display, if any
-    snackText: string           // ... and the text to supply
-}
-
-export class AdminPanel extends Component<Props & any, State> {
-    state: State = {
-        users: [],
-
-        addInProgress: false,
-        newUserName: "",
-
-        selectedUser: "",
-        cleanUser: new UserDetails(),
-        editUser: new UserDetails(),
-        detailsLoaded: false,
-
-        snackMode: MessageMode.None,
-        snackText: ""
+    const UpdateErrorState = (msg: any) => {
+        getErrorDetails(msg, (details) => setSnackData({
+            mode: MessageMode.Error,
+            message: details
+        }))
     }
 
-    private UpdateErrorState(msg: any) {
-        getErrorDetails(msg, (details) => this.setState({
-            snackMode: MessageMode.Error,
-            snackText: details
-        }));
-    }
-
-    private findAfter(name: string, list: UserList_Entry[]) : string | undefined {
+    const findAfter = (name: string, list: UserList_Entry[]) : string | undefined => {
         const result = list.find(item => item.name > name)
         return result === undefined ? undefined : result.name
     }
 
-    private findNeighbor(name: string) : string {
-        const after = this.findAfter(name, this.state.users)
+    const findNeighbor = (name: string) : string => {
+        const after = findAfter(name, users)
         if (after === undefined) {
-            let reversed = [...this.state.users]
+            let reversed = [...users]
             reversed.reverse()
 
-            const before = this.findAfter(name, reversed)
-            return before === undefined ? this.state.users[0].name : before
+            const before = findAfter(name, reversed)
+            return before === undefined ? users[0].name : before
         }
 
         return after
@@ -89,8 +67,8 @@ export class AdminPanel extends Component<Props & any, State> {
     // then triggers a re-execution of the render() method.
 
     // Get the list of users
-    refreshUserList = (name: string | undefined) => {
-        this.props.usersProxy.list()
+    const refreshUserList = (name: string | undefined) => {
+        props.usersProxy.list()
             .then((list: UserList) =>
             {
                 // Order the list by name
@@ -120,132 +98,115 @@ export class AdminPanel extends Component<Props & any, State> {
                     target = newList[0].name
                 }
 
-                this.setState({
-                    users: newList,
-                    selectedUser: target,
-                    detailsLoaded: false
-                })
+                setUsers(newList)
+                setSelectedUser(target)
+                setDetailsLoaded(false)
 
-                this.onFetchUser(target)
+                onFetchUser(target)
             })
             .catch(() => {
-                this.setState({
-                    users: [this.props.sessionUser],
-                    selectedUser: this.props.sessionUser,
-                    detailsLoaded: false
-                })
+                setUsers([{ name : props.sessionUser, uri: "", protected: false}])
+                setSelectedUser(props.sessionUser)
+                setDetailsLoaded(false)
 
-                this.onFetchUser(this.props.sessionUser)
+                onFetchUser(props.sessionUser)
             })
     }
 
     // Get the details for a specific user
-    onFetchUser = (name: string) => {
-        this.props.usersProxy.get(name)
+    const onFetchUser = (name: string) => {
+        props.usersProxy.get(name)
             .then((item: UserDetails) => {
-                this.setState({
-                    cleanUser: item,
-                    editUser: item,
-                    detailsLoaded: true
-                });
+                setCleanUser(item)
+                setEditUser(item)
+                setDetailsLoaded(true)
             })
             .catch((msg: any) => {
-                if (this.state.users.find(item => item.name === name) !== undefined) {
-                    this.UpdateErrorState(msg)
+                if (users.find(item => item.name === name) !== undefined) {
+                    UpdateErrorState(msg)
                 }
-            });
+            })
     }
 
-    onAdd = () => {
-        this.props.usersProxy.add(this.state.newUserName, this.state.editUser)
+    const onAdd = () => {
+        props.usersProxy.add(newUserName, editUser)
             .then(() => {
-                this.setState({
-                    addInProgress: false,
-                    selectedUser: this.state.newUserName,
-                    detailsLoaded: false,
-
-                    snackMode: MessageMode.Success,
-                    snackText: "User " + this.state.newUserName + " was successfully created"
+                setAddInProgress(false)
+                setSelectedUser(newUserName)
+                setDetailsLoaded(false)
+                setSnackData({
+                    mode: MessageMode.Success,
+                    message: "User " + newUserName + " was successfully created"
                 })
 
-                this.refreshUserList(this.state.newUserName)
+                refreshUserList(newUserName)
             })
-            .catch((msg: any) => this.UpdateErrorState(msg))
+            .catch((msg: any) => UpdateErrorState(msg))
     }
 
-    onSaveEdit = () => {
-        const name = this.state.selectedUser
-        this.props.usersProxy.set(name, this.state.editUser)
+    const onSaveEdit = () => {
+        const name = selectedUser
+        props.usersProxy.set(name, editUser)
             .then((item: UserDetails) => {
-                if (name === this.state.selectedUser) {
-                    this.setState({
-                        cleanUser: item,
-                        editUser: item,
-                        detailsLoaded: true,
-
-                        snackMode: MessageMode.Success,
-                        snackText: "User " + name + " was successfully updated"
-                    })
-                } else {
-                    // Selection moved on while the save was processing
-                    this.setState({
-                        snackMode: MessageMode.Success,
-                        snackText: "User " + name + " was successfully updated"
-                    })
+                if (name === selectedUser) {
+                    // We're still focused on the updated user, so show that.
+                    setCleanUser(item)
+                    setEditUser(item)
+                    setDetailsLoaded(true)
                 }
+
+                setSnackData({
+                    mode: MessageMode.Success,
+                    message: "User " + name + " was successfully updated"
+                })
             })
             .catch((msg: any) => {
-                if (this.state.users.find(item => item.name === name) !== undefined) {
-                    this.UpdateErrorState(msg)
+                if (users.find(item => item.name === name) !== undefined) {
+                    UpdateErrorState(msg)
                 }
-            });
+            })
     }
 
-    onDelete = (name: string) => {
-        const pick = (name === this.state.selectedUser) ? this.findNeighbor(name) : name
+    const onDelete = (name: string) => {
+        const pick = (name === selectedUser) ? findNeighbor(name) : name
+        const newList = users.filter(item => item.name !== name)
 
-        const newList = this.state.users.filter(item => item.name !== name)
+        setUsers(newList)
+        setSelectedUser(pick)
+        setDetailsLoaded(pick !== name)
 
-        this.setState({
-            users: newList,
-            selectedUser: pick,
-            detailsLoaded: pick !== name
-        })
-
-        this.props.usersProxy.remove(name)
+        props.usersProxy.remove(name)
             .then(() => {
-                this.setState({
-                    snackMode: MessageMode.Success,
-                    snackText: "User " + name + " was successfully deleted"
+                setSnackData({
+                    mode: MessageMode.Success,
+                    message: "User " + name + " was successfully deleted"
                 })
 
-                this.refreshUserList(pick);
+                refreshUserList(pick);
             })
             .catch((msg: any) => {
-                this.UpdateErrorState(msg)
-                this.onFetchUser(name)
-            });
+                UpdateErrorState(msg)
+                onFetchUser(name)
+            })
     }
 
-    onSetPassword = (old: string, newPass: string) => {
-        const name = this.state.selectedUser
+    const onSetPassword = (old: string, newPass: string) => {
+        const name = selectedUser
 
-        this.props.usersProxy.setPassword(name, this.state.editUser, old, newPass)
+        props.usersProxy.setPassword(name, editUser, old, newPass)
             .then((tag: number) => {
-                if (name === this.state.selectedUser) {
-                    const details = { ...this.state.editUser, eTag: tag }
-                    this.setState({
-                        cleanUser: details,
-                        editUser: details,
-                        detailsLoaded: true,
-                    })
+                if (name === selectedUser) {
+                    const details = { ...editUser, eTag: tag }
+                    setCleanUser(details)
+                    setEditUser(details)
+                    setDetailsLoaded(true)
                 }
 
-                this.setState({
-                    snackMode: MessageMode.Success,
-                    snackText: "Password for user " + name + " has been successfully changed"})
+                setSnackData({
+                    mode: MessageMode.Success,
+                    message: "Password for user " + name + " has been successfully changed"})
             })
-            .catch((msg: any) => this.UpdateErrorState(msg))
+            .catch((msg: any) => UpdateErrorState(msg))
     }
 
     // --- Functions to access the users store
@@ -254,83 +215,76 @@ export class AdminPanel extends Component<Props & any, State> {
     // edit case, inasmuch as there is no data to fetch.  This just resets the
     // user details and new user name to their default values and opens the
     // add dialog.
-    onPrepAdd = () => {
+    const onPrepAdd = () => {
         const user = new UserDetails()
 
-        this.setState({
-            editUser: user,
-            cleanUser: user,
-            newUserName: "",
-            addInProgress: true
-        });
+        setEditUser(user)
+        setCleanUser(user)
+        setNewUserName("")
+        setAddInProgress(true)
     }
 
     // On component load, capture the initial list of users
-    componentWillMount() {
-        this.refreshUserList(undefined);
-    }
+    useEffect(() => {
+        refreshUserList(undefined)
+    }, [props.usersProxy])
 
-    selectUser = (key: string) => {
-        if (this.state.selectedUser !== key &&
-            (this.state.users.find(item => item.name === key) !== undefined)) {
-            this.setState({
-                selectedUser: key,
-                detailsLoaded: false
-            })
+    const selectUser = (key: string) => {
+        if (selectedUser !== key && (users.find(item => item.name === key) !== undefined)) {
+            setSelectedUser(key)
+            setDetailsLoaded(false)
 
-            this.onFetchUser(key)
+            onFetchUser(key)
         }
     }
 
-    render() {
         return <Container >
             <Item xs={6}>
                 <ListUsers
-                    height={this.props.height - 5}
-                    users={this.state.users}
-                    selectedUser={this.state.selectedUser}
-                    onSelectUser={this.selectUser}
-                    onNewUser={this.onPrepAdd}
-                    onDeleteUser={this.onDelete}
+                    height={props.height - 5}
+                    users={users}
+                    selectedUser={selectedUser}
+                    onSelectUser={selectUser}
+                    onNewUser={onPrepAdd}
+                    onDeleteUser={onDelete}
                 />
             </Item>
 
             <Item xs={6}>
-                <RenderIf cond={this.state.detailsLoaded && !this.state.addInProgress}>
+                <RenderIf cond={detailsLoaded && !addInProgress}>
                     <UserDetailsCard
-                        name={this.state.selectedUser}
-                        user={this.state.editUser}
-                        onModify={(newVal) => this.setState({editUser: newVal}) }
-                        onSave={this.onSaveEdit}
-                        onReset={() => this.setState({editUser: this.state.cleanUser}) }
-                        onSetPassword={this.onSetPassword}
+                        name={selectedUser}
+                        user={editUser}
+                        onModify={(newVal) => setEditUser(newVal) }
+                        onSave={onSaveEdit}
+                        onReset={() => setEditUser(cleanUser) }
+                        onSetPassword={onSetPassword}
                     />
                 </RenderIf>
 
-                <RenderIf cond={this.state.addInProgress}>
+                <RenderIf cond={addInProgress}>
                     <UserAddCard
-                        name={this.state.newUserName}
-                        user={this.state.editUser}
-                        onModify={(name, newVal) => this.setState({
-                            newUserName: name,
-                            editUser: newVal
-                        }) }
-                        onAdd={this.onAdd}
-                        onCancel={() => this.setState({ addInProgress: false } )} />
+                        name={newUserName}
+                        user={editUser}
+                        onModify={(name, newVal) => {
+                            setNewUserName(name)
+                            setEditUser(newVal)
+                        }}
+                        onAdd={onAdd}
+                        onCancel={() => setAddInProgress(false)} />
                 </RenderIf>
 
                 <SuccessSnackbar
-                    open={this.state.snackMode === MessageMode.Success}
-                    onClose={() => this.setState({snackMode: MessageMode.None})}
+                    open={snackData.mode === MessageMode.Success}
+                    onClose={() => setSnackData({mode: MessageMode.None, message: ""})}
                     autoHideDuration={3000}
-                    message={this.state.snackText} />
+                    message={snackData.message} />
 
                 <ErrorSnackbar
-                    open={this.state.snackMode === MessageMode.Error}
-                    onClose={() => this.setState({snackMode: MessageMode.None})}
+                    open={snackData.mode === MessageMode.Error}
+                    onClose={() => setSnackData({mode: MessageMode.None, message: ""})}
                     autoHideDuration={4000}
-                    message={this.state.snackText} />
+                    message={snackData.message} />
             </Item>
         </Container>;
-    }
 }
