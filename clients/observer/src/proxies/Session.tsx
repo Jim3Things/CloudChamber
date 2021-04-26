@@ -1,17 +1,19 @@
 // Manage the REST session attributes
 
-interface JsonUserDetails {
-    enabled: boolean
-    accountManager: boolean
-    neverDelete: boolean
+import {UserPublic} from "../pkg/protos/admin/users";
+
+export class SessionUser {
+    name: string
+    password: string
+    details: UserPublic
+
+    constructor(val: any, name: string, password: string) {
+        this.name = name
+        this.password = password
+        this.details = UserPublic.fromJSON(val)
+    }
 }
 
-export interface SessionUser {
-    name: string
-    enabled: boolean
-    accountManager: boolean
-    neverDelete: boolean
-}
 
 // CCError is a specialization of the Error interface that carries the
 // original response object along with it.  This allows the catch handler to
@@ -37,17 +39,27 @@ export class Session {
         const request = new Request(path, {method: "PUT", body: password})
 
         return fetch(request)
-            .then((resp) => {
+            .then((resp: Response) => {
                 failIfError(request, resp)
 
-                const detailsPath = "/api/users/" + username
-                const requestDetails = new Request(detailsPath, {method: "GET"})
+                return this.getDetails(username, password)
+            })
+    }
 
-                return getJson<JsonUserDetails>(requestDetails)
+    private getDetails(name: string, password: string) : Promise<SessionUser> {
+        const path = "/api/users/" + name
+        const request = new Request(path, {method: "GET"})
+
+        return fetch(request)
+            .then((resp: Response) => {
+                failIfError(request, resp)
+
+                return resp.json()
             })
-            .then((details) => {
-                return {...details, name: username }
+            .then((value) => {
+                return new SessionUser(value, name, password)
             })
+
     }
 
     // Log out of the current session
@@ -113,13 +125,6 @@ export function getETag(resp: Response): number {
     return parseInt(value, 10)
 }
 
-// Set the ETag into a header as a match condition
-export function ETagHeader(tag: number) : HeadersInit {
-    let requestHeaders: HeadersInit = new Headers()
-    requestHeaders.set('If-Match', tag.toString(10))
-
-    return requestHeaders
-}
 
 // --- ETag support functions
 

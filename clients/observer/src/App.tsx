@@ -2,8 +2,6 @@ import React, {Component} from 'react';
 
 import './App.css';
 import {StepperMode, SetStepperPolicy, StepperProxy, TimeContext} from "./proxies/StepperProxy";
-import {CommandTab} from "./CommandBar";
-import {UsersProxy} from "./proxies/UsersProxy";
 import {InventoryProxy} from "./proxies/InventoryProxy";
 import {getErrorDetails, Session, SessionUser} from "./proxies/Session";
 import {RenderIf} from "./common/If";
@@ -24,14 +22,12 @@ interface State {
     StepperPolicy: SetStepperPolicy,
     stepperProxy: StepperProxy,
     watchProxy: WatchProxy,
-    usersProxy: UsersProxy,
     inventoryProxy: InventoryProxy,
     logProxy: LogProxy,
     session: Session,
     organizer: Organizer,
     entries: GetAfterResponse_traceEntry[],
     cur: TimeContext,
-    tab: CommandTab
     activeSession: boolean
     sessionUser: SessionUser
     logonUser: string
@@ -123,15 +119,12 @@ export class App extends Component<Props & any, State> {
                   href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"/>
             <RenderIf cond={this.state.activeSession}>
                 <MainPage
-                    tab={this.state.tab}
                     activeSession={this.state.activeSession}
-                    sessionUser={this.state.sessionUser.name}
+                    sessionUser={this.state.sessionUser}
                     settings={this.state.settings}
-                    onCommandSelect={(tab: CommandTab) => this.setState({tab: tab})}
                     onPolicyEvent={this.stepperPolicyEvent}
                     onSettingsChange={this.settingsChangeEvent}
                     onLogout={this.onLogoutEvent}
-                    usersProxy={this.state.usersProxy}
                     proxy={this.state.inventoryProxy}
                     cur={this.state.cur}
                     organizer={this.state.organizer}
@@ -165,17 +158,11 @@ export class App extends Component<Props & any, State> {
         StepperPolicy: SetStepperPolicy.Pause,
         stepperProxy: new StepperProxy(this.onErrorEvent),
         watchProxy: new WatchProxy(this.onTimeEvent),
-        usersProxy: new UsersProxy(),
         inventoryProxy: new InventoryProxy(),
         logProxy: new LogProxy(this.onNewLogEvent),
         session: new Session(),
         activeSession: false,
-        sessionUser: {
-            name: "",
-            enabled: false,
-            accountManager: false,
-            neverDelete: false
-        },
+        sessionUser: new SessionUser({}, "", ""),
         logonUser: "",
         logonPassword: "",
         logonError: "",
@@ -186,7 +173,6 @@ export class App extends Component<Props & any, State> {
         },
         entries:[],
         organizer: new Organizer([]),
-        tab: CommandTab.Admin,
         settings: {
             logSettings: {
                 showDebug: true,
