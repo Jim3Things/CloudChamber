@@ -1,45 +1,46 @@
-import React from 'react';
-import {CommandBar} from "../CommandBar";
-import {SetStepperPolicy, TimeContext} from "../proxies/StepperProxy";
-import {InventoryProxy} from "../proxies/InventoryProxy";
-import {Paper} from "@material-ui/core";
-import ControllerDetails from "../ControllerDetails";
-import {SimulatedInventory} from "../SimulatedInventory/SimulatedInventory";
-import {ExpansionHandler, LogDisplay} from "../Log/LogDisplay";
-import {StatusBar} from "../StatusBar";
-import {makeStyles} from "@material-ui/core/styles";
-import {Container, Item} from "../common/Cells";
-import {Organizer} from "../Log/Organizer";
-import {SettingsState} from "../Settings";
-import {SessionUser} from "../proxies/Session";
+import React from 'react'
+import {CommandBar} from "../CommandBar"
+import {SetStepperPolicy, TimeContext} from "../proxies/StepperProxy"
+import {InventoryProxy} from "../proxies/InventoryProxy"
+import {Paper} from "@material-ui/core"
+import ControllerDetails from "../ControllerDetails"
+import {SimulatedInventory} from "../SimulatedInventory/SimulatedInventory"
+import {ExpansionHandler, LogDisplay} from "../Log/LogDisplay"
+import {StatusBar} from "../StatusBar"
+import {makeStyles} from "@material-ui/core/styles"
+import {Container, Item} from "../common/Cells"
+import {Organizer} from "../Log/Organizer"
+import {SettingsState} from "../Settings"
+import {SessionUser} from "../proxies/Session"
 
 const useStyles = makeStyles(() => ({
     root: {
         flexGrow: 1
     }
-}));
+}))
 
-function getElementHeight(id: string) : number {
-    const elem = document.getElementById(id);
+function getElementHeight(id: string): number {
+    const elem = document.getElementById(id)
     if (elem === null) {
         return 100
     }
 
-    return elem.offsetHeight;
+    return elem.offsetHeight
 }
 
 export function MainPage(props: {
-            activeSession: boolean,
-            sessionUser: SessionUser,
-            settings: SettingsState,
-            onPolicyEvent: (policy: SetStepperPolicy) => void,
-            onSettingsChange: (settings: SettingsState) => void,
-            onTrackChange: ExpansionHandler,
-            onLogout: () => void,
-            proxy: InventoryProxy,
-            cur: TimeContext,
-            organizer: Organizer}) {
-    const classes = useStyles();
+    activeSession: boolean,
+    sessionUser: SessionUser,
+    settings: SettingsState,
+    onPolicyEvent: (policy: SetStepperPolicy) => void,
+    onSettingsChange: (settings: SettingsState) => void,
+    onTrackChange: ExpansionHandler,
+    onLogout: () => void,
+    proxy: InventoryProxy,
+    cur: TimeContext,
+    organizer: Organizer
+}) {
+    const classes = useStyles()
 
     return <div className={classes.root}>
         <Container>
@@ -80,5 +81,5 @@ export function MainPage(props: {
                 </Paper>
             </Item>
         </Container>
-    </div>;
+    </div>
 }

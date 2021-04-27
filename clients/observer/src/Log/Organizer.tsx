@@ -1,8 +1,8 @@
 // Organizer holds the traces, keyed by span ID, and a list of known root
 // spans, in reverse order (newest first).  It also tracks which spans are
 // currently expanded, and which are not
-import {nullSpanID} from "../pkg/protos/log/entry";
-import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests";
+import {nullSpanID} from "../pkg/protos/log/entry"
+import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
 
 export class Organizer {
     roots: string[]
@@ -32,8 +32,7 @@ export class Organizer {
             this.all.forEach((v): void => {
                 const entry = v.entry
                 if (entry.parentID === nullSpanID) {
-                    if ((entry.linkSpanID !== nullSpanID) && this.all.has(entry.linkSpanID))
-                    {
+                    if ((entry.linkSpanID !== nullSpanID) && this.all.has(entry.linkSpanID)) {
                         const key = this.formatLink(entry.linkSpanID, entry.linkTraceID, entry.startingLink)
                         this.links.set(key, entry.spanID)
                     } else {

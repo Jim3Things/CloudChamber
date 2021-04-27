@@ -1,16 +1,20 @@
 // Settings manages the transient view settings for the UI via a defined state
 // structure held by the app, and a dialog for manipulating it.
 
-import React from 'react';
-import { makeStyles, Theme, createStyles } from '@material-ui/core/styles';
-import SettingsIcon from '@material-ui/icons/Settings';
+import React from 'react'
+import {createStyles, makeStyles, Theme} from '@material-ui/core/styles'
+import SettingsIcon from '@material-ui/icons/Settings'
 import {
     Button,
-    Checkbox, Dialog, DialogActions, DialogContent, DialogTitle,
+    Checkbox,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
     FormControl,
     FormControlLabel,
     IconButton
-} from "@material-ui/core";
+} from "@material-ui/core"
 
 // LogSettings are the filtering options that determine which log entries to
 // show in the display.
@@ -48,7 +52,7 @@ const useStyles = makeStyles((theme: Theme) =>
 export function Settings(props: {
     settings: SettingsState,
     onChange: (settings: SettingsState) => void
-})  {
+}) {
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [working, setWorking] = React.useState<SettingsState>(props.settings)
 
@@ -57,12 +61,12 @@ export function Settings(props: {
     const handleOpenSettings = (event: React.MouseEvent<HTMLButtonElement>) => {
         setWorking({...props.settings})
         setAnchorEl(event.currentTarget)
-    };
+    }
 
     const handleClose = () => {
-        setAnchorEl(null);
+        setAnchorEl(null)
         props.onChange(working)
-    };
+    }
 
     const handleCancel = () => {
         setAnchorEl(null)
@@ -86,19 +90,19 @@ export function Settings(props: {
                 onSave={handleClose}
             />
         </div>
-    );
+    )
 }
 
 // SettingsDialog displays and manages the dialog that supports editing of the
 // current display settings.
 export function SettingsDialog(props: {
     open: boolean,
-    settings:SettingsState,
+    settings: SettingsState,
     onChange: (settings: SettingsState) => void,
     onCancel: () => void,
     onSave: () => void
-})  {
-    const classes = useStyles();
+}) {
+    const classes = useStyles()
 
     const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const logSettings = {...props.settings.logSettings, [event.target.name]: event.target.checked}
@@ -107,12 +111,12 @@ export function SettingsDialog(props: {
     }
 
     return <Dialog
-        id='settings-dialog'
+        id="settings-dialog"
         open={props.open}
         className={classes.dialog}
-        >
+    >
 
-        <DialogTitle title="Cloud Chamber Settings" />
+        <DialogTitle title="Cloud Chamber Settings"/>
         <DialogContent>
             <FormControl component="fieldset" margin="dense">
                 <FormControlLabel

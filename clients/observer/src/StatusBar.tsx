@@ -1,9 +1,9 @@
-import React from 'react';
-import {Badge, Toolbar} from "@material-ui/core";
-import {Pause, PlayArrow} from "@material-ui/icons";
-import {makeStyles} from "@material-ui/core/styles";
+import React from 'react'
+import {Badge, Toolbar} from "@material-ui/core"
+import {Pause, PlayArrow} from "@material-ui/icons"
+import {makeStyles} from "@material-ui/core/styles"
 
-import {StepperMode, TimeContext} from "./proxies/StepperProxy";
+import {StepperMode, TimeContext} from "./proxies/StepperProxy"
 
 const useStyles = makeStyles(() => ({
     root: {
@@ -12,7 +12,7 @@ const useStyles = makeStyles(() => ({
     iconTag: {
         fontSize: "small"
     }
-}));
+}))
 
 // This method constructs a status bar containing currently running summary information
 
@@ -20,7 +20,7 @@ const useStyles = makeStyles(() => ({
 //       added as they make sense.
 
 export function StatusBar(props: { cur: TimeContext }) {
-    const classes = useStyles();
+    const classes = useStyles()
 
     // Helpers to control visibility of the different type of execution icons
     const hideBadge = (cur: TimeContext) => (cur.mode !== StepperMode.Running) || (cur.rate <= 1)
@@ -59,16 +59,16 @@ export function StatusBar(props: { cur: TimeContext }) {
 
     return (
         <div className={classes.root}>
-        <Toolbar variant="dense">
-            <div className={classes.root}/>
-            <div>
-                {badgeIcon(props.cur)}
-                {playIcon(props.cur)}
-                {pauseIcon(props.cur)}
-            </div>
-            &nbsp;&nbsp;
-            {props.cur.now}
-        </Toolbar>
+            <Toolbar variant="dense">
+                <div className={classes.root}/>
+                <div>
+                    {badgeIcon(props.cur)}
+                    {playIcon(props.cur)}
+                    {pauseIcon(props.cur)}
+                </div>
+                &nbsp;&nbsp;
+                {props.cur.now}
+            </Toolbar>
         </div>
-    );
+    )
 }

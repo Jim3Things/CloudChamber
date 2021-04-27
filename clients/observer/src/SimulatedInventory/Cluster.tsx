@@ -2,13 +2,13 @@
 // name as the first row The second row holds the rack names, and the third row
 // holds the details for each rack
 
-import React from "react";
-import {ClusterDetails, RackDetails} from "../proxies/InventoryProxy";
-import {makeStyles} from "@material-ui/core/styles";
-import {Colors} from "./SimulatedInventory";
-import {Rack} from "./Rack";
-import {Container, Item} from "../common/Cells";
-import {Typography} from "@material-ui/core";
+import React from "react"
+import {ClusterDetails, RackDetails} from "../proxies/InventoryProxy"
+import {makeStyles} from "@material-ui/core/styles"
+import {Colors} from "./SimulatedInventory"
+import {Rack} from "./Rack"
+import {Container, Item} from "../common/Cells"
+import {Typography} from "@material-ui/core"
 
 const useStyles = makeStyles((theme) => ({
     th: {
@@ -40,13 +40,13 @@ const useStyles = makeStyles((theme) => ({
         backgroundColor: theme.palette.background.paper,
         padding: theme.spacing(1),
     }
-}));
+}))
 
 export function Cluster(props: {
-            cluster: ClusterDetails,
-            palette: Colors
-        }) {
-    const classes = useStyles();
+    cluster: ClusterDetails,
+    palette: Colors
+}) {
+    const classes = useStyles()
 
     return (
         <Container xs={12}>
@@ -61,7 +61,7 @@ export function Cluster(props: {
                 {Array.from(props.cluster.racks.keys()).map((name) => (
                     <Item className={classes.td}>
                         <div>
-                            <Typography className={classes.rackName} >
+                            <Typography className={classes.rackName}>
                                 {name}
                             </Typography>
                         </div>

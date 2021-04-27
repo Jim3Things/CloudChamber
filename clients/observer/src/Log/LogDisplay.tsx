@@ -1,21 +1,13 @@
-import React from 'react';
-import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core";
-import {makeStyles} from "@material-ui/core/styles";
-import {
-    BugReport,
-    Error,
-    ErrorOutline,
-    HelpOutline,
-    Info,
-    Menu,
-    Warning
-} from '@material-ui/icons';
+import React from 'react'
+import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core"
+import {makeStyles} from "@material-ui/core/styles"
+import {BugReport, Error, ErrorOutline, HelpOutline, Info, Menu, Warning} from '@material-ui/icons'
 
-import {Organizer} from "./Organizer";
-import {MoreOrLess, RenderIf} from "../common/If";
-import {SettingsState} from "../Settings";
-import {Action, Event, Severity} from "../pkg/protos/log/entry";
-import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests";
+import {Organizer} from "./Organizer"
+import {MoreOrLess, RenderIf} from "../common/If"
+import {SettingsState} from "../Settings"
+import {Action, Event, Severity} from "../pkg/protos/log/entry"
+import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
 
 interface styleProps {
     indent: number
@@ -71,7 +63,7 @@ const useStyles = makeStyles((theme) => ({
             ? theme.palette.action.hover
             : theme.palette.background.paper)
     })
-}));
+}))
 
 export interface ExpansionHandler {
     (id: string): void
@@ -88,7 +80,7 @@ function FilteredCount(
         return event.length
     }
 
-    let count = event.length;
+    let count = event.length
 
     for (const item of event) {
         switch (item.eventAction) {
@@ -325,5 +317,5 @@ export function LogDisplay(props: {
                 })}
             </List>
         </Paper>
-    );
+    )
 }

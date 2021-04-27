@@ -1,9 +1,9 @@
 // This modules contains the proxy handler for calling the REST inventory management
 // service in the Cloud Chamber backend
 
-import {getJson} from "./Session";
-import {BladeCapacity} from "../pkg/protos/inventory/capacity";
-import {External_Rack, External_ZoneSummary} from "../pkg/protos/inventory/external";
+import {getJson} from "./Session"
+import {BladeCapacity} from "../pkg/protos/inventory/capacity"
+import {External_Rack, External_ZoneSummary} from "../pkg/protos/inventory/external"
 
 
 // Denote the running states of a workload instance
@@ -141,6 +141,8 @@ export class InventoryProxy {
                         state: PhysicalState.healthy,
                         usage: InventoryProxy.fakeUsage(blade.cores)
                     })
+                    newRack.tor.linkTo.push(true)
+                    newRack.pdu.powerTo.push(true)
                 })
 
                 return newRack

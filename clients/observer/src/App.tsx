@@ -1,18 +1,18 @@
-import React, {Component} from 'react';
+import React, {Component} from 'react'
 
-import './App.css';
-import {StepperMode, SetStepperPolicy, StepperProxy, TimeContext} from "./proxies/StepperProxy";
-import {InventoryProxy} from "./proxies/InventoryProxy";
-import {getErrorDetails, Session, SessionUser} from "./proxies/Session";
-import {RenderIf} from "./common/If";
-import {MainPage} from "./MainPage/Main";
-import {Login} from "./MainPage/Login";
-import {LogProxy} from "./proxies/LogProxy";
-import {Organizer} from "./Log/Organizer";
-import {SettingsState} from "./Settings";
-import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests";
-import {ErrorSnackbar} from "./common/Snackbar";
-import {WatchProxy} from "./proxies/WatchProxy";
+import './App.css'
+import {SetStepperPolicy, StepperMode, StepperProxy, TimeContext} from "./proxies/StepperProxy"
+import {InventoryProxy} from "./proxies/InventoryProxy"
+import {getErrorDetails, Session, SessionUser} from "./proxies/Session"
+import {RenderIf} from "./common/If"
+import {MainPage} from "./MainPage/Main"
+import {Login} from "./MainPage/Login"
+import {LogProxy} from "./proxies/LogProxy"
+import {Organizer} from "./Log/Organizer"
+import {SettingsState} from "./Settings"
+import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests"
+import {ErrorSnackbar} from "./common/Snackbar"
+import {WatchProxy} from "./proxies/WatchProxy"
 
 interface Props {
 
@@ -67,20 +67,20 @@ export class App extends Component<Props & any, State> {
     }
 
     stepperPolicyEvent = (policy: SetStepperPolicy) => {
-        this.setState({StepperPolicy: policy});
-        this.state.stepperProxy.changePolicy(policy, this.state.cur);
+        this.setState({StepperPolicy: policy})
+        this.state.stepperProxy.changePolicy(policy, this.state.cur)
     }
 
     settingsChangeEvent = (settings: SettingsState) => {
-        this.setState({settings: settings} )
+        this.setState({settings: settings})
     }
 
     onTimeEvent = (cur: TimeContext) => {
-        this.setState({ cur: cur });
+        this.setState({cur: cur})
     }
 
     onErrorEvent = (details: string) => {
-        this.setState({ snackText: details })
+        this.setState({snackText: details})
     }
 
     onNewLogEvent = (toHold: number, events: GetAfterResponse) => {
@@ -95,7 +95,35 @@ export class App extends Component<Props & any, State> {
         })
     }
 
-    onExpansionHandler = (id: string) : void => {
+    state: State = {
+        StepperPolicy: SetStepperPolicy.Pause,
+        stepperProxy: new StepperProxy(this.onErrorEvent),
+        watchProxy: new WatchProxy(this.onTimeEvent),
+        inventoryProxy: new InventoryProxy(),
+        logProxy: new LogProxy(this.onNewLogEvent),
+        session: new Session(),
+        activeSession: false,
+        sessionUser: new SessionUser({}, "", ""),
+        logonUser: "",
+        logonPassword: "",
+        logonError: "",
+        cur: {
+            mode: StepperMode.Paused,
+            now: 0,
+            rate: 0
+        },
+        entries: [],
+        organizer: new Organizer([]),
+        settings: {
+            logSettings: {
+                showDebug: true,
+                showInfra: true
+            }
+        },
+        snackText: ""
+    }
+
+    onExpansionHandler = (id: string): void => {
         const org = this.state.organizer
         org.flip(id)
         this.setState({organizer: org})
@@ -149,38 +177,10 @@ export class App extends Component<Props & any, State> {
                 open={this.state.snackText !== ""}
                 onClose={() => this.setState({snackText: ""})}
                 autoHideDuration={4000}
-                message={this.state.snackText} />
+                message={this.state.snackText}/>
 
-        </div>;
+        </div>
     }
-
-    state: State = {
-        StepperPolicy: SetStepperPolicy.Pause,
-        stepperProxy: new StepperProxy(this.onErrorEvent),
-        watchProxy: new WatchProxy(this.onTimeEvent),
-        inventoryProxy: new InventoryProxy(),
-        logProxy: new LogProxy(this.onNewLogEvent),
-        session: new Session(),
-        activeSession: false,
-        sessionUser: new SessionUser({}, "", ""),
-        logonUser: "",
-        logonPassword: "",
-        logonError: "",
-        cur: {
-            mode: StepperMode.Paused,
-            now: 0,
-            rate: 0
-        },
-        entries:[],
-        organizer: new Organizer([]),
-        settings: {
-            logSettings: {
-                showDebug: true,
-                showInfra: true
-            }
-        },
-        snackText: ""
-    };
 }
 
-export default App;
+export default App

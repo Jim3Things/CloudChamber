@@ -1,9 +1,9 @@
-import React, {useEffect, useState} from 'react';
-import {green, grey, red, yellow} from "@material-ui/core/colors";
+import React, {useEffect, useState} from 'react'
+import {green, grey, red, yellow} from "@material-ui/core/colors"
 
-import {ClusterDetails, InventoryProxy, RackDetails} from "../proxies/InventoryProxy";
-import {Cluster} from "./Cluster";
-import {ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar} from "../common/Snackbar";
+import {ClusterDetails, InventoryProxy, RackDetails} from "../proxies/InventoryProxy"
+import {Cluster} from "./Cluster"
+import {ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar} from "../common/Snackbar"
 
 
 // This is the palette of colors used by the various parts of the
@@ -19,7 +19,7 @@ export interface Colors {
 }
 
 // Draw the simulated inventory
-export function SimulatedInventory(props: {proxy: InventoryProxy}) {
+export function SimulatedInventory(props: { proxy: InventoryProxy }) {
     const [cluster, setCluster] = useState<ClusterDetails>({
         name: "Loading...",
         maxCapacity: {
@@ -40,7 +40,7 @@ export function SimulatedInventory(props: {proxy: InventoryProxy}) {
     })
 
     // Start by getting a snapshot of the cluster's inventory
-    useEffect(() =>{
+    useEffect(() => {
         props.proxy.getCluster()
             .then((zone) => {
                 setCluster(zone)
@@ -62,12 +62,13 @@ export function SimulatedInventory(props: {proxy: InventoryProxy}) {
                             setCluster(zone)
                             setSnackData({
                                 message: done ? "Inventory successfully loaded" : "",
-                                mode: done ? MessageMode.Success : MessageMode.None})
+                                mode: done ? MessageMode.Success : MessageMode.None
+                            })
                         })
                 })
             })
             .catch((err: Error) => {
-                setSnackData({ message: err.message, mode: MessageMode.Error })
+                setSnackData({message: err.message, mode: MessageMode.Error})
             })
     }, [props.proxy])
 
@@ -86,15 +87,15 @@ export function SimulatedInventory(props: {proxy: InventoryProxy}) {
 
         <SuccessSnackbar
             open={snackData.mode === MessageMode.Success}
-            onClose={() => setSnackData({ message: "", mode: MessageMode.None})}
+            onClose={() => setSnackData({message: "", mode: MessageMode.None})}
             autoHideDuration={3000}
-            message={snackData.message} />
+            message={snackData.message}/>
 
         <ErrorSnackbar
             open={snackData.mode === MessageMode.Error}
-            onClose={() => setSnackData({ message: "", mode: MessageMode.None})}
+            onClose={() => setSnackData({message: "", mode: MessageMode.None})}
             autoHideDuration={4000}
-            message={snackData.message} />
+            message={snackData.message}/>
 
     </React.Fragment>
 }

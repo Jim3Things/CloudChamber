@@ -4,11 +4,11 @@
 // TODO: Figure out how/if to show connections to the individual instances via
 //       an SDN setup
 
-import React from "react";
-import {TorDetails} from "../proxies/InventoryProxy";
-import {Colors} from "./SimulatedInventory";
-import {Opacity, PhysicalBox} from "./PhysicalBox";
-import {Connectors} from "./Connectors";
+import React from "react"
+import {TorDetails} from "../proxies/InventoryProxy"
+import {Colors} from "./SimulatedInventory"
+import {Opacity, PhysicalBox} from "./PhysicalBox"
+import {Connectors} from "./Connectors"
 
 export function Tor(props: {
     x: number,
@@ -34,7 +34,8 @@ export function Tor(props: {
             <text
                 x={10}
                 y={props.height + props.y - 2}
-                textAnchor={"center"}>TOR</text>
+                textAnchor={"center"}>TOR
+            </text>
 
             <Connectors
                 x={offset}
@@ -43,7 +44,8 @@ export function Tor(props: {
                 height={props.height}
                 state={props.details.linkTo}
                 onColor={props.palette.runningColor}
-                offColor={props.palette.faultedColor} opacity={Opacity(props.details.state)} />
+                offColor={props.palette.faultedColor}
+                opacity={Opacity(props.details.state)}/>
 
         </React.Fragment>
     )

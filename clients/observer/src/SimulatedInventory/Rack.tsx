@@ -1,18 +1,19 @@
 // Display a rack, with its contents
 
-import React from "react";
-import {RackDetails} from "../proxies/InventoryProxy";
-import {Colors} from "./SimulatedInventory";
-import {Blade} from "./Blade";
-import {Tor} from "./Tor";
-import {PDU} from "./PDU";
-import {BladeCapacity} from "../pkg/protos/inventory/capacity";
+import React from "react"
+import {RackDetails} from "../proxies/InventoryProxy"
+import {Colors} from "./SimulatedInventory"
+import {Blade} from "./Blade"
+import {Tor} from "./Tor"
+import {PDU} from "./PDU"
+import {BladeCapacity} from "../pkg/protos/inventory/capacity"
 
 export function Rack(props: {
     bladeLimit: number,
     capacityLimit: BladeCapacity,
     rack: RackDetails,
-    palette: Colors}) {
+    palette: Colors
+}) {
     const bladeHeight = 20
     const yGap = 1
     const headerSpace = 50
@@ -52,7 +53,7 @@ export function Rack(props: {
                     index={v[0]}
                     details={v[1]}
                     limits={props.capacityLimit}
-                    palette={props.palette} />
+                    palette={props.palette}/>
             })}
         </svg>
     )

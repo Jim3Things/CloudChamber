@@ -1,17 +1,17 @@
-import React from 'react';
-import {Button, Dialog, DialogActions, DialogContent, DialogTitle, FormGroup, TextField} from "@material-ui/core";
+import React from 'react'
+import {Button, Dialog, DialogActions, DialogContent, DialogTitle, FormGroup, TextField} from "@material-ui/core"
 
-import {PasswordTextField} from "../common/PasswordTextField";
-import {AlertIf} from "../common/AlertIf";
+import {PasswordTextField} from "../common/PasswordTextField"
+import {AlertIf} from "../common/AlertIf"
 
 export function Login(props: {
-        onClose: () => void,
-        userName: string,
-        onUserNameChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void,
-        password: string,
-        onPasswordChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void,
-        logonError: string
-    }) {
+    onClose: () => void,
+    userName: string,
+    onUserNameChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void,
+    password: string,
+    onPasswordChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void,
+    logonError: string
+}) {
     return <Dialog
         aria-labelledby="login-title"
         open={true}>
@@ -32,10 +32,10 @@ export function Login(props: {
                 <PasswordTextField
                     value={props.password}
                     label="Password"
-                    onChange={props.onPasswordChange} />
+                    onChange={props.onPasswordChange}/>
             </FormGroup>
 
-            <AlertIf title="Login Failed" text={props.logonError} />
+            <AlertIf title="Login Failed" text={props.logonError}/>
 
         </DialogContent>
         <DialogActions>
@@ -43,5 +43,5 @@ export function Login(props: {
                 Submit
             </Button>
         </DialogActions>
-    </Dialog>;
+    </Dialog>
 }
