@@ -1,18 +1,13 @@
-import React from "react";
-import {grey} from "@material-ui/core/colors";
-import {createStyles, Popover} from "@material-ui/core";
-import {makeStyles} from "@material-ui/core/styles";
+import React from "react"
+import {grey} from "@material-ui/core/colors"
+import {createStyles, Popover} from "@material-ui/core"
+import {makeStyles} from "@material-ui/core/styles"
 
-import {
-    BladeDetails,
-    InstanceDetails,
-    InstanceState,
-    PhysicalState
-} from "../proxies/InventoryProxy";
-import {Colors} from "./SimulatedInventory";
-import {Opacity, PhysicalBox} from "./PhysicalBox";
-import {BladeUsageDetails} from "./BladeUsageDetails";
-import {BladeCapacity} from "../pkg/protos/inventory/capacity";
+import {BladeDetails, InstanceDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy"
+import {Colors} from "./SimulatedInventory"
+import {Opacity, PhysicalBox} from "./PhysicalBox"
+import {BladeUsageDetails} from "./BladeUsageDetails"
+import {BladeCapacity} from "../pkg/protos/inventory/capacity"
 
 const useStyles = makeStyles((theme) =>
     createStyles({
@@ -23,7 +18,7 @@ const useStyles = makeStyles((theme) =>
             padding: theme.spacing(1),
         },
     }),
-);
+)
 
 // +++ Detail SVGRect boundary calculations
 
@@ -38,10 +33,14 @@ interface detailBox {
 // state
 function statusToColor(state: InstanceState, palette: Colors): string {
     switch (state) {
-        case InstanceState.escrow: return palette.escrowColor
-        case InstanceState.running: return palette.runningColor
-        case InstanceState.faulted: return palette.faultedColor
-        default: return palette.illegal
+        case InstanceState.escrow:
+            return palette.escrowColor
+        case InstanceState.running:
+            return palette.runningColor
+        case InstanceState.faulted:
+            return palette.faultedColor
+        default:
+            return palette.illegal
     }
 }
 
@@ -89,28 +88,28 @@ function formBladeDetailBoxes(
 
 // This method draws a blade, accounting for its state and usage
 export function Blade(props: {
-            x: number,
-            y: number,
-            width: number,
-            height: number,
-            index: number,
-            details: BladeDetails,
-            limits: BladeCapacity,
-            palette: Colors
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    index: number,
+    details: BladeDetails,
+    limits: BladeCapacity,
+    palette: Colors
 }) {
-    const classes = useStyles();
+    const classes = useStyles()
 
-    const [anchorEl, setAnchorEl] = React.useState<SVGSVGElement | null>(null);
+    const [anchorEl, setAnchorEl] = React.useState<SVGSVGElement | null>(null)
 
-    const handlePopoverOpen = (event: React.MouseEvent<SVGSVGElement, MouseEvent>) : void => {
-        setAnchorEl(event.currentTarget);
-    };
+    const handlePopoverOpen = (event: React.MouseEvent<SVGSVGElement, MouseEvent>): void => {
+        setAnchorEl(event.currentTarget)
+    }
 
     const handlePopoverClose = () => {
-        setAnchorEl(null);
-    };
+        setAnchorEl(null)
+    }
 
-    const open = Boolean(anchorEl);
+    const open = Boolean(anchorEl)
 
     const frameWidth = props.width * props.details.capacity.cores / props.limits.cores
 
@@ -141,15 +140,15 @@ export function Blade(props: {
             >
                 {boxes.map((value) => {
                     return <rect
-                            x={2 + value.left}
-                            y={2}
-                            height={props.height - 4}
-                            width={value.width}
-                            fill={value.color}
-                            strokeWidth={1}
-                            stroke={grey[700]}
-                            fillOpacity={value.opacity}
-                        />
+                        x={2 + value.left}
+                        y={2}
+                        height={props.height - 4}
+                        width={value.width}
+                        fill={value.color}
+                        strokeWidth={1}
+                        stroke={grey[700]}
+                        fillOpacity={value.opacity}
+                    />
                 })}
             </PhysicalBox>
 
@@ -174,7 +173,7 @@ export function Blade(props: {
             >
                 <BladeUsageDetails
                     index={props.index}
-                    details={props.details} />
+                    details={props.details}/>
             </Popover>
 
         </React.Fragment>

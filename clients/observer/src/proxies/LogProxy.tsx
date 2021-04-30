@@ -3,8 +3,8 @@
 // up and translating the incoming Json stream into the internal format used
 // throughout the rest of the UI.
 
-import {getJson} from "./Session";
-import {GetAfterResponse, GetPolicyResponse} from "../pkg/protos/services/requests";
+import {getJson} from "./Session"
+import {GetAfterResponse, GetPolicyResponse} from "../pkg/protos/services/requests"
 
 export interface LogArrivalHandler {
     (toHold: number, entries: GetAfterResponse): any;
@@ -38,7 +38,7 @@ export class LogProxy {
             })
             .catch(() => {
                 // Retry on failure
-                window.setTimeout(() => this.start(), 100);
+                window.setTimeout(() => this.start(), 100)
             })
     }
 
@@ -50,7 +50,7 @@ export class LogProxy {
     // Issue the time change notification
     notify(entries: GetAfterResponse) {
         if (this.onLogArrivalHandler) {
-            this.onLogArrivalHandler(this.maxHeld, entries);
+            this.onLogArrivalHandler(this.maxHeld, entries)
         }
     }
 
@@ -66,7 +66,7 @@ export class LogProxy {
                     this.getLogs(lastEpoch)
                 })
                 .catch(() => {
-                    window.setTimeout(() => this.start(), 100);
+                    window.setTimeout(() => this.start(), 100)
                 })
         }
     }

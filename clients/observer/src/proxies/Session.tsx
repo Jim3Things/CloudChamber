@@ -1,17 +1,19 @@
 // Manage the REST session attributes
 
-interface JsonUserDetails {
-    enabled: boolean
-    accountManager: boolean
-    neverDelete: boolean
+import {UserPublic} from "../pkg/protos/admin/users"
+
+export class SessionUser {
+    name: string
+    password: string
+    details: UserPublic
+
+    constructor(val: any, name: string, password: string) {
+        this.name = name
+        this.password = password
+        this.details = UserPublic.fromJSON(val)
+    }
 }
 
-export interface SessionUser {
-    name: string
-    enabled: boolean
-    accountManager: boolean
-    neverDelete: boolean
-}
 
 // CCError is a specialization of the Error interface that carries the
 // original response object along with it.  This allows the catch handler to
@@ -20,7 +22,7 @@ export class CCError extends Error {
     public resp: Response
 
     constructor(response: Response, msg: string) {
-        super(msg);
+        super(msg)
         this.resp = response
     }
 
@@ -37,21 +39,15 @@ export class Session {
         const request = new Request(path, {method: "PUT", body: password})
 
         return fetch(request)
-            .then((resp) => {
+            .then((resp: Response) => {
                 failIfError(request, resp)
 
-                const detailsPath = "/api/users/" + username
-                const requestDetails = new Request(detailsPath, {method: "GET"})
-
-                return getJson<JsonUserDetails>(requestDetails)
-            })
-            .then((details) => {
-                return {...details, name: username }
+                return this.getDetails(username, password)
             })
     }
 
     // Log out of the current session
-    public logout(username: string) : Promise<string> {
+    public logout(username: string): Promise<string> {
         const path = "/api/users/" + username + "?op=logout"
         const request = new Request(path, {method: "PUT"})
 
@@ -66,6 +62,23 @@ export class Session {
 
                 return "logged out"
             })
+    }
+
+    // get the details for the supplied user.
+    private getDetails(name: string, password: string): Promise<SessionUser> {
+        const path = "/api/users/" + name
+        const request = new Request(path, {method: "GET"})
+
+        return fetch(request)
+            .then((resp: Response) => {
+                failIfError(request, resp)
+
+                return resp.json()
+            })
+            .then((value) => {
+                return new SessionUser(value, name, password)
+            })
+
     }
 }
 
@@ -84,16 +97,16 @@ export function getErrorDetails(msg: any, save: (val: string) => void): void {
     if (msg.hasOwnProperty("resp")) {
         const err: CCError = {...msg}
         err.resp.text().then((details) => {
-            save(details )
+            save(details)
         })
     }
 
-    save (msg.toString())
+    save(msg.toString())
 }
 
 // Convert the response body into a JSON-parsed type
 export function getJson<T>(request: Request, signal?: AbortSignal | undefined): Promise<T> {
-    return fetch(request, { signal: signal })
+    return fetch(request, {signal: signal})
         .then((resp: Response) => {
             failIfError(request, resp)
             return resp.json() as Promise<T>
@@ -113,13 +126,6 @@ export function getETag(resp: Response): number {
     return parseInt(value, 10)
 }
 
-// Set the ETag into a header as a match condition
-export function ETagHeader(tag: number) : HeadersInit {
-    let requestHeaders: HeadersInit = new Headers()
-    requestHeaders.set('If-Match', tag.toString(10))
-
-    return requestHeaders
-}
 
 // --- ETag support functions
 
@@ -130,5 +136,5 @@ export function deleteCookie(name: string) {
 
     document.cookie = name +
         "=; expires=" + (new Date(Date.now() - oneHourInMs)).toUTCString() +
-        "; path=/";
+        "; path=/"
 }

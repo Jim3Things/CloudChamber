@@ -2,9 +2,9 @@
 // in the Cloud Chamber backend.
 
 // Known stepper policies
-import {getErrorDetails, getJson} from "./Session";
-import {StepperPolicy} from "../pkg/protos/services/requests";
-import {Duration} from "../pkg/protos/utils";
+import {getErrorDetails, getJson} from "./Session"
+import {StepperPolicy} from "../pkg/protos/services/requests"
+import {Duration} from "../pkg/protos/utils"
 
 // +++ Stepper mode handling
 
@@ -24,7 +24,7 @@ export enum StepperMode {
 
 // Convert the stepper mode into a string that the REST interface would
 // recognize
-function modeToString(policy: StepperMode) : string {
+function modeToString(policy: StepperMode): string {
     switch (policy) {
         case StepperMode.Paused:
             return "manual"
@@ -38,7 +38,7 @@ function modeToString(policy: StepperMode) : string {
 }
 
 // Convert the REST string name into a stepper mode value
-export function policyToMode(policy: StepperPolicy) : StepperMode {
+export function policyToMode(policy: StepperPolicy): StepperMode {
     switch (policy) {
         case StepperPolicy.Invalid:
         case StepperPolicy.Manual:
@@ -51,6 +51,7 @@ export function policyToMode(policy: StepperPolicy) : StepperMode {
 
     return StepperMode.Paused
 }
+
 // --- Stepper mode handling
 
 // Hold the current simulated time context
@@ -70,7 +71,7 @@ export interface TimeContext {
 
 
 // Convert the duration structure value into a ticks-per-second rate
-export function durationToRate(item: Duration | undefined) : number {
+export function durationToRate(item: Duration | undefined): number {
     if (item === undefined || item === null) {
         return 1
     }
@@ -119,7 +120,7 @@ export class StepperProxy {
 
     // Set the simulated time mode and ticks-per-second rate
     setMode(mode: StepperMode, postfix: string): Promise<any> {
-        const path= "/api/stepper?mode=" + modeToString(mode) + postfix
+        const path = "/api/stepper?mode=" + modeToString(mode) + postfix
         const request = new Request(path, {method: "PUT"})
         request.headers.append("If-Match", "-1")
 
@@ -149,7 +150,7 @@ export class StepperProxy {
                         })
                         .catch((msg: any) => this.sendError(msg))
                 }
-                break;
+                break
 
             case SetStepperPolicy.Step:
                 if (cur.mode !== StepperMode.Paused) {
@@ -161,7 +162,7 @@ export class StepperProxy {
                 } else {
                     this.advance()
                 }
-                break;
+                break
 
             case SetStepperPolicy.Run:
                 if (cur.mode !== StepperMode.Running || cur.rate !== 1) {
@@ -170,7 +171,7 @@ export class StepperProxy {
                         })
                         .catch((msg: any) => this.sendError(msg))
                 }
-                break;
+                break
 
             case SetStepperPolicy.Faster:
                 const rate = Math.min(cur.rate + 1, 5)
@@ -178,7 +179,7 @@ export class StepperProxy {
                     .then(() => {
                     })
                     .catch((msg: any) => this.sendError(msg))
-                break;
+                break
         }
     }
 }

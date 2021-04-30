@@ -1,6 +1,6 @@
-import {durationToRate, policyToMode, StepperMode, TimeContext} from "./StepperProxy";
-import {getJson} from "./Session";
-import {WatchResponse} from "../pkg/protos/services/requests";
+import {durationToRate, policyToMode, StepperMode, TimeContext} from "./StepperProxy"
+import {getJson} from "./Session"
+import {WatchResponse} from "../pkg/protos/services/requests"
 
 export interface ChangeHandlerFunc {
     (cur: TimeContext): any
@@ -33,13 +33,13 @@ export class WatchProxy {
     // Last seen simulated time service settings epoch
     timeEpoch: number = 0
 
-    abortController : AbortController | undefined = undefined
+    abortController: AbortController | undefined = undefined
 
     // Background task generation (epoch), used to ensure any stale async
     // operations terminate.
     epoch: number = 0
 
-    onChangeHandler?: ChangeHandlerFunc;
+    onChangeHandler?: ChangeHandlerFunc
 
     constructor(handler: ChangeHandlerFunc) {
         this.onChangeHandler = handler
@@ -61,7 +61,7 @@ export class WatchProxy {
     // Issue the time change notification
     notify() {
         if (this.onChangeHandler) {
-            this.onChangeHandler(this.cur);
+            this.onChangeHandler(this.cur)
         }
     }
 
@@ -108,7 +108,7 @@ export class WatchProxy {
     }
 
     // Get the listener to use to sign up for notification of an abort demand.
-    getSignal() : AbortSignal | undefined {
+    getSignal(): AbortSignal | undefined {
         if (this.abortController === undefined) {
             return undefined
         }

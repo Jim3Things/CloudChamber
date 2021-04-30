@@ -6,11 +6,11 @@
 // (powered off, if the 'false' state is intentional, faulted if it
 // is not)
 
-import React from "react";
-import {PduDetails} from "../proxies/InventoryProxy";
-import {Colors} from "./SimulatedInventory";
-import {Opacity, PhysicalBox} from "./PhysicalBox";
-import {Connectors} from "./Connectors";
+import React from "react"
+import {PduDetails} from "../proxies/InventoryProxy"
+import {Colors} from "./SimulatedInventory"
+import {Opacity, PhysicalBox} from "./PhysicalBox"
+import {Connectors} from "./Connectors"
 
 export function PDU(props: {
     x: number,
@@ -47,7 +47,7 @@ export function PDU(props: {
                 state={props.details.powerTo}
                 onColor={props.palette.runningColor}
                 offColor={props.palette.faultedColor}
-                opacity={Opacity(props.details.state)} />
+                opacity={Opacity(props.details.state)}/>
 
         </React.Fragment>
     )

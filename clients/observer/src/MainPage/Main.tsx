@@ -1,58 +1,53 @@
-import React from 'react';
-import {CommandBar, CommandTab} from "../CommandBar";
-import {SetStepperPolicy, TimeContext} from "../proxies/StepperProxy";
-import {UsersProxy} from "../proxies/UsersProxy";
-import {InventoryProxy} from "../proxies/InventoryProxy";
-import {Paper} from "@material-ui/core";
-import {CommandArea} from "../CommandArea/CommandArea";
-import ControllerDetails from "../ControllerDetails";
-import {SimulatedInventory} from "../SimulatedInventory/SimulatedInventory";
-import {ExpansionHandler, LogDisplay} from "../Log/LogDisplay";
-import {StatusBar} from "../StatusBar";
-import {makeStyles} from "@material-ui/core/styles";
-import {Container, Item} from "../common/Cells";
-import {Organizer} from "../Log/Organizer";
-import {SettingsState} from "../Settings";
+import React from 'react'
+import {CommandBar} from "../CommandBar"
+import {SetStepperPolicy, TimeContext} from "../proxies/StepperProxy"
+import {InventoryProxy} from "../proxies/InventoryProxy"
+import {Paper} from "@material-ui/core"
+import ControllerDetails from "../ControllerDetails"
+import {SimulatedInventory} from "../SimulatedInventory/SimulatedInventory"
+import {ExpansionHandler, LogDisplay} from "../Log/LogDisplay"
+import {StatusBar} from "../StatusBar"
+import {makeStyles} from "@material-ui/core/styles"
+import {Container, Item} from "../common/Cells"
+import {Organizer} from "../Log/Organizer"
+import {SettingsState} from "../Settings"
+import {SessionUser} from "../proxies/Session"
 
 const useStyles = makeStyles(() => ({
     root: {
         flexGrow: 1
     }
-}));
+}))
 
-function getElementHeight(id: string) : number {
-    const elem = document.getElementById(id);
+function getElementHeight(id: string): number {
+    const elem = document.getElementById(id)
     if (elem === null) {
         return 100
     }
 
-    return elem.offsetHeight;
+    return elem.offsetHeight
 }
 
 export function MainPage(props: {
-            tab: CommandTab,
-            activeSession: boolean,
-            sessionUser: string,
-            settings: SettingsState,
-            onPolicyEvent: (policy: SetStepperPolicy) => void,
-            onCommandSelect: (tab: CommandTab) => void,
-            onSettingsChange: (settings: SettingsState) => void,
-            onTrackChange: ExpansionHandler,
-            onLogout: () => void,
-            usersProxy: UsersProxy,
-            proxy: InventoryProxy,
-            cur: TimeContext,
-            organizer: Organizer}) {
-    const classes = useStyles();
+    activeSession: boolean,
+    sessionUser: SessionUser,
+    settings: SettingsState,
+    onPolicyEvent: (policy: SetStepperPolicy) => void,
+    onSettingsChange: (settings: SettingsState) => void,
+    onTrackChange: ExpansionHandler,
+    onLogout: () => void,
+    proxy: InventoryProxy,
+    cur: TimeContext,
+    organizer: Organizer
+}) {
+    const classes = useStyles()
 
     return <div className={classes.root}>
         <Container>
             <Item xs={12}>
                 <CommandBar
-                    tab={props.tab}
                     sessionUser={props.sessionUser}
                     settings={props.settings}
-                    onCommandSelect={props.onCommandSelect}
                     onPolicyEvent={props.onPolicyEvent}
                     onSettingsChange={props.onSettingsChange}
                     onLogout={props.onLogout}
@@ -61,20 +56,12 @@ export function MainPage(props: {
             <Item xs={9}>
                 <Container id="left-pane" direction="column">
                     <Item xs={12}>
-                        <Paper variant="outlined">
-                            <CommandArea
-                                sessionUser={props.sessionUser}
-                                usersProxy={props.usersProxy}
-                                tab={props.tab}/>
-                        </Paper>
-                    </Item>
-                    <Item xs={12}>
-                        <Paper variant="outlined" style={{maxHeight: 100, minHeight: 100, overflow: "auto"}}>
+                        <Paper variant="outlined" style={{maxHeight: 150, minHeight: 150, overflow: "auto"}}>
                             <ControllerDetails/>
                         </Paper>
                     </Item>
                     <Item xs={12}>
-                        <Paper variant="outlined" style={{minHeight: 200, overflow: "auto"}}>
+                        <Paper variant="outlined" style={{minHeight: 250, overflow: "auto"}}>
                             <SimulatedInventory proxy={props.proxy}/>
                         </Paper>
                     </Item>
@@ -94,5 +81,5 @@ export function MainPage(props: {
                 </Paper>
             </Item>
         </Container>
-    </div>;
+    </div>
 }

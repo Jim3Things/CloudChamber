@@ -1,16 +1,16 @@
-import React, {useState} from "react";
-import {Visibility, VisibilityOff} from "@material-ui/icons";
-import {IconButton, InputAdornment, TextField} from "@material-ui/core";
+import React, {useState} from "react"
+import {Visibility, VisibilityOff} from "@material-ui/icons"
+import {IconButton, InputAdornment, TextField} from "@material-ui/core"
 
 // PasswordTextField implements a form text input field with password masking
 // and the ability to turn the masking on and off.
 //
 // The masking starts as on.
 export function PasswordTextField(props: {
-        value: string,
-        label: string,
-        onChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void
-    }) {
+    value: string,
+    label: string,
+    onChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void
+}) {
     const [visible, setVisible] = useState(false)
     const onVisibleChange = () => setVisible(!visible)
 
@@ -39,6 +39,6 @@ export function PasswordTextField(props: {
         }}
         value={props.value}
         onChange={props.onChange}
-    />;
+    />
 
 }

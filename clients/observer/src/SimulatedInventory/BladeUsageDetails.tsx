@@ -1,9 +1,9 @@
-import React from "react";
-import {Check, CheckCircleOutline, Error, HighlightOff} from "@material-ui/icons";
-import {createStyles, Table, TableBody, TableCell, TableHead, TableRow} from "@material-ui/core";
+import React from "react"
+import {Check, CheckCircleOutline, Error, HighlightOff} from "@material-ui/icons"
+import {createStyles, Table, TableBody, TableCell, TableHead, TableRow} from "@material-ui/core"
 
-import {BladeDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy";
-import {makeStyles} from "@material-ui/core/styles";
+import {BladeDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy"
+import {makeStyles} from "@material-ui/core/styles"
 
 const useStyles = makeStyles((theme) =>
     createStyles({
@@ -14,7 +14,7 @@ const useStyles = makeStyles((theme) =>
             borderStyle: "none",
         },
     }),
-);
+)
 
 // Return the icon that matches the instance state
 function statusIcon(state: InstanceState) {
@@ -59,7 +59,7 @@ function acceleratorText(details: BladeDetails) {
 // Construct the details display showing the usage of a blade, its overall
 // capacity, and what remains available.
 export function BladeUsageDetails(props: { index: number, details: BladeDetails }) {
-    const classes = useStyles();
+    const classes = useStyles()
 
     const totalUsed = props.details.usage.reduce((sum: number, item) => sum + item.usage, 0)
     const unused = props.details.capacity.cores - totalUsed
@@ -105,7 +105,7 @@ export function BladeUsageDetails(props: { index: number, details: BladeDetails 
 
             <TableRow>
                 <TableCell className={classes.cell}>Unused</TableCell>
-                <TableCell className={classes.cell} />
+                <TableCell className={classes.cell}/>
                 <TableCell className={classes.cell}>{unused}</TableCell>
                 <TableCell className={classes.cell}>?</TableCell>
                 <TableCell className={classes.cell}>?</TableCell>

@@ -1,15 +1,15 @@
 // This module provides a snackbar formatted to indicate success
 
-import {IconButton, Snackbar} from "@material-ui/core";
-import CloseIcon from "@material-ui/icons/Close";
-import React from "react";
-import {makeStyles} from "@material-ui/core/styles";
+import {IconButton, Snackbar} from "@material-ui/core"
+import CloseIcon from "@material-ui/icons/Close"
+import React from "react"
+import {makeStyles} from "@material-ui/core/styles"
 
 const useStyles = makeStyles(theme => ({
-        success: {
-            backgroundColor: theme.palette.success.main,
-            color: theme.palette.success.contrastText
-        },
+    success: {
+        backgroundColor: theme.palette.success.main,
+        color: theme.palette.success.contrastText
+    },
     error: {
         backgroundColor: theme.palette.error.main,
         color: theme.palette.error.contrastText
@@ -43,8 +43,8 @@ export function ErrorSnackbar(props: {
         action={[
             <IconButton
                 color="inherit"
-                onClick={props.onClose} >
-                <CloseIcon />
+                onClick={props.onClose}>
+                <CloseIcon/>
             </IconButton>
         ]}
         anchorOrigin={{
@@ -53,7 +53,7 @@ export function ErrorSnackbar(props: {
         }}
         message={props.message}
         ContentProps={{
-            classes: { root: classes.error }
+            classes: {root: classes.error}
         }}
     />
 }
@@ -73,8 +73,8 @@ export function SuccessSnackbar(props: {
         action={[
             <IconButton
                 color="inherit"
-                onClick={props.onClose} >
-                <CloseIcon />
+                onClick={props.onClose}>
+                <CloseIcon/>
             </IconButton>
         ]}
         anchorOrigin={{
@@ -83,7 +83,7 @@ export function SuccessSnackbar(props: {
         }}
         message={props.message}
         ContentProps={{
-            classes: { root: classes.success }
+            classes: {root: classes.success}
         }}
     />
 }

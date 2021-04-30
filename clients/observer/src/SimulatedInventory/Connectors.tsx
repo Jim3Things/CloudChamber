@@ -2,8 +2,8 @@
 // and colors them, based on a boolean area indicating if the connector is
 // enabled or not
 
-import React from "react";
-import {grey} from "@material-ui/core/colors";
+import React from "react"
+import {grey} from "@material-ui/core/colors"
 
 export function Connectors(props: {
     x: number,

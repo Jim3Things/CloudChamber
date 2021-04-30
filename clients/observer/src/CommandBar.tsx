@@ -1,83 +1,132 @@
-import React from "react";
-import {AppBar, IconButton, Tab, Tabs, Toolbar, Tooltip, Typography} from "@material-ui/core";
-import {makeStyles} from "@material-ui/core/styles";
+import React from "react"
+import {AppBar, IconButton, List, ListItem, ListItemIcon, ListItemText, Toolbar, Tooltip} from "@material-ui/core"
+import {makeStyles, Theme} from "@material-ui/core/styles"
 
-import {Stepper} from "./Stepper";
-import {SetStepperPolicy} from "./proxies/StepperProxy";
-import {ExitToApp} from "@material-ui/icons";
-import {Settings, SettingsState} from "./Settings";
+import {Stepper} from "./Stepper"
+import {SetStepperPolicy} from "./proxies/StepperProxy"
+import {ExitToApp} from "@material-ui/icons"
+import {Settings, SettingsState} from "./Settings"
+import {SessionUser} from "./proxies/Session"
+import {ExpandingLabel} from "./common/ExpandingLabel"
+import {CheckIf} from "./common/If"
+import {UserPublic} from "./pkg/protos/admin/users"
 
-export enum CommandTab {
-    Admin,
-    Workloads,
-    Inventory,
-    Faults,
-    Help
-}
-
-const useStyles = makeStyles(() => ({
+const useStyles = makeStyles((theme: Theme) => ({
     root: {
         flexGrow: 1
+    },
+    rightIcon: {
+        MarginLeft: theme.spacing(1)
+    },
+    nested: {
+        paddingLeft: theme.spacing(4),
+        pt: 0,
+        pb: 0
     }
-}));
+}))
 
-// This method creates a function to handle the command bar that drives the
-// user command choices in Cloud Chamber.  This is a stateless component that
-// assumes that the current tab prop will be updated in response to a
-// onCommandSelect notification.
+// ListRight shows a single user right, with a checkbox indicating if it is
+// enabled or not.  The item is display-only.
+function ListRight(props: {
+    cond: boolean | undefined,
+    text: string
+}) {
+    const classes = useStyles()
+
+    const test = Boolean(props.cond)
+
+    return <ListItem dense className={classes.nested}>
+        <ListItemIcon>
+            <CheckIf cond={test}/>
+        </ListItemIcon>
+        <ListItemText primary={props.text}/>
+    </ListItem>
+
+}
+
+// UserDetails displays the supplied public user attributes.
+function UserDetails(props: { details: UserPublic }) {
+    return (
+        <List>
+            <ListItem>
+                <ListItemIcon>
+                    <CheckIf cond={props.details.enabled}/>
+                </ListItemIcon>
+                <ListItemText primary="Enabled"/>
+            </ListItem>
+            <ListItem>
+                <ListItemIcon>
+                    <CheckIf cond={props.details.neverDelete}/>
+                </ListItemIcon>
+                <ListItemText primary="Protected"/>
+            </ListItem>
+            <ListItem/>
+
+            <ListItem>
+                <ListItemText primary="Rights:"/>
+            </ListItem>
+            <ListRight
+                cond={props.details.rights?.canStepTime}
+                text="Can Step Time"/>
+            <ListRight
+                cond={props.details.rights?.canInjectFaults}
+                text="Can Inject Faults"/>
+            <ListRight
+                cond={props.details.rights?.canManageAccounts}
+                text="Can Manage Accounts"/>
+            <ListRight
+                cond={props.details.rights?.canModifyInventory}
+                text="Can Modify Inventory"/>
+            <ListRight
+                cond={props.details.rights?.canModifyWorkloads}
+                text="Can Modify Workloads"/>
+            <ListRight
+                cond={props.details.rights?.canPerformRepairs}
+                text="Can Perform Repairs"/>
+        </List>
+    )
+}
 
 export function CommandBar(props: {
-            tab: CommandTab,
-            sessionUser: string,
-            settings: SettingsState,
-            onPolicyEvent: (policy: SetStepperPolicy) => void,
-            onCommandSelect: (tab: CommandTab) => void,
-            onSettingsChange: (settings: SettingsState) => void,
-            onLogout: () => void
+    sessionUser: SessionUser,
+    settings: SettingsState,
+    onPolicyEvent: (policy: SetStepperPolicy) => void,
+    onSettingsChange: (settings: SettingsState) => void,
+    onLogout: () => void
 }) {
-    const classes = useStyles();
+    const classes = useStyles()
 
-    // Helper to decorate the tabs with unique IDs
-    const tabProps = (index: any) => {
-        return {
-            id: `simple-tab-${index}`,
-            'aria-controls': `simple-tabpanel-${index}`,
-        };
-    }
-
-    // Callback helper to notify that a tab has been selected.
-    const notify = (event: React.ChangeEvent<{}>, newValue: number) => {
-        // Map the number to the command tab enum
-        const tab: CommandTab = newValue;
-
-        if (props.onCommandSelect) {
-            props.onCommandSelect(tab)
-        }
-    }
+    const rights = props.sessionUser.details.rights
+    const disableStepTime = rights !== undefined ? !rights.canStepTime : true
 
     return (
         <div className={classes.root}>
             <AppBar position="static">
                 <Toolbar variant="dense">
-                    <Tabs value={props.tab} onChange={notify}>
-                        <Tab wrapped label="Admin" {...tabProps(0)}/>
-                        <Tab wrapped label="Workloads" {...tabProps(1)}/>
-                        <Tab wrapped label="Inventory" {...tabProps(2)}/>
-                        <Tab wrapped label="Faults" {...tabProps(3)}/>
-                        <Tab wrapped label="Help" {...tabProps(4)}/>
-                    </Tabs>
-                    <div className={classes.root}/>
-                    <Typography variant="subtitle2">
-                        {props.sessionUser}&nbsp;
-                    </Typography>
+                    <ExpandingLabel
+                        label={props.sessionUser.name}
+                        variant="subtitle2"
+                    >
+                        <UserDetails details={props.sessionUser.details}/>
+                    </ExpandingLabel>
+
                     <Tooltip title="log out">
                         <IconButton
                             color="inherit"
-                            onClick={() => props.onLogout()}>
-                                <ExitToApp/>
+                            className={classes.rightIcon}
+                            onClick={() => props.onLogout()}
+                        >
+                            <ExitToApp/>
                         </IconButton>
                     </Tooltip>
-                    <Stepper onPolicyEvent={props.onPolicyEvent}/>
+
+                    <div className={classes.root}/>
+
+                    <Stepper
+                        disabled={disableStepTime}
+                        onPolicyEvent={props.onPolicyEvent}
+                    />
+
                     <Settings
                         settings={props.settings}
                         onChange={props.onSettingsChange}
@@ -85,5 +134,5 @@ export function CommandBar(props: {
                 </Toolbar>
             </AppBar>
         </div>
-    );
+    )
 }

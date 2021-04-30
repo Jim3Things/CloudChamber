@@ -1,23 +1,13 @@
-import React from 'react';
-import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core";
-import {makeStyles} from "@material-ui/core/styles";
-import {
-    BugReport,
-    Error,
-    ErrorOutline,
-    ExpandLess,
-    ExpandMore,
-    HelpOutline,
-    Info,
-    Menu,
-    Warning
-} from '@material-ui/icons';
+import React from 'react'
+import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core"
+import {makeStyles} from "@material-ui/core/styles"
+import {BugReport, Error, ErrorOutline, HelpOutline, Info, Menu, Warning} from '@material-ui/icons'
 
-import {Organizer} from "./Organizer";
-import {RenderIf} from "../common/If";
-import {SettingsState} from "../Settings";
-import {Action, Event, Severity} from "../pkg/protos/log/entry";
-import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests";
+import {Organizer} from "./Organizer"
+import {MoreOrLess, RenderIf} from "../common/If"
+import {SettingsState} from "../Settings"
+import {Action, Event, Severity} from "../pkg/protos/log/entry"
+import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
 
 interface styleProps {
     indent: number
@@ -73,14 +63,11 @@ const useStyles = makeStyles((theme) => ({
             ? theme.palette.action.hover
             : theme.palette.background.paper)
     })
-}));
+}))
 
 export interface ExpansionHandler {
     (id: string): void
 }
-
-const ExpandIcon = (props: { expanded: boolean }) =>
-    props.expanded ? <ExpandLess/> : <ExpandMore/>
 
 // FilteredCount produces the child element count for a span after applying the
 // active display filters.
@@ -93,7 +80,7 @@ function FilteredCount(
         return event.length
     }
 
-    let count = event.length;
+    let count = event.length
 
     for (const item of event) {
         switch (item.eventAction) {
@@ -147,7 +134,7 @@ function TraceSpanElement(props: {
         </ListItemIcon>
         <ListItemText className={classes.labelText} primary={props.text} secondary={props.reason}/>
         <RenderIf cond={props.expandable}>
-            <ExpandIcon expanded={props.expanded}/>
+            <MoreOrLess cond={props.expanded}/>
         </RenderIf>
     </ListItem>
 }
@@ -330,5 +317,5 @@ export function LogDisplay(props: {
                 })}
             </List>
         </Paper>
-    );
+    )
 }
