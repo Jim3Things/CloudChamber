@@ -38,8 +38,8 @@ export function MoreOrLess(props: { cond: boolean }) {
 
 // Show a checked or empty display-only checkbox, depending on the supplied
 // condition.
-export function CheckIf(props: { cond: boolean }) {
-    if (props.cond) {
+export function CheckIf(props: { cond?: boolean }) {
+    if (props.cond !== undefined && props.cond) {
         return <CheckBox/>
     } else {
         return <CheckBoxOutlineBlank/>

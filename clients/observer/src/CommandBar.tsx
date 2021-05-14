@@ -3,13 +3,13 @@ import {AppBar, IconButton, List, ListItem, ListItemIcon, ListItemText, Toolbar,
 import {makeStyles, Theme} from "@material-ui/core/styles"
 
 import {Stepper} from "./Stepper"
-import {SetStepperPolicy} from "./proxies/StepperProxy"
 import {ExitToApp} from "@material-ui/icons"
-import {Settings, SettingsState} from "./Settings"
-import {SessionUser} from "./proxies/Session"
+import {Settings} from "./Settings"
 import {ExpandingLabel} from "./common/ExpandingLabel"
 import {CheckIf} from "./common/If"
 import {UserPublic} from "./pkg/protos/admin/users"
+import {useSelector} from "react-redux"
+import {sessionUserSelector} from "./store/Store"
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -45,18 +45,18 @@ function ListRight(props: {
 }
 
 // UserDetails displays the supplied public user attributes.
-function UserDetails(props: { details: UserPublic }) {
+function UserDetails(props: { details?: UserPublic }) {
     return (
         <List>
             <ListItem>
                 <ListItemIcon>
-                    <CheckIf cond={props.details.enabled}/>
+                    <CheckIf cond={props.details?.enabled}/>
                 </ListItemIcon>
                 <ListItemText primary="Enabled"/>
             </ListItem>
             <ListItem>
                 <ListItemIcon>
-                    <CheckIf cond={props.details.neverDelete}/>
+                    <CheckIf cond={props.details?.neverDelete}/>
                 </ListItemIcon>
                 <ListItemText primary="Protected"/>
             </ListItem>
@@ -66,71 +66,64 @@ function UserDetails(props: { details: UserPublic }) {
                 <ListItemText primary="Rights:"/>
             </ListItem>
             <ListRight
-                cond={props.details.rights?.canStepTime}
+                cond={props.details?.rights?.canStepTime}
                 text="Can Step Time"/>
             <ListRight
-                cond={props.details.rights?.canInjectFaults}
+                cond={props.details?.rights?.canInjectFaults}
                 text="Can Inject Faults"/>
             <ListRight
-                cond={props.details.rights?.canManageAccounts}
+                cond={props.details?.rights?.canManageAccounts}
                 text="Can Manage Accounts"/>
             <ListRight
-                cond={props.details.rights?.canModifyInventory}
+                cond={props.details?.rights?.canModifyInventory}
                 text="Can Modify Inventory"/>
             <ListRight
-                cond={props.details.rights?.canModifyWorkloads}
+                cond={props.details?.rights?.canModifyWorkloads}
                 text="Can Modify Workloads"/>
             <ListRight
-                cond={props.details.rights?.canPerformRepairs}
+                cond={props.details?.rights?.canPerformRepairs}
                 text="Can Perform Repairs"/>
         </List>
     )
 }
 
 export function CommandBar(props: {
-    sessionUser: SessionUser,
-    settings: SettingsState,
-    onPolicyEvent: (policy: SetStepperPolicy) => void,
-    onSettingsChange: (settings: SettingsState) => void,
-    onLogout: () => void
+    onLogout: (name: string) => void
 }) {
     const classes = useStyles()
 
-    const rights = props.sessionUser.details.rights
+    const sessionUser = useSelector(sessionUserSelector)
+
+    const rights = sessionUser?.details.rights
     const disableStepTime = rights !== undefined ? !rights.canStepTime : true
+
+    const name = String(sessionUser?.name)
 
     return (
         <div className={classes.root}>
             <AppBar position="static">
                 <Toolbar variant="dense">
                     <ExpandingLabel
-                        label={props.sessionUser.name}
+                        label={name}
                         variant="subtitle2"
                     >
-                        <UserDetails details={props.sessionUser.details}/>
+                        <UserDetails details={sessionUser?.details} />
                     </ExpandingLabel>
 
                     <Tooltip title="log out">
                         <IconButton
                             color="inherit"
                             className={classes.rightIcon}
-                            onClick={() => props.onLogout()}
+                            onClick={() => props.onLogout(name)}
                         >
-                            <ExitToApp/>
+                            <ExitToApp />
                         </IconButton>
                     </Tooltip>
 
-                    <div className={classes.root}/>
+                    <div className={classes.root} />
 
-                    <Stepper
-                        disabled={disableStepTime}
-                        onPolicyEvent={props.onPolicyEvent}
-                    />
-
-                    <Settings
-                        settings={props.settings}
-                        onChange={props.onSettingsChange}
-                    />
+                    <Stepper disabled={disableStepTime} />
+                    <Settings />
                 </Toolbar>
             </AppBar>
         </div>

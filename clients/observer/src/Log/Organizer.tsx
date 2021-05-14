@@ -18,29 +18,27 @@ export class Organizer {
         this.links = new Map<string, string>()
         this.expanded = new Map<string, boolean>()
 
-        if (cur !== undefined) {
-            for (const span of values) {
-                const entry = span.entry
-                this.all.set(entry.spanID, span)
+        for (const span of values) {
+            const entry = span.entry
+            this.all.set(entry.spanID, span)
 
-                const v = cur.expanded.get(entry.spanID)
-                if (v !== undefined && v) {
-                    this.expanded.set(entry.spanID, true)
+            const v = cur?.expanded.get(entry.spanID)
+            if (v !== undefined && v) {
+                this.expanded.set(entry.spanID, true)
+            }
+        }
+
+        this.all.forEach((v): void => {
+            const entry = v.entry
+            if (entry.parentID === nullSpanID) {
+                if ((entry.linkSpanID !== nullSpanID) && this.all.has(entry.linkSpanID)) {
+                    const key = this.formatLink(entry.linkSpanID, entry.linkTraceID, entry.startingLink)
+                    this.links.set(key, entry.spanID)
+                } else {
+                    this.roots = [entry.spanID, ...this.roots]
                 }
             }
-
-            this.all.forEach((v): void => {
-                const entry = v.entry
-                if (entry.parentID === nullSpanID) {
-                    if ((entry.linkSpanID !== nullSpanID) && this.all.has(entry.linkSpanID)) {
-                        const key = this.formatLink(entry.linkSpanID, entry.linkTraceID, entry.startingLink)
-                        this.links.set(key, entry.spanID)
-                    } else {
-                        this.roots = [entry.spanID, ...this.roots]
-                    }
-                }
-            })
-        }
+        })
     }
 
     formatLink(spanID: string, traceID: string, linkID: string): string {

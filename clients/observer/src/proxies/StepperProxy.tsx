@@ -94,92 +94,76 @@ export interface ErrorHandlerFunc {
     (text: string): any
 }
 
-// Utility class that provides a proxy to the Cloud Chamber Stepper REST service.
-//
-//
 // TODO: Add proper tracking of the ETags to qualify the updates, and code to
 //       resynchronize the ETags once they get out of sync.
 //
-export class StepperProxy {
-    onErrorHandler?: ErrorHandlerFunc
-
-    // Construct the proxy, with the notification handler, and kick off the
-    // processing
-    constructor(errorHandler: ErrorHandlerFunc) {
-        this.onErrorHandler = errorHandler
-    }
-
-
-    // Manually move the time forward one tick
-    advance() {
-        getJson<any>(new Request("/api/stepper?advance", {method: "PUT"}))
-            .then(() => {
-            })
-            .catch((msg: any) => this.sendError(msg))
-    }
-
-    // Set the simulated time mode and ticks-per-second rate
-    setMode(mode: StepperMode, postfix: string): Promise<any> {
-        const path = "/api/stepper?mode=" + modeToString(mode) + postfix
-        const request = new Request(path, {method: "PUT"})
-        request.headers.append("If-Match", "-1")
-
-        return getJson<any>(request)
-    }
-
-    sendError(msg: any) {
-        getErrorDetails(msg, (details: string) => {
-            if (this.onErrorHandler) {
-                this.onErrorHandler(details)
-            }
+// Manually move the time forward one tick
+function advance(handler: ErrorHandlerFunc) {
+    getJson<any>(new Request("/api/stepper?advance", {method: "PUT"}))
+        .then(() => {
         })
-    }
+        .catch((msg: any) => sendError(handler, msg))
+}
 
-    // Notify the Stepper of a policy event.  Note that repeated calls are
-    // passed to the Stepper, which allows for single stepping and for
-    // increased automatic execution rates.
+// Set the simulated time mode and ticks-per-second rate
+function setMode(mode: StepperMode, postfix: string): Promise<any> {
+    const path = "/api/stepper?mode=" + modeToString(mode) + postfix
+    const request = new Request(path, {method: "PUT"})
+    request.headers.append("If-Match", "-1")
 
-    changePolicy(policy: SetStepperPolicy, cur: TimeContext) {
-        // Fake what will be the REST call to the Stepper service, including
-        // a fake delay for the response.
-        switch (policy) {
-            case SetStepperPolicy.Pause:
-                if (cur.mode !== StepperMode.Paused) {
-                    this.setMode(StepperMode.Paused, "")
-                        .then(() => {
-                        })
-                        .catch((msg: any) => this.sendError(msg))
-                }
-                break
+    return getJson<any>(request)
+}
 
-            case SetStepperPolicy.Step:
-                if (cur.mode !== StepperMode.Paused) {
-                    this.setMode(StepperMode.Paused, "")
-                        .then(() => {
-                            this.advance()
-                        })
-                        .catch((msg: any) => this.sendError(msg))
-                } else {
-                    this.advance()
-                }
-                break
+function sendError(handler: ErrorHandlerFunc, msg: any) {
+    getErrorDetails(msg, (details: string) => {
+        handler(details)
+    })
+}
 
-            case SetStepperPolicy.Run:
-                if (cur.mode !== StepperMode.Running || cur.rate !== 1) {
-                    this.setMode(StepperMode.Running, ":1")
-                        .then(() => {
-                        })
-                        .catch((msg: any) => this.sendError(msg))
-                }
-                break
+// Notify the Stepper of a policy event.  Note that repeated calls are
+// passed to the Stepper, which allows for single stepping and for
+// increased automatic execution rates.
 
-            case SetStepperPolicy.Faster:
-                const rate = Math.min(cur.rate + 1, 5)
-                this.setMode(StepperMode.Running, ":" + rate)
+export function changeStepperPolicy(handler: ErrorHandlerFunc, policy: SetStepperPolicy, cur: TimeContext) {
+    // Fake what will be the REST call to the Stepper service, including
+    // a fake delay for the response.
+    switch (policy) {
+        case SetStepperPolicy.Pause:
+            if (cur.mode !== StepperMode.Paused) {
+                setMode(StepperMode.Paused, "")
                     .then(() => {
                     })
-                    .catch((msg: any) => this.sendError(msg))
-                break
-        }
+                    .catch((msg: any) => sendError(handler, msg))
+            }
+            break
+
+        case SetStepperPolicy.Step:
+            if (cur.mode !== StepperMode.Paused) {
+                setMode(StepperMode.Paused, "")
+                    .then(() => {
+                        advance(handler)
+                    })
+                    .catch((msg: any) => sendError(handler, msg))
+            } else {
+                advance(handler)
+            }
+            break
+
+        case SetStepperPolicy.Run:
+            if (cur.mode !== StepperMode.Running || cur.rate !== 1) {
+                setMode(StepperMode.Running, ":1")
+                    .then(() => {
+                    })
+                    .catch((msg: any) => sendError(handler, msg))
+            }
+            break
+
+        case SetStepperPolicy.Faster:
+            const rate = Math.min(cur.rate + 1, 5)
+            setMode(StepperMode.Running, ":" + rate)
+                .then(() => {
+                })
+                .catch((msg: any) => sendError(handler, msg))
+            break
     }
 }

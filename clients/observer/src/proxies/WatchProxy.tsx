@@ -1,4 +1,4 @@
-import {durationToRate, policyToMode, StepperMode, TimeContext} from "./StepperProxy"
+import {durationToRate, policyToMode, TimeContext} from "./StepperProxy"
 import {getJson} from "./Session"
 import {WatchResponse} from "../pkg/protos/services/requests"
 
@@ -23,13 +23,6 @@ export interface ChangeHandlerFunc {
 //       matures.
 //
 export class WatchProxy {
-    // Last seen time context
-    cur: TimeContext = {
-        mode: StepperMode.Paused,
-        rate: 0,
-        now: 0
-    }
-
     // Last seen simulated time service settings epoch
     timeEpoch: number = 0
 
@@ -39,17 +32,11 @@ export class WatchProxy {
     // operations terminate.
     epoch: number = 0
 
-    onChangeHandler?: ChangeHandlerFunc
-
-    constructor(handler: ChangeHandlerFunc) {
-        this.onChangeHandler = handler
-    }
-
     // Start the background watcher task, after ensuring that no existing
     // task will survive.
-    start() {
+    start(handler: ChangeHandlerFunc) {
         this.epoch++
-        this.watch(this.epoch, this.cur.now, this.timeEpoch)
+        this.watch(handler, this.epoch, 0, this.timeEpoch)
     }
 
     // Cancel the background task, lazily.
@@ -58,15 +45,8 @@ export class WatchProxy {
         this.issueAbort()
     }
 
-    // Issue the time change notification
-    notify() {
-        if (this.onChangeHandler) {
-            this.onChangeHandler(this.cur)
-        }
-    }
-
     // watch is the background async thread that keeps a watch outstanding.
-    watch(lastEpoch: number, tickParam: number, epochParam: number) {
+    private watch(handler: ChangeHandlerFunc, lastEpoch: number, tickParam: number, epochParam: number) {
         var tick = tickParam
         var epoch = epochParam
 
@@ -83,32 +63,35 @@ export class WatchProxy {
                         tick = sr.now
                         epoch = sr.epoch
 
-                        this.cur.mode = policyToMode(sr.policy)
-                        this.cur.rate = durationToRate(sr.measuredDelay)
-                        this.cur.now = tick
+                        const cur: TimeContext = {
+                            mode: policyToMode(sr.policy),
+                            rate: durationToRate(sr.measuredDelay),
+                            now: tick
+                        }
+
                         this.timeEpoch = epoch
-                        this.notify()
+                        handler(cur)
                     }
 
-                    this.watch(lastEpoch, tick, epoch)
+                    this.watch(handler, lastEpoch, tick, epoch)
                 })
                 .catch(() => {
                     // Retry on failure
-                    window.setTimeout(() => this.watch(lastEpoch, tick, epoch), 500)
+                    window.setTimeout(() => this.watch(handler, lastEpoch, tick, epoch), 500)
                 })
         }
     }
 
     // Issue the abort for any outstanding operation, assuming that aborts are
     // enabled (which they should be)
-    issueAbort() {
+    private issueAbort() {
         if (this.abortController !== undefined) {
             this.abortController.abort()
         }
     }
 
     // Get the listener to use to sign up for notification of an abort demand.
-    getSignal(): AbortSignal | undefined {
+    private getSignal(): AbortSignal | undefined {
         if (this.abortController === undefined) {
             return undefined
         }

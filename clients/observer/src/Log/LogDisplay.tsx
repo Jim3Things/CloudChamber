@@ -8,6 +8,8 @@ import {MoreOrLess, RenderIf} from "../common/If"
 import {SettingsState} from "../Settings"
 import {Action, Event, Severity} from "../pkg/protos/log/entry"
 import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
+import {useSelector} from "react-redux"
+import {settingsSelector} from "../store/Store"
 
 interface styleProps {
     indent: number
@@ -299,17 +301,17 @@ function TraceEvent(props: {
 export function LogDisplay(props: {
     height: number,
     organizer: Organizer,
-    settings: SettingsState,
     onTrackChange: ExpansionHandler
 }) {
     const classes = useStyles({indent: 0, infra: false, height: props.height})
+    const settings = useSelector(settingsSelector)
 
     return (
         <Paper variant="outlined" className={classes.root}>
             <List dense disablePadding>
                 {props.organizer.roots.map((key) => {
                     return <TraceSpanSubtree
-                        settings={props.settings}
+                        settings={settings}
                         organizer={props.organizer}
                         onTrackChange={props.onTrackChange}
                         indent={0}

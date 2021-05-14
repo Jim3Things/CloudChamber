@@ -3,16 +3,22 @@ import {IconButton} from "@material-ui/core"
 import {FastForward, Pause, PlayArrow, SkipNextOutlined} from '@material-ui/icons'
 
 import './App.css'
-import {SetStepperPolicy} from "./proxies/StepperProxy"
+import {changeStepperPolicy, SetStepperPolicy} from "./proxies/StepperProxy"
+import {curSelector, snackbarSlice, useAppDispatch} from "./store/Store"
+import {useSelector} from "react-redux"
 
 export function Stepper(props: {
     disabled: boolean,
-    onPolicyEvent?: (policy: SetStepperPolicy) => any
 }) {
+    const dispatch = useAppDispatch()
+
+    const cur = useSelector(curSelector)
+
     const notify = (policy: SetStepperPolicy) => {
-        if (props.onPolicyEvent) {
-            props.onPolicyEvent(policy)
-        }
+        changeStepperPolicy(
+            (msg: string) => dispatch(snackbarSlice.actions.update(msg)),
+            policy,
+            cur)
     }
 
     return (

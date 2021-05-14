@@ -1,7 +1,5 @@
 import React from 'react'
 import {CommandBar} from "../CommandBar"
-import {SetStepperPolicy, TimeContext} from "../proxies/StepperProxy"
-import {InventoryProxy} from "../proxies/InventoryProxy"
 import {Paper} from "@material-ui/core"
 import ControllerDetails from "../ControllerDetails"
 import {SimulatedInventory} from "../SimulatedInventory/SimulatedInventory"
@@ -10,8 +8,6 @@ import {StatusBar} from "../StatusBar"
 import {makeStyles} from "@material-ui/core/styles"
 import {Container, Item} from "../common/Cells"
 import {Organizer} from "../Log/Organizer"
-import {SettingsState} from "../Settings"
-import {SessionUser} from "../proxies/Session"
 
 const useStyles = makeStyles(() => ({
     root: {
@@ -29,15 +25,8 @@ function getElementHeight(id: string): number {
 }
 
 export function MainPage(props: {
-    activeSession: boolean,
-    sessionUser: SessionUser,
-    settings: SettingsState,
-    onPolicyEvent: (policy: SetStepperPolicy) => void,
-    onSettingsChange: (settings: SettingsState) => void,
     onTrackChange: ExpansionHandler,
-    onLogout: () => void,
-    proxy: InventoryProxy,
-    cur: TimeContext,
+    onLogout: (name: string) => void,
     organizer: Organizer
 }) {
     const classes = useStyles()
@@ -46,10 +35,6 @@ export function MainPage(props: {
         <Container>
             <Item xs={12}>
                 <CommandBar
-                    sessionUser={props.sessionUser}
-                    settings={props.settings}
-                    onPolicyEvent={props.onPolicyEvent}
-                    onSettingsChange={props.onSettingsChange}
                     onLogout={props.onLogout}
                 />
             </Item>
@@ -62,7 +47,7 @@ export function MainPage(props: {
                     </Item>
                     <Item xs={12}>
                         <Paper variant="outlined" style={{minHeight: 250, overflow: "auto"}}>
-                            <SimulatedInventory proxy={props.proxy}/>
+                            <SimulatedInventory />
                         </Paper>
                     </Item>
                 </Container>
@@ -70,14 +55,13 @@ export function MainPage(props: {
             <Item xs={3}>
                 <LogDisplay
                     height={getElementHeight("left-pane")}
-                    settings={props.settings}
                     organizer={props.organizer}
                     onTrackChange={props.onTrackChange}
                 />
             </Item>
             <Item xs={12}>
                 <Paper variant="outlined">
-                    <StatusBar cur={props.cur}/>
+                    <StatusBar />
                 </Paper>
             </Item>
         </Container>

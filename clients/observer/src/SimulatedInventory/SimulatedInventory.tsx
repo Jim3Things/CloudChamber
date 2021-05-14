@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import {green, grey, red, yellow} from "@material-ui/core/colors"
 
-import {ClusterDetails, InventoryProxy, RackDetails} from "../proxies/InventoryProxy"
+import {getCluster, getRackDetails, ClusterDetails, RackDetails} from "../proxies/InventoryProxy"
 import {Cluster} from "./Cluster"
 import {ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar} from "../common/Snackbar"
 
@@ -19,7 +19,7 @@ export interface Colors {
 }
 
 // Draw the simulated inventory
-export function SimulatedInventory(props: { proxy: InventoryProxy }) {
+export function SimulatedInventory() {
     const [cluster, setCluster] = useState<ClusterDetails>({
         name: "Loading...",
         maxCapacity: {
@@ -41,13 +41,13 @@ export function SimulatedInventory(props: { proxy: InventoryProxy }) {
 
     // Start by getting a snapshot of the cluster's inventory
     useEffect(() => {
-        props.proxy.getCluster()
+        getCluster()
             .then((zone) => {
                 setCluster(zone)
 
                 // Now start getting each rack
                 zone.racks.forEach((rack, name) => {
-                    props.proxy.getRackDetails(rack)
+                    getRackDetails(rack)
                         .then(res => {
                             let newZone = {...zone}
                             newZone.racks.set(name, res)
@@ -70,7 +70,7 @@ export function SimulatedInventory(props: { proxy: InventoryProxy }) {
             .catch((err: Error) => {
                 setSnackData({message: err.message, mode: MessageMode.Error})
             })
-    }, [props.proxy])
+    }, [])
 
     const palette: Colors = {
         backgroundColor: grey[100],

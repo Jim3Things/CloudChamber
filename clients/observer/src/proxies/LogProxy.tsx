@@ -19,26 +19,18 @@ export class LogProxy {
 
     maxHeld: number = 100
 
-    onLogArrivalHandler?: LogArrivalHandler
-
-    // Construct the proxy, with the notification handler, and kick off the
-    // processing
-    constructor(handler: LogArrivalHandler) {
-        this.onLogArrivalHandler = handler
-    }
-
-    start() {
+    start(handler: LogArrivalHandler) {
         const request = new Request("/api/logs/policy", {method: "GET"})
         getJson<any>(request, this.getSignal())
             .then(jsonPolicy => {
                 const policy = new GetPolicyResponse(jsonPolicy)
                 this.startId = policy.firstId
                 this.maxHeld = policy.maxEntriesHeld
-                this.getLogs(this.epoch)
+                this.getLogs(handler, this.epoch)
             })
             .catch(() => {
                 // Retry on failure
-                window.setTimeout(() => this.start(), 100)
+                window.setTimeout(() => this.start(handler), 100)
             })
     }
 
@@ -47,14 +39,7 @@ export class LogProxy {
         this.issueAbort()
     }
 
-    // Issue the time change notification
-    notify(entries: GetAfterResponse) {
-        if (this.onLogArrivalHandler) {
-            this.onLogArrivalHandler(this.maxHeld, entries)
-        }
-    }
-
-    getLogs(lastEpoch: number) {
+    getLogs(handler: LogArrivalHandler, lastEpoch: number) {
         if (lastEpoch === this.epoch) {
             const request = new Request("/api/logs?from=" + this.startId + "&for=100", {method: "GET"})
             getJson<any>(request, this.getSignal())
@@ -62,11 +47,11 @@ export class LogProxy {
                     const entries = new GetAfterResponse(jsonMsg)
 
                     this.startId = entries.lastId
-                    this.notify(entries)
-                    this.getLogs(lastEpoch)
+                    handler(this.maxHeld, entries)
+                    this.getLogs(handler, lastEpoch)
                 })
                 .catch(() => {
-                    window.setTimeout(() => this.start(), 100)
+                    window.setTimeout(() => this.start(handler), 100)
                 })
         }
     }

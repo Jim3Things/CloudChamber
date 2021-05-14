@@ -1,186 +1,114 @@
-import React, {Component} from 'react'
+import React, {useState} from 'react'
+import {useSelector} from "react-redux"
 
 import './App.css'
-import {SetStepperPolicy, StepperMode, StepperProxy, TimeContext} from "./proxies/StepperProxy"
-import {InventoryProxy} from "./proxies/InventoryProxy"
-import {getErrorDetails, Session, SessionUser} from "./proxies/Session"
-import {RenderIf} from "./common/If"
+import {getErrorDetails, logon, logout} from "./proxies/Session"
 import {MainPage} from "./MainPage/Main"
 import {Login} from "./MainPage/Login"
 import {LogProxy} from "./proxies/LogProxy"
 import {Organizer} from "./Log/Organizer"
-import {SettingsState} from "./Settings"
 import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests"
 import {ErrorSnackbar} from "./common/Snackbar"
 import {WatchProxy} from "./proxies/WatchProxy"
+import {
+    snackbarSlice, snackbarSelector,
+    hasSession, logonSlice,
+    useAppDispatch, stepperSlice
+} from "./store/Store"
+import {RenderIf} from "./common/If"
 
-interface Props {
+const logProxy = new LogProxy()
+const watchProxy = new WatchProxy()
+let organizer = new Organizer([])
 
-}
+function App() {
+    const [entries, setEntries] = useState<GetAfterResponse_traceEntry[]>([])
+    //const [organizer, setOrganizer] = useState<Organizer>(new Organizer([]))
 
-interface State {
-    StepperPolicy: SetStepperPolicy,
-    stepperProxy: StepperProxy,
-    watchProxy: WatchProxy,
-    inventoryProxy: InventoryProxy,
-    logProxy: LogProxy,
-    session: Session,
-    organizer: Organizer,
-    entries: GetAfterResponse_traceEntry[],
-    cur: TimeContext,
-    activeSession: boolean
-    sessionUser: SessionUser
-    logonUser: string
-    logonPassword: string
-    logonError: string
-    settings: SettingsState
-    snackText: string
-}
+    const dispatch = useAppDispatch()
 
-// Format and display the logon dialog box if we do not have an active
-
-export class App extends Component<Props & any, State> {
+    const snackText = useSelector(snackbarSelector)
+    const activeSession = useSelector(hasSession)
 
     // Initiate a login to a session
-    onLogon = () => {
-        this.state.session.logon(this.state.logonUser, this.state.logonPassword)
+    const onLogon = (name: string, password: string) => {
+        logon(name, password)
             .then(value => {
                 // It worked, so record the session state, and start the
                 // background calls to get the next tick
-                this.setState(
-                    {
-                        sessionUser: value,
-                        activeSession: true,
-                        logonPassword: "",
-                        logonError: ""
-                    })
-                this.state.logProxy.start()
-                this.state.watchProxy.start()
+                dispatch(logonSlice.actions.logon(value))
+
+                logProxy.start(onNewLogEvent)
+                watchProxy.start((cur) => dispatch(stepperSlice.actions.updatePolicy(cur)))
             })
-            .catch(msg => getErrorDetails(msg, details =>
-                this.setState({
-                    activeSession: false,
-                    logonError: details,
-                    logonPassword: ""
-                }))
-            )
-    }
-
-    stepperPolicyEvent = (policy: SetStepperPolicy) => {
-        this.setState({StepperPolicy: policy})
-        this.state.stepperProxy.changePolicy(policy, this.state.cur)
-    }
-
-    settingsChangeEvent = (settings: SettingsState) => {
-        this.setState({settings: settings})
-    }
-
-    onTimeEvent = (cur: TimeContext) => {
-        this.setState({cur: cur})
-    }
-
-    onErrorEvent = (details: string) => {
-        this.setState({snackText: details})
-    }
-
-    onNewLogEvent = (toHold: number, events: GetAfterResponse) => {
-        const newEntries = [...this.state.entries, ...events.entries]
-        const start = Math.max(newEntries.length - toHold, 0)
-        const slice = newEntries.slice(start)
-        const organizer = new Organizer(slice, this.state.organizer)
-
-        this.setState({
-            entries: slice,
-            organizer: organizer
-        })
-    }
-
-    state: State = {
-        StepperPolicy: SetStepperPolicy.Pause,
-        stepperProxy: new StepperProxy(this.onErrorEvent),
-        watchProxy: new WatchProxy(this.onTimeEvent),
-        inventoryProxy: new InventoryProxy(),
-        logProxy: new LogProxy(this.onNewLogEvent),
-        session: new Session(),
-        activeSession: false,
-        sessionUser: new SessionUser({}, "", ""),
-        logonUser: "",
-        logonPassword: "",
-        logonError: "",
-        cur: {
-            mode: StepperMode.Paused,
-            now: 0,
-            rate: 0
-        },
-        entries: [],
-        organizer: new Organizer([]),
-        settings: {
-            logSettings: {
-                showDebug: true,
-                showInfra: true
-            }
-        },
-        snackText: ""
-    }
-
-    onExpansionHandler = (id: string): void => {
-        const org = this.state.organizer
-        org.flip(id)
-        this.setState({organizer: org})
+            .catch(msg => getErrorDetails(msg, details => dispatch(logonSlice.actions.loginFailure(details))))
     }
 
     // Initiate a logout from the active session
-    onLogoutEvent = () => {
-        this.state.session.logout(this.state.sessionUser.name)
+    const onLogoutEvent = (name: string) => {
+        logout(name)
             .then(() => {
                 // We're logged out.  Set the state and cancel the
                 // background calls for the next tick
-                this.setState({activeSession: false})
-                this.state.logProxy.cancelUpdates()
-                this.state.watchProxy.cancel()
+                dispatch(logonSlice.actions.logout())
+
+                logProxy.cancelUpdates()
+                watchProxy.cancel()
+            })
+            .catch(() => {
+                dispatch(logonSlice.actions.logout())
+
+                logProxy.cancelUpdates()
+                watchProxy.cancel()
             })
     }
 
-    render() {
-        return <div className="App">
-            <link rel="stylesheet"
-                  href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"/>
-            <RenderIf cond={this.state.activeSession}>
-                <MainPage
-                    activeSession={this.state.activeSession}
-                    sessionUser={this.state.sessionUser}
-                    settings={this.state.settings}
-                    onPolicyEvent={this.stepperPolicyEvent}
-                    onSettingsChange={this.settingsChangeEvent}
-                    onLogout={this.onLogoutEvent}
-                    proxy={this.state.inventoryProxy}
-                    cur={this.state.cur}
-                    organizer={this.state.organizer}
-                    onTrackChange={this.onExpansionHandler}
-                />
-            </RenderIf>
+    const onNewLogEvent = (toHold: number, events: GetAfterResponse) => {
+        setEntries((prev) => {
 
-            <RenderIf cond={!this.state.activeSession}>
-                <Login
-                    onClose={this.onLogon}
-                    userName={this.state.logonUser}
-                    onUserNameChange={(event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
-                        this.setState({logonUser: event.target.value})}
-                    password={this.state.logonPassword}
-                    onPasswordChange={(event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) =>
-                        this.setState({logonPassword: event.target.value})}
-                    logonError={this.state.logonError}
-                />
-            </RenderIf>
+            const newEntries = prev.concat(events.entries)
+            const start = Math.max(newEntries.length - toHold, 0)
+            const slice = newEntries.slice(start)
 
-            <ErrorSnackbar
-                open={this.state.snackText !== ""}
-                onClose={() => this.setState({snackText: ""})}
-                autoHideDuration={4000}
-                message={this.state.snackText}/>
+            const newOrg = new Organizer(slice, organizer)
+            organizer = newOrg
 
-        </div>
+            return slice
+        })
+
+        //setOrganizer(newOrg)
     }
+
+    const onExpansionHandler = (id: string): void => {
+        const org = organizer
+        org.flip(id)
+        //setOrganizer(org)
+    }
+
+    return <div className="App">
+        <link rel="stylesheet"
+              href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"/>
+
+        <RenderIf cond={activeSession}>
+            <MainPage
+                onLogout={onLogoutEvent}
+                organizer={organizer}
+                onTrackChange={onExpansionHandler}
+            />
+        </RenderIf>
+
+        <RenderIf cond={!activeSession}>
+            <Login onClose={onLogon}/>
+        </RenderIf>
+
+        <ErrorSnackbar
+            open={snackText !== ""}
+            onClose={() => dispatch(snackbarSlice.actions.clear())}
+            autoHideDuration={4000}
+            message={snackText}
+        />
+
+    </div>
 }
 
 export default App
