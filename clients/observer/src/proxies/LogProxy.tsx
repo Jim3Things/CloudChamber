@@ -4,10 +4,22 @@
 // throughout the rest of the UI.
 
 import {getJson} from "./Session"
-import {GetAfterResponse, GetPolicyResponse} from "../pkg/protos/services/requests"
+import {GetAfterResponse, GetAfterResponse_traceEntry, GetPolicyResponse} from "../pkg/protos/services/requests"
+
+export class LogEntry extends GetAfterResponse_traceEntry {
+    expanded: boolean
+
+    constructor(source: GetAfterResponse_traceEntry) {
+        super({})
+
+        this.id = source.id
+        this.entry = source.entry
+        this.expanded = false
+    }
+}
 
 export interface LogArrivalHandler {
-    (toHold: number, entries: GetAfterResponse): any;
+    (toHold: number, entries: LogEntry[]): any;
 }
 
 export class LogProxy {
@@ -47,7 +59,7 @@ export class LogProxy {
                     const entries = new GetAfterResponse(jsonMsg)
 
                     this.startId = entries.lastId
-                    handler(this.maxHeld, entries)
+                    handler(this.maxHeld, entries.entries.map((v) => new LogEntry(v)))
                     this.getLogs(handler, lastEpoch)
                 })
                 .catch(() => {

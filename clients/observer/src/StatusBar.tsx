@@ -1,11 +1,10 @@
 import React from 'react'
-import {useSelector} from "react-redux"
 import {Badge, Toolbar} from "@material-ui/core"
 import {Pause, PlayArrow} from "@material-ui/icons"
 import {makeStyles} from "@material-ui/core/styles"
 
 import {StepperMode, TimeContext} from "./proxies/StepperProxy"
-import {curSelector} from "./store/Store"
+import {curSelector, useAppSelector} from "./store/Store"
 
 const useStyles = makeStyles(() => ({
     root: {
@@ -24,7 +23,7 @@ const useStyles = makeStyles(() => ({
 export function StatusBar() {
     const classes = useStyles()
 
-    const cur = useSelector(curSelector)
+    const cur = useAppSelector(curSelector)
 
     // Helpers to control visibility of the different type of execution icons
     const hideBadge = (cur: TimeContext) => (cur.mode !== StepperMode.Running) || (cur.rate <= 1)

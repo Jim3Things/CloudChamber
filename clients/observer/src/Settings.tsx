@@ -15,8 +15,7 @@ import {
     FormControlLabel,
     IconButton
 } from "@material-ui/core"
-import {useSelector} from "react-redux"
-import {settingsSelector, settingsSlice, useAppDispatch} from "./store/Store"
+import {settingsSelector, settingsSlice, useAppDispatch, useAppSelector} from "./store/Store"
 
 // LogSettings are the filtering options that determine which log entries to
 // show in the display.
@@ -53,7 +52,7 @@ const useStyles = makeStyles((theme: Theme) =>
 // It also provides a pass-through for the settings state update handlers.
 export function Settings() {
     const dispatch = useAppDispatch()
-    const settings = useSelector(settingsSelector)
+    const settings = useAppSelector(settingsSelector)
 
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
     const [working, setWorking] = React.useState<SettingsState>(settings)

@@ -1,31 +1,24 @@
 // Organizer holds the traces, keyed by span ID, and a list of known root
-// spans, in reverse order (newest first).  It also tracks which spans are
-// currently expanded, and which are not
+// spans, in reverse order (newest first).
+
 import {nullSpanID} from "../pkg/protos/log/entry"
 import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
+import {LogEntry} from "../proxies/LogProxy"
 
 export class Organizer {
     roots: string[]
 
-    all: Map<string, GetAfterResponse_traceEntry>
+    all: Map<string, LogEntry>
     links: Map<string, string>
 
-    expanded: Map<string, boolean>
-
-    constructor(values: GetAfterResponse_traceEntry[], cur?: Organizer) {
+    constructor(values: LogEntry[]) {
         this.roots = []
-        this.all = new Map<string, GetAfterResponse_traceEntry>()
+        this.all = new Map<string, LogEntry>()
         this.links = new Map<string, string>()
-        this.expanded = new Map<string, boolean>()
 
         for (const span of values) {
             const entry = span.entry
             this.all.set(entry.spanID, span)
-
-            const v = cur?.expanded.get(entry.spanID)
-            if (v !== undefined && v) {
-                this.expanded.set(entry.spanID, true)
-            }
         }
 
         this.all.forEach((v): void => {
@@ -54,16 +47,7 @@ export class Organizer {
     }
 
     isExpanded(key: string): boolean {
-        const val = this.expanded.get(key)
-        if (val === undefined) {
-            return false
-        }
-
-        return val
-    }
-
-    // switch the expanded/collapsed flag
-    flip(key: string) {
-        this.expanded.set(key, !this.isExpanded(key))
+        const val = this.all.get(key)
+        return val !== undefined && val.expanded
     }
 }

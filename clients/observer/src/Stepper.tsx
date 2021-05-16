@@ -4,15 +4,14 @@ import {FastForward, Pause, PlayArrow, SkipNextOutlined} from '@material-ui/icon
 
 import './App.css'
 import {changeStepperPolicy, SetStepperPolicy} from "./proxies/StepperProxy"
-import {curSelector, snackbarSlice, useAppDispatch} from "./store/Store"
-import {useSelector} from "react-redux"
+import {curSelector, snackbarSlice, useAppDispatch, useAppSelector} from "./store/Store"
 
 export function Stepper(props: {
     disabled: boolean,
 }) {
     const dispatch = useAppDispatch()
 
-    const cur = useSelector(curSelector)
+    const cur = useAppSelector(curSelector)
 
     const notify = (policy: SetStepperPolicy) => {
         changeStepperPolicy(

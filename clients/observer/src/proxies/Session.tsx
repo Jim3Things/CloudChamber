@@ -4,14 +4,12 @@ import {UserPublic} from "../pkg/protos/admin/users"
 
 export interface SessionUser {
     name: string
-    password: string
     details: UserPublic
 }
 
-export function CreateSessionUser(val: any, name: string, password: string): SessionUser {
-    return  {
+export function CreateSessionUser(val: any, name: string): SessionUser {
+    return {
         name: name,
-        password: password,
         details: UserPublic.fromJSON(val)
     }
 }
@@ -42,7 +40,7 @@ export function logon(username: string, password: string): Promise<SessionUser> 
         .then((resp: Response) => {
             failIfError(request, resp)
 
-            return getDetails(username, password)
+            return getDetails(username)
         })
 }
 
@@ -65,13 +63,13 @@ export function logout(username: string): Promise<string> {
 }
 
 // get the details for the supplied user.
-function getDetails(name: string, password: string): Promise<SessionUser> {
+function getDetails(name: string): Promise<SessionUser> {
     const path = "/api/users/" + name
     const request = new Request(path, {method: "GET"})
 
     return getJson<any>(request)
         .then((value) => {
-            return CreateSessionUser(value, name, password)
+            return CreateSessionUser(value, name)
         })
 }
 

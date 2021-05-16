@@ -1,7 +1,8 @@
-import {act, renderHook} from "@testing-library/react-hooks"
+import {renderHook} from "@testing-library/react-hooks"
 import {Provider} from 'react-redux'
-import {store, updatePolicy, useAppDispatch} from "./Store"
+import {store, useAppDispatch} from "./Store"
 import {StepperMode, TimeContext} from "../proxies/StepperProxy"
+import {stepperSlice} from "./Store"
 
 function wrapper(props: {
     children: any
@@ -32,7 +33,7 @@ it("should handle a single update", () => {
 
         }
 
-        dispatch( updatePolicy(newTime))
+        dispatch(stepperSlice.actions.updatePolicy(newTime))
 
         return store.getState()
 

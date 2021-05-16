@@ -1,34 +1,32 @@
-import React, {useState} from 'react'
-import {useSelector} from "react-redux"
+import React from 'react'
 
 import './App.css'
 import {getErrorDetails, logon, logout} from "./proxies/Session"
 import {MainPage} from "./MainPage/Main"
 import {Login} from "./MainPage/Login"
-import {LogProxy} from "./proxies/LogProxy"
-import {Organizer} from "./Log/Organizer"
-import {GetAfterResponse, GetAfterResponse_traceEntry} from "./pkg/protos/services/requests"
+import {LogEntry, LogProxy} from "./proxies/LogProxy"
 import {ErrorSnackbar} from "./common/Snackbar"
 import {WatchProxy} from "./proxies/WatchProxy"
 import {
-    snackbarSlice, snackbarSelector,
-    hasSession, logonSlice,
-    useAppDispatch, stepperSlice
+    hasSession,
+    logonSlice,
+    logSlice,
+    snackbarSelector,
+    snackbarSlice,
+    stepperSlice,
+    useAppDispatch,
+    useAppSelector
 } from "./store/Store"
 import {RenderIf} from "./common/If"
 
 const logProxy = new LogProxy()
 const watchProxy = new WatchProxy()
-let organizer = new Organizer([])
 
 function App() {
-    const [entries, setEntries] = useState<GetAfterResponse_traceEntry[]>([])
-    //const [organizer, setOrganizer] = useState<Organizer>(new Organizer([]))
-
     const dispatch = useAppDispatch()
 
-    const snackText = useSelector(snackbarSelector)
-    const activeSession = useSelector(hasSession)
+    const snackText = useAppSelector(snackbarSelector)
+    const activeSession = useAppSelector(hasSession)
 
     // Initiate a login to a session
     const onLogon = (name: string, password: string) => {
@@ -38,8 +36,11 @@ function App() {
                 // background calls to get the next tick
                 dispatch(logonSlice.actions.logon(value))
 
-                logProxy.start(onNewLogEvent)
-                watchProxy.start((cur) => dispatch(stepperSlice.actions.updatePolicy(cur)))
+                logProxy.start((toHold: number, events: LogEntry[]) =>
+                    dispatch(logSlice.actions.append(toHold, events)))
+
+                watchProxy.start((cur) =>
+                    dispatch(stepperSlice.actions.update(cur)))
             })
             .catch(msg => getErrorDetails(msg, details => dispatch(logonSlice.actions.loginFailure(details))))
     }
@@ -63,38 +64,12 @@ function App() {
             })
     }
 
-    const onNewLogEvent = (toHold: number, events: GetAfterResponse) => {
-        setEntries((prev) => {
-
-            const newEntries = prev.concat(events.entries)
-            const start = Math.max(newEntries.length - toHold, 0)
-            const slice = newEntries.slice(start)
-
-            const newOrg = new Organizer(slice, organizer)
-            organizer = newOrg
-
-            return slice
-        })
-
-        //setOrganizer(newOrg)
-    }
-
-    const onExpansionHandler = (id: string): void => {
-        const org = organizer
-        org.flip(id)
-        //setOrganizer(org)
-    }
-
     return <div className="App">
         <link rel="stylesheet"
               href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap"/>
 
         <RenderIf cond={activeSession}>
-            <MainPage
-                onLogout={onLogoutEvent}
-                organizer={organizer}
-                onTrackChange={onExpansionHandler}
-            />
+            <MainPage onLogout={onLogoutEvent}/>
         </RenderIf>
 
         <RenderIf cond={!activeSession}>

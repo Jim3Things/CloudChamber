@@ -3,8 +3,7 @@ import {Button, Dialog, DialogActions, DialogContent, DialogTitle, FormGroup, Te
 
 import {PasswordTextField} from "../common/PasswordTextField"
 import {AlertIf} from "../common/AlertIf"
-import {useSelector} from "react-redux"
-import {logonErrorSelector} from "../store/Store"
+import {logonErrorSelector, useAppSelector} from "../store/Store"
 
 export function Login(props: {
     onClose: (name: string, password: string) => void
@@ -12,7 +11,7 @@ export function Login(props: {
     const [userName, setUserName] = useState<string>("")
     const [password, setPassword] = useState<string>("")
 
-    const logonError = useSelector(logonErrorSelector)
+    const logonError = useAppSelector(logonErrorSelector)
 
     return <Dialog
         aria-labelledby="login-title"

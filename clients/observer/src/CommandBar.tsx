@@ -8,8 +8,7 @@ import {Settings} from "./Settings"
 import {ExpandingLabel} from "./common/ExpandingLabel"
 import {CheckIf} from "./common/If"
 import {UserPublic} from "./pkg/protos/admin/users"
-import {useSelector} from "react-redux"
-import {sessionUserSelector} from "./store/Store"
+import {sessionUserSelector, useAppSelector} from "./store/Store"
 
 const useStyles = makeStyles((theme: Theme) => ({
     root: {
@@ -92,7 +91,7 @@ export function CommandBar(props: {
 }) {
     const classes = useStyles()
 
-    const sessionUser = useSelector(sessionUserSelector)
+    const sessionUser = useAppSelector(sessionUserSelector)
 
     const rights = sessionUser?.details.rights
     const disableStepTime = rights !== undefined ? !rights.canStepTime : true
@@ -107,7 +106,7 @@ export function CommandBar(props: {
                         label={name}
                         variant="subtitle2"
                     >
-                        <UserDetails details={sessionUser?.details} />
+                        <UserDetails details={sessionUser?.details}/>
                     </ExpandingLabel>
 
                     <Tooltip title="log out">
@@ -116,14 +115,14 @@ export function CommandBar(props: {
                             className={classes.rightIcon}
                             onClick={() => props.onLogout(name)}
                         >
-                            <ExitToApp />
+                            <ExitToApp/>
                         </IconButton>
                     </Tooltip>
 
-                    <div className={classes.root} />
+                    <div className={classes.root}/>
 
-                    <Stepper disabled={disableStepTime} />
-                    <Settings />
+                    <Stepper disabled={disableStepTime}/>
+                    <Settings/>
                 </Toolbar>
             </AppBar>
         </div>

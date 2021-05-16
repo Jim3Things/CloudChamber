@@ -1,17 +1,26 @@
-// Define the redux store here.
+// This module contains the redux store definitions and access functions.
 
-import {
-    combineReducers,
-    configureStore,
-    createSelector,
-    createSlice, PayloadAction
-} from '@reduxjs/toolkit'
+import {combineReducers, configureStore, createSlice, PayloadAction} from '@reduxjs/toolkit'
 
 import {StepperMode, TimeContext} from "../proxies/StepperProxy"
-import {useDispatch} from "react-redux"
+import {TypedUseSelectorHook, useDispatch, useSelector} from "react-redux"
 import {SettingsState} from "../Settings"
 import {CreateSessionUser, SessionUser} from "../proxies/Session"
+import {LogEntry} from "../proxies/LogProxy"
+import {Organizer} from "../Log/Organizer"
 
+// The store consists of slices associated with:
+//   - simulated time (stepper),
+//   - the current server session (logon),
+//   - the display settings (settings),
+//   - the error alert bar (snackbar)
+//
+// Each section has the definition for the slice, and the retrieval functions
+// used to select specific information from that slice.
+//
+// Note that the actual store schema is no used outside of this module.
+
+// +++ Simulated time slice
 export const stepperSlice = createSlice({
     name: "stepper",
     initialState: {
@@ -20,7 +29,8 @@ export const stepperSlice = createSlice({
         now: 0
     },
     reducers: {
-        updatePolicy: {
+        // Update the simulated time
+        update: {
             reducer: (state, action: PayloadAction<TimeContext>) => {
                 state.now = action.payload.now
                 state.mode = action.payload.mode
@@ -28,25 +38,29 @@ export const stepperSlice = createSlice({
             },
             prepare: (newTime: TimeContext) => {
                 return {
-                    payload: {
-                        now: newTime.now,
-                        rate: newTime.rate,
-                        mode: newTime.mode
-                    }
+                    payload: newTime
                 }
             }
         }
     }
 })
 
+// Get the simulated time
+export const curSelector = (state: StoreSchema) => state.cur
+
+// --- Simulated time slice
+
+// +++ Current user session slice
+
 export const logonSlice = createSlice({
     name: "logon",
     initialState: {
         hasUser: false,
-        user: CreateSessionUser({}, "", ""),
+        user: CreateSessionUser({}, ""),
         error: ""
     },
     reducers: {
+        // Record a successful login
         logon: {
             reducer: (state, action: PayloadAction<SessionUser>) => {
                 state.user = action.payload
@@ -55,10 +69,12 @@ export const logonSlice = createSlice({
             },
             prepare: (user: SessionUser) => {
                 return {
-                    payload:  user
+                    payload: user
                 }
             }
         },
+
+        // Record a failed login
         loginFailure: {
             reducer: (state, action: PayloadAction<string>) => {
                 state.hasUser = false
@@ -70,15 +86,30 @@ export const logonSlice = createSlice({
                 }
             }
         },
+
+        // Record a logout
         logout: (state) => {
             state.hasUser = false
-            state.user = CreateSessionUser({}, "", "")
+            state.user = CreateSessionUser({}, "")
             state.error = ""
         }
     }
 })
 
-export const settingsSlice = createSlice ({
+// Get the logged in user details, or undefined if not logged in
+export const sessionUserSelector = (state: StoreSchema) => state.session.hasUser ? state.session.user : undefined
+
+// true, if there is an active logged in user
+export const hasSession = (state: StoreSchema) => state.session.hasUser
+
+// Get the last login failure
+export const logonErrorSelector = (state: StoreSchema) => state.session.error
+
+// --- Current user session slice
+
+// +++ Display option settings slice
+
+export const settingsSlice = createSlice({
     name: "settings",
     initialState: {
         logSettings: {
@@ -87,6 +118,7 @@ export const settingsSlice = createSlice ({
         }
     },
     reducers: {
+        // Update the display options
         update: {
             reducer: (state, action: PayloadAction<SettingsState>) => {
                 state.logSettings = action.payload.logSettings
@@ -100,12 +132,20 @@ export const settingsSlice = createSlice ({
     }
 })
 
+// Get the display options
+export const settingsSelector = (state: StoreSchema) => state.settings
+
+// --- Display option settings
+
+// +++ Error alert bar slice
+
 export const snackbarSlice = createSlice({
     name: "snack",
     initialState: {
         msg: ""
     },
     reducers: {
+        // set an alert message
         update: {
             reducer: (state, action: PayloadAction<string>) => {
                 state.msg = action.payload
@@ -116,54 +156,95 @@ export const snackbarSlice = createSlice({
                 }
             }
         },
+
+        // Remove an alert message
         clear: (state) => {
             state.msg = ""
         }
     }
 })
 
+// Get the alert message text, if any
+export const snackbarSelector = (state: StoreSchema) => state.snackText.msg
+
+// --- Error alert bar slice
+
+// +++ Simulation log tracking slice
+
+interface logStore {
+    entries: LogEntry[],
+    organizer: Organizer
+}
+
+const initialState: logStore = {
+    entries: [],
+    organizer: new Organizer([])
+}
+
+export const logSlice = createSlice({
+    name: "log",
+    initialState: initialState,
+    reducers: {
+        // append new log entries and update the organizer indices
+        append: {
+            reducer: (state, action: PayloadAction<{
+                toHold: number,
+                entries: LogEntry[]
+            }>) => {
+                const newEntries = state.entries.concat(action.payload.entries)
+                const start = Math.max(newEntries.length - action.payload.toHold, 0)
+                const slice = newEntries.slice(start)
+
+                state.entries = slice
+                state.organizer = new Organizer(slice)
+            },
+            prepare: (toHold: number, entries: LogEntry[]) => {
+                return {
+                    payload: {
+                        toHold: toHold,
+                        entries: entries
+                    }
+                }
+            }
+        },
+
+        // flip the expansion flag for a specific span
+        flip: {
+            reducer: (state, action: PayloadAction<string>) => {
+                state.entries = state.entries.map((v) => {
+                    if (v.entry.spanID === action.payload) {
+                        v.expanded = !v.expanded
+                    }
+
+                    return v
+                })
+            },
+            prepare: (key: string) => {
+                return {payload: key}
+            }
+        }
+    }
+})
+
+// get the current set of log entries
+export const logSelector = (state: StoreSchema) => state.log
+
+// --- Simulation log tracking slice
+
 const rootReducer = combineReducers({
     cur: stepperSlice.reducer,
     settings: settingsSlice.reducer,
     snackText: snackbarSlice.reducer,
-    session: logonSlice.reducer
+    session: logonSlice.reducer,
+    log: logSlice.reducer
 })
-
-export type StoreSchema = ReturnType<typeof rootReducer>
 
 export const store = configureStore({
     reducer: rootReducer
 })
 
-export const curSelector = createSelector(
-    (state: StoreSchema) => state.cur,
-    (cur) => cur
-)
+type StoreSchema = ReturnType<typeof rootReducer>
+type AppDispatch = typeof store.dispatch
 
-export const settingsSelector = createSelector(
-    (state: StoreSchema) => state.settings,
-    (settings) => settings
-)
-
-export const snackbarSelector = createSelector(
-    (state: StoreSchema) => state.snackText.msg,
-    (msg) => msg
-)
-
-export const sessionUserSelector = createSelector(
-    (state: StoreSchema) => state.session,
-    (session) => session.hasUser ? session.user : undefined
-)
-
-export const logonErrorSelector = createSelector(
-    (state: StoreSchema) => state.session,
-    (session) => session.error
-)
-
-export const hasSession = createSelector(
-    (state: StoreSchema) => state.session.hasUser,
-    (hasUser) => hasUser
-)
-
-export type AppDispatch = typeof store.dispatch
 export const useAppDispatch = () => useDispatch<AppDispatch>()
+export const useAppSelector: TypedUseSelectorHook<StoreSchema> = useSelector
