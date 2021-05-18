@@ -357,12 +357,6 @@ test: run_tests
 %.ts : %.proto
 	$(PROTOC_PBUF_TS) $(PROJECT)/$<
 
-%.ts_ref : %.ts 
-	echo ******* Check for out of date $@ *******
-
-%.tsx : %.ts_ref
-	echo ******* Check for out of date $@ *******
-
 
 #pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
 #	$(PROTOC_GRPC) $(PROJECT)/$<

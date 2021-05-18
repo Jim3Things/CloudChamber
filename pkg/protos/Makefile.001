@@ -1,0 +1,194 @@
+PROJECT = $(GOPATH)/src/github.com/Jim3Things/CloudChamber
+
+ProdFiles  = $(filter-out %_test.go, $(wildcard $(1)/*.go))
+CssFiles   = $(wildcard $(1)/*.css)
+SvgFiles   = $(wildcard $(1)/*.svg)
+TsFiles    = $(wildcard $(1)/*.ts)
+TsxFiles   = $(wildcard $(1)/*.tsx)
+ProtoFiles = $(wildcard $(1)/*.proto)
+
+
+PROTO_FILES = \
+    pkg/protos/admin/simulation.proto \
+    pkg/protos/admin/users.proto \
+    pkg/protos/common/completion.proto \
+    pkg/protos/common/timestamp.proto \
+    pkg/protos/log/entry.proto \
+    pkg/protos/inventory/capacity.proto \
+    pkg/protos/inventory/common.proto \
+    pkg/protos/inventory/actual.proto \
+    pkg/protos/inventory/definition.proto \
+    pkg/protos/inventory/external.proto \
+    pkg/protos/inventory/internal.proto \
+    pkg/protos/inventory/store.proto \
+    pkg/protos/inventory/target.proto \
+    pkg/protos/workload/actual.proto \
+    pkg/protos/workload/external.proto \
+    pkg/protos/workload/internal.proto \
+    pkg/protos/workload/target.proto \
+    pkg/protos/services/inventory.proto \
+    pkg/protos/services/monitor.proto \
+    pkg/protos/services/requests.proto \
+    pkg/protos/services/stepper.proto \
+    pkg/protos/services/trace_sink.proto
+
+PROTO_GEN_FILES = \
+    pkg/protos/admin/simulation.pb.go \
+    pkg/protos/admin/users.pb.go \
+    pkg/protos/common/completion.pb.go \
+    pkg/protos/common/timestamp.pb.go \
+    pkg/protos/log/entry.pb.go \
+    pkg/protos/inventory/capacity.pb.go \
+    pkg/protos/inventory/common.pb.go \
+    pkg/protos/inventory/actual.pb.go \
+    pkg/protos/inventory/definition.pb.go \
+    pkg/protos/inventory/external.pb.go \
+    pkg/protos/inventory/internal.pb.go \
+    pkg/protos/inventory/store.pb.go \
+    pkg/protos/inventory/target.pb.go \
+    pkg/protos/workload/actual.pb.go \
+    pkg/protos/workload/external.pb.go \
+    pkg/protos/workload/internal.pb.go \
+    pkg/protos/workload/target.pb.go \
+    pkg/protos/services/inventory.pb.go \
+    pkg/protos/services/monitor.pb.go \
+    pkg/protos/services/requests.pb.go \
+    pkg/protos/services/stepper.pb.go \
+    pkg/protos/services/trace_sink.pb.go
+
+PROTO_CS_GEN_FILES = \
+    pkg/protos/admin/simulation.pb.cs \
+    pkg/protos/admin/users.pb.cs \
+    pkg/protos/common/completion.pb.cs \
+    pkg/protos/common/timestamp.pb.cs \
+    pkg/protos/log/entry.pb.cs \
+    pkg/protos/inventory/capacity.pb.cs \
+    pkg/protos/inventory/common.pb.cs \
+    pkg/protos/inventory/actual.pb.cs \
+    pkg/protos/inventory/definition.pb.cs \
+    pkg/protos/inventory/external.pb.cs \
+    pkg/protos/inventory/internal.pb.cs \
+    pkg/protos/inventory/store.pb.cs \
+    pkg/protos/inventory/target.pb.cs \
+    pkg/protos/workload/actual.pb.cs \
+    pkg/protos/workload/external.pb.cs \
+    pkg/protos/workload/internal.pb.cs \
+    pkg/protos/workload/target.pb.cs \
+    pkg/protos/services/requests.pb.cs
+
+PROTO_TS_GEN_FILES = \
+    pkg/protos/admin/simulation.ts \
+    pkg/protos/admin/users.ts \
+    pkg/protos/common/completion.ts \
+    pkg/protos/common/timestamp.ts \
+    pkg/protos/inventory/capacity.ts \
+    pkg/protos/inventory/common.ts \
+    pkg/protos/inventory/actual.ts \
+    pkg/protos/inventory/definition.ts \
+    pkg/protos/inventory/external.ts \
+    pkg/protos/inventory/internal.ts \
+    pkg/protos/inventory/store.ts \
+    pkg/protos/inventory/target.ts \
+    pkg/protos/log/entry.ts \
+    pkg/protos/workload/actual.ts \
+    pkg/protos/workload/external.ts \
+    pkg/protos/workload/internal.ts \
+    pkg/protos/workload/target.ts \
+    pkg/protos/services/requests.ts
+
+PROTO_TSX_FILES = \
+    $(call TsxFiles, pkg/protos/admin) \
+    $(call TsxFiles, pkg/protos/common) \
+    $(call TsxFiles, pkg/protos/inventory) \
+    $(call TsxFiles, pkg/protos/log) \
+    $(call TsxFiles, pkg/protos/services) \
+    $(call TsxFiles, pkg/protos)
+
+
+
+
+PROTOC_BASE = protoc --proto_path=$(GOPATH)/src
+
+PROTOC_GRPC    = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
+PROTOC_PBUF    = $(PROTOC_BASE) --go_out=$(GOPATH)/src
+PROTOC_PBUF_CS = $(PROTOC_BASE) --csharp_out=$(PROJECT)/pkg/protos --csharp_opt=file_extension=.pb.cs,base_namespace=CloudChamber.Protos
+PROTOC_PBUF_TS = $(PROTOC_BASE) --ts_proto_out=$(GOPATH)/src --ts_proto_opt=outputEncodeMethods=false,outputPartialMethods=false,outputClientImpl=false
+
+
+CP = cp
+CP-RECURSIVE = $(CP) -r
+
+MD = mkdir -p
+
+RM-RECURSIVE = $(RM) -r
+
+
+define run-proto-grpc = 
+	$(PROTOC_GRPC) $^
+endef
+
+
+define run-go-build =
+	go build -o $(PROJECT)/$@ $(PROJECT)/$<
+endef
+
+
+
+all: build run_tests
+
+build: $(PROTO_GEN_FILES) $(PROTO_GEN_CS_FILES) $(PROTO_TS_GEN_FILES)
+
+
+.PHONY : clean
+
+clean:
+	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(PROTO_CS_GEN_FILES) $(PROTO_TS_GEN_FILES) $(VERSION_MARKER)
+	$(MAKE) -C $(OBSERVER_UI) clean
+
+
+.PHONY : test
+
+test: run_tests
+
+
+%.pb.go : %.proto
+	$(PROTOC_PBUF) $(PROJECT)/$<
+
+%.pb.cs : %.proto
+	$(PROTOC_PBUF_CS) $(PROJECT)/$<
+
+%.ts : %.proto
+	$(PROTOC_PBUF_TS) $(PROJECT)/$<
+
+%.ts_ref : %.ts 
+	echo ******* Check for out of date $@ *******
+
+%.tsx : %.ts_ref
+	echo ******* Check for out of date $@ *******
+
+
+#pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+#pkg/protos/services/monitor.pb.go: pkg/protos/services/monitor.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+#pkg/protos/services/stepper.pb.go: pkg/protos/services/stepper.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+#pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
+#	$(PROTOC_GRPC) $(PROJECT)/$<
+
+
+pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
+	$(run-proto-grpc)
+
+pkg/protos/services/monitor.pb.go: pkg/protos/services/monitor.proto
+	$(run-proto-grpc)
+
+pkg/protos/services/stepper.pb.go: pkg/protos/services/stepper.proto
+	$(run-proto-grpc)
+
+pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
+	$(run-proto-grpc)
+
