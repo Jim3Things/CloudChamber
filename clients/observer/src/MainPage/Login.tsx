@@ -1,17 +1,18 @@
-import React from 'react'
+import React, {useState} from 'react'
 import {Button, Dialog, DialogActions, DialogContent, DialogTitle, FormGroup, TextField} from "@material-ui/core"
 
 import {PasswordTextField} from "../common/PasswordTextField"
 import {AlertIf} from "../common/AlertIf"
+import {logonErrorSelector, useAppSelector} from "../store/Store"
 
 export function Login(props: {
-    onClose: () => void,
-    userName: string,
-    onUserNameChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void,
-    password: string,
-    onPasswordChange: (event: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void,
-    logonError: string
+    onClose: (name: string, password: string) => void
 }) {
+    const [userName, setUserName] = useState<string>("")
+    const [password, setPassword] = useState<string>("")
+
+    const logonError = useAppSelector(logonErrorSelector)
+
     return <Dialog
         aria-labelledby="login-title"
         open={true}>
@@ -24,22 +25,22 @@ export function Login(props: {
                     margin="dense"
                     label="User name"
                     variant="outlined"
-                    value={props.userName}
-                    onChange={props.onUserNameChange}
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
                     id="name"
                 />
 
                 <PasswordTextField
-                    value={props.password}
+                    value={password}
                     label="Password"
-                    onChange={props.onPasswordChange}/>
+                    onChange={(e) => setPassword(e.target.value)}/>
             </FormGroup>
 
-            <AlertIf title="Login Failed" text={props.logonError}/>
+            <AlertIf title="Login Failed" text={logonError}/>
 
         </DialogContent>
         <DialogActions>
-            <Button onClick={props.onClose}>
+            <Button onClick={() => props.onClose(userName, password)}>
                 Submit
             </Button>
         </DialogActions>

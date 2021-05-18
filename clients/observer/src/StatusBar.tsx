@@ -4,6 +4,7 @@ import {Pause, PlayArrow} from "@material-ui/icons"
 import {makeStyles} from "@material-ui/core/styles"
 
 import {StepperMode, TimeContext} from "./proxies/StepperProxy"
+import {curSelector, useAppSelector} from "./store/Store"
 
 const useStyles = makeStyles(() => ({
     root: {
@@ -19,8 +20,10 @@ const useStyles = makeStyles(() => ({
 // TODO: This currently only has information on the stepper status, others need to be
 //       added as they make sense.
 
-export function StatusBar(props: { cur: TimeContext }) {
+export function StatusBar() {
     const classes = useStyles()
+
+    const cur = useAppSelector(curSelector)
 
     // Helpers to control visibility of the different type of execution icons
     const hideBadge = (cur: TimeContext) => (cur.mode !== StepperMode.Running) || (cur.rate <= 1)
@@ -62,12 +65,12 @@ export function StatusBar(props: { cur: TimeContext }) {
             <Toolbar variant="dense">
                 <div className={classes.root}/>
                 <div>
-                    {badgeIcon(props.cur)}
-                    {playIcon(props.cur)}
-                    {pauseIcon(props.cur)}
+                    {badgeIcon(cur)}
+                    {playIcon(cur)}
+                    {pauseIcon(cur)}
                 </div>
                 &nbsp;&nbsp;
-                {props.cur.now}
+                {cur.now}
             </Toolbar>
         </div>
     )

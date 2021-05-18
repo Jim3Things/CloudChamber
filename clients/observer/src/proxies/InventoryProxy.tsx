@@ -63,89 +63,87 @@ export interface ClusterDetails {
     racks: Map<string, RackDetails>   // .. and the racks that make it up
 }
 
-export class InventoryProxy {
-    // Build up some fake usage, ensuring that it will fit...
-    private static fakeUsage(avail: number): InstanceDetails[] {
-        if (avail >= 8) {
-            return [
-                {usage: 2, state: InstanceState.running},
-                {usage: 1, state: InstanceState.escrow},
-                {usage: 3, state: InstanceState.running},
-                {usage: 2, state: InstanceState.faulted}
-            ]
-        }
-
-        if (avail >= 4) {
-            return [
-                {usage: 1, state: InstanceState.running},
-                {usage: 1, state: InstanceState.escrow},
-                {usage: 1, state: InstanceState.running},
-                {usage: 1, state: InstanceState.faulted}
-            ]
-        }
-
+// Build up some fake usage, ensuring that it will fit...
+function fakeUsage(avail: number): InstanceDetails[] {
+    if (avail >= 8) {
         return [
-            {usage: 1, state: InstanceState.running},
+            {usage: 2, state: InstanceState.running},
+            {usage: 1, state: InstanceState.escrow},
+            {usage: 3, state: InstanceState.running},
+            {usage: 2, state: InstanceState.faulted}
         ]
     }
 
-    // Get the top level description of the target cluster
-    public getCluster(): Promise<ClusterDetails> {
-        const path = "/api/racks"
-        const request = new Request(path, {method: "GET"})
-
-        return getJson<any>(request)
-            .then((item: any) => {
-                const zone = new External_ZoneSummary(item)
-                let data: ClusterDetails = {
-                    name: zone.name + " (location: " + zone.details.location + ")",
-                    maxBladeCount: zone.maxBladeCount,
-                    maxCapacity: zone.maxCapacity,
-                    racks: new Map<string, RackDetails>()
-                }
-
-                zone.racks.forEach((rack, name) => {
-                    data.racks.set(name, {
-                        blades: new Map<number, BladeDetails>(),
-                        pdu: {
-                            state: PhysicalState.healthy,
-                            powerTo: [],
-                        },
-                        tor: {
-                            state: PhysicalState.healthy,
-                            linkTo: []
-                        },
-                        detailsLoaded: false,
-                        uri: rack.uri
-                    })
-                })
-
-                return data
-            })
+    if (avail >= 4) {
+        return [
+            {usage: 1, state: InstanceState.running},
+            {usage: 1, state: InstanceState.escrow},
+            {usage: 1, state: InstanceState.running},
+            {usage: 1, state: InstanceState.faulted}
+        ]
     }
 
-    // Get the detail information for a rack.
-    public getRackDetails(rack: RackDetails): Promise<RackDetails> {
-        const request = new Request(rack.uri, {method: "GET"})
+    return [
+        {usage: 1, state: InstanceState.running},
+    ]
+}
 
-        return getJson<any>(request)
-            .then((item: any) => {
-                // Processing here is similar to the processing of the
-                // Rack summary data above.
-                const value = new External_Rack(item)
-                let newRack: RackDetails = {...rack, detailsLoaded: true}
+// Get the top level description of the target cluster
+export function getCluster(): Promise<ClusterDetails> {
+    const path = "/api/racks"
+    const request = new Request(path, {method: "GET"})
 
-                value.blades.forEach((blade, key) => {
-                    newRack.blades.set(key, {
-                        capacity: blade,
+    return getJson<any>(request)
+        .then((item: any) => {
+            const zone = new External_ZoneSummary(item)
+            let data: ClusterDetails = {
+                name: zone.name + " (location: " + zone.details.location + ")",
+                maxBladeCount: zone.maxBladeCount,
+                maxCapacity: zone.maxCapacity,
+                racks: new Map<string, RackDetails>()
+            }
+
+            zone.racks.forEach((rack, name) => {
+                data.racks.set(name, {
+                    blades: new Map<number, BladeDetails>(),
+                    pdu: {
                         state: PhysicalState.healthy,
-                        usage: InventoryProxy.fakeUsage(blade.cores)
-                    })
-                    newRack.tor.linkTo.push(true)
-                    newRack.pdu.powerTo.push(true)
+                        powerTo: [],
+                    },
+                    tor: {
+                        state: PhysicalState.healthy,
+                        linkTo: []
+                    },
+                    detailsLoaded: false,
+                    uri: rack.uri
                 })
-
-                return newRack
             })
-    }
+
+            return data
+        })
+}
+
+// Get the detail information for a rack.
+export function getRackDetails(rack: RackDetails): Promise<RackDetails> {
+    const request = new Request(rack.uri, {method: "GET"})
+
+    return getJson<any>(request)
+        .then((item: any) => {
+            // Processing here is similar to the processing of the
+            // Rack summary data above.
+            const value = new External_Rack(item)
+            let newRack: RackDetails = {...rack, detailsLoaded: true}
+
+            value.blades.forEach((blade, key) => {
+                newRack.blades.set(key, {
+                    capacity: blade,
+                    state: PhysicalState.healthy,
+                    usage: fakeUsage(blade.cores)
+                })
+                newRack.tor.linkTo.push(true)
+                newRack.pdu.powerTo.push(true)
+            })
+
+            return newRack
+        })
 }

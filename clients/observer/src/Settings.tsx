@@ -15,6 +15,7 @@ import {
     FormControlLabel,
     IconButton
 } from "@material-ui/core"
+import {settingsSelector, settingsSlice, useAppDispatch, useAppSelector} from "./store/Store"
 
 // LogSettings are the filtering options that determine which log entries to
 // show in the display.
@@ -49,23 +50,23 @@ const useStyles = makeStyles((theme: Theme) =>
 
 // Settings manages a settings icon button that opens a dialog when clicked.
 // It also provides a pass-through for the settings state update handlers.
-export function Settings(props: {
-    settings: SettingsState,
-    onChange: (settings: SettingsState) => void
-}) {
+export function Settings() {
+    const dispatch = useAppDispatch()
+    const settings = useAppSelector(settingsSelector)
+
     const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null)
-    const [working, setWorking] = React.useState<SettingsState>(props.settings)
+    const [working, setWorking] = React.useState<SettingsState>(settings)
 
     const open = Boolean(anchorEl)
 
     const handleOpenSettings = (event: React.MouseEvent<HTMLButtonElement>) => {
-        setWorking({...props.settings})
+        setWorking({...settings})
         setAnchorEl(event.currentTarget)
     }
 
     const handleClose = () => {
         setAnchorEl(null)
-        props.onChange(working)
+        dispatch(settingsSlice.actions.update(working))
     }
 
     const handleCancel = () => {

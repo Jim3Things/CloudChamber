@@ -4,10 +4,22 @@
 // throughout the rest of the UI.
 
 import {getJson} from "./Session"
-import {GetAfterResponse, GetPolicyResponse} from "../pkg/protos/services/requests"
+import {GetAfterResponse, GetAfterResponse_traceEntry, GetPolicyResponse} from "../pkg/protos/services/requests"
+
+export class LogEntry extends GetAfterResponse_traceEntry {
+    expanded: boolean
+
+    constructor(source: GetAfterResponse_traceEntry) {
+        super({})
+
+        this.id = source.id
+        this.entry = source.entry
+        this.expanded = false
+    }
+}
 
 export interface LogArrivalHandler {
-    (toHold: number, entries: GetAfterResponse): any;
+    (toHold: number, entries: LogEntry[]): any;
 }
 
 export class LogProxy {
@@ -19,26 +31,18 @@ export class LogProxy {
 
     maxHeld: number = 100
 
-    onLogArrivalHandler?: LogArrivalHandler
-
-    // Construct the proxy, with the notification handler, and kick off the
-    // processing
-    constructor(handler: LogArrivalHandler) {
-        this.onLogArrivalHandler = handler
-    }
-
-    start() {
+    start(handler: LogArrivalHandler) {
         const request = new Request("/api/logs/policy", {method: "GET"})
         getJson<any>(request, this.getSignal())
             .then(jsonPolicy => {
                 const policy = new GetPolicyResponse(jsonPolicy)
                 this.startId = policy.firstId
                 this.maxHeld = policy.maxEntriesHeld
-                this.getLogs(this.epoch)
+                this.getLogs(handler, this.epoch)
             })
             .catch(() => {
                 // Retry on failure
-                window.setTimeout(() => this.start(), 100)
+                window.setTimeout(() => this.start(handler), 100)
             })
     }
 
@@ -47,14 +51,7 @@ export class LogProxy {
         this.issueAbort()
     }
 
-    // Issue the time change notification
-    notify(entries: GetAfterResponse) {
-        if (this.onLogArrivalHandler) {
-            this.onLogArrivalHandler(this.maxHeld, entries)
-        }
-    }
-
-    getLogs(lastEpoch: number) {
+    getLogs(handler: LogArrivalHandler, lastEpoch: number) {
         if (lastEpoch === this.epoch) {
             const request = new Request("/api/logs?from=" + this.startId + "&for=100", {method: "GET"})
             getJson<any>(request, this.getSignal())
@@ -62,11 +59,11 @@ export class LogProxy {
                     const entries = new GetAfterResponse(jsonMsg)
 
                     this.startId = entries.lastId
-                    this.notify(entries)
-                    this.getLogs(lastEpoch)
+                    handler(this.maxHeld, entries.entries.map((v) => new LogEntry(v)))
+                    this.getLogs(handler, lastEpoch)
                 })
                 .catch(() => {
-                    window.setTimeout(() => this.start(), 100)
+                    window.setTimeout(() => this.start(handler), 100)
                 })
         }
     }

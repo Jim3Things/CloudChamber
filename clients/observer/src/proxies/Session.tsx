@@ -2,18 +2,17 @@
 
 import {UserPublic} from "../pkg/protos/admin/users"
 
-export class SessionUser {
+export interface SessionUser {
     name: string
-    password: string
     details: UserPublic
-
-    constructor(val: any, name: string, password: string) {
-        this.name = name
-        this.password = password
-        this.details = UserPublic.fromJSON(val)
-    }
 }
 
+export function CreateSessionUser(val: any, name: string): SessionUser {
+    return {
+        name: name,
+        details: UserPublic.fromJSON(val)
+    }
+}
 
 // CCError is a specialization of the Error interface that carries the
 // original response object along with it.  This allows the catch handler to
@@ -31,55 +30,47 @@ export class CCError extends Error {
     }
 }
 
-export class Session {
-    // login, and get the user details for the logged in user.  Attach as
-    // session details here.
-    public logon(username: string, password: string): Promise<SessionUser> {
-        const path = "/api/users/" + username + "?op=login"
-        const request = new Request(path, {method: "PUT", body: password})
+// login, and get the user details for the logged in user.  Attach as
+// session details here.
+export function logon(username: string, password: string): Promise<SessionUser> {
+    const path = "/api/users/" + username + "?op=login"
+    const request = new Request(path, {method: "PUT", body: password})
 
-        return fetch(request)
-            .then((resp: Response) => {
-                failIfError(request, resp)
+    return fetch(request)
+        .then((resp: Response) => {
+            failIfError(request, resp)
 
-                return this.getDetails(username, password)
-            })
-    }
+            return getDetails(username)
+        })
+}
 
-    // Log out of the current session
-    public logout(username: string): Promise<string> {
-        const path = "/api/users/" + username + "?op=logout"
-        const request = new Request(path, {method: "PUT"})
+// Log out of the current session
+export function logout(username: string): Promise<string> {
+    const path = "/api/users/" + username + "?op=logout"
+    const request = new Request(path, {method: "PUT"})
 
-        return fetch(request)
-            .then((resp) => {
-                if (!resp.ok) {
-                    // Something went wrong.  So we need to force that the
-                    // session is gone and continue as if the logout was
-                    // successful.
-                    deleteCookie("CC-Session")
-                }
+    return fetch(request)
+        .then((resp) => {
+            if (!resp.ok) {
+                // Something went wrong.  So we need to force that the
+                // session is gone and continue as if the logout was
+                // successful.
+                deleteCookie("CC-Session")
+            }
 
-                return "logged out"
-            })
-    }
+            return "logged out"
+        })
+}
 
-    // get the details for the supplied user.
-    private getDetails(name: string, password: string): Promise<SessionUser> {
-        const path = "/api/users/" + name
-        const request = new Request(path, {method: "GET"})
+// get the details for the supplied user.
+function getDetails(name: string): Promise<SessionUser> {
+    const path = "/api/users/" + name
+    const request = new Request(path, {method: "GET"})
 
-        return fetch(request)
-            .then((resp: Response) => {
-                failIfError(request, resp)
-
-                return resp.json()
-            })
-            .then((value) => {
-                return new SessionUser(value, name, password)
-            })
-
-    }
+    return getJson<any>(request)
+        .then((value) => {
+            return CreateSessionUser(value, name)
+        })
 }
 
 // Throw a consistent error if the response indicates a failure to process

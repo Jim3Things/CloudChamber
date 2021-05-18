@@ -8,6 +8,7 @@ import {MoreOrLess, RenderIf} from "../common/If"
 import {SettingsState} from "../Settings"
 import {Action, Event, Severity} from "../pkg/protos/log/entry"
 import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
+import {logSelector, logSlice, settingsSelector, useAppDispatch, useAppSelector} from "../store/Store"
 
 interface styleProps {
     indent: number
@@ -121,14 +122,14 @@ function TraceSpanElement(props: {
     reason: string | null,
     expanded: boolean,
     expandable: boolean,
-    onTrackChange: ExpansionHandler,
     indent: number,
     infra: boolean,
     id: string
 }) {
     const classes = useStyles({infra: props.infra, indent: props.indent, height: 0})
+    const dispatch = useAppDispatch()
 
-    return <ListItem dense button onClick={() => props.onTrackChange(props.id)} className={classes.nested}>
+    return <ListItem dense button onClick={() => dispatch(logSlice.actions.flip(props.id))} className={classes.nested}>
         <ListItemIcon>
             <Menu/>
         </ListItemIcon>
@@ -144,7 +145,6 @@ function TraceSpanElement(props: {
 function TraceSpanSubtree(props: {
     organizer: Organizer,
     settings: SettingsState,
-    onTrackChange: ExpansionHandler,
     indent: number,
     id: string
 }) {
@@ -156,7 +156,6 @@ function TraceSpanSubtree(props: {
             reason={null}
             expanded={false}
             expandable={false}
-            onTrackChange={props.onTrackChange}
             indent={props.indent}
             infra={false}
             id={props.id}/>
@@ -175,7 +174,6 @@ function TraceSpanSubtree(props: {
             reason={entry.entry.reason}
             expanded={isExpanded}
             expandable={canExpand}
-            onTrackChange={props.onTrackChange}
             indent={props.indent}
             infra={entry.entry.infrastructure}
             id={props.id}
@@ -186,7 +184,6 @@ function TraceSpanSubtree(props: {
                 return <TraceEvent
                     organizer={props.organizer}
                     settings={props.settings}
-                    onTrackChange={props.onTrackChange}
                     indent={props.indent + 4}
                     event={ev}
                     entry={entry}
@@ -202,7 +199,6 @@ function TraceSpanSubtree(props: {
 function TraceEvent(props: {
     organizer: Organizer,
     settings: SettingsState,
-    onTrackChange: ExpansionHandler,
     indent: number,
     entry: GetAfterResponse_traceEntry,
     event: Event,
@@ -242,7 +238,6 @@ function TraceEvent(props: {
                 return <TraceSpanElement
                     expanded={false}
                     expandable={false}
-                    onTrackChange={props.onTrackChange}
                     text={"Missing:" + props.event.spanId}
                     reason="Could not find this log entry"
                     indent={props.indent}
@@ -258,7 +253,6 @@ function TraceEvent(props: {
             return <TraceSpanSubtree
                 organizer={props.organizer}
                 settings={props.settings}
-                onTrackChange={props.onTrackChange}
                 indent={props.indent}
                 id={props.event.spanId}/>
         }
@@ -273,7 +267,6 @@ function TraceEvent(props: {
                 return <TraceSpanSubtree
                     organizer={props.organizer}
                     settings={props.settings}
-                    onTrackChange={props.onTrackChange}
                     indent={props.indent}
                     id={span}/>
             }
@@ -297,21 +290,22 @@ function TraceEvent(props: {
 }
 
 export function LogDisplay(props: {
-    height: number,
-    organizer: Organizer,
-    settings: SettingsState,
-    onTrackChange: ExpansionHandler
-}) {
-    const classes = useStyles({indent: 0, infra: false, height: props.height})
+    matchId: string}) {
+    const elem = document.getElementById(props.matchId)
+    const height = elem !== null ? (elem.offsetHeight - 5) : 500
+
+    const classes = useStyles({indent: 0, infra: false, height: height})
+
+    const settings = useAppSelector(settingsSelector)
+    const logData = useAppSelector(logSelector)
 
     return (
         <Paper variant="outlined" className={classes.root}>
             <List dense disablePadding>
-                {props.organizer.roots.map((key) => {
+                {logData.organizer.roots.map((key) => {
                     return <TraceSpanSubtree
-                        settings={props.settings}
-                        organizer={props.organizer}
-                        onTrackChange={props.onTrackChange}
+                        settings={settings}
+                        organizer={logData.organizer}
                         indent={0}
                         id={key}/>
                 })}
