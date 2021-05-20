@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -25,7 +26,14 @@ func (ts *PduTestSuite) TestCreatePdu() {
 
 	rackDef := ts.createDummyRack(2)
 
-	r := newRack(context.Background(), ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		context.Background(),
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 	require.NotNil(r)
 	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
 

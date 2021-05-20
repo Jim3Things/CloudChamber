@@ -9,11 +9,7 @@ const (
 	ChildSpanKey    = "cc-child-span"
 	ActionKey       = "cc-action"
 	ImpactKey       = "cc-impact"
-
-	// Envelope keys
-	SourceTraceID   = "cc-starting-span-trace-id"
-	SourceSpanID    = "cc-starting-span-span-id"
-	SourceTraceFlgs = "cc-starting-span-trace-flags"
+	SpanNameKey     = "cc-span-name"
 
 	// link tracking keys
 	LinkTagKey = "cc-link-tag"

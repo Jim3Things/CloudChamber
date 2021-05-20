@@ -87,7 +87,7 @@ func (x *Event) Validate(prefix string) error {
 	}
 
 	switch x.EventAction {
-	case Action_Trace, Action_UpdateSpanName, Action_UpdateReason:
+	case Action_Trace:
 		textLen := int64(len(x.Text))
 		if textLen == 0 {
 			return &errors2.ErrMinLenString{

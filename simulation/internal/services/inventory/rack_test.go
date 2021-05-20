@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -32,7 +33,14 @@ func (ts *RackTestSuite) TestCreateRack() {
 		tracing.WithName("test rack creation"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		ctx,
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 
 	span.End()
 
@@ -53,7 +61,14 @@ func (ts *RackTestSuite) TestStartStopRack() {
 		tracing.WithName("test rack start and stop"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		ctx,
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
@@ -88,7 +103,14 @@ func (ts *RackTestSuite) TestStartStartStopRack() {
 		tracing.WithName("test rack start, start, and stop"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		ctx,
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
@@ -129,7 +151,14 @@ func (ts *RackTestSuite) TestStartStopStopRack() {
 		tracing.WithName("test rack start, stop, and stop"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		ctx,
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
@@ -167,7 +196,14 @@ func (ts *RackTestSuite) TestStopNoStartRack() {
 		tracing.WithName("test rack stop without a start"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		ctx,
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)
@@ -191,7 +227,14 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 		tracing.WithName("test powering on PDU from rack"),
 		tracing.WithContextValue(tsc.EnsureTickInContext))
 
-	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		ctx,
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 	require.NotNil(r)
 	assert.Equal(len(rackDef.Blades), len(r.blades))
 	assert.Equal(pb.Actual_Rack_awaiting_start, r.sm.CurrentIndex)

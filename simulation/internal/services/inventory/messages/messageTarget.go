@@ -77,3 +77,25 @@ func (m *MessageTarget) Describe() string {
 
 	return fmt.Sprintf("%s in rack %q", preamble, m.rackName())
 }
+
+func (m *MessageTarget) String() string {
+	component := "unknown"
+	switch m.element {
+	case targetBlade:
+		component = "blade"
+		break
+
+	case targetTor:
+		component = "tor"
+		break
+
+	case targetPdu:
+		component = "pdu"
+		break
+
+	default:
+		break
+	}
+
+	return fmt.Sprintf("racks/%s/%s/%d", m.Rack, component, m.blade)
+}

@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/duration"
@@ -71,6 +72,7 @@ func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.Definition_Rack {
 			Details:  &pb.BladeDetails{},
 			Capacity: &pb.BladeCapacity{},
 			BootInfo: &pb.BladeBootInfo{},
+			BootOnPowerOn: true,
 		}
 	}
 
@@ -104,7 +106,14 @@ func (ts *testSuiteCore) createAndStartRack(
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-	r := newRack(ctx, ts.rackName(), rackDef, ts.timers)
+	r := newRack(
+		ctx,
+		ts.rackName(),
+		rackDef,
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
+		ts.timers)
 	require.NotNil(r)
 
 	tick := common.TickFromContext(ctx)
@@ -130,7 +139,7 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 
 	r.Receive(messages.NewSetPower(
 		ctx,
-		messages.NewTargetBlade(r.name, id),
+		messages.NewTargetBlade(r.sm.Name, id),
 		common.TickFromContext(ctx),
 		true,
 		rsp))
@@ -144,7 +153,7 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 
 	r.Receive(messages.NewSetConnection(
 		ctx,
-		messages.NewTargetBlade(r.name, id),
+		messages.NewTargetBlade(r.sm.Name, id),
 		common.TickFromContext(ctx),
 		true,
 		rsp))

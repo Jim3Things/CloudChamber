@@ -103,7 +103,6 @@ func createEntry(events int) *log2.Entry {
 			Name:       fmt.Sprintf("Event-%d", i),
 			Text:       "xxxx",
 			StackTrace: fmt.Sprintf("xxxx%d", i),
-			Impacted:   nil,
 		})
 	}
 
@@ -124,7 +123,6 @@ func createRootEntry(events int) *log2.Entry {
 			Name:       fmt.Sprintf("Event-%d", i),
 			Text:       "xxxx",
 			StackTrace: fmt.Sprintf("xxxx%d", i),
-			Impacted:   nil,
 		})
 	}
 
@@ -149,6 +147,7 @@ func assertEntryMatches(t *testing.T, expected *log2.Entry, actual *log2.Entry) 
 	assert.Equal(t, expected.StackTrace, actual.StackTrace)
 	assert.Equal(t, expected.Status, actual.Status)
 	assert.Equal(t, len(expected.Event), len(actual.Event))
+	assert.Equal(t, len(expected.Impacted), len(actual.Impacted))
 
 	for i := 0; i < len(expected.Event); i++ {
 		assertEventMatches(t, expected.Event[i], actual.Event[i])
@@ -161,7 +160,6 @@ func assertEventMatches(t *testing.T, expected *log2.Event, actual *log2.Event) 
 	assert.Equal(t, expected.StackTrace, actual.StackTrace)
 	assert.Equal(t, expected.Severity, actual.Severity)
 	assert.Equal(t, expected.Text, actual.Text)
-	assert.Equal(t, len(expected.Impacted), len(actual.Impacted))
 }
 
 func TestGetAfterNoEntries(t *testing.T) {

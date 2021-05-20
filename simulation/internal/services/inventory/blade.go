@@ -61,31 +61,34 @@ type blade struct {
 	expiration int64
 }
 
-func newBlade(def *pb.BladeCapacity, r *Rack, id int64) *blade {
+func newBlade(ctx context.Context, def *pb.Definition_Blade, name string, r *Rack, id int64) *blade {
+	capacity := def.GetCapacity()
+
 	b := &blade{
 		holder:           r,
 		id:               id,
 		sm:               nil,
 		capacity:         messages.NewCapacity(),
-		architecture:     def.Arch,
+		architecture:     capacity.Arch,
 		used:             messages.NewCapacity(),
 		workloads:        make(map[string]*workload),
-		bootOnPower:      true,
+		bootOnPower:      def.BootOnPowerOn,
 		hasActiveTimer:   false,
 		activeTimerID:    0,
 		matchTimerExpiry: 0,
 	}
 
-	b.capacity.Consumables[messages.CapacityCores] = float64(def.Cores)
-	b.capacity.Consumables[messages.CapacityMemory] = float64(def.MemoryInMb)
-	b.capacity.Consumables[messages.CapacityDisk] = float64(def.DiskInGb)
-	b.capacity.Consumables[messages.CapacityNetwork] = float64(def.NetworkBandwidthInMbps)
+	b.capacity.Consumables[messages.CapacityCores] = float64(capacity.Cores)
+	b.capacity.Consumables[messages.CapacityMemory] = float64(capacity.MemoryInMb)
+	b.capacity.Consumables[messages.CapacityDisk] = float64(capacity.DiskInGb)
+	b.capacity.Consumables[messages.CapacityNetwork] = float64(capacity.NetworkBandwidthInMbps)
 
-	for _, a := range def.Accelerators {
+	for _, a := range capacity.Accelerators {
 		b.capacity.Consumables[messages.AcceleratorPrefix+a.String()] = float64(1)
 	}
 
 	b.sm = sm.NewSM(b,
+		name,
 		sm.WithFirstState(
 			pb.Actual_Blade_start,
 			startedOnEnter,
@@ -199,6 +202,8 @@ func newBlade(def *pb.BladeCapacity, r *Rack, id int64) *blade {
 			sm.NullLeave),
 	)
 
+	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
+
 	return b
 }
 
@@ -226,7 +231,7 @@ func (b *blade) Receive(ctx context.Context, msg sm.Envelope) {
 }
 
 func (b *blade) me() *messages.MessageTarget {
-	return messages.NewTargetBlade(b.holder.name, b.id)
+	return messages.NewTargetBlade(b.holder.sm.Name, b.id)
 }
 
 // +++ blade state machine actions
@@ -314,6 +319,8 @@ func bladeGetStatus(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 		status.Workloads = append(status.Workloads, k)
 	}
 
+	tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
+
 	ch <- messages.NewStatusResponse(common.TickFromContext(ctx), status)
 	return true
 }
@@ -330,6 +337,8 @@ func setConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 		"Processing network connection %s notification at %s",
 		common.AOrB(msg.Enabled, "enabled", "disabled"),
 		msg.Target.Describe())
+
+	tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 
 	machine.AdvanceGuard(common.TickFromContext(ctx))
 
@@ -348,6 +357,8 @@ func setPower(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 		"Processing power %s command at %s",
 		common.AOrB(msg.On, "on", "off"),
 		msg.Target.Describe())
+
+	tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 
 	machine.AdvanceGuard(common.TickFromContext(ctx))
 
@@ -408,6 +419,8 @@ func timerExpiration(
 			msg.Target.Describe())
 
 		b.hasActiveTimer = false
+
+		tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 
 		machine.AdvanceGuard(common.TickFromContext(ctx))
 		return true

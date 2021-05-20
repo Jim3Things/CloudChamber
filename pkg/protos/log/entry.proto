@@ -40,14 +40,6 @@ enum Action {
     // child trace event.
     Trace = 0;
 
-    // UpdateSpanName and UpdateReason are directives to edit the containing span
-    // information.  The first replaces the span's name field, and the second
-    // replaces the span's reason text. This allows for better descriptions for a
-    // span once the details have been better understood - e.g. 'logging in a user'
-    // vs. 'logging in user "admin"'.
-    UpdateSpanName = 1;
-    UpdateReason = 2;
-
     // SpanStart is used to place the child span in the correct spot in the
     // sequence of events in the containing span.  It identifies the child span's
     // ID.  Structured formatters will expand the child span at this point in the
@@ -68,6 +60,12 @@ enum Action {
     // can put them into a logical execution tree, they do so.  If they cannot,
     // then they do not.
     AddLink = 4;
+
+    // AddImpact is used to add an impact target to the span information.  The
+    // impact value is a string stored in the text field, and is expected to
+    // match the format used by the normal span KV structure (e.g. R:foo to 
+    // indicate a read impact on component 'foo').
+    AddImpact = 5;
 }
 
 enum Severity {
@@ -105,20 +103,17 @@ message Event {
     // Formatted caller's stack trace
     string stack_trace = 5;
 
-    // The set of modules impacted, and the type of impact.
-    repeated Module impacted = 6;
-
     // Action to take when this trace is encountered.
-    Action event_action = 7;
+    Action event_action = 6;
 
     // Child's span ID.  Ignored if the action is not SpanStart.
-    string span_id = 8;
+    string span_id = 7;
 
     // Outgoing link ID.  Ignored if the action is not AddLink.
-    string link_id = 9;
+    string link_id = 8;
 
     // Real-world time when this event occurred.
-    google.protobuf.Timestamp at = 10;
+    google.protobuf.Timestamp at = 9;
 }
 
 // Describe a full correlated span, consisting of zero or more events.
@@ -159,4 +154,7 @@ message Entry {
     // Real-world time when this span started and ended.
     google.protobuf.Timestamp started_at = 13;
     google.protobuf.Timestamp ended_at = 14;
+
+    // The set of modules impacted, and the type of impact.
+    repeated Module impacted = 15;
 }

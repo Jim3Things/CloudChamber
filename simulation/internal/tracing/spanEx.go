@@ -62,6 +62,39 @@ type startSpanConfig struct {
 	link        trace.SpanContext
 	linkTag     string
 	newRoot     bool
+	impacts     map[string][]string
+}
+
+// addEntry adds a key-value pair.  If the key already exists, the new value
+// is appended into the value array.  This is in support of assembling the
+// results from multiple TraceAnnotation calls, such as multiple WithImpactXxx
+// calls.
+func (cfg *startSpanConfig) addImpact(key string, value string) {
+	item, ok := cfg.impacts[key]
+	if !ok {
+		item = []string{}
+	}
+
+	item = append(item, value)
+	cfg.impacts[key] = item
+}
+
+// toKvPairs converts the returns of the TraceDetail instance as one or more
+// KeyValue instances.
+func (cfg *startSpanConfig) toKvPairs() []kv.KeyValue {
+	var res = make([]kv.KeyValue, 0, len(cfg.impacts))
+
+	for key, val := range cfg.impacts {
+		res = append(res, kv.Array(key, val))
+	}
+
+	if len(cfg.reason) > 0 {
+		res = append(res, kv.String(ReasonKey, cfg.reason))
+	}
+
+	res = append(res, kv.String(StackTraceKey, cfg.stackTrace))
+
+	return res
 }
 
 // StartSpanOption denotes optional decoration methods used on StartSpan
@@ -108,6 +141,14 @@ func WithLink(sc trace.SpanContext, tag string) StartSpanOption {
 	return func(cfg *startSpanConfig) {
 		cfg.link = sc
 		cfg.linkTag = tag
+	}
+}
+
+// WithImpact states that the activity covered in the calling trace event had
+// the specified impact on the specified element.
+func WithImpact(impact string, element string) StartSpanOption {
+	return func(cfg *startSpanConfig) {
+		cfg.addImpact(ImpactKey, impact+":"+element)
 	}
 }
 
@@ -173,6 +214,7 @@ func StartSpan(
 		link:        trace.SpanContext{},
 		linkTag:     "",
 		newRoot:     false,
+		impacts:     make(map[string][]string),
 	}
 
 	for _, opt := range options {
@@ -193,8 +235,7 @@ func StartSpan(
 		mayLinkTo(cfg.link),
 		mayLinkTag(cfg.linkTag),
 		mayNewRoot(cfg.newRoot),
-		trace.WithAttributes(kv.String(ReasonKey, cfg.reason)),
-		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
+		trace.WithAttributes(cfg.toKvPairs()...))
 
 	if !cfg.newRoot && parent.SpanContext().HasSpanID() {
 		parent.AddEventWithTimestamp(
@@ -224,29 +265,27 @@ func StartSpan(
 // formatted string provided.  The span will end up with the last
 // name provided.
 func UpdateSpanName(ctx context.Context, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEventWithTimestamp(
-		ctx,
-		time.Now(),
-		MethodName(2),
-		kv.Int64(ActionKey, int64(pbl.Action_UpdateSpanName)),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a...)))
+	trace.SpanFromContext(ctx).SetAttribute(SpanNameKey, formatIf(a...))
 }
 
 // UpdateSpanReason replaces the current span reason with the formatted
 // string provided.  The span will end up with the last reason provided.
 func UpdateSpanReason(ctx context.Context, a ...interface{}) {
+	trace.SpanFromContext(ctx).SetAttribute(ReasonKey, formatIf(a...))
+}
+
+// AddImpact adds an impact claim to the current span.  It does not optimize
+// out any duplicates -- all of those are retained.
+func AddImpact(ctx context.Context, level string, module string) {
 	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
 		time.Now(),
 		MethodName(2),
-		kv.Int64(ActionKey, int64(pbl.Action_UpdateReason)),
+		kv.Int64(ActionKey, int64(pbl.Action_AddImpact)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a...)))
+		kv.String(MessageTextKey, level+":"+module))
 }
 
 // AddLink adds an event that marks the point where a request was made that may
