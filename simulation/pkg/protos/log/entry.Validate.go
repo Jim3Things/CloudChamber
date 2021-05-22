@@ -72,7 +72,6 @@ func (x *Entry) Validate(prefix string) error {
 func (x *Event) Validate(prefix string) error {
 	switch x.Severity {
 	case Severity_Debug,
-		Severity_Reason,
 		Severity_Info,
 		Severity_Warning,
 		Severity_Error,

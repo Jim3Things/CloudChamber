@@ -62,30 +62,22 @@ type startSpanConfig struct {
 	link        trace.SpanContext
 	linkTag     string
 	newRoot     bool
-	impacts     map[string][]string
+	impact      string
 }
 
-// addEntry adds a key-value pair.  If the key already exists, the new value
-// is appended into the value array.  This is in support of assembling the
-// results from multiple TraceAnnotation calls, such as multiple WithImpactXxx
-// calls.
-func (cfg *startSpanConfig) addImpact(key string, value string) {
-	item, ok := cfg.impacts[key]
-	if !ok {
-		item = []string{}
+// toKvPairs converts all span configuration fields that are implemented as
+// span attributes to  the appropriate kv-pair values.  The array that is
+// returned can then be passed directly to the start span call using the
+// standard WithAttributes helper.
+func (cfg *startSpanConfig) toKvPairs() []kv.KeyValue {
+	var res []kv.KeyValue
+
+	if len(cfg.linkTag) > 0 {
+		res = append(res, kv.String(LinkTagKey, cfg.linkTag))
 	}
 
-	item = append(item, value)
-	cfg.impacts[key] = item
-}
-
-// toKvPairs converts the returns of the TraceDetail instance as one or more
-// KeyValue instances.
-func (cfg *startSpanConfig) toKvPairs() []kv.KeyValue {
-	var res = make([]kv.KeyValue, 0, len(cfg.impacts))
-
-	for key, val := range cfg.impacts {
-		res = append(res, kv.Array(key, val))
+	if len(cfg.impact) > 0 {
+		res = append(res, kv.String(ImpactKey, cfg.impact))
 	}
 
 	if len(cfg.reason) > 0 {
@@ -148,7 +140,7 @@ func WithLink(sc trace.SpanContext, tag string) StartSpanOption {
 // the specified impact on the specified element.
 func WithImpact(impact string, element string) StartSpanOption {
 	return func(cfg *startSpanConfig) {
-		cfg.addImpact(ImpactKey, impact+":"+element)
+		cfg.impact = impact+":"+element
 	}
 }
 
@@ -158,18 +150,6 @@ func WithImpact(impact string, element string) StartSpanOption {
 func mayLinkTo(sc trace.SpanContext) trace.StartOption {
 	if sc.HasSpanID() && sc.HasTraceID() {
 		return trace.LinkedTo(sc)
-	}
-
-	return nullOption()
-}
-
-// mayLinkTag is a parallel helper function that supplied the unique add-link
-// value to allow for this span to be correctly placed relative to the caller's
-// sequence of actions.  If no such tag is present, this adds nothing to the
-// start span operation.
-func mayLinkTag(tag string) trace.StartOption {
-	if len(tag) > 0 {
-		return trace.WithAttributes(kv.String(LinkTagKey, tag))
 	}
 
 	return nullOption()
@@ -214,7 +194,7 @@ func StartSpan(
 		link:        trace.SpanContext{},
 		linkTag:     "",
 		newRoot:     false,
-		impacts:     make(map[string][]string),
+		impact:      "",
 	}
 
 	for _, opt := range options {
@@ -233,7 +213,6 @@ func StartSpan(
 		trace.WithStartTime(time.Now()),
 		trace.WithSpanKind(cfg.kind),
 		mayLinkTo(cfg.link),
-		mayLinkTag(cfg.linkTag),
 		mayNewRoot(cfg.newRoot),
 		trace.WithAttributes(cfg.toKvPairs()...))
 

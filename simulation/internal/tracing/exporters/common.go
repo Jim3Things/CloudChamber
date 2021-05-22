@@ -58,7 +58,7 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 			}
 
 		case tracing.ImpactKey:
-			entry.Impacted = processImpacts(attr.Value.AsArray())
+			entry.Impacted = append(entry.Impacted, processImpact(attr.Value.AsString()))
 
 		case tracing.SpanNameKey:
 			entry.Name = attr.Value.AsString()
@@ -100,7 +100,7 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 		switch item.EventAction {
 		case log.Action_AddImpact:
-			entry.Impacted = append(entry.Impacted, processOneImpact(item.Text))
+			entry.Impacted = append(entry.Impacted, processImpact(item.Text))
 
 		default:
 			entry.Event = append(entry.Event, &item)
@@ -223,7 +223,6 @@ func doIndent(s string, indent string) string {
 func severityFlag(severity log.Severity) string {
 	var severityToText = map[log.Severity]string{
 		log.Severity_Debug:   "D",
-		log.Severity_Reason:  "R",
 		log.Severity_Info:    "I",
 		log.Severity_Warning: "W",
 		log.Severity_Error:   "E",
@@ -275,18 +274,7 @@ func formatModules(modules []*log.Module) string {
 	return res
 }
 
-func processImpacts(attrs interface{}) []*log.Module {
-	var modules []*log.Module
-	values := attrs.([]string)
-
-	for _, value := range values {
-		modules = append(modules, processOneImpact(value))
-	}
-
-	return modules
-}
-
-func processOneImpact(value string) *log.Module {
+func processImpact(value string) *log.Module {
 	tags := strings.Split(value, ":")
 	return &log.Module{
 		Impact: decodeImpact(tags[0]),

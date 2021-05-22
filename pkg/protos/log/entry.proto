@@ -47,7 +47,7 @@ enum Action {
     // relationships are strong - they can safely assume that both spans will
     // complete, they will execute in the same process, and that completion of the
     // overall trace ID is not complete until both are complete.
-    SpanStart = 3;
+    SpanStart = 1;
 
     // AddLink is used to place a the request point that may result in a linked
     // span.  It has an associated ID that is assigned by the active span at the
@@ -59,25 +59,22 @@ enum Action {
     // linked information as soft (optional) parent/child relationships.  If they
     // can put them into a logical execution tree, they do so.  If they cannot,
     // then they do not.
-    AddLink = 4;
+    AddLink = 2;
 
     // AddImpact is used to add an impact target to the span information.  The
     // impact value is a string stored in the text field, and is expected to
     // match the format used by the normal span KV structure (e.g. R:foo to 
     // indicate a read impact on component 'foo').
-    AddImpact = 5;
+    AddImpact = 3;
 }
 
 enum Severity {
     Debug = 0;
 
-    // This is the severity use to denote a purely explanatory entry
-    Reason = 1;
-
-    Info = 2;
-    Warning = 3;
-    Error = 4;
-    Fatal = 5;
+    Info = 1;
+    Warning = 2;
+    Error = 3;
+    Fatal = 4;
 }
 
 // Describe an impacted module
