@@ -1,6 +1,6 @@
 import React from "react"
 import {grey} from "@material-ui/core/colors"
-import {createStyles, Popover} from "@material-ui/core"
+import {createStyles, Popover, Tooltip} from "@material-ui/core"
 import {makeStyles} from "@material-ui/core/styles"
 
 import {BladeDetails, InstanceDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy"
@@ -8,6 +8,7 @@ import {Colors} from "./SimulatedInventory"
 import {Opacity, PhysicalBox} from "./PhysicalBox"
 import {BladeUsageDetails} from "./BladeUsageDetails"
 import {BladeCapacity} from "../pkg/protos/inventory/capacity"
+import {Computer} from "@material-ui/icons"
 
 const useStyles = makeStyles((theme) =>
     createStyles({
@@ -111,7 +112,12 @@ export function Blade(props: {
 
     const open = Boolean(anchorEl)
 
-    const frameWidth = props.width * props.details.capacity.cores / props.limits.cores
+    const iconWidth = Math.min(props.height, 50)
+    const offset = iconWidth + 5
+
+    const bladeWidth = props.width - iconWidth
+
+    const frameWidth = bladeWidth * props.details.capacity.cores / props.limits.cores
 
     // Construct the inner box width boundaries
     const boxes = formBladeDetailBoxes(
@@ -124,13 +130,20 @@ export function Blade(props: {
     // Draw the blade, filling in the instance usage and state
     return (
         <React.Fragment>
+            <Tooltip title={"Blade " + props.index}>
+                <Computer
+                    x={props.x}
+                    y={props.y}
+                    width={iconWidth}
+                    height={props.height} />
+            </Tooltip>
+
             <PhysicalBox
-                x={props.x}
+                x={props.x + offset}
                 y={props.y}
                 width={frameWidth}
                 height={props.height}
                 state={props.details.state}
-                fillOpacity={0}
                 palette={props.palette}
                 pointerEvents="all"
                 aria-owns={open ? 'mouse-over-popover' : undefined}

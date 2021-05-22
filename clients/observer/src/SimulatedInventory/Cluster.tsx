@@ -3,7 +3,7 @@
 // holds the details for each rack
 
 import React from "react"
-import {ClusterDetails, RackDetails} from "../proxies/InventoryProxy"
+import {ClusterDetails} from "../proxies/InventoryProxy"
 import {makeStyles} from "@material-ui/core/styles"
 import {Colors} from "./SimulatedInventory"
 import {Rack} from "./Rack"
@@ -58,7 +58,7 @@ export function Cluster(props: {
                 </Item>
             </Container>
             <Container xs={12} className={classes.tr}>
-                {Array.from(props.cluster.racks.keys()).map((name) => (
+                {Array.from(props.cluster.racks.entries()).map(([name, value]) => (
                     <Item className={classes.td}>
                         <div>
                             <Typography className={classes.rackName}>
@@ -69,7 +69,7 @@ export function Cluster(props: {
                         <Rack
                             bladeLimit={props.cluster.maxBladeCount}
                             capacityLimit={props.cluster.maxCapacity}
-                            rack={props.cluster.racks.get(name) as RackDetails}
+                            rack={value}
                             palette={props.palette}
                         />
                     </Item>
