@@ -115,7 +115,7 @@ export function Blade(props: {
     const iconWidth = Math.min(props.height, 50)
     const offset = iconWidth + 5
 
-    const bladeWidth = props.width - iconWidth
+    const bladeWidth = props.width - offset
 
     const frameWidth = bladeWidth * props.details.capacity.cores / props.limits.cores
 
@@ -135,7 +135,7 @@ export function Blade(props: {
                     x={props.x}
                     y={props.y}
                     width={iconWidth}
-                    height={props.height} />
+                    height={props.height}/>
             </Tooltip>
 
             <PhysicalBox

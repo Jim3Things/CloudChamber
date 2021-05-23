@@ -12,33 +12,40 @@ import {Typography} from "@material-ui/core"
 
 const useStyles = makeStyles((theme) => ({
     th: {
-        border: "1px solid darkgrey",
+        borderBottom: "5px solid darkgrey",
         padding: "1px"
     },
     tr: {
         border: "0px",
-        padding: "1px"
+        padding: theme.spacing(1),
+        background: theme.palette.background.paper,
     },
     td: {
-        border: "3px solid darkgrey",
-        padding: "1px",
-        alignContent: "start",
-        verticalAlign: "top",
-        background: "lightgrey"
+        border: "3px",
+        borderColor: theme.palette.background.paper,
+        paddingRight: theme.spacing(1),
+        paddingLeft: theme.spacing(1),
+        background: theme.palette.background.paper,
     },
     tdClusterName: {
         border: "0px",
-        padding: "1px",
         alignContent: "start",
         verticalAlign: "top",
         textAlign: "center",
+    },
+    tdClusterLocation: {
+        border: "0px",
+        alignContent: "start",
+        verticalAlign: "top",
+        textAlign: "right",
+        fontStyle: "italic",
+        paddingRight: theme.spacing(1),
     },
     rackName: {
         textAlign: "center",
         alignContent: "center",
         align: "center",
         backgroundColor: theme.palette.background.paper,
-        padding: theme.spacing(1),
     }
 }))
 
@@ -56,12 +63,17 @@ export function Cluster(props: {
                         {props.cluster.name}
                     </Typography>
                 </Item>
+                <Item xs={12} className={classes.tdClusterLocation}>
+                    <Typography variant="subtitle2">
+                        At: {props.cluster.location}
+                    </Typography>
+                </Item>
             </Container>
             <Container xs={12} className={classes.tr}>
                 {Array.from(props.cluster.racks.entries()).map(([name, value]) => (
                     <Item className={classes.td}>
                         <div>
-                            <Typography className={classes.rackName}>
+                            <Typography variant="h5" className={classes.rackName}>
                                 {name}
                             </Typography>
                         </div>

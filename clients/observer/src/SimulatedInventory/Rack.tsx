@@ -18,25 +18,43 @@ export function Rack(props: {
     const yGap = 1
     const headerSpace = 50
 
-    const rackHeight = ((bladeHeight + yGap) * props.bladeLimit) - yGap + headerSpace
-    let yPos = headerSpace
+    const innerLeft = 5
+    const innerTop = 5
+
+    const innerHeight = ((bladeHeight + yGap) * props.bladeLimit) - yGap + headerSpace
+    const innerWidth = 150
+
+    const fullHeight = innerHeight + innerTop + innerTop
+    const fullWidth = innerWidth + innerLeft + innerLeft
+
+    let yPos = headerSpace + 5
 
     return (
         <svg
-            width={160}
-            height={rackHeight}>
-            <Tor
+            width={fullWidth}
+            height={fullHeight}>
+            <rect
                 x={0}
                 y={0}
-                width={160}
+                width={fullWidth}
+                height={fullHeight}
+                fill="lightgrey"
+                strokeWidth="5px"
+                stroke="SteelBlue"
+            />
+
+            <Tor
+                x={innerLeft}
+                y={innerTop}
+                width={innerWidth}
                 height={bladeHeight}
                 details={props.rack.tor}
                 palette={props.palette}/>
 
             <PDU
-                x={0}
-                y={bladeHeight + yGap}
-                width={160}
+                x={innerLeft}
+                y={bladeHeight + yGap + innerTop}
+                width={innerWidth}
                 height={bladeHeight}
                 details={props.rack.pdu}
                 palette={props.palette}/>
@@ -46,9 +64,9 @@ export function Rack(props: {
                 yPos += bladeHeight + yGap
 
                 return <Blade
-                    x={0}
+                    x={innerLeft}
                     y={thisY}
-                    width={160}
+                    width={innerWidth}
                     height={bladeHeight}
                     index={v[0]}
                     details={v[1]}
