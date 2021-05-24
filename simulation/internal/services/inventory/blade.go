@@ -69,21 +69,21 @@ func newBlade(ctx context.Context, def *pb.Definition_Blade, name string, r *Rac
 		id:               id,
 		sm:               nil,
 		capacity:         messages.NewCapacity(),
-		architecture:     capacity.Arch,
+		architecture:     capacity.GetArch(),
 		used:             messages.NewCapacity(),
 		workloads:        make(map[string]*workload),
-		bootOnPower:      def.BootOnPowerOn,
+		bootOnPower:      def.GetBootOnPowerOn(),
 		hasActiveTimer:   false,
 		activeTimerID:    0,
 		matchTimerExpiry: 0,
 	}
 
-	b.capacity.Consumables[messages.CapacityCores] = float64(capacity.Cores)
-	b.capacity.Consumables[messages.CapacityMemory] = float64(capacity.MemoryInMb)
-	b.capacity.Consumables[messages.CapacityDisk] = float64(capacity.DiskInGb)
-	b.capacity.Consumables[messages.CapacityNetwork] = float64(capacity.NetworkBandwidthInMbps)
+	b.capacity.Consumables[messages.CapacityCores] = float64(capacity.GetCores())
+	b.capacity.Consumables[messages.CapacityMemory] = float64(capacity.GetMemoryInMb())
+	b.capacity.Consumables[messages.CapacityDisk] = float64(capacity.GetDiskInGb())
+	b.capacity.Consumables[messages.CapacityNetwork] = float64(capacity.GetNetworkBandwidthInMbps())
 
-	for _, a := range capacity.Accelerators {
+	for _, a := range capacity.GetAccelerators() {
 		b.capacity.Consumables[messages.AcceleratorPrefix+a.String()] = float64(1)
 	}
 

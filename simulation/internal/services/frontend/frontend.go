@@ -109,7 +109,7 @@ func normalizeURL(next http.Handler) http.Handler {
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, span := tracing.StartSpan(context.Background(),
-			tracing.WithName(fmt.Sprintf("%s: %s %q", spanName, r.Method, r.URL.String())),
+			tracing.WithName("%s: %s %q", spanName, r.Method, r.URL.String()),
 			tracing.AsInternal(),
 			tracing.WithContextValue(ts.OutsideTime))
 		defer span.End()

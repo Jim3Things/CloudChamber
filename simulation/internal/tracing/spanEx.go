@@ -93,9 +93,9 @@ func (cfg *startSpanConfig) toKvPairs() []kv.KeyValue {
 type StartSpanOption func(*startSpanConfig)
 
 // WithName adds the supplied value as the name of the span under creation
-func WithName(name string) StartSpanOption {
+func WithName(f string, a ...interface{}) StartSpanOption {
 	return func(cfg *startSpanConfig) {
-		cfg.name = name
+		cfg.name = fmt.Sprintf(f, a...)
 	}
 }
 

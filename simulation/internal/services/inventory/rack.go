@@ -112,10 +112,10 @@ func newRackInternal(
 
 	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
 
-	r.pdu = pduFunc(ctx, def.Pdus[0], fmt.Sprintf("%s%d", pduKey, 0), r)
-	r.tor = torFunc(ctx, def.Tors[0], fmt.Sprintf("%s%d", torKey, 0), r)
+	r.pdu = pduFunc(ctx, def.GetPdus()[0], fmt.Sprintf("%s%d", pduKey, 0), r)
+	r.tor = torFunc(ctx, def.GetTors()[0], fmt.Sprintf("%s%d", torKey, 0), r)
 
-	for i, item := range def.Blades {
+	for i, item := range def.GetBlades() {
 		r.blades[i] = newBlade(ctx, item, fmt.Sprintf("%s%d", bladeKey, i), r, i)
 
 		// These two calls are temporary fix-ups until the inventory definition
@@ -169,7 +169,7 @@ func (r *Rack) forwardToBlade(ctxIn context.Context, id int64, msg sm.Envelope) 
 	if b, ok := r.blades[id]; ok {
 		ctx, span := tracing.StartSpan(
 			ctxIn,
-			tracing.WithName(fmt.Sprintf("Processing message %q on blade", msg)),
+			tracing.WithName("Processing message %q on blade", msg),
 			tracing.WithNewRoot(),
 			tracing.WithLink(msg.SpanContext(), msg.LinkID()),
 			tracing.WithContextValue(timestamp.EnsureTickInContext))

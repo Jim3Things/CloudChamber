@@ -176,7 +176,7 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 					reason = fmt.Sprintf("%s%s%s", reason, so, r.Replace(choice.Chosen))
 					ctx, span := tracing.StartSpan(
 						ctx,
-						tracing.WithName(fmt.Sprintf("Executing %q rule", rule.Name)),
+						tracing.WithName("Executing %q rule", rule.Name),
 						tracing.WithReason(reason),
 						tracing.WithContextValue(timestamp.EnsureTickInContext))
 
@@ -199,7 +199,7 @@ func Process(ctx context.Context, rules []Rule, tables Tables, vars map[string]s
 			if !anyChosen {
 				ctx, span := tracing.StartSpan(
 					ctx,
-					tracing.WithName(fmt.Sprintf("Executing %q rule", rule.Name)),
+					tracing.WithName("Executing %q rule", rule.Name),
 					tracing.WithReason(reason),
 					tracing.WithContextValue(timestamp.EnsureTickInContext))
 				tracing.Info(ctx, "No choice found to execute")

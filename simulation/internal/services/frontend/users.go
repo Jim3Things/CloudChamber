@@ -131,7 +131,7 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 	username := vars["username"]
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName(fmt.Sprintf("Creating user %q", username)),
+		tracing.WithName("Creating user %q", username),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.WithImpact(tracing.ImpactCreate, "/users/"+username),
 		tracing.AsInternal())
@@ -191,7 +191,7 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 	username := vars["username"]
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName(fmt.Sprintf("Getting details for user %q", username)),
+		tracing.WithName("Getting details for user %q", username),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.WithImpact(tracing.ImpactRead, "/users/"+username),
 		tracing.AsInternal())
@@ -242,7 +242,7 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 	username := vars["username"]
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName(fmt.Sprintf("Updating details on user %q", username)),
+		tracing.WithName("Updating details on user %q", username),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.WithImpact(tracing.ImpactModify, "/users/"+username),
 		tracing.AsInternal())
@@ -332,7 +332,7 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 	username := vars["username"]
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName(fmt.Sprintf("Deleting user %q", username)),
+		tracing.WithName("Deleting user %q", username),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.WithImpact(tracing.ImpactDelete, "/users/"+username),
 		tracing.AsInternal())
@@ -411,7 +411,7 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 	username := vars["username"]
 
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName(fmt.Sprintf("Updating the password for user %q", username)),
+		tracing.WithName("Updating the password for user %q", username),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.WithImpact(tracing.ImpactModify, "/users/"+username),
 		tracing.AsInternal())
