@@ -1,9 +1,7 @@
 import React, {ReactNode, useState} from "react"
 import {makeStyles, Theme} from "@material-ui/core/styles"
-import {IconButton, Popover, Typography} from "@material-ui/core"
-import {Variant} from "@material-ui/core/styles/createTypography"
+import {Button, Popover, Typography} from "@material-ui/core"
 
-import {MoreOrLess} from "./If"
 
 const useStyles = makeStyles((theme: Theme) => ({
     paper: {
@@ -16,7 +14,6 @@ const useStyles = makeStyles((theme: Theme) => ({
 // button that this element manages.
 export function ExpandingLabel(props: {
     label: string,
-    variant?: Variant,
     children?: ReactNode
 }) {
     const classes = useStyles()
@@ -31,19 +28,18 @@ export function ExpandingLabel(props: {
 
     const open = Boolean(anchorEl)
 
-    return <React.Fragment>
-        <Typography variant={props.variant}>
-            {props.label}
-        </Typography>
-        <IconButton
-            size="small"
+    return <>
+        <Button
+            variant="text"
             color="inherit"
             onClick={onClick}
             aria-owns={open ? 'detail-popover' : undefined}
             aria-haspopup={true}
         >
-            <MoreOrLess cond={!open}/>
-        </IconButton>
+            <Typography style={{textDecoration: "underline"}}>
+                {props.label}
+            </Typography>
+        </Button>
         <Popover
             id="detail-popover"
             classes={{paper: classes.paper}}
@@ -62,5 +58,5 @@ export function ExpandingLabel(props: {
         >
             {props.children}
         </Popover>
-    </React.Fragment>
+    </>
 }
