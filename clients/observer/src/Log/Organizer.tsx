@@ -1,8 +1,7 @@
 // Organizer holds the traces, keyed by span ID, and a list of known root
 // spans, in reverse order (newest first).
 
-import {nullSpanID} from "../pkg/protos/log/entry"
-import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
+import {Action, nullSpanID, Severity} from "../pkg/protos/log/entry"
 import {LogEntry} from "../proxies/LogProxy"
 
 export class Organizer {
@@ -32,13 +31,53 @@ export class Organizer {
                 }
             }
         })
+
+        for (const item of this.roots) {
+            this.upliftSeverity(item)
+        }
+    }
+
+    upliftSeverity(root: string): Severity {
+        let entry = this.all.get(root)
+        if (entry != null) {
+            if (entry.entry.event.length === 0) {
+                entry.maxSeverity = Severity.Info
+            } else {
+                let startingSev = Severity.Debug
+
+                entry.entry.event.forEach(v => {
+                    switch (v.eventAction) {
+                        case Action.SpanStart: {
+                            const res = this.upliftSeverity(v.spanId)
+                            startingSev = Math.max(startingSev, res)
+                            break
+                        }
+
+                        case Action.AddLink: {
+                            const res = this.upliftSeverity(v.linkId)
+                            startingSev = Math.max(startingSev, res)
+                            break
+                        }
+
+                        default:
+                            startingSev = Math.max(startingSev, v.severity)
+                            break
+                    }
+                })
+                entry.maxSeverity = startingSev
+            }
+
+            return entry.maxSeverity
+        }
+
+        return Severity.Debug
     }
 
     formatLink(spanID: string, traceID: string, linkID: string): string {
         return spanID + ":" + traceID + "@" + linkID
     }
 
-    get(spanID: string): GetAfterResponse_traceEntry | undefined {
+    get(spanID: string): LogEntry | undefined {
         return this.all.get(spanID)
     }
 

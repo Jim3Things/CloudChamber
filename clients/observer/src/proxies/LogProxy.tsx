@@ -5,9 +5,11 @@
 
 import {getJson} from "./Session"
 import {GetAfterResponse, GetAfterResponse_traceEntry, GetPolicyResponse} from "../pkg/protos/services/requests"
+import {Severity} from "../pkg/protos/log/entry"
 
 export class LogEntry extends GetAfterResponse_traceEntry {
     expanded: boolean
+    maxSeverity: Severity
 
     constructor(source: GetAfterResponse_traceEntry) {
         super({})
@@ -15,6 +17,7 @@ export class LogEntry extends GetAfterResponse_traceEntry {
         this.id = source.id
         this.entry = source.entry
         this.expanded = false
+        this.maxSeverity = Severity.Debug
     }
 }
 
@@ -63,7 +66,10 @@ export class LogProxy {
                     this.getLogs(handler, lastEpoch)
                 })
                 .catch(() => {
-                    window.setTimeout(() => this.start(handler), 100)
+                    if (!Boolean(this.getSignal()?.aborted))
+                    {
+                        window.setTimeout(() => this.start(handler), 100)
+                    }
                 })
         }
     }
