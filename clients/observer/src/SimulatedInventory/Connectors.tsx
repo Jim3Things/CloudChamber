@@ -16,7 +16,7 @@ export function Connectors(props: {
     opacity: number
 }) {
     const radius = Math.min((props.height / 4) - 2, (props.width / props.state.length))
-    const cy = props.height - radius - 1 + props.y
+    const cy = (props.height / 2) + props.y
     const dx = props.width / props.state.length
 
     const linkColor = (flag: boolean): string => {
