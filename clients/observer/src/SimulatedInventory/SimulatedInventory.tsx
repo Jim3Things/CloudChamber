@@ -1,7 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import {green, grey, red, yellow} from "@material-ui/core/colors"
 
-import {getCluster, getRackDetails, ClusterDetails, RackDetails} from "../proxies/InventoryProxy"
+import {ClusterDetails, getCluster, getRackDetails, RackDetails} from "../proxies/InventoryProxy"
 import {Cluster} from "./Cluster"
 import {ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar} from "../common/Snackbar"
 
@@ -22,6 +22,7 @@ export interface Colors {
 export function SimulatedInventory() {
     const [cluster, setCluster] = useState<ClusterDetails>({
         name: "Loading...",
+        location: "",
         maxCapacity: {
             cores: 0,
             diskInGb: 0,

@@ -9,6 +9,8 @@ import {TorDetails} from "../proxies/InventoryProxy"
 import {Colors} from "./SimulatedInventory"
 import {Opacity, PhysicalBox} from "./PhysicalBox"
 import {Connectors} from "./Connectors"
+import {RssFeed} from "@material-ui/icons"
+import {Tooltip} from "@material-ui/core"
 
 export function Tor(props: {
     x: number,
@@ -18,34 +20,39 @@ export function Tor(props: {
     details: TorDetails,
     palette: Colors
 }) {
-    const offset = 60
+    const iconWidth = Math.min(props.height, 50)
+    const offset = iconWidth + 5
     const connectionWidth = props.width - offset
 
     return (
         <React.Fragment>
+            <Tooltip title="TOR 0">
+                <RssFeed
+                    x={props.x}
+                    y={props.y}
+                    width={iconWidth}
+                    height={props.height} />
+            </Tooltip>
+
             <PhysicalBox
-                x={props.x}
-                y={props.y}
-                width={props.width}
-                height={props.height}
-                state={props.details.state}
-                palette={props.palette}/>
-
-            <text
-                x={10}
-                y={props.height + props.y - 2}
-                textAnchor={"center"}>TOR
-            </text>
-
-            <Connectors
-                x={offset}
+                x={props.x + offset}
                 y={props.y}
                 width={connectionWidth}
                 height={props.height}
-                state={props.details.linkTo}
-                onColor={props.palette.runningColor}
-                offColor={props.palette.faultedColor}
-                opacity={Opacity(props.details.state)}/>
+                state={props.details.state}
+                palette={props.palette}>
+
+                <Connectors
+                    x={0}
+                    y={0}
+                    width={connectionWidth}
+                    height={props.height}
+                    state={props.details.linkTo}
+                    onColor={props.palette.runningColor}
+                    offColor={props.palette.faultedColor}
+                    opacity={Opacity(props.details.state)}/>
+
+            </PhysicalBox>
 
         </React.Fragment>
     )

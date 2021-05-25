@@ -58,7 +58,8 @@ export interface RackDetails {
 // Describe a cluster
 export interface ClusterDetails {
     name: string                // Descriptive name for the cluster
-    maxBladeCount: number,
+    location: string
+    maxBladeCount: number
     maxCapacity: BladeCapacity
     racks: Map<string, RackDetails>   // .. and the racks that make it up
 }
@@ -97,7 +98,8 @@ export function getCluster(): Promise<ClusterDetails> {
         .then((item: any) => {
             const zone = new External_ZoneSummary(item)
             let data: ClusterDetails = {
-                name: zone.name + " (location: " + zone.details.location + ")",
+                name: zone.name,
+                location: zone.details.location,
                 maxBladeCount: zone.maxBladeCount,
                 maxCapacity: zone.maxCapacity,
                 racks: new Map<string, RackDetails>()

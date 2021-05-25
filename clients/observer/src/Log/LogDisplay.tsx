@@ -1,7 +1,7 @@
 import React from 'react'
 import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core"
 import {makeStyles} from "@material-ui/core/styles"
-import {BugReport, Error, ErrorOutline, HelpOutline, Info, Menu, Warning} from '@material-ui/icons'
+import {BugReport, Error, ErrorOutline, HelpOutline, Info, Warning} from '@material-ui/icons'
 
 import {Organizer} from "./Organizer"
 import {MoreOrLess, RenderIf} from "../common/If"
@@ -14,6 +14,7 @@ interface styleProps {
     indent: number
     infra: boolean
     height: number
+    size: string
 }
 
 const useStyles = makeStyles((theme) => ({
@@ -23,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
         overflow: "auto",
         fontSize: "small",
         pt: 0,
-        pb: 0
+        pb: 0,
     }),
     nested: (props: styleProps) => ({
         fontSize: "small",
@@ -38,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
         whiteSpace: "pre-wrap",
     }),
     success: (props: styleProps) => ({
-        fontSize: "small",
+        fontSize: props.size,
         color: (props.infra
             ? theme.palette.grey.A400
             : theme.palette.success.main),
@@ -47,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
             : theme.palette.background.paper)
     }),
     warning: (props: styleProps) => ({
-        fontSize: "small",
+        fontSize: props.size,
         color: (props.infra
             ? theme.palette.grey.A400
             : theme.palette.warning.main),
@@ -56,7 +57,7 @@ const useStyles = makeStyles((theme) => ({
             : theme.palette.background.paper)
     }),
     error: (props: styleProps) => ({
-        fontSize: "small",
+        fontSize: props.size,
         color: (props.infra
             ? theme.palette.grey.A400
             : theme.palette.error.main),
@@ -69,6 +70,36 @@ const useStyles = makeStyles((theme) => ({
 export interface ExpansionHandler {
     (id: string): void
 }
+
+// Construct the icon to use to denote the severity code in a log event.
+function SevIcon(props: {
+    indent: number,
+    severity: Severity,
+    iconSize: string,
+    infra: boolean }) {
+    const classes = useStyles({indent: props.indent, infra: props.infra, height: 0, size: props.iconSize})
+
+    switch (props.severity) {
+        case Severity.Debug:
+            return <BugReport className={classes.success}/>
+
+        case Severity.Info:
+            return <Info className={classes.success}/>
+
+        case Severity.Warning:
+            return <Warning className={classes.warning}/>
+
+        case Severity.Error:
+            return <ErrorOutline className={classes.error}/>
+
+        case Severity.Fatal:
+            return <Error className={classes.error}/>
+
+        default:
+            return <HelpOutline className={classes.error}/>
+    }
+}
+
 
 // FilteredCount produces the child element count for a span after applying the
 // active display filters.
@@ -118,6 +149,7 @@ function FilteredCount(
 
 // TraceSpanElement provides the list entry for a trace span element
 function TraceSpanElement(props: {
+    severity: Severity,
     text: string,
     reason: string | null,
     expanded: boolean,
@@ -126,12 +158,17 @@ function TraceSpanElement(props: {
     infra: boolean,
     id: string
 }) {
-    const classes = useStyles({infra: props.infra, indent: props.indent, height: 0})
+    const classes = useStyles({infra: props.infra, indent: props.indent, height: 0, size: "small"})
     const dispatch = useAppDispatch()
 
     return <ListItem dense button onClick={() => dispatch(logSlice.actions.flip(props.id))} className={classes.nested}>
         <ListItemIcon>
-            <Menu/>
+            <SevIcon
+                indent={props.indent}
+                infra={props.infra}
+                severity={props.severity}
+                iconSize="medium"
+            />
         </ListItemIcon>
         <ListItemText className={classes.labelText} primary={props.text} secondary={props.reason}/>
         <RenderIf cond={props.expandable}>
@@ -152,6 +189,7 @@ function TraceSpanSubtree(props: {
 
     if (entry === undefined) {
         return <TraceSpanElement
+            severity={Severity.Debug}
             text="Missing"
             reason={null}
             expanded={false}
@@ -170,6 +208,7 @@ function TraceSpanSubtree(props: {
 
     return <React.Fragment>
         <TraceSpanElement
+            severity={entry.maxSeverity}
             text={entry.entry.name}
             reason={entry.entry.reason}
             expanded={isExpanded}
@@ -204,30 +243,7 @@ function TraceEvent(props: {
     event: Event,
     infra: boolean
 }) {
-    const classes = useStyles({indent: props.indent, infra: props.infra, height: 0})
-
-    // Construct the icon to use to denote the severity code in a log event.
-    const SevIcon = (props: { ev: Event }) => {
-        switch (props.ev.severity) {
-            case Severity.Debug:
-                return <BugReport className={classes.success}/>
-
-            case Severity.Info:
-                return <Info className={classes.success}/>
-
-            case Severity.Warning:
-                return <Warning className={classes.warning}/>
-
-            case Severity.Error:
-                return <ErrorOutline className={classes.error}/>
-
-            case Severity.Fatal:
-                return <Error className={classes.error}/>
-
-            default:
-                return <HelpOutline className={classes.error}/>
-        }
-    }
+    const classes = useStyles({indent: props.indent, infra: props.infra, height: 0, size: "small"})
 
     switch (props.event.eventAction) {
         case Action.SpanStart: {
@@ -236,6 +252,7 @@ function TraceEvent(props: {
             const span = props.organizer.get(props.event.spanId)
             if (span === undefined) {
                 return <TraceSpanElement
+                    severity={Severity.Debug}
                     expanded={false}
                     expandable={false}
                     text={"Missing:" + props.event.spanId}
@@ -282,7 +299,12 @@ function TraceEvent(props: {
 
             return <ListItem dense className={classes.nested}>
                 <ListItemIcon>
-                    <SevIcon ev={props.event}/>
+                    <SevIcon
+                        indent={props.indent}
+                        infra={props.infra}
+                        severity={props.event.severity}
+                        iconSize="small"
+                    />
                 </ListItemIcon>
                 <ListItemText className={classes.labelText} primary={props.event.text}/>
             </ListItem>
@@ -294,7 +316,7 @@ export function LogDisplay(props: {
     const elem = document.getElementById(props.matchId)
     const height = elem !== null ? (elem.offsetHeight - 5) : 500
 
-    const classes = useStyles({indent: 0, infra: false, height: height})
+    const classes = useStyles({indent: 0, infra: false, height: height, size: "small"})
 
     const settings = useAppSelector(settingsSelector)
     const logData = useAppSelector(logSelector)
@@ -306,7 +328,7 @@ export function LogDisplay(props: {
                     return <TraceSpanSubtree
                         settings={settings}
                         organizer={logData.organizer}
-                        indent={0}
+                        indent={1}
                         id={key}/>
                 })}
             </List>

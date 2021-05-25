@@ -195,8 +195,8 @@ export const logSlice = createSlice({
                 const start = Math.max(newEntries.length - action.payload.toHold, 0)
                 const slice = newEntries.slice(start)
 
-                state.entries = slice
                 state.organizer = new Organizer(slice)
+                state.entries = slice
             },
             prepare: (toHold: number, entries: LogEntry[]) => {
                 return {

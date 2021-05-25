@@ -47,20 +47,17 @@ function App() {
 
     // Initiate a logout from the active session
     const onLogoutEvent = (name: string) => {
+        logProxy.cancelUpdates()
+        watchProxy.cancel()
+
         logout(name)
             .then(() => {
                 // We're logged out.  Set the state and cancel the
                 // background calls for the next tick
                 dispatch(logonSlice.actions.logout())
-
-                logProxy.cancelUpdates()
-                watchProxy.cancel()
             })
             .catch(() => {
                 dispatch(logonSlice.actions.logout())
-
-                logProxy.cancelUpdates()
-                watchProxy.cancel()
             })
     }
 

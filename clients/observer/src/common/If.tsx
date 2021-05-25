@@ -1,5 +1,5 @@
 import React from 'react'
-import {CheckBox, CheckBoxOutlineBlank, ExpandLess, ExpandMore} from "@material-ui/icons"
+import {Check, Clear, ExpandLess, ExpandMore} from "@material-ui/icons"
 
 // This module contains simple helper functions that perform a basic if-else
 // task.
@@ -40,8 +40,8 @@ export function MoreOrLess(props: { cond: boolean }) {
 // condition.
 export function CheckIf(props: { cond?: boolean }) {
     if (props.cond !== undefined && props.cond) {
-        return <CheckBox/>
+        return <Check/>
     } else {
-        return <CheckBoxOutlineBlank/>
+        return <Clear/>
     }
 }
