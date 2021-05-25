@@ -763,8 +763,8 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 //
 func (w *Watch) Close(ctx context.Context) error {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-	tracing.WithName("Attempting to close event channel")
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithName("Attempting to close event channel"))
 	defer span.End()
 
 	cancel := w.cancel
