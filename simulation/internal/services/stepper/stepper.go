@@ -61,6 +61,7 @@ func newStepper(startingPolicy int) *stepper {
 	}
 
 	s.sm = sm.NewSM(s,
+		"Stepper",
 		sm.WithFirstState(
 			pb.StepperState_awaiting_start,
 			sm.NullEnter,

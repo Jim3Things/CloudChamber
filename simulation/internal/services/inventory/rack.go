@@ -19,8 +19,6 @@ import (
 // governed by a mesh of state machines rooted in the one for the Rack as a
 // whole.
 type Rack struct {
-	name string
-
 	// ch is the channel to send requests along to the Rack's goroutine, which
 	// is where the state machine runs.
 	ch chan sm.Envelope
@@ -46,8 +44,15 @@ const (
 // entries to determine its structure.  The resulting Rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
 // programmed.
-func newRack(ctx context.Context, name string, def *pb.Definition_Rack, timers *timestamp.Timers) *Rack {
-	return newRackInternal(ctx, name, def, timers, newPdu, newTor)
+func newRack(
+	ctx context.Context,
+	name string,
+	def *pb.Definition_Rack,
+	pduKey string,
+	torKey string,
+	bladeKey string,
+	timers *timestamp.Timers) *Rack {
+	return newRackInternal(ctx, name, def, pduKey, torKey, bladeKey, timers, newPdu, newTor)
 }
 
 // newRackInternal is the implementation behind newRack.  It supports
@@ -57,11 +62,13 @@ func newRackInternal(
 	ctx context.Context,
 	name string,
 	def *pb.Definition_Rack,
+	pduKey string,
+	torKey string,
+	bladeKey string,
 	timers *timestamp.Timers,
-	pduFunc func(*pb.Definition_Pdu, *Rack) *pdu,
-	torFunc func(*pb.Definition_Tor, *Rack) *tor) *Rack {
+	pduFunc func(context.Context, *pb.Definition_Pdu, string, *Rack) *pdu,
+	torFunc func(context.Context, *pb.Definition_Tor, string, *Rack) *tor) *Rack {
 	r := &Rack{
-		name:      name,
 		ch:        make(chan sm.Envelope, rackQueueDepth),
 		tor:       nil,
 		pdu:       nil,
@@ -72,6 +79,7 @@ func newRackInternal(
 	}
 
 	r.sm = sm.NewSM(r,
+		name,
 		sm.WithFirstState(
 			pb.Actual_Rack_awaiting_start,
 			sm.NullEnter,
@@ -102,11 +110,13 @@ func newRackInternal(
 			sm.NullLeave),
 	)
 
-	r.pdu = pduFunc(def.Pdus[0], r)
-	r.tor = torFunc(def.Tors[0], r)
+	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
 
-	for i, item := range def.Blades {
-		r.blades[i] = newBlade(item.GetCapacity(), r, i)
+	r.pdu = pduFunc(ctx, def.GetPdus()[0], fmt.Sprintf("%s%d", pduKey, 0), r)
+	r.tor = torFunc(ctx, def.GetTors()[0], fmt.Sprintf("%s%d", torKey, 0), r)
+
+	for i, item := range def.GetBlades() {
+		r.blades[i] = newBlade(ctx, item, fmt.Sprintf("%s%d", bladeKey, i), r, i)
 
 		// These two calls are temporary fix-ups until the inventory definition
 		// includes the tor and pdu connectors
@@ -121,7 +131,7 @@ func newRackInternal(
 // processing.  This will likely not be the final destination, but requires
 // operation by the TOR in order to reach its final destination.
 func (r *Rack) ViaTor(ctx context.Context, msg sm.Envelope) error {
-	tracing.Info(ctx, "Forwarding %v to TOR in rack %q", msg, r.name)
+	tracing.Info(ctx, "Forwarding %v to TOR in rack %q", msg, r.sm.Name)
 
 	r.tor.Receive(ctx, msg)
 
@@ -132,7 +142,7 @@ func (r *Rack) ViaTor(ctx context.Context, msg sm.Envelope) error {
 // processing.  This may or may not impact the full PDU and the all blades,
 // or only one blade's power state.
 func (r *Rack) ViaPDU(ctx context.Context, msg sm.Envelope) error {
-	tracing.Info(ctx, "Forwarding '%v' to PDU in rack %q", msg, r.name)
+	tracing.Info(ctx, "Forwarding '%v' to PDU in rack %q", msg, r.sm.Name)
 	r.pdu.Receive(ctx, msg)
 
 	return nil
@@ -143,7 +153,7 @@ func (r *Rack) ViaPDU(ctx context.Context, msg sm.Envelope) error {
 // to simulate a working network connection for reachability, or a working power
 // cable for execution.
 func (r *Rack) ViaBlade(ctx context.Context, id int64, msg sm.Envelope) error {
-	tracing.Info(ctx, "Forwarding '%v' to blade %d in rack %q", msg, id, r.name)
+	tracing.Info(ctx, "Forwarding '%v' to blade %d in rack %q", msg, id, r.sm.Name)
 	if b, ok := r.blades[id]; ok {
 		b.Receive(ctx, msg)
 		return nil
@@ -159,7 +169,7 @@ func (r *Rack) forwardToBlade(ctxIn context.Context, id int64, msg sm.Envelope) 
 	if b, ok := r.blades[id]; ok {
 		ctx, span := tracing.StartSpan(
 			ctxIn,
-			tracing.WithName(fmt.Sprintf("Processing message %q on blade", msg)),
+			tracing.WithName("Processing message %q on blade", msg),
 			tracing.WithNewRoot(),
 			tracing.WithLink(msg.SpanContext(), msg.LinkID()),
 			tracing.WithContextValue(timestamp.EnsureTickInContext))
@@ -275,7 +285,7 @@ func startSim(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	tracing.UpdateSpanName(
 		ctx,
 		"Starting the simulation of rack %q",
-		r.name)
+		r.sm.Name)
 
 	err := r.sm.Start(ctx)
 

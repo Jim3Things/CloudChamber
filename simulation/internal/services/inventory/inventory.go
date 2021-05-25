@@ -27,7 +27,7 @@ type server struct {
 
 	timers *ts.Timers
 
-	store *st.Store
+	store     *st.Store
 	inventory *ic.Inventory
 }
 
@@ -155,9 +155,9 @@ func (s *server) initializeRacks() error {
 		return err
 	}
 
-	for name, rack := range *racks {
+	for _, rack := range *racks {
 		// For each rack, create a rack item, supplying the tor, pdu, and blade
-		tracing.Info(ctx, "Adding rack %q", name)
+		tracing.Info(ctx, "Adding rack %s", rack.Key)
 
 		r, err := rack.GetDefinitionRackWithChildren(ctx)
 
@@ -165,10 +165,17 @@ func (s *server) initializeRacks() error {
 			return err
 		}
 
-		s.racks[name] = newRack(ctx, name, r, s.timers)
+		s.racks[rack.Key] = newRack(
+			ctx,
+			rack.Key,
+			r,
+			rack.KeyIndexPdu,
+			rack.KeyIndexTor,
+			rack.KeyIndexBlade,
+			s.timers)
 
 		// Start each rack (this gives us a channel and a goroutine)
-		if err = s.racks[name].start(ctx); err != nil {
+		if err = s.racks[rack.Key].start(ctx); err != nil {
 			return err
 		}
 	}

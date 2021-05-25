@@ -72,7 +72,6 @@ func (x *Entry) Validate(prefix string) error {
 func (x *Event) Validate(prefix string) error {
 	switch x.Severity {
 	case Severity_Debug,
-		Severity_Reason,
 		Severity_Info,
 		Severity_Warning,
 		Severity_Error,
@@ -87,7 +86,7 @@ func (x *Event) Validate(prefix string) error {
 	}
 
 	switch x.EventAction {
-	case Action_Trace, Action_UpdateSpanName, Action_UpdateReason:
+	case Action_Trace:
 		textLen := int64(len(x.Text))
 		if textLen == 0 {
 			return &errors2.ErrMinLenString{

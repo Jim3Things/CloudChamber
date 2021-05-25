@@ -62,15 +62,40 @@ type startSpanConfig struct {
 	link        trace.SpanContext
 	linkTag     string
 	newRoot     bool
+	impact      string
+}
+
+// toKvPairs converts all span configuration fields that are implemented as
+// span attributes to  the appropriate kv-pair values.  The array that is
+// returned can then be passed directly to the start span call using the
+// standard WithAttributes helper.
+func (cfg *startSpanConfig) toKvPairs() []kv.KeyValue {
+	var res []kv.KeyValue
+
+	if len(cfg.linkTag) > 0 {
+		res = append(res, kv.String(LinkTagKey, cfg.linkTag))
+	}
+
+	if len(cfg.impact) > 0 {
+		res = append(res, kv.String(ImpactKey, cfg.impact))
+	}
+
+	if len(cfg.reason) > 0 {
+		res = append(res, kv.String(ReasonKey, cfg.reason))
+	}
+
+	res = append(res, kv.String(StackTraceKey, cfg.stackTrace))
+
+	return res
 }
 
 // StartSpanOption denotes optional decoration methods used on StartSpan
 type StartSpanOption func(*startSpanConfig)
 
 // WithName adds the supplied value as the name of the span under creation
-func WithName(name string) StartSpanOption {
+func WithName(f string, a ...interface{}) StartSpanOption {
 	return func(cfg *startSpanConfig) {
-		cfg.name = name
+		cfg.name = fmt.Sprintf(f, a...)
 	}
 }
 
@@ -111,24 +136,20 @@ func WithLink(sc trace.SpanContext, tag string) StartSpanOption {
 	}
 }
 
+// WithImpact states that the activity covered in the calling trace event had
+// the specified impact on the specified element.
+func WithImpact(impact string, element string) StartSpanOption {
+	return func(cfg *startSpanConfig) {
+		cfg.impact = impact+":"+element
+	}
+}
+
 // mayLinkTo is used in the underlying trace span call.  It either returns
 // via normal LinkedTo, if there is a link-to span context, or a null
 // operation that does not decorate the trace span, if it does not.
 func mayLinkTo(sc trace.SpanContext) trace.StartOption {
 	if sc.HasSpanID() && sc.HasTraceID() {
 		return trace.LinkedTo(sc)
-	}
-
-	return nullOption()
-}
-
-// mayLinkTag is a parallel helper function that supplied the unique add-link
-// value to allow for this span to be correctly placed relative to the caller's
-// sequence of actions.  If no such tag is present, this adds nothing to the
-// start span operation.
-func mayLinkTag(tag string) trace.StartOption {
-	if len(tag) > 0 {
-		return trace.WithAttributes(kv.String(LinkTagKey, tag))
 	}
 
 	return nullOption()
@@ -173,6 +194,7 @@ func StartSpan(
 		link:        trace.SpanContext{},
 		linkTag:     "",
 		newRoot:     false,
+		impact:      "",
 	}
 
 	for _, opt := range options {
@@ -191,10 +213,8 @@ func StartSpan(
 		trace.WithStartTime(time.Now()),
 		trace.WithSpanKind(cfg.kind),
 		mayLinkTo(cfg.link),
-		mayLinkTag(cfg.linkTag),
 		mayNewRoot(cfg.newRoot),
-		trace.WithAttributes(kv.String(ReasonKey, cfg.reason)),
-		trace.WithAttributes(kv.String(StackTraceKey, cfg.stackTrace)))
+		trace.WithAttributes(cfg.toKvPairs()...))
 
 	if !cfg.newRoot && parent.SpanContext().HasSpanID() {
 		parent.AddEventWithTimestamp(
@@ -224,29 +244,27 @@ func StartSpan(
 // formatted string provided.  The span will end up with the last
 // name provided.
 func UpdateSpanName(ctx context.Context, a ...interface{}) {
-	trace.SpanFromContext(ctx).AddEventWithTimestamp(
-		ctx,
-		time.Now(),
-		MethodName(2),
-		kv.Int64(ActionKey, int64(pbl.Action_UpdateSpanName)),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a...)))
+	trace.SpanFromContext(ctx).SetAttribute(SpanNameKey, formatIf(a...))
 }
 
 // UpdateSpanReason replaces the current span reason with the formatted
 // string provided.  The span will end up with the last reason provided.
 func UpdateSpanReason(ctx context.Context, a ...interface{}) {
+	trace.SpanFromContext(ctx).SetAttribute(ReasonKey, formatIf(a...))
+}
+
+// AddImpact adds an impact claim to the current span.  It does not optimize
+// out any duplicates -- all of those are retained.
+func AddImpact(ctx context.Context, level string, module string) {
 	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
 		time.Now(),
 		MethodName(2),
-		kv.Int64(ActionKey, int64(pbl.Action_UpdateReason)),
+		kv.Int64(ActionKey, int64(pbl.Action_AddImpact)),
 		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
 		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
 		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, formatIf(a...)))
+		kv.String(MessageTextKey, level+":"+module))
 }
 
 // AddLink adds an event that marks the point where a request was made that may

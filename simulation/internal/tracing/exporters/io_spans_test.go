@@ -21,7 +21,6 @@ func (ts *ioSpanTestSuite) newTraceEvent(i int, tick int64, s log.Severity) *log
 		Name:        fmt.Sprintf("test%d", i),
 		Text:        fmt.Sprintf("text%d", i),
 		StackTrace:  fmt.Sprintf("stack%d", i),
-		Impacted:    nil,
 		EventAction: log.Action_Trace,
 		SpanId:      "",
 		LinkId:      "",
@@ -35,7 +34,6 @@ func (ts *ioSpanTestSuite) newSpanStartEvent(i int, tick int64, spanId string) *
 		Name:        fmt.Sprintf("test%d", i),
 		Text:        fmt.Sprintf("text%d", i),
 		StackTrace:  fmt.Sprintf("stack%d", i),
-		Impacted:    nil,
 		EventAction: log.Action_SpanStart,
 		SpanId:      spanId,
 		LinkId:      "",
@@ -61,6 +59,7 @@ func (ts *ioSpanTestSuite) TestSingleRoot() {
 			ts.newTraceEvent(2, 1, 0),
 		},
 		Infrastructure: false,
+		Impacted:    nil,
 	}
 
 	s.add(entry, &io)

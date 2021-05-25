@@ -59,15 +59,6 @@ export enum Action {
    */
   Trace = 0,
   /**
-   * UpdateSpanName - UpdateSpanName and UpdateReason are directives to edit the containing span
-   * information.  The first replaces the span's name field, and the second
-   * replaces the span's reason text. This allows for better descriptions for a
-   * span once the details have been better understood - e.g. 'logging in a user'
-   * vs. 'logging in user "admin"'.
-   */
-  UpdateSpanName = 1,
-  UpdateReason = 2,
-  /**
    * SpanStart - SpanStart is used to place the child span in the correct spot in the
    * sequence of events in the containing span.  It identifies the child span's
    * ID.  Structured formatters will expand the child span at this point in the
@@ -90,6 +81,13 @@ export enum Action {
    * then they do not.
    */
   AddLink = 4,
+  /**
+   * AddImpact - AddImpact is used to add an impact target to the span information.  The
+   * impact value is a string stored in the text field, and is expected to
+   * match the format used by the normal span KV structure (e.g. R:foo to
+   * indicate a read impact on component 'foo').
+   */
+  AddImpact = 5,
   UNRECOGNIZED = -1,
 }
 
@@ -102,18 +100,15 @@ export function actionFromJSON(object: any): Action {
     case 0:
     case "Trace":
       return Action.Trace;
-    case 1:
-    case "UpdateSpanName":
-      return Action.UpdateSpanName;
-    case 2:
-    case "UpdateReason":
-      return Action.UpdateReason;
     case 3:
     case "SpanStart":
       return Action.SpanStart;
     case 4:
     case "AddLink":
       return Action.AddLink;
+    case 5:
+    case "AddImpact":
+      return Action.AddImpact;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -186,8 +181,6 @@ export class Event {
   text: string;
   /** Formatted caller's stack trace */
   stackTrace: string;
-  /** The set of modules impacted, and the type of impact. */
-  impacted: Module[];
   /** Action to take when this trace is encountered. */
   eventAction: Action;
   /** Child's span ID.  Ignored if the action is not SpanStart. */
@@ -196,7 +189,6 @@ export class Event {
   linkId: string;
 
   constructor(object: any) {
-    this.impacted = asArray<Module>((v) => new Module(v), object.impacted)
     this.tick = asNumber(object.tick)
     this.severity = severityFromJSON(object.severity)
     this.name = asString(object.name)
@@ -241,7 +233,11 @@ export class Entry {
   linkSpanID: string;
   linkTraceID: string;
 
+  /** The set of modules impacted, and the type of impact. */
+  impacted: Module[];
+
   constructor(object: any) {
+    this.impacted = asArray<Module>((v) => new Module(v), object.impacted)
     this.event = asArray<Event>((v) => new Event(v), object.event)
     this.name = asString(object.name)
     this.spanID = asItem<string>(String, object.spanID, missingSpanID)

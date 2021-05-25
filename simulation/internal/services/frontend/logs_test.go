@@ -142,7 +142,6 @@ func (ts *LogTestSuite) TestGetAfter() {
 				Name:       "testEvent",
 				Text:       "xyzzy",
 				StackTrace: "zzzz",
-				Impacted:   nil,
 			},
 		},
 		Infrastructure: false,
@@ -173,6 +172,7 @@ func (ts *LogTestSuite) TestGetAfter() {
 		require.Equal(entry.Status, resEntry.Status)
 		require.Equal(entry.StackTrace, resEntry.StackTrace)
 		require.Equal(entry.Reason, resEntry.Reason)
+		require.Equal(entry.Impacted, resEntry.Impacted)
 
 		require.Equal(len(entry.Event), len(resEntry.Event))
 
@@ -181,7 +181,6 @@ func (ts *LogTestSuite) TestGetAfter() {
 
 		require.Equal(event.Name, resEvent.Name)
 		require.Equal(event.StackTrace, resEvent.StackTrace)
-		require.Equal(event.Impacted, resEvent.Impacted)
 		require.Equal(event.Text, resEvent.Text)
 		require.Equal(event.Tick, resEvent.Tick)
 		require.Equal(event.Severity, resEvent.Severity)

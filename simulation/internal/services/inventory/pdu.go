@@ -30,7 +30,7 @@ type pdu struct {
 // containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
-func newPdu(_ *pb.Definition_Pdu, r *Rack) *pdu {
+func newPdu(ctx context.Context, _ *pb.Definition_Pdu, name string, r *Rack) *pdu {
 	p := &pdu{
 		cables: make(map[int64]*cable),
 		holder: r,
@@ -38,6 +38,7 @@ func newPdu(_ *pb.Definition_Pdu, r *Rack) *pdu {
 	}
 
 	p.sm = sm.NewSM(p,
+		name,
 		sm.WithFirstState(
 			pb.Actual_Pdu_working,
 			sm.NullEnter,
@@ -66,6 +67,8 @@ func newPdu(_ *pb.Definition_Pdu, r *Rack) *pdu {
 			messages.DropMessage,
 			sm.NullLeave),
 	)
+
+	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
 
 	return p
 }
@@ -137,6 +140,8 @@ func pduGetStatus(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	ch := m.Ch()
 	defer close(ch)
 
+	tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
+
 	pduStatus := &messages.PduStatus{
 		StatusBody: messages.StatusBody{
 			State:     p.sm.CurrentIndex.String(),
@@ -199,6 +204,7 @@ func workingSetPower(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 			common.AOrB(msg.On, "on", "off"),
 			msg.Target.Describe())
 
+		tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 		return setPowerForPdu(ctx, machine, msg, occursAt)
 	}
 
@@ -210,6 +216,7 @@ func workingSetPower(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 			common.AOrB(msg.On, "on", "off"),
 			msg.Target.Describe())
 
+		tracing.AddImpact(ctx, tracing.ImpactUse, machine.Name)
 		setPowerForBlade(ctx, machine, msg, id, occursAt)
 	} else {
 		processInvalidTarget(ctx, msg, msg.Target.Describe(), occursAt)

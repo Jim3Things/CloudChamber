@@ -34,7 +34,7 @@ type tor struct {
 // and the containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
-func newTor(_ *pb.Definition_Tor, r *Rack) *tor {
+func newTor(ctx context.Context, _ *pb.Definition_Tor, name string, r *Rack) *tor {
 	t := &tor{
 		cables: make(map[int64]*cable),
 		holder: r,
@@ -42,6 +42,7 @@ func newTor(_ *pb.Definition_Tor, r *Rack) *tor {
 	}
 
 	t.sm = sm.NewSM(t,
+		name,
 		sm.WithFirstState(
 			pb.Actual_Tor_working,
 			sm.NullEnter,
@@ -62,13 +63,15 @@ func newTor(_ *pb.Definition_Tor, r *Rack) *tor {
 			sm.NullLeave),
 	)
 
+	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
+
 	return t
 }
 
 // Save returns a protobuf message that contains the data sufficient to persist
 // and later restore this state machine to a logically equivalent state.
-func (p *tor) Save() (proto.Message, error) {
-	cur, entered, terminal, guard := p.sm.Savable()
+func (t *tor) Save() (proto.Message, error) {
+	cur, entered, terminal, guard := t.sm.Savable()
 
 	state := &pb.Actual_Tor{
 		Condition: pb.Actual_operational,
@@ -81,7 +84,7 @@ func (p *tor) Save() (proto.Message, error) {
 		},
 	}
 
-	for i, c := range p.cables {
+	for i, c := range t.cables {
 		state.Cables[i] = c.save()
 	}
 
@@ -134,8 +137,10 @@ func torGetStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	occursAt := common.TickFromContext(ctx)
 
 	if m.Target.IsTor() {
+		tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
 		return torOnlyGetStatus(ctx, machine, msg)
 	} else if i, isBladeTarget := m.Target.BladeID(); isBladeTarget {
+		tracing.AddImpact(ctx, tracing.ImpactUse, machine.Name)
 		return torToBladeGetStatus(ctx, t, i, msg)
 	}
 
@@ -247,6 +252,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 	changed, err := t.cables[id].set(msg.Enabled, msg.Guard, occursAt)
 	switch err {
 	case nil:
+		tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 		tracing.UpdateSpanName(
 			ctx,
 			"%s the network connection for %s",
@@ -260,6 +266,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 
 			ch <- sm.SuccessResponse(occursAt)
 		} else {
+			tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
 			tracing.Info(
 				ctx,
 				"Network connection for %s has not changed.  It is currently %s.",
@@ -271,6 +278,7 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 		break
 
 	case errors.ErrCableStuck:
+		tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
 		tracing.Warn(
 			ctx,
 			"Network connection for %s is stuck.  Unsure if it has been %s.",
