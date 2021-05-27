@@ -90,112 +90,112 @@ func newBlade(ctx context.Context, def *pb.Definition_Blade, name string, r *Rac
 	b.sm = sm.NewSM(b,
 		name,
 		sm.WithFirstState(
-			pb.Actual_Blade_start,
+			pb.BladeSmState_start,
 			startedOnEnter,
 			[]sm.ActionEntry{},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_off_disconnected,
+			pb.BladeSmState_off_disconnected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_off_connected, sm.Stay},
-				{messages.TagSetPower, setPower, pb.Actual_Blade_powered_disconnected, sm.Stay},
+				{messages.TagSetConnection, setConnection, pb.BladeSmState_off_connected, sm.Stay},
+				{messages.TagSetPower, setPower, pb.BladeSmState_powered_disconnected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_off_connected,
+			pb.BladeSmState_off_connected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, sm.Ignore, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_off_disconnected},
-				{messages.TagSetPower, setPower, pb.Actual_Blade_powered_connected, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeSmState_off_disconnected},
+				{messages.TagSetPower, setPower, pb.BladeSmState_powered_connected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_powered_disconnected,
+			pb.BladeSmState_powered_disconnected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_powered_connected, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_powered_disconnected},
+				{messages.TagSetConnection, setConnection, pb.BladeSmState_powered_connected, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeSmState_powered_disconnected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_powered_connected,
+			pb.BladeSmState_powered_connected,
 			poweredConnOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_powered_disconnected},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeSmState_powered_disconnected},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeSmState_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_booting,
+			pb.BladeSmState_booting,
 			bootingOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_powered_disconnected},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
-				{messages.TagTimerExpiry, bootingTimerExpiry, pb.Actual_Blade_working, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeSmState_powered_disconnected},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeSmState_off_connected},
+				{messages.TagTimerExpiry, bootingTimerExpiry, pb.BladeSmState_working, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			bootingOnLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_working,
+			pb.BladeSmState_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_isolated},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeSmState_isolated},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeSmState_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_isolated,
+			pb.BladeSmState_isolated,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_working, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagSetConnection, setConnection, pb.BladeSmState_working, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeSmState_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_stopping,
+			pb.BladeSmState_stopping,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_stopping_isolated},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
-				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.Actual_Blade_off_connected, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeSmState_stopping_isolated},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeSmState_off_connected},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.BladeSmState_off_connected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			stoppingOnLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_stopping_isolated,
+			pb.BladeSmState_stopping_isolated,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_stopping, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_disconnected},
-				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.Actual_Blade_off_disconnected, sm.Stay},
+				{messages.TagSetConnection, setConnection, pb.BladeSmState_stopping, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeSmState_off_disconnected},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.BladeSmState_off_disconnected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			stoppingOnLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_faulted,
+			pb.BladeSmState_faulted,
 			faultedEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
@@ -215,7 +215,7 @@ func (b *blade) Save() (proto.Message, error) {
 
 	return &pb.Actual_Blade{
 		Condition:    pb.Actual_operational,
-		SmState:      cur.(pb.Actual_Blade_State),
+		SmState:      cur.(pb.BladeSmState),
 		StateExpires: b.hasActiveTimer,
 		Expiration:   b.expiration,
 		Core: &pb.Actual_MachineCore{
@@ -239,7 +239,7 @@ func (b *blade) me() *messages.MessageTarget {
 // startedOnEnter initializes the simulation state and transitions to the
 // off and disconnected state.
 func startedOnEnter(ctx context.Context, machine *sm.SM) error {
-	return machine.ChangeState(ctx, pb.Actual_Blade_off_disconnected)
+	return machine.ChangeState(ctx, pb.BladeSmState_off_disconnected)
 }
 
 // poweredConnOnEnter checks if automatic booting is enabled.  If it is, the
@@ -248,7 +248,7 @@ func poweredConnOnEnter(ctx context.Context, machine *sm.SM) error {
 	b := machine.Parent.(*blade)
 
 	if b.bootOnPower {
-		return machine.ChangeState(ctx, pb.Actual_Blade_booting)
+		return machine.ChangeState(ctx, pb.BladeSmState_booting)
 	}
 
 	return nil
@@ -269,7 +269,7 @@ func bootingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) bool
 // bootingOnLeave ensures that any active boot delay timer is canceled before
 // proceeding to a non-booting state.
 func bootingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
-	if nextState != pb.Actual_Blade_booting {
+	if nextState != pb.BladeSmState_booting {
 		cancelTimer(ctx, machine, "boot")
 	}
 }
@@ -284,8 +284,8 @@ func stoppingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) boo
 // stoppingOnLeave ensures that any active time is canceled before proceeding
 // to a non-stopping state.
 func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
-	if nextState != pb.Actual_Blade_stopping &&
-		nextState != pb.Actual_Blade_stopping_isolated {
+	if nextState != pb.BladeSmState_stopping &&
+		nextState != pb.BladeSmState_stopping_isolated {
 		cancelTimer(ctx, machine, "shutdown")
 	}
 }

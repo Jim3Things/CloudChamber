@@ -42,6 +42,22 @@ export function asArray<T>(f: (item: any) => T, item: any): T[] {
 	return res
 }
 
+// asMap creates and fills in a Map that has the specified key and value types.
+// It uses the supplied function for any type conversions from the input value
+// to the key and map entry value.
+export function asMap<K, V>(entries: any, action: (key: any, value: any) => [K, V]): Map<K, V> {
+  const res = new Map<K, V>()
+
+  if (entries !== undefined && entries != null) {
+    Object.entries(entries).forEach(([key, value]) => {
+        const [k, v] = action(key, value)
+        res.set(k, v)
+    })
+  }
+
+  return res
+}
+
 // +++ well known type handling
 
 export interface Duration {

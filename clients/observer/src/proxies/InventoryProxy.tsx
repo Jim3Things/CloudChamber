@@ -3,7 +3,7 @@
 
 import {getJson} from "./Session"
 import {BladeCapacity} from "../pkg/protos/inventory/capacity"
-import {External_Rack, External_ZoneSummary} from "../pkg/protos/inventory/external"
+import {External_Blade, External_Rack, External_ZoneSummary} from "../pkg/protos/inventory/external"
 
 
 // Denote the running states of a workload instance
@@ -27,9 +27,8 @@ export interface InstanceDetails {
 }
 
 // Describe a blade
-export interface BladeDetails {
-    capacity: BladeCapacity // total capacity present in the blade
-    state: PhysicalState        // The physical blade's health state
+export interface BladeDescription {
+    blade: External_Blade
     usage: InstanceDetails[]    // Details on the workload instances present
 }
 
@@ -52,7 +51,7 @@ export interface RackDetails {
     detailsLoaded: boolean,     // True if the rack details have been loaded
     tor: TorDetails             // The Tor
     pdu: PduDetails             // .. the pdu
-    blades: Map<number, BladeDetails> // .. and the blades
+    blades: Map<number, BladeDescription> // .. and the blades
 }
 
 // Describe a cluster
@@ -107,7 +106,7 @@ export function getCluster(): Promise<ClusterDetails> {
 
             zone.racks.forEach((rack, name) => {
                 data.racks.set(name, {
-                    blades: new Map<number, BladeDetails>(),
+                    blades: new Map<number, BladeDescription>(),
                     pdu: {
                         state: PhysicalState.healthy,
                         powerTo: [],
@@ -136,11 +135,12 @@ export function getRackDetails(rack: RackDetails): Promise<RackDetails> {
             const value = new External_Rack(item)
             let newRack: RackDetails = {...rack, detailsLoaded: true}
 
-            value.blades.forEach((blade, key) => {
+            console.log(value)
+
+            value.fullBlades.forEach((blade, key) => {
                 newRack.blades.set(key, {
-                    capacity: blade,
-                    state: PhysicalState.healthy,
-                    usage: fakeUsage(blade.cores)
+                    blade: new External_Blade(blade),
+                    usage: fakeUsage(blade.capacity.cores)
                 })
                 newRack.tor.linkTo.push(true)
                 newRack.pdu.powerTo.push(true)

@@ -1,4 +1,7 @@
 /* eslint-disable */
+import { util, configure } from "protobufjs/minimal";
+import * as Long from "long";
+
 export const protobufPackage = "inventory";
 
 /**
@@ -128,6 +131,148 @@ export function stateToJSON(object: State): string {
       return "decommissioning";
     case State.decommissioned:
       return "decommissioned";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+/** This defines the state machine states */
+export enum BladeSmState {
+  invalid = 0,
+  /**
+   * start - This is the state where initialization of the state machine
+   * begins.
+   */
+  start = 1,
+  /**
+   * off_disconnected - This is the state when the blade has neither simulated power
+   * nor simulated network connectivity.
+   */
+  off_disconnected = 2,
+  /**
+   * off_connected - This is the state when the blade does not have power, but does
+   * have simulated network connectivity.
+   */
+  off_connected = 3,
+  /**
+   * powered_disconnected - This is the state when the blade has simulated power, but does
+   * not have simulated network connectivity.
+   */
+  powered_disconnected = 4,
+  /**
+   * powered_connected - This is the state when the blade has power and simulated network
+   * connectivity.  If auto-boot is enabled, this state will
+   * automatically transition to the booting state.
+   */
+  powered_connected = 5,
+  /**
+   * booting - This is the state when the blade is waiting for the simulated
+   * boot delay to complete.
+   */
+  booting = 6,
+  /**
+   * working - This is the state when the blade is powered on, booted, and
+   * able to handle workload requests.
+   */
+  working = 7,
+  /**
+   * isolated - This is the state when the blade is powered on and booted, but
+   * has not simulated network connectivity.  Existing workloads are
+   * informed the connectivity has been lost, but are otherwise
+   * undisturbed.
+   */
+  isolated = 8,
+  /**
+   * stopping - This is a transitional state to clean up when the blade is
+   * finally shutting down.  This may involve notifying any active
+   * workloads that they have been forcibly stopped.
+   */
+  stopping = 9,
+  /**
+   * stopping_isolated - This is a transitional state parallel to the stopping state, but
+   * where simulated network connectivity has been lost.
+   */
+  stopping_isolated = 10,
+  /**
+   * faulted - This is the state when the blade has either had a processing
+   * fault, such as a timer failure, or an injected fault that leaves
+   * it in a position that requires an external reset/fix.
+   */
+  faulted = 11,
+  UNRECOGNIZED = -1,
+}
+
+export function bladeSmStateFromJSON(object: any): BladeSmState {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return BladeSmState.invalid;
+    case 1:
+    case "start":
+      return BladeSmState.start;
+    case 2:
+    case "off_disconnected":
+      return BladeSmState.off_disconnected;
+    case 3:
+    case "off_connected":
+      return BladeSmState.off_connected;
+    case 4:
+    case "powered_disconnected":
+      return BladeSmState.powered_disconnected;
+    case 5:
+    case "powered_connected":
+      return BladeSmState.powered_connected;
+    case 6:
+    case "booting":
+      return BladeSmState.booting;
+    case 7:
+    case "working":
+      return BladeSmState.working;
+    case 8:
+    case "isolated":
+      return BladeSmState.isolated;
+    case 9:
+    case "stopping":
+      return BladeSmState.stopping;
+    case 10:
+    case "stopping_isolated":
+      return BladeSmState.stopping_isolated;
+    case 11:
+    case "faulted":
+      return BladeSmState.faulted;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return BladeSmState.UNRECOGNIZED;
+  }
+}
+
+export function bladeSmStateToJSON(object: BladeSmState): string {
+  switch (object) {
+    case BladeSmState.invalid:
+      return "invalid";
+    case BladeSmState.start:
+      return "start";
+    case BladeSmState.off_disconnected:
+      return "off_disconnected";
+    case BladeSmState.off_connected:
+      return "off_connected";
+    case BladeSmState.powered_disconnected:
+      return "powered_disconnected";
+    case BladeSmState.powered_connected:
+      return "powered_connected";
+    case BladeSmState.booting:
+      return "booting";
+    case BladeSmState.working:
+      return "working";
+    case BladeSmState.isolated:
+      return "isolated";
+    case BladeSmState.stopping:
+      return "stopping";
+    case BladeSmState.stopping_isolated:
+      return "stopping_isolated";
+    case BladeSmState.faulted:
+      return "faulted";
     default:
       return "UNKNOWN";
   }
@@ -774,3 +919,10 @@ export const RootDetails = {
     return obj;
   },
 };
+
+// If you get a compile-error about 'Constructor<Long> and ... have no overlap',
+// add '--ts_proto_opt=esModuleInterop=true' as a flag when calling 'protoc'.
+if (util.Long !== Long) {
+  util.Long = Long as any;
+  configure();
+}

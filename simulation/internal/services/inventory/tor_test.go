@@ -138,7 +138,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 		"state is %v", r.tor.sm.CurrentIndex)
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_off_disconnected
+		return r.blades[0].sm.CurrentIndex == pb.BladeSmState_off_disconnected
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
@@ -176,7 +176,7 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.True(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_off_connected
+		return r.blades[0].sm.CurrentIndex == pb.BladeSmState_off_connected
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
@@ -213,7 +213,7 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 
 	require.True(t.cables[0].on)
 	require.False(t.cables[0].faulted)
-	require.Equal(pb.Actual_Blade_working, r.blades[0].sm.CurrentIndex)
+	require.Equal(pb.BladeSmState_working, r.blades[0].sm.CurrentIndex)
 
 	ctx, span := tracing.StartSpan(
 		ctx,
@@ -246,7 +246,7 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	assert.False(t.cables[0].on)
 	assert.False(t.cables[0].faulted)
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == pb.Actual_Blade_isolated
+		return r.blades[0].sm.CurrentIndex == pb.BladeSmState_isolated
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 

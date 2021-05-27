@@ -6,6 +6,8 @@ syntax = "proto3";
 
 package inventory;
 
+import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common.proto";
+
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory";
 option csharp_namespace = "CloudChamber.Protos.Inventory";
 
@@ -106,60 +108,7 @@ message Actual {
         // lifecycle state.
         Condition condition = 1;
 
-        // This defines the state machine states
-        enum State {
-            invalid = 0;
-
-            // This is the state where initialization of the state machine
-            // begins.
-            start = 1;
-
-            // This is the state when the blade has neither simulated power
-            // nor simulated network connectivity.
-            off_disconnected = 2;
-
-            // This is the state when the blade does not have power, but does
-            // have simulated network connectivity.
-            off_connected = 3;
-
-            // This is the state when the blade has simulated power, but does
-            // not have simulated network connectivity.
-            powered_disconnected = 4;
-
-            // This is the state when the blade has power and simulated network
-            // connectivity.  If auto-boot is enabled, this state will
-            // automatically transition to the booting state.
-            powered_connected = 5;
-
-            // This is the state when the blade is waiting for the simulated
-            // boot delay to complete.
-            booting = 6;
-
-            // This is the state when the blade is powered on, booted, and
-            // able to handle workload requests.
-            working = 7;
-
-            // This is the state when the blade is powered on and booted, but
-            // has not simulated network connectivity.  Existing workloads are
-            // informed the connectivity has been lost, but are otherwise
-            // undisturbed.
-            isolated = 8;
-
-            // This is a transitional state to clean up when the blade is
-            // finally shutting down.  This may involve notifying any active
-            // workloads that they have been forcibly stopped.
-            stopping = 9;
-
-            // This is a transitional state parallel to the stopping state, but
-            // where simulated network connectivity has been lost.
-            stopping_isolated = 10;
-
-            // This is the state when the blade has either had a processing
-            // fault, such as a timer failure, or an injected fault that leaves
-            // it in a position that requires an external reset/fix.
-            faulted = 11;
-        }
-        State sm_state = 2;
+        BladeSmState sm_state = 2;
 
         // This is the stored core state machine recovery state.
         MachineCore core = 3;

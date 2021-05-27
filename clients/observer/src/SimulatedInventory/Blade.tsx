@@ -3,12 +3,13 @@ import {grey} from "@material-ui/core/colors"
 import {createStyles, Popover, Tooltip} from "@material-ui/core"
 import {makeStyles} from "@material-ui/core/styles"
 
-import {BladeDetails, InstanceDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy"
+import {BladeDescription, InstanceDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy"
 import {Colors} from "./SimulatedInventory"
 import {Opacity, PhysicalBox} from "./PhysicalBox"
 import {BladeUsageDetails} from "./BladeUsageDetails"
 import {BladeCapacity} from "../pkg/protos/inventory/capacity"
 import {Computer} from "@material-ui/icons"
+import {BladeSmState} from "../pkg/protos/inventory/common"
 
 const useStyles = makeStyles((theme) =>
     createStyles({
@@ -45,12 +46,29 @@ function statusToColor(state: InstanceState, palette: Colors): string {
     }
 }
 
+// toPhysical is a transitional conversion function to handle the
+// partial removal of PhysicalState. It converts a blade SM state
+// into the closest physical state approximation.
+function toPhysical(s: BladeSmState): PhysicalState {
+    switch (s) {
+        case BladeSmState.faulted:
+            return PhysicalState.faulted
+
+        case BladeSmState.off_disconnected:
+        case BladeSmState.off_connected:
+            return PhysicalState.off
+
+        default:
+            return PhysicalState.healthy
+    }
+}
+
 // Construct the details needed to place the usage rectangles
 function formBladeDetailBoxes(
     instances: InstanceDetails[],
     capacity: BladeCapacity,
     bladeWidth: number,
-    boundingState: PhysicalState,
+    boundingState: BladeSmState,
     palette: Colors): detailBox[] {
 
     let set: detailBox[] = []
@@ -66,7 +84,7 @@ function formBladeDetailBoxes(
             left: left,
             width: width,
             color: statusToColor(item.state, palette),
-            opacity: Opacity(boundingState)
+            opacity: Opacity(toPhysical(boundingState))
         })
 
         left += width
@@ -78,7 +96,7 @@ function formBladeDetailBoxes(
             left: left,
             width: bladeWidth - left,
             color: palette.freeColor,
-            opacity: Opacity(boundingState)
+            opacity: Opacity(toPhysical(boundingState))
         })
     }
 
@@ -94,7 +112,7 @@ export function Blade(props: {
     width: number,
     height: number,
     index: number,
-    details: BladeDetails,
+    details: BladeDescription,
     limits: BladeCapacity,
     palette: Colors
 }) {
@@ -117,14 +135,14 @@ export function Blade(props: {
 
     const bladeWidth = props.width - offset
 
-    const frameWidth = bladeWidth * props.details.capacity.cores / props.limits.cores
+    const frameWidth = bladeWidth * props.details.blade.capacity.cores / props.limits.cores
 
     // Construct the inner box width boundaries
     const boxes = formBladeDetailBoxes(
         props.details.usage,
-        props.details.capacity,
+        props.details.blade.capacity,
         frameWidth - 4,
-        props.details.state,
+        props.details.blade.observed.smState,
         props.palette)
 
     // Draw the blade, filling in the instance usage and state
@@ -143,7 +161,7 @@ export function Blade(props: {
                 y={props.y}
                 width={frameWidth}
                 height={props.height}
-                state={props.details.state}
+                state={toPhysical(props.details.blade.observed.smState)}
                 palette={props.palette}
                 pointerEvents="all"
                 aria-owns={open ? 'mouse-over-popover' : undefined}
