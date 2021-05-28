@@ -15,19 +15,59 @@ option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/in
 option csharp_namespace = "CloudChamber.Protos.Inventory";
 
 message External {
-
-    // The two types here are common overhead items in a rack.  All are pure skeletons at this point.
-    // Note that all have implied connectivity with all other items in a rack.  Currently elided in
-    // the external model, but used in the other models.
-
     // Power distribution unit.  Network accessible power controller
     message Pdu {
-        // Note that full internal name for a pdu is <rackname>-pdu-0
+        PduDetails details = 1;
+
+        // Defines a power "socket" which is used to provide power to a blade. There is
+        // a 1 to 1 mapping of a power port to a blade within a single rack and it is an
+        // error if there fewer power ports than blades.
+        //
+        map<int64, PowerPort> ports = 2;
+
+        // Observed, actual, and target data follows on from here...
     }
 
     // Rack-level network switch.
     message Tor {
-        // Note that full internal name for a tor is <rackname>-tor-0
+        TorDetails details = 1;
+
+        // Defines a network "port" which is used to provide a network connection to a
+        // blade. There is a 1 to 1 mapping of a network port to a blade within a single
+        // rack and it is an error if there fewer network ports than blades.
+        //
+        map<int64, NetworkPort> ports = 2;
+
+        // Observed, actual, and target data follows on from here...
+    }
+
+    // Individual blade within the rack
+    message Blade {
+        BladeDetails details = 1;
+
+        BladeCapacity capacity = 2;
+
+        // Defines whether or not the blade automatically begins a boot sequence when power is
+        // applied to the blade.
+        bool boot_on_power_on = 3;
+
+        // Describes the default boot mechanism
+        BladeBootInfo boot_info = 4;
+
+        // Observed, actual, and target data follows on from here...
+
+        // Define the observed state for this blade
+        message ObservedState {
+            // The simulated time when the observation was made
+            int64 at = 1;
+
+            // The state the blade was in at that time.
+            BladeSmState sm_state = 2;
+
+            // The simulated time when it entered this state.
+            int64 entered_at = 3;
+        }
+        ObservedState observed = 5;
     }
 
     message Rack {
@@ -42,6 +82,13 @@ message External {
         // specify the blades in the rack.  Each blade is defined by an integer index within that
         // rack, which is used here as the key.
         map<int64, BladeCapacity> blades = 4;
+
+        map<int64, Pdu> pdus = 5;
+        map<int64, Tor> tors = 6;
+
+        map<int64, Blade> fullBlades = 7;
+
+        // Observed, actual, and target data (details) follows on from here...
     }
 
     // Finally, a zone is a collection of racks.  Each rack has a name, which is used as a key in

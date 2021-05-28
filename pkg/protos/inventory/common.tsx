@@ -1,5 +1,5 @@
 /* eslint-disable */
-import { asBool, asString } from "../utils"
+import { asBool, asNumber, asString } from "../utils"
 
 export const protobufPackage = "inventory";
 
@@ -60,6 +60,32 @@ export function conditionFromJSON(object: any): Condition {
   }
 }
 
+export function conditionToString(op: Condition): string {
+    switch (op) {
+        case Condition.not_in_service:
+            return "not in service"
+
+        case Condition.operational:
+            return "operational"
+
+        case Condition.burn_in:
+            return "executing initial burn in"
+
+        case Condition.out_for_repair:
+            return "out for repair"
+
+        case Condition.retiring:
+            return "retiring"
+
+        case Condition.retired:
+            return "retired, awaiting removal"
+
+        case Condition.UNRECOGNIZED:
+        default:
+            return "unknown"
+    }
+}
+
 /**
  * Underlying state of logical items within the inventory. Allows the basic state to be
  * described. Applies to zones and regions.
@@ -105,178 +131,364 @@ export function stateFromJSON(object: any): State {
   }
 }
 
-// /**
-//  * Describes potential targets for wiring connections between a Pdu or Tor port and a specific
-//  * item of equipment.
-//  */
-// export interface Hardware {
-//   /** The type or item or piece of equipment */
-//   type: Hardware_HwType;
-//   /**
-//    * Defines an instance of the piece of equipment. For example there are likely to be multiple
-//    * blades and the id is used to distinguish amongst them.
-//    */
-//   id: number;
-//   /**
-//    * If the item has multiple connectors, the port field can be used to indicate which connector
-//    * is used for this port.
-//    */
-//   port: number;
-// }
+export enum BladeSmState {
+  invalid = 0,
+  /**
+   * start - This is the state where initialization of the state machine
+   * begins.
+   */
+  start = 1,
+  /**
+   * off_disconnected - This is the state when the blade has neither simulated power
+   * nor simulated network connectivity.
+   */
+  off_disconnected = 2,
+  /**
+   * off_connected - This is the state when the blade does not have power, but does
+   * have simulated network connectivity.
+   */
+  off_connected = 3,
+  /**
+   * powered_disconnected - This is the state when the blade has simulated power, but does
+   * not have simulated network connectivity.
+   */
+  powered_disconnected = 4,
+  /**
+   * powered_connected - This is the state when the blade has power and simulated network
+   * connectivity.  If auto-boot is enabled, this state will
+   * automatically transition to the booting state.
+   */
+  powered_connected = 5,
+  /**
+   * booting - This is the state when the blade is waiting for the simulated
+   * boot delay to complete.
+   */
+  booting = 6,
+  /**
+   * working - This is the state when the blade is powered on, booted, and
+   * able to handle workload requests.
+   */
+  working = 7,
+  /**
+   * isolated - This is the state when the blade is powered on and booted, but
+   * has not simulated network connectivity.  Existing workloads are
+   * informed the connectivity has been lost, but are otherwise
+   * undisturbed.
+   */
+  isolated = 8,
+  /**
+   * stopping - This is a transitional state to clean up when the blade is
+   * finally shutting down.  This may involve notifying any active
+   * workloads that they have been forcibly stopped.
+   */
+  stopping = 9,
+  /**
+   * stopping_isolated - This is a transitional state parallel to the stopping state, but
+   * where simulated network connectivity has been lost.
+   */
+  stopping_isolated = 10,
+  /**
+   * faulted - This is the state when the blade has either had a processing
+   * fault, such as a timer failure, or an injected fault that leaves
+   * it in a position that requires an external reset/fix.
+   */
+  faulted = 11,
+  UNRECOGNIZED = -1,
+}
 
-// /** Defines the type of hardware that can be wired up to a Pdu power port or a Tor network port. */
-// export enum Hardware_HwType {
-//   /** unknown - The type of hardware is not yet known */
-//   unknown = 0,
-//   /** pdu - This item is a PDU (Power Distribution Unit). */
-//   pdu = 1,
-//   /** tor - Equipment is a TOR (Top of Rack network switch) */
-//   tor = 2,
-//   /** blade - Equipment is a blade computer */
-//   blade = 3,
-//   UNRECOGNIZED = -1,
-// }
+export function bladeSmState_FromJSON(
+  object: any
+): BladeSmState {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return BladeSmState.invalid;
+    case 1:
+    case "start":
+      return BladeSmState.start;
+    case 2:
+    case "off_disconnected":
+      return BladeSmState.off_disconnected;
+    case 3:
+    case "off_connected":
+      return BladeSmState.off_connected;
+    case 4:
+    case "powered_disconnected":
+      return BladeSmState.powered_disconnected;
+    case 5:
+    case "powered_connected":
+      return BladeSmState.powered_connected;
+    case 6:
+    case "booting":
+      return BladeSmState.booting;
+    case 7:
+    case "working":
+      return BladeSmState.working;
+    case 8:
+    case "isolated":
+      return BladeSmState.isolated;
+    case 9:
+    case "stopping":
+      return BladeSmState.stopping;
+    case 10:
+    case "stopping_isolated":
+      return BladeSmState.stopping_isolated;
+    case 11:
+    case "faulted":
+      return BladeSmState.faulted;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return BladeSmState.UNRECOGNIZED;
+  }
+}
 
-// export function hardware_HwTypeFromJSON(object: any): Hardware_HwType {
-//   switch (object) {
-//     case 0:
-//     case "unknown":
-//       return Hardware_HwType.unknown;
-//     case 1:
-//     case "pdu":
-//       return Hardware_HwType.pdu;
-//     case 2:
-//     case "tor":
-//       return Hardware_HwType.tor;
-//     case 3:
-//     case "blade":
-//       return Hardware_HwType.blade;
-//     case -1:
-//     case "UNRECOGNIZED":
-//     default:
-//       return Hardware_HwType.UNRECOGNIZED;
-//   }
-// }
+export function bladeSmStateToString(op: BladeSmState): string {
+  switch(op) {
+    case BladeSmState.start:
+      return "simulation starting"
 
-// export function hardware_HwTypeToJSON(object: Hardware_HwType): string {
-//   switch (object) {
-//     case Hardware_HwType.unknown:
-//       return "unknown";
-//     case Hardware_HwType.pdu:
-//       return "pdu";
-//     case Hardware_HwType.tor:
-//       return "tor";
-//     case Hardware_HwType.blade:
-//       return "blade";
-//     default:
-//       return "UNKNOWN";
-//   }
-// }
+    case BladeSmState.off_disconnected:
+      return "off, disconnected"
 
-// export interface PowerPort {
-//   /** Defines whether or not the port is actually connected to the associated item of equipment. */
-//   wired: boolean;
-//   /** Defines what the port is wired up to. */
-//   item: Hardware | undefined;
-// }
+    case BladeSmState.off_connected:
+      return "off, connected"
 
-// export interface NetworkPort {
-//   /** Defines whether or not the port is actually connected to the associated item of equipment. */
-//   wired: boolean;
-//   /** Defines what the port is wired up to. */
-//   item: Hardware | undefined;
-// }
+    case BladeSmState.powered_disconnected:
+      return "on, disconnected, not booted"
 
-// export interface BladeBootInfo {
-//   source: BladeBootInfo_Method;
-//   image: string;
-//   version: string;
-//   parameters: string;
-// }
+    case BladeSmState.powered_connected:
+      return "on, connected, not booted"
 
-// export enum BladeBootInfo_Method {
-//   local = 0,
-//   network = 1,
-//   UNRECOGNIZED = -1,
-// }
+    case BladeSmState.booting:
+      return "on, connected, booting"
 
-// export function bladeBootInfo_MethodFromJSON(
-//   object: any
-// ): BladeBootInfo_Method {
-//   switch (object) {
-//     case 0:
-//     case "local":
-//       return BladeBootInfo_Method.local;
-//     case 1:
-//     case "network":
-//       return BladeBootInfo_Method.network;
-//     case -1:
-//     case "UNRECOGNIZED":
-//     default:
-//       return BladeBootInfo_Method.UNRECOGNIZED;
-//   }
-// }
+    case BladeSmState.working:
+      return "working"
 
-// export function bladeBootInfo_MethodToJSON(
-//   object: BladeBootInfo_Method
-// ): string {
-//   switch (object) {
-//     case BladeBootInfo_Method.local:
-//       return "local";
-//     case BladeBootInfo_Method.network:
-//       return "network";
-//     default:
-//       return "UNKNOWN";
-//   }
-// }
+    case BladeSmState.isolated:
+      return "isolated"
 
-// /** Power distribution unit.  Network accessible power controller */
-// export interface PduDetails {
-//   /**
-//    * Whether or not the pdu is enabled. This is orthogonal to the condition of the
-//    * pdu. To schedule resources within the pdu, the pdu must be both enabled and
-//    * the condition must be operational.
-//    */
-//   enabled: boolean;
-//   /**
-//    * Defines the overall condition of the pdu. This is orthogonal to the enabling of
-//    * the pdu. To schedule resources within the pdu, the pdu must be both enabled and
-//    * the condition must be operational.
-//    */
-//   condition: Condition;
-// }
+    case BladeSmState.stopping:
+      return "on, connected, shutting down"
 
-// /** Rack-level network switch. */
-// export interface TorDetails {
-//   /**
-//    * Whether or not the tor is enabled. This is orthogonal to the condition of the
-//    * tor. To schedule resources within the tor, the tor must be both enabled and
-//    * the condition must be operational.
-//    */
-//   enabled: boolean;
-//   /**
-//    * Defines the overall condition of the tor. This is orthogonal to the enabling of
-//    * the tor. To schedule resources within the tor, the tor must be both enabled and
-//    * the condition must be operational.
-//    */
-//   condition: Condition;
-// }
+    case BladeSmState.stopping_isolated:
+      return "on, disconnected, shutting down"
 
-// /** Rack-level blade computer */
-// export interface BladeDetails {
-//   /**
-//    * Whether or not the blade is enabled. This is orthogonal to the condition of the
-//    * blade. To schedule resources within the blade, the blade must be both enabled
-//    * and the condition must be operational.
-//    */
-//   enabled: boolean;
-//   /**
-//    * Defines the overall condition of the blade. This is orthogonal to the enabling of
-//    * the blade. To schedule resources within the blade, the blade must be both enabled
-//    * and the condition must be operational.
-//    */
-//   condition: Condition;
-// }
+    case BladeSmState.faulted:
+      return "faulted"
+
+    default:
+      return "unknown"
+  }
+}
+
+/**
+ * Describes potential targets for wiring connections between a Pdu or Tor port and a specific
+ * item of equipment.
+ */
+export class Hardware {
+  /** The type or item or piece of equipment */
+  type: Hardware_HwType
+  /**
+   * Defines an instance of the piece of equipment. For example there are likely to be multiple
+   * blades and the id is used to distinguish amongst them.
+   */
+  id: number
+  /**
+   * If the item has multiple connectors, the port field can be used to indicate which connector
+   * is used for this port.
+   */
+  port: number
+
+  constructor(object:any) {
+    this.type = hardware_HwTypeFromJSON(object.type)
+    this.id = asNumber(object.id)
+    this.port = asNumber(object.port)
+  }
+}
+
+/** Defines the type of hardware that can be wired up to a Pdu power port or a Tor network port. */
+export enum Hardware_HwType {
+  /** unknown - The type of hardware is not yet known */
+  unknown = 0,
+  /** pdu - This item is a PDU (Power Distribution Unit). */
+  pdu = 1,
+  /** tor - Equipment is a TOR (Top of Rack network switch) */
+  tor = 2,
+  /** blade - Equipment is a blade computer */
+  blade = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function hardware_HwTypeFromJSON(object: any): Hardware_HwType {
+  if (object === null || object === undefined) {
+    return Hardware_HwType.UNRECOGNIZED
+  }
+
+  switch (object) {
+    case 0:
+    case "unknown":
+      return Hardware_HwType.unknown;
+    case 1:
+    case "pdu":
+      return Hardware_HwType.pdu;
+    case 2:
+    case "tor":
+      return Hardware_HwType.tor;
+    case 3:
+    case "blade":
+      return Hardware_HwType.blade;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return Hardware_HwType.UNRECOGNIZED;
+  }
+}
+
+export class PowerPort {
+  /** Defines whether or not the port is actually connected to the associated item of equipment. */
+  wired: boolean;
+  /** Defines what the port is wired up to. */
+  item: Hardware;
+
+  constructor(object: any) {
+    this.wired = asBool(object.wired)
+    this.item = new Hardware(object.item)
+  }
+}
+
+export class NetworkPort {
+  /** Defines whether or not the port is actually connected to the associated item of equipment. */
+  wired: boolean
+  /** Defines what the port is wired up to. */
+  item: Hardware
+
+  constructor(object: any) {
+    this.wired = asBool(object.wired)
+    this.item = new Hardware(object.item)
+  }
+}
+
+export class BladeBootInfo {
+  source: BladeBootInfo_Method
+  image: string
+  version: string
+  parameters: string
+
+  constructor(object: any) {
+    this.source = bladeBootInfo_MethodFromJSON(object.source)
+    this.image = asString(object.image)
+    this.version = asString(object.version)
+    this.parameters = asString(object.parameters)
+  }
+}
+
+export enum BladeBootInfo_Method {
+  local = 0,
+  network = 1,
+  UNRECOGNIZED = -1,
+}
+
+export function bladeBootInfo_MethodFromJSON(object: any): BladeBootInfo_Method {
+  if (object === null || object === undefined) {
+    return BladeBootInfo_Method.UNRECOGNIZED
+  }
+
+  switch (object) {
+    case 0:
+    case "local":
+      return BladeBootInfo_Method.local;
+    case 1:
+    case "network":
+      return BladeBootInfo_Method.network;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return BladeBootInfo_Method.UNRECOGNIZED;
+  }
+}
+
+/** Power distribution unit.  Network accessible power controller */
+export class PduDetails {
+  /**
+   * Whether or not the pdu is enabled. This is orthogonal to the condition of the
+   * pdu. To schedule resources within the pdu, the pdu must be both enabled and
+   * the condition must be operational.
+   */
+  enabled: boolean
+  /**
+   * Defines the overall condition of the pdu. This is orthogonal to the enabling of
+   * the pdu. To schedule resources within the pdu, the pdu must be both enabled and
+   * the condition must be operational.
+   */
+  condition: Condition
+
+  constructor(object: any) {
+    if (object === null || object === undefined) {
+      this.enabled = false
+      this.condition = conditionFromJSON(undefined)
+      return
+    }
+    
+    this.enabled = asBool(object.enabled)
+    this.condition = conditionFromJSON(object.condition)
+  }
+}
+
+/** Rack-level network switch. */
+export class TorDetails {
+  /**
+   * Whether or not the tor is enabled. This is orthogonal to the condition of the
+   * tor. To schedule resources within the tor, the tor must be both enabled and
+   * the condition must be operational.
+   */
+  enabled: boolean
+  /**
+   * Defines the overall condition of the tor. This is orthogonal to the enabling of
+   * the tor. To schedule resources within the tor, the tor must be both enabled and
+   * the condition must be operational.
+   */
+  condition: Condition
+
+  constructor(object: any) {
+    if (object === null || object === undefined) {
+      this.enabled = false
+      this.condition = conditionFromJSON(undefined)
+      return
+    }
+    
+    this.enabled = asBool(object.enabled)
+    this.condition = conditionFromJSON(object.condition)
+  }
+}
+
+/** Rack-level blade computer */
+export class BladeDetails {
+  /**
+   * Whether or not the blade is enabled. This is orthogonal to the condition of the
+   * blade. To schedule resources within the blade, the blade must be both enabled
+   * and the condition must be operational.
+   */
+  enabled: boolean
+  /**
+   * Defines the overall condition of the blade. This is orthogonal to the enabling of
+   * the blade. To schedule resources within the blade, the blade must be both enabled
+   * and the condition must be operational.
+   */
+  condition: Condition
+
+  constructor(object: any) {
+    if (object === null || object === undefined) {
+      this.enabled = false
+      this.condition = conditionFromJSON(undefined)
+      return
+    }
+    
+    this.enabled = asBool(object.enabled)
+    this.condition = conditionFromJSON(object.condition)
+  }
+}
 
 /**
  * This assumes a single overhead item per rack.  May want to allow multiple to handle

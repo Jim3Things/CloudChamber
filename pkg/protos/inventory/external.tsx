@@ -1,7 +1,12 @@
 /* eslint-disable */
-import { RackDetails, ZoneDetails } from "./common";
+import { 
+  BladeBootInfo, BladeDetails, BladeSmState, NetworkPort, PduDetails, 
+  PowerPort, RackDetails, TorDetails, ZoneDetails,
+  bladeSmState_FromJSON
+} from "./common";
+
 import { BladeCapacity } from "./capacity";
-import { asNumber, asString } from "../utils"
+import { asBool, asMap, asNumber, asString } from "../utils"
 
 export const protobufPackage = "inventory";
 
@@ -9,35 +14,112 @@ export const protobufPackage = "inventory";
 
 /** Power distribution unit.  Network accessible power controller */
 export class External_Pdu {
-  constructor(object: any) {}
+  details: PduDetails;
+  /**
+   * Defines a power "socket" which is used to provide power to a blade. There is
+   * a 1 to 1 mapping of a power port to a blade within a single rack and it is an
+   * error if there fewer power ports than blades.
+   */
+  ports: Map<number, PowerPort>
+
+  constructor(object: any) {
+    if (object === null || object === undefined) {
+      this.details = new PduDetails(undefined)
+      this.ports = new Map<number, PowerPort>()
+      return
+    }
+
+    this.details = new PduDetails(object.details)
+    this.ports = asMap(object.ports, (k, v) => [Number(k), new PowerPort(v)])
+  }
 }
 
 /** Rack-level network switch. */
 export class External_Tor {
-  constructor(object: any) {}
+  details: TorDetails | undefined;
+  /**
+   * Defines a network "port" which is used to provide a network connection to a
+   * blade. There is a 1 to 1 mapping of a network port to a blade within a single
+   * rack and it is an error if there fewer network ports than blades.
+   */
+  ports: Map<number, NetworkPort>
+
+  constructor(object: any) {
+    if (object === null || object === undefined) {
+      this.details = new TorDetails(undefined)
+      this.ports = new Map<number, NetworkPort>()
+      return
+    }
+
+    this.details = new TorDetails(object.details)
+    this.ports = asMap(object.ports, (k, v) => [Number(k), new NetworkPort(v)])
+  }
+}
+
+/** Individual blade within the rack */
+export class External_Blade {
+  details: BladeDetails
+  capacity: BladeCapacity
+  /**
+   * Defines whether or not the blade automatically begins a boot sequence when power is
+   * applied to the blade.
+   */
+  bootOnPowerOn: boolean
+  /** Describes the default boot mechanism */
+  bootInfo: BladeBootInfo
+
+  observed: External_Blade_ObservedState
+
+  constructor(object: any) {
+    this.details = new BladeDetails(object.details)
+    this.capacity = new BladeCapacity(object.capacity)
+    this.bootOnPowerOn = asBool(object.bootOnPowerOn)
+    this.bootInfo = new BladeBootInfo(object.bootInfo)
+    this.observed = new External_Blade_ObservedState(object.observed)
+  }
+}
+
+/** Observed, actual, and target data follows on from here... */
+export class External_Blade_ObservedState {
+  /** The simulated time when the observation was made */
+  at: number
+  /** The state the blade was in at that time. */
+  smState: BladeSmState
+  /** The simulated time when it entered this state. */
+  enteredAt: number
+
+  constructor(object: any) {
+    this.at = asNumber(object.at)
+    this.smState = bladeSmState_FromJSON(object.smState)
+    this.enteredAt = asNumber(object.enteredAt)
+  }
 }
 
 export class External_Rack {
   details: RackDetails
   pdu: External_Pdu
   tor: External_Tor
+
   /**
    * specify the blades in the rack.  Each blade is defined by an integer index within that
    * rack, which is used here as the key.
    */
   blades: Map<number, BladeCapacity>
 
+  pdus: Map<number, External_Pdu>
+  tors: Map<number, External_Tor>
+  fullBlades: Map<number, External_Blade>
+
   constructor(object: any) {
     this.details = new RackDetails(object.details)
+
     this.pdu = new External_Pdu(object.pdu)
     this.tor = new External_Tor(object.tor)
-    this.blades = new Map<number, BladeCapacity>()
 
-    if (object.blades !== undefined && object.blades !== null) {
-      Object.entries(object.blades).forEach(([key, value]) => {
-        this.blades.set(Number(key), new BladeCapacity(value))
-      });
-    }
+    this.blades = asMap(object.blades, (k, v) => [Number(k), new BladeCapacity(v)])
+    this.pdus = asMap(object.pdus, (k, v) => [Number(k), new External_Pdu(v)])
+    this.tors = asMap(object.tors, (k, v) => [Number(k), new External_Tor(v)])
+    this.fullBlades = asMap(object.fullBlades, (k, v) => [Number(k), new External_Blade(v)])
   }
 }
 
@@ -49,13 +131,7 @@ export class External_Zone {
   racks: Map<string, External_Rack>
 
   constructor(object: any) {
-    this.racks = new Map<string, External_Rack>()
-
-    if (object.racks !== undefined && object.racks !== null) {
-      Object.entries(object.racks).forEach(([key, value]) => {
-        this.racks.set(key, new External_Rack(value))
-      });
-    }
+    this.racks = asMap(object.racks, (k, v) => [asString(k), new External_Rack(v)])
   }
 }
 
@@ -87,12 +163,6 @@ export class External_ZoneSummary {
     this.maxBladeCount = asNumber(object.maxBladeCount)
     this.maxCapacity = new BladeCapacity(object.maxCapacity)
     this.details = new ZoneDetails(object.details)
-    this.racks = new Map<string, External_RackSummary>()
-
-    if (object.racks !== undefined && object.racks !== null) {
-      Object.entries(object.racks).forEach(([key, value]) => {
-        this.racks.set(key, new External_RackSummary(value))
-      });
-    }
+    this.racks = asMap(object.racks, (k, v) => [asString(k), new External_RackSummary(v)])
   }
 }

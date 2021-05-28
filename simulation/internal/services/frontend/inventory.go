@@ -96,6 +96,14 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 	b := common.URLPrefix(r)
 
+	// We're going to group all racks listed together into a single trace entry.
+	//
+	// msg is the formatted text built so far.
+	// nl is the connector between racks.  It starts as nothing and is changed
+	// to a new-line once anything has been stored into the formatted text.
+	msg := ""
+	nl := ""
+
 	err = dbInventory.ScanRacksInZone(
 		ctx,
 		inventory.DefaultRegion,
@@ -105,10 +113,13 @@ func handlerRacksList(w http.ResponseWriter, r *http.Request) {
 
 			res.Racks[name] = &pb.External_RackSummary{Uri: target}
 
-			tracing.Info(ctx, "   Listing rack %q at %q", name, target)
+			msg = fmt.Sprintf("%s%sListing rack %q at %q", msg, nl, name, target)
+			nl = "\n"
 
 			return nil
 		})
+
+	tracing.Info(ctx, msg)
 
 	if err != nil {
 		postHTTPError(ctx, w, err)
@@ -270,15 +281,66 @@ func handlerBladeRead(w http.ResponseWriter, r *http.Request) {
 // view.
 func transformRack(rd *pb.Definition_Rack) (*pb.External_Rack, error) {
 	rack := &pb.External_Rack{
-		Details: rd.GetDetails(),
-		Pdu:     &pb.External_Pdu{},
-		Tor:     &pb.External_Tor{},
-		Blades:  make(map[int64]*pb.BladeCapacity),
+		Details:    rd.GetDetails(),
+		Pdu:        &pb.External_Pdu{},
+		Tor:        &pb.External_Tor{},
+		Blades:     make(map[int64]*pb.BladeCapacity),
+		Tors:       make(map[int64]*pb.External_Tor),
+		Pdus:       make(map[int64]*pb.External_Pdu),
+		FullBlades: make(map[int64]*pb.External_Blade),
 	}
 
 	for i, blade := range rd.Blades {
 		rack.Blades[i] = blade.GetCapacity()
+		rack.FullBlades[i] = &pb.External_Blade{
+			Details:       blade.GetDetails(),
+			Capacity:      blade.GetCapacity(),
+			BootOnPowerOn: blade.BootOnPowerOn,
+			BootInfo:      blade.GetBootInfo(),
+			Observed:      fakeObserved(),
+		}
+	}
+
+	for i, tor := range rd.Tors {
+		rack.Tors[i] = &pb.External_Tor{
+			Details: tor.GetDetails(),
+			Ports:   tor.GetPorts(),
+		}
+	}
+
+	for i, pdu := range rd.Pdus {
+		rack.Pdus[i] = &pb.External_Pdu{
+			Details: pdu.GetDetails(),
+			Ports:   pdu.GetPorts(),
+		}
 	}
 
 	return rack, nil
 }
+
+// +++ Temporary observed state creation
+
+// This temporary feature just cycles through the set of possible blade SM
+// states, and fakes up an observed blade state from that.
+
+var count = pb.BladeSmState_start
+
+func fakeObserved() *pb.External_Blade_ObservedState {
+	c := count
+
+	state := c
+	c++
+	if c > 11 {
+		c = pb.BladeSmState_start
+	}
+
+	count = c
+
+	return &pb.External_Blade_ObservedState{
+		At:        10,
+		SmState:   state,
+		EnteredAt: 5,
+	}
+}
+
+// --- Temporary observed state creation
