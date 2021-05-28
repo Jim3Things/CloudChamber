@@ -116,9 +116,6 @@ export class External_Rack {
     this.pdu = new External_Pdu(object.pdu)
     this.tor = new External_Tor(object.tor)
 
-    this.tors = new Map<number, External_Tor>()
-    this.fullBlades = new Map<number, External_Blade>()
-
     this.blades = asMap(object.blades, (k, v) => [Number(k), new BladeCapacity(v)])
     this.pdus = asMap(object.pdus, (k, v) => [Number(k), new External_Pdu(v)])
     this.tors = asMap(object.tors, (k, v) => [Number(k), new External_Tor(v)])
