@@ -198,7 +198,7 @@ export class Event {
     this.spanId = asItem<string>(String, object.spanId, nullSpanID)
     this.linkId = asString(object.linkId)
   }
-};
+}
 
 /** Describe a full correlated span, consisting of zero or more events. */
 export class Entry {
@@ -251,4 +251,4 @@ export class Entry {
     this.linkSpanID = asItem<string>(String, object.linkSpanID, nullSpanID)
     this.linkTraceID = asItem<string>(String, object.linkTraceID, nullTraceID)
   }
-};
+}

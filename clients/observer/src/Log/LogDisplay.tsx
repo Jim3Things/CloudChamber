@@ -172,7 +172,7 @@ function TraceSpanElement(props: {
         </ListItemIcon>
         <ListItemText className={classes.labelText} primary={props.text} secondary={props.reason}/>
         <RenderIf cond={props.expandable}>
-            <MoreOrLess cond={props.expanded}/>
+            <MoreOrLess cond={!props.expanded}/>
         </RenderIf>
     </ListItem>
 }

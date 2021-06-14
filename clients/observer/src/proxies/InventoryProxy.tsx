@@ -3,7 +3,13 @@
 
 import {getJson} from "./Session"
 import {BladeCapacity} from "../pkg/protos/inventory/capacity"
-import {External_Blade, External_Rack, External_ZoneSummary} from "../pkg/protos/inventory/external"
+import {
+    External_Blade,
+    External_Pdu,
+    External_Rack,
+    External_Tor,
+    External_ZoneSummary
+} from "../pkg/protos/inventory/external"
 
 
 // Denote the running states of a workload instance
@@ -32,26 +38,21 @@ export interface BladeDescription {
     usage: InstanceDetails[]    // Details on the workload instances present
 }
 
-// Describe a TOR switch
-export interface TorDetails {
-    state: PhysicalState        // Health state of the TOR
-    linkTo: boolean[]           // Connections to the blade
-    // TODO: How to represent SDN connections to workload instances?
+export interface PduDescription {
+    pdu: External_Pdu
 }
 
-// Describe a power distribution controller unit
-export interface PduDetails {
-    state: PhysicalState        // Health state of the PDU
-    powerTo: boolean[]          // Power switch to each blade
+export interface TorDescription {
+    tor: External_Tor
 }
 
 // Describe a rack
 export interface RackDetails {
     uri: string,                // Address to get rack details
     detailsLoaded: boolean,     // True if the rack details have been loaded
-    tor: TorDetails             // The Tor
-    pdu: PduDetails             // .. the pdu
-    blades: Map<number, BladeDescription> // .. and the blades
+    tors: Map<number, TorDescription>       // The Tors
+    pdus: Map<number, PduDescription>       // .. the pdus
+    blades: Map<number, BladeDescription>   // .. and the blades
 }
 
 // Describe a cluster
@@ -59,6 +60,9 @@ export interface ClusterDetails {
     name: string                // Descriptive name for the cluster
     location: string
     maxBladeCount: number
+    maxTorCount: number
+    maxPduCount: number
+    maxConnectors: number
     maxCapacity: BladeCapacity
     racks: Map<string, RackDetails>   // .. and the racks that make it up
 }
@@ -100,6 +104,9 @@ export function getCluster(): Promise<ClusterDetails> {
                 name: zone.name,
                 location: zone.details.location,
                 maxBladeCount: zone.maxBladeCount,
+                maxTorCount: zone.maxTorCount,
+                maxPduCount: zone.maxPduCount,
+                maxConnectors: zone.maxConnectors,
                 maxCapacity: zone.maxCapacity,
                 racks: new Map<string, RackDetails>()
             }
@@ -107,14 +114,8 @@ export function getCluster(): Promise<ClusterDetails> {
             zone.racks.forEach((rack, name) => {
                 data.racks.set(name, {
                     blades: new Map<number, BladeDescription>(),
-                    pdu: {
-                        state: PhysicalState.healthy,
-                        powerTo: [],
-                    },
-                    tor: {
-                        state: PhysicalState.healthy,
-                        linkTo: []
-                    },
+                    pdus: new Map<number, PduDescription>(),
+                    tors: new Map<number, TorDescription>(),
                     detailsLoaded: false,
                     uri: rack.uri
                 })
@@ -135,15 +136,23 @@ export function getRackDetails(rack: RackDetails): Promise<RackDetails> {
             const value = new External_Rack(item)
             let newRack: RackDetails = {...rack, detailsLoaded: true}
 
-            console.log(value)
+            value.tors.forEach((tor, key) => {
+                newRack.tors.set(key, {
+                    tor: tor,
+                })
+            })
+
+            value.pdus.forEach((pdu, key) => {
+                newRack.pdus.set(key, {
+                    pdu: pdu,
+                })
+            })
 
             value.fullBlades.forEach((blade, key) => {
                 newRack.blades.set(key, {
                     blade: new External_Blade(blade),
                     usage: fakeUsage(blade.capacity.cores)
                 })
-                newRack.tor.linkTo.push(true)
-                newRack.pdu.powerTo.push(true)
             })
 
             return newRack

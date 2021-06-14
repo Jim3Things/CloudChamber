@@ -1,7 +1,6 @@
 import React from "react"
 import {grey} from "@material-ui/core/colors"
-import {createStyles, Popover, Tooltip} from "@material-ui/core"
-import {makeStyles} from "@material-ui/core/styles"
+import {Tooltip} from "@material-ui/core"
 
 import {BladeDescription, InstanceDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy"
 import {Colors} from "./SimulatedInventory"
@@ -9,18 +8,9 @@ import {Opacity, PhysicalBox} from "./PhysicalBox"
 import {BladeUsageDetails} from "./BladeUsageDetails"
 import {BladeCapacity} from "../pkg/protos/inventory/capacity"
 import {Computer} from "@material-ui/icons"
-import {BladeSmState} from "../pkg/protos/inventory/common"
-
-const useStyles = makeStyles((theme) =>
-    createStyles({
-        popover: {
-            pointerEvents: 'none'
-        },
-        paper: {
-            padding: theme.spacing(1),
-        },
-    }),
-)
+import {BladeState_SM} from "../pkg/protos/inventory/common"
+import {usePopup} from "../common/UsePopup"
+import {DetailCard} from "./DetailCard"
 
 // +++ Detail SVGRect boundary calculations
 
@@ -49,13 +39,13 @@ function statusToColor(state: InstanceState, palette: Colors): string {
 // toPhysical is a transitional conversion function to handle the
 // partial removal of PhysicalState. It converts a blade SM state
 // into the closest physical state approximation.
-function toPhysical(s: BladeSmState): PhysicalState {
+function toPhysical(s: BladeState_SM): PhysicalState {
     switch (s) {
-        case BladeSmState.faulted:
+        case BladeState_SM.faulted:
             return PhysicalState.faulted
 
-        case BladeSmState.off_disconnected:
-        case BladeSmState.off_connected:
+        case BladeState_SM.off_disconnected:
+        case BladeState_SM.off_connected:
             return PhysicalState.off
 
         default:
@@ -68,7 +58,7 @@ function formBladeDetailBoxes(
     instances: InstanceDetails[],
     capacity: BladeCapacity,
     bladeWidth: number,
-    boundingState: BladeSmState,
+    boundingState: BladeState_SM,
     palette: Colors): detailBox[] {
 
     let set: detailBox[] = []
@@ -116,19 +106,7 @@ export function Blade(props: {
     limits: BladeCapacity,
     palette: Colors
 }) {
-    const classes = useStyles()
-
-    const [anchorEl, setAnchorEl] = React.useState<SVGSVGElement | null>(null)
-
-    const handlePopoverOpen = (event: React.MouseEvent<SVGSVGElement, MouseEvent>): void => {
-        setAnchorEl(event.currentTarget)
-    }
-
-    const handlePopoverClose = () => {
-        setAnchorEl(null)
-    }
-
-    const open = Boolean(anchorEl)
+    const [open, anchorEl, handlePopoverOpen, handlePopoverClose] = usePopup<SVGSVGElement>()
 
     const iconWidth = Math.min(props.height, 50)
     const offset = iconWidth + 5
@@ -147,7 +125,7 @@ export function Blade(props: {
 
     // Draw the blade, filling in the instance usage and state
     return (
-        <React.Fragment>
+        <>
             <Tooltip title={"Blade " + props.index}>
                 <Computer
                     x={props.x}
@@ -183,30 +161,18 @@ export function Blade(props: {
                 })}
             </PhysicalBox>
 
-            <Popover
+            <DetailCard
                 id="mouse-over-popover"
-                className={classes.popover}
-                classes={{
-                    paper: classes.paper,
-                }}
                 open={open}
                 anchorEl={anchorEl}
-                anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                }}
-                transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'left',
-                }}
                 onClose={handlePopoverClose}
-                disableRestoreFocus
+                elementName={"Blade " + props.index}
+                enabled={props.details.blade.details.enabled}
+                condition={props.details.blade.details.condition}
             >
-                <BladeUsageDetails
-                    index={props.index}
-                    details={props.details}/>
-            </Popover>
+                <BladeUsageDetails details={props.details} />
+            </DetailCard>
 
-        </React.Fragment>
+        </>
     )
 }

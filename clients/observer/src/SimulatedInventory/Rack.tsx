@@ -10,24 +10,29 @@ import {BladeCapacity} from "../pkg/protos/inventory/capacity"
 
 export function Rack(props: {
     bladeLimit: number,
+    torLimit: number,
+    pduLimit: number,
+    connectorLimit: number,
     capacityLimit: BladeCapacity,
     rack: RackDetails,
     palette: Colors
 }) {
-    const bladeHeight = 20
+    const slotHeight = 20
     const yGap = 1
-    const headerSpace = 50
+    const headerGap = 10
+    const headerSpace = (props.torLimit + props.pduLimit) * (slotHeight + yGap) + headerGap
 
     const innerLeft = 5
     const innerTop = 5
 
-    const innerHeight = ((bladeHeight + yGap) * props.bladeLimit) - yGap + headerSpace
+    const innerHeight = ((slotHeight + yGap) * props.bladeLimit) - yGap + headerSpace
     const innerWidth = 150
 
     const fullHeight = innerHeight + innerTop + innerTop
     const fullWidth = innerWidth + innerLeft + innerLeft
 
-    let yPos = headerSpace + 5
+    let headerY = innerTop
+    let bladeY = headerSpace + innerTop
 
     return (
         <svg
@@ -43,31 +48,45 @@ export function Rack(props: {
                 stroke="SteelBlue"
             />
 
-            <Tor
-                x={innerLeft}
-                y={innerTop}
-                width={innerWidth}
-                height={bladeHeight}
-                details={props.rack.tor}
-                palette={props.palette}/>
+            {Array.from(props.rack.tors).map((v) => {
+                const thisY = headerY
+                headerY += slotHeight + yGap
 
-            <PDU
-                x={innerLeft}
-                y={bladeHeight + yGap + innerTop}
-                width={innerWidth}
-                height={bladeHeight}
-                details={props.rack.pdu}
-                palette={props.palette}/>
+                return <Tor
+                    x={innerLeft}
+                    y={thisY}
+                    width={innerWidth}
+                    height={slotHeight}
+                    details={v[1]}
+                    palette={props.palette}
+                    index={v[0]}
+                />
+            })}
+
+            {Array.from(props.rack.pdus).map(v => {
+                const thisY = headerY
+                headerY += slotHeight + yGap
+
+                return <PDU
+                    x={innerLeft}
+                    y={thisY}
+                    width={innerWidth}
+                    height={slotHeight}
+                    details={v[1]}
+                    palette={props.palette}
+                    index={v[0]}
+                />
+            })}
 
             {Array.from(props.rack.blades).map((v) => {
-                const thisY = yPos
-                yPos += bladeHeight + yGap
+                const thisY = bladeY
+                bladeY += slotHeight + yGap
 
                 return <Blade
                     x={innerLeft}
                     y={thisY}
                     width={innerWidth}
-                    height={bladeHeight}
+                    height={slotHeight}
                     index={v[0]}
                     details={v[1]}
                     limits={props.capacityLimit}

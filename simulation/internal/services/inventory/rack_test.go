@@ -269,7 +269,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 		assert.False(c.on)
 	}
 
-	assert.Equal(pb.Actual_Pdu_working, r.pdu.sm.CurrentIndex)
+	assert.Equal(pb.PduState_working, r.pdu.sm.CurrentIndex)
 
 	r.stop(ctx)
 	assert.Equal(pb.Actual_Rack_terminated, r.sm.CurrentIndex)

@@ -164,7 +164,7 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 	require.NoError(res.Err)
 
 	return ts.advanceToStateChange(ctx, 10, func() bool {
-		return pb.BladeSmState_working == r.blades[id].sm.CurrentIndex
+		return pb.BladeState_working == r.blades[id].sm.CurrentIndex
 	})
 }
 
