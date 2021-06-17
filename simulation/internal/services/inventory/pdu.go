@@ -44,17 +44,17 @@ func newPdu(ctx context.Context, def *pb.Definition_Pdu, name string, r *Rack, i
 	p.sm = sm.NewSM(p,
 		name,
 		sm.WithFirstState(
-			pb.Actual_Pdu_working,
+			pb.PduState_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetPower, workingSetPower, sm.Stay, pb.Actual_Pdu_off},
+				{messages.TagSetPower, workingSetPower, sm.Stay, pb.PduState_off},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Pdu_off,
+			pb.PduState_off,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
@@ -63,7 +63,7 @@ func newPdu(ctx context.Context, def *pb.Definition_Pdu, name string, r *Rack, i
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Pdu_stuck,
+			pb.PduState_stuck,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, pduGetStatus, sm.Stay, sm.Stay},
@@ -101,7 +101,7 @@ func (p *pdu) Save() (proto.Message, error) {
 	state := &pb.Actual_Pdu{
 		Condition: pb.Actual_operational,
 		Cables:    make(map[int64]*pb.Actual_Cable),
-		SmState:   cur.(pb.Actual_Pdu_State),
+		SmState:   cur.(pb.PduState_SM),
 		Core: &pb.Actual_MachineCore{
 			EnteredAt: entered,
 			Terminal:  terminal,

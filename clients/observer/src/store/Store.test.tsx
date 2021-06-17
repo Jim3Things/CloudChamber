@@ -33,7 +33,7 @@ it("should handle a single update", () => {
 
         }
 
-        dispatch(stepperSlice.actions.updatePolicy(newTime))
+        dispatch(stepperSlice.actions.update(newTime))
 
         return store.getState()
 

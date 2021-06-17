@@ -44,7 +44,7 @@ func (ts *TorTestSuite) TestCreateTor() {
 
 	assert.Equal(2, len(t.cables))
 
-	assert.Equal(pb.Actual_Tor_working, t.sm.CurrentIndex)
+	assert.Equal(pb.TorState_working, t.sm.CurrentIndex)
 
 	for _, c := range t.cables {
 		assert.False(c.on)
@@ -87,7 +87,7 @@ func (ts *TorTestSuite) TestBadConnectionTarget() {
 	assert.Equal(common.TickFromContext(ctx), res.At)
 	assert.Nil(res.Msg)
 
-	assert.Equal(pb.Actual_Tor_working, t.sm.CurrentIndex)
+	assert.Equal(pb.TorState_working, t.sm.CurrentIndex)
 
 	for _, c := range t.cables {
 		assert.True(c.on)
@@ -132,7 +132,7 @@ func (ts *TorTestSuite) TestConnectTooLate() {
 	assert.Less(c.Guard, checkTime)
 	assert.False(c.on)
 
-	assert.Equal(pb.Actual_Tor_working, t.sm.CurrentIndex)
+	assert.Equal(pb.TorState_working, t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestConnectBlade() {
@@ -142,12 +142,12 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
 
 	require.Eventually(func() bool {
-		return r.tors[0].sm.CurrentIndex == pb.Actual_Tor_working
+		return r.tors[0].sm.CurrentIndex == pb.TorState_working
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.tors[0].sm.CurrentIndex)
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == pb.BladeSmState_off_disconnected
+		return r.blades[0].sm.CurrentIndex == pb.BladeState_off_disconnected
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
@@ -190,11 +190,11 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.False(c.faulted)
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == pb.BladeSmState_off_connected
+		return r.blades[0].sm.CurrentIndex == pb.BladeState_off_connected
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
-	assert.Equal(pb.Actual_Tor_working, t.sm.CurrentIndex)
+	assert.Equal(pb.TorState_working, t.sm.CurrentIndex)
 
 	saved, err := r.tors[0].Save()
 	require.NoError(err)
@@ -231,7 +231,7 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	require.True(c.on)
 	require.False(c.faulted)
 
-	require.Equal(pb.BladeSmState_working, r.blades[0].sm.CurrentIndex)
+	require.Equal(pb.BladeState_working, r.blades[0].sm.CurrentIndex)
 
 	ctx, span := tracing.StartSpan(
 		ctx,
@@ -269,11 +269,11 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	require.Equal(c.target.Key(), target.Key())
 
 	require.Eventually(func() bool {
-		return r.blades[0].sm.CurrentIndex == pb.BladeSmState_isolated
+		return r.blades[0].sm.CurrentIndex == pb.BladeState_isolated
 	}, time.Second, 10*time.Millisecond,
 		"state is %v", r.blades[0].sm.CurrentIndex)
 
-	assert.Equal(pb.Actual_Tor_working, t.sm.CurrentIndex)
+	assert.Equal(pb.TorState_working, t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestStuckCable() {
@@ -318,7 +318,7 @@ func (ts *TorTestSuite) TestStuckCable() {
 	assert.False(c.on)
 	assert.Equal(true, c.faulted)
 
-	assert.Equal(pb.Actual_Tor_working, t.sm.CurrentIndex)
+	assert.Equal(pb.TorState_working, t.sm.CurrentIndex)
 }
 
 func (ts *TorTestSuite) TestWorkingGetStatus() {
@@ -346,7 +346,7 @@ func (ts *TorTestSuite) TestWorkingGetStatus() {
 
 	status := res.Msg.(*messages.TorStatus)
 
-	assert.Equal(pb.Actual_Tor_working.String(), status.State)
+	assert.Equal(pb.TorState_working.String(), status.State)
 	assert.Equal(int64(0), status.EnteredAt)
 
 	for i, c := range status.Cables {

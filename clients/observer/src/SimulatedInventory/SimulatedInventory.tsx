@@ -32,6 +32,9 @@ export function SimulatedInventory() {
             accelerators: [],
         },
         maxBladeCount: 1,
+        maxTorCount: 1,
+        maxPduCount: 1,
+        maxConnectors: 1,
         racks: new Map<string, RackDetails>()
     })
 

@@ -48,7 +48,7 @@ func newTor(ctx context.Context, def *pb.Definition_Tor, name string, r *Rack, i
 	t.sm = sm.NewSM(t,
 		name,
 		sm.WithFirstState(
-			pb.Actual_Tor_working,
+			pb.TorState_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, torGetStatus, sm.Stay, sm.Stay},
@@ -58,7 +58,7 @@ func newTor(ctx context.Context, def *pb.Definition_Tor, name string, r *Rack, i
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Tor_stuck,
+			pb.TorState_stuck,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, torOnlyGetStatus, sm.Stay, sm.Stay},
@@ -97,7 +97,7 @@ func (t *tor) Save() (proto.Message, error) {
 	state := &pb.Actual_Tor{
 		Condition: pb.Actual_operational,
 		Cables:    make(map[int64]*pb.Actual_Cable),
-		SmState:   cur.(pb.Actual_Tor_State),
+		SmState:   cur.(pb.TorState_SM),
 		Core: &pb.Actual_MachineCore{
 			EnteredAt: entered,
 			Terminal:  terminal,

@@ -130,8 +130,46 @@ export function stateFromJSON(object: any): State {
       return State.UNRECOGNIZED;
   }
 }
+/** Determine if the cable is on (working) or off (disabled). */
+export enum CableState_SM {
+  invalid = 0,
+  on = 1,
+  off = 2,
+  UNRECOGNIZED = -1,
+}
 
-export enum BladeSmState {
+export function cableState_SMFromJSON(object: any): CableState_SM {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return CableState_SM.invalid;
+    case 1:
+    case "on":
+      return CableState_SM.on;
+    case 2:
+    case "off":
+      return CableState_SM.off;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return CableState_SM.UNRECOGNIZED;
+  }
+}
+
+export function cableState_SMToString(object: CableState_SM): string {
+  switch (object) {
+    case CableState_SM.invalid:
+      return "invalid";
+    case CableState_SM.on:
+      return "on";
+    case CableState_SM.off:
+      return "off";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+export enum BladeState_SM {
   invalid = 0,
   /**
    * start - This is the state where initialization of the state machine
@@ -196,86 +234,86 @@ export enum BladeSmState {
   UNRECOGNIZED = -1,
 }
 
-export function bladeSmState_FromJSON(
+export function bladeState_SMFromJSON(
   object: any
-): BladeSmState {
+): BladeState_SM {
   switch (object) {
     case 0:
     case "invalid":
-      return BladeSmState.invalid;
+      return BladeState_SM.invalid;
     case 1:
     case "start":
-      return BladeSmState.start;
+      return BladeState_SM.start;
     case 2:
     case "off_disconnected":
-      return BladeSmState.off_disconnected;
+      return BladeState_SM.off_disconnected;
     case 3:
     case "off_connected":
-      return BladeSmState.off_connected;
+      return BladeState_SM.off_connected;
     case 4:
     case "powered_disconnected":
-      return BladeSmState.powered_disconnected;
+      return BladeState_SM.powered_disconnected;
     case 5:
     case "powered_connected":
-      return BladeSmState.powered_connected;
+      return BladeState_SM.powered_connected;
     case 6:
     case "booting":
-      return BladeSmState.booting;
+      return BladeState_SM.booting;
     case 7:
     case "working":
-      return BladeSmState.working;
+      return BladeState_SM.working;
     case 8:
     case "isolated":
-      return BladeSmState.isolated;
+      return BladeState_SM.isolated;
     case 9:
     case "stopping":
-      return BladeSmState.stopping;
+      return BladeState_SM.stopping;
     case 10:
     case "stopping_isolated":
-      return BladeSmState.stopping_isolated;
+      return BladeState_SM.stopping_isolated;
     case 11:
     case "faulted":
-      return BladeSmState.faulted;
+      return BladeState_SM.faulted;
     case -1:
     case "UNRECOGNIZED":
     default:
-      return BladeSmState.UNRECOGNIZED;
+      return BladeState_SM.UNRECOGNIZED;
   }
 }
 
-export function bladeSmStateToString(op: BladeSmState): string {
+export function bladeState_SMToString(op: BladeState_SM): string {
   switch(op) {
-    case BladeSmState.start:
+    case BladeState_SM.start:
       return "simulation starting"
 
-    case BladeSmState.off_disconnected:
+    case BladeState_SM.off_disconnected:
       return "off, disconnected"
 
-    case BladeSmState.off_connected:
+    case BladeState_SM.off_connected:
       return "off, connected"
 
-    case BladeSmState.powered_disconnected:
+    case BladeState_SM.powered_disconnected:
       return "on, disconnected, not booted"
 
-    case BladeSmState.powered_connected:
+    case BladeState_SM.powered_connected:
       return "on, connected, not booted"
 
-    case BladeSmState.booting:
+    case BladeState_SM.booting:
       return "on, connected, booting"
 
-    case BladeSmState.working:
+    case BladeState_SM.working:
       return "working"
 
-    case BladeSmState.isolated:
+    case BladeState_SM.isolated:
       return "isolated"
 
-    case BladeSmState.stopping:
+    case BladeState_SM.stopping:
       return "on, connected, shutting down"
 
-    case BladeSmState.stopping_isolated:
+    case BladeState_SM.stopping_isolated:
       return "on, disconnected, shutting down"
 
-    case BladeSmState.faulted:
+    case BladeState_SM.faulted:
       return "faulted"
 
     default:
@@ -346,6 +384,20 @@ export function hardware_HwTypeFromJSON(object: any): Hardware_HwType {
   }
 }
 
+export function hardware_HwTypeToString(object: Hardware_HwType): string {
+  switch (object) {
+    case Hardware_HwType.pdu:
+      return "pdu";
+    case Hardware_HwType.tor:
+      return "tor";
+    case Hardware_HwType.blade:
+      return "blade";
+    case Hardware_HwType.unknown:
+    default:
+      return "UNKNOWN";
+  }
+}
+
 export class PowerPort {
   /** Defines whether or not the port is actually connected to the associated item of equipment. */
   wired: boolean;
@@ -409,6 +461,57 @@ export function bladeBootInfo_MethodFromJSON(object: any): BladeBootInfo_Method 
   }
 }
 
+/** This defines the PDU state machine states */
+export enum PduState_SM {
+  invalid = 0,
+  /** working - This is the state where the PDU is powered on and working. */
+  working = 1,
+  /** off - This is the state where the PDU is powered off. */
+  off = 2,
+  /**
+   * stuck - This is the state where the PDU is unresponsive, but power may or
+   * may not still be on.
+   */
+  stuck = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function pduState_SMFromJSON(object: any): PduState_SM {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return PduState_SM.invalid;
+    case 1:
+    case "working":
+      return PduState_SM.working;
+    case 2:
+    case "off":
+      return PduState_SM.off;
+    case 3:
+    case "stuck":
+      return PduState_SM.stuck;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return PduState_SM.UNRECOGNIZED;
+  }
+}
+
+export function pduState_SMToString(object: PduState_SM): string {
+  switch (object) {
+    case PduState_SM.invalid:
+      return "invalid";
+    case PduState_SM.working:
+      return "working";
+    case PduState_SM.off:
+      return "off";
+    case PduState_SM.stuck:
+      return "stuck";
+    default:
+      return "UNKNOWN";
+  }
+}
+
 /** Power distribution unit.  Network accessible power controller */
 export class PduDetails {
   /**
@@ -433,6 +536,49 @@ export class PduDetails {
     
     this.enabled = asBool(object.enabled)
     this.condition = conditionFromJSON(object.condition)
+  }
+}
+
+/** This defines the state machine states */
+export enum TorState_SM {
+  invalid = 0,
+  working = 1,
+  /**
+   * stuck - The TOR is faulted and unresponsive. Note that programmed cables
+   * may or may not continue to be programmed.
+   */
+  stuck = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function torState_SMFromJSON(object: any): TorState_SM {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return TorState_SM.invalid;
+    case 1:
+    case "working":
+      return TorState_SM.working;
+    case 2:
+    case "stuck":
+      return TorState_SM.stuck;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return TorState_SM.UNRECOGNIZED;
+  }
+}
+
+export function torState_SMToString(object: TorState_SM): string {
+  switch (object) {
+    case TorState_SM.invalid:
+      return "invalid";
+    case TorState_SM.working:
+      return "working";
+    case TorState_SM.stuck:
+      return "stuck";
+    default:
+      return "UNKNOWN";
   }
 }
 

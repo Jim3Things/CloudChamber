@@ -1,9 +1,6 @@
 import React from "react"
 import {Check, CheckCircleOutline, Error, HighlightOff, Warning} from "@material-ui/icons"
 import {
-    Card,
-    CardContent,
-    CardHeader,
     createStyles,
     Table,
     TableBody,
@@ -16,23 +13,14 @@ import {
 import {BladeDescription, InstanceState} from "../proxies/InventoryProxy"
 import {makeStyles, Theme} from "@material-ui/core/styles"
 import {
-    BladeBootInfo_Method,
-    BladeSmState,
-    bladeSmStateToString,
-    conditionToString
+    BladeBootInfo_Method, BladeState_SM, bladeState_SMToString,
 } from "../pkg/protos/inventory/common"
 import {Accelerator} from "../pkg/protos/inventory/capacity"
 
 const useStyles = makeStyles((theme: Theme) =>
     createStyles({
-        root: {
-            maxWidth: 600,
-        },
         cell: {
             backgroundColor: theme.palette.action.hover
-        },
-        noBorder: {
-            borderStyle: "none",
         },
     }),
 );
@@ -54,16 +42,16 @@ function statusIcon(state: InstanceState) {
 }
 
 // Return the icon that matches the physical state of a blade
-function bladeStatusIcon(state: BladeSmState) {
+function bladeStatusIcon(state: BladeState_SM) {
     switch (state) {
-        case BladeSmState.faulted:
+        case BladeState_SM.faulted:
             return <Error/>
 
-        case BladeSmState.working:
+        case BladeState_SM.working:
             return <Check/>
 
-        case BladeSmState.off_disconnected:
-        case BladeSmState.off_connected:
+        case BladeState_SM.off_disconnected:
+        case BladeState_SM.off_connected:
             return <HighlightOff/>
 
         default:
@@ -94,7 +82,7 @@ function bootSourceText(source: BladeBootInfo_Method): string {
 
 // Construct the details display showing the usage of a blade, its overall
 // capacity, and what remains available.
-export function BladeUsageDetails(props: { index: number, details: BladeDescription }) {
+export function BladeUsageDetails(props: { details: BladeDescription }) {
     const classes = useStyles();
 
     const totalUsed = props.details.usage.reduce((sum: number, item) => sum + item.usage, 0)
@@ -106,72 +94,64 @@ export function BladeUsageDetails(props: { index: number, details: BladeDescript
         (accelCount !== 1 ? "s" : "") +
         (accelCount > 0 ? ", of type " + acceleratorText(blade.capacity.accelerators) : "")
 
-    return <Card className={classes.root}>
-        <CardHeader
-            title={"Details for blade " + props.index}>
-        </CardHeader>
-        <CardContent>
-            <Typography paragraph>
-                This blades uses processor architecture {blade.capacity.arch}. {accelText}.
-                It is {blade.details.enabled ? "enabled" : "disabled"} for use, and is {conditionToString(blade.details.condition)}.
-            </Typography>
-            <Typography paragraph>
-                It is configured to {blade.bootOnPowerOn ? "" : "not "}automatically boot when powered on.
-                When booting, it uses the '{blade.bootInfo.image}' image at version '{blade.bootInfo.version}
-                ' from '{bootSourceText(blade.bootInfo.source)}' storage, with parameters '{blade.bootInfo.parameters}'.
-            </Typography>
-            <Typography paragraph>
-                At simulated time {blade.observed.at},
-                it was in the {bladeSmStateToString(blade.observed.smState)} state, which it entered at simulated time {blade.observed.enteredAt}.
-            </Typography>
+    return <>
+        <Typography paragraph>
+            This blades uses processor architecture {blade.capacity.arch}. {accelText}.
+            It is configured to {blade.bootOnPowerOn ? "" : "not "}automatically boot when powered on.
+            When booting, it uses the '{blade.bootInfo.image}' image at version '{blade.bootInfo.version}
+            ' from '{bootSourceText(blade.bootInfo.source)}' storage, with parameters '{blade.bootInfo.parameters}'.
+        </Typography>
+        <Typography paragraph>
+            At simulated time {blade.observed.at},
+            it was in the {bladeState_SMToString(blade.observed.smState)} state, which it entered at simulated time {blade.observed.enteredAt}.
+        </Typography>
 
-            <Table size="small">
-                <TableHead>
-                    <TableRow>
-                        <TableCell align="center" colSpan={6}>
-                            Usage Details
-                        </TableCell>
-                    </TableRow>
-                    <TableRow>
-                        <TableCell/>
-                        <TableCell>Status</TableCell>
-                        <TableCell>Cores</TableCell>
-                        <TableCell>Memory</TableCell>
-                        <TableCell>Disk</TableCell>
-                        <TableCell>NIC</TableCell>
-                    </TableRow>
-                </TableHead>
-                <TableBody>
-                    <TableRow>
-                        <TableCell className={classes.cell}>Blade Capacity</TableCell>
-                        <TableCell className={classes.cell}>{bladeStatusIcon(blade.observed.smState)}</TableCell>
-                        <TableCell className={classes.cell}>{blade.capacity.cores}</TableCell>
-                        <TableCell className={classes.cell}>{blade.capacity.memoryInMb}</TableCell>
-                        <TableCell className={classes.cell}>{blade.capacity.diskInGb}</TableCell>
-                        <TableCell className={classes.cell}>{blade.capacity.networkBandwidthInMbps}</TableCell>
-                    </TableRow>
+        <Table size="small">
+            <TableHead>
+                <TableRow>
+                    <TableCell align="center" colSpan={6}>
+                        Usage Details
+                    </TableCell>
+                </TableRow>
+                <TableRow>
+                    <TableCell/>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Cores</TableCell>
+                    <TableCell>Memory</TableCell>
+                    <TableCell>Disk</TableCell>
+                    <TableCell>NIC</TableCell>
+                </TableRow>
+            </TableHead>
+            <TableBody>
+                <TableRow>
+                    <TableCell className={classes.cell}>Blade Capacity</TableCell>
+                    <TableCell className={classes.cell}>{bladeStatusIcon(blade.observed.smState)}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.cores}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.memoryInMb}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.diskInGb}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.networkBandwidthInMbps}</TableCell>
+                </TableRow>
 
-                    {props.details.usage.map((v, k) =>
-                         <TableRow>
-                            <TableCell>Instance {k}</TableCell>
-                            <TableCell>{statusIcon(v.state)}</TableCell>
-                            <TableCell>{v.usage}</TableCell>
-                            <TableCell>?</TableCell>
-                            <TableCell>?</TableCell>
-                            <TableCell>?</TableCell>
-                        </TableRow>
-                    )}
-
-                    <TableRow>
-                        <TableCell className={classes.cell}>Unused</TableCell>
-                        <TableCell className={classes.cell}/>
-                        <TableCell className={classes.cell}>{unused}</TableCell>
-                        <TableCell className={classes.cell}>?</TableCell>
-                        <TableCell className={classes.cell}>?</TableCell>
-                        <TableCell className={classes.cell}>?</TableCell>
+                {props.details.usage.map((v, k) =>
+                     <TableRow>
+                        <TableCell>Instance {k}</TableCell>
+                        <TableCell>{statusIcon(v.state)}</TableCell>
+                        <TableCell>{v.usage}</TableCell>
+                        <TableCell>?</TableCell>
+                        <TableCell>?</TableCell>
+                        <TableCell>?</TableCell>
                     </TableRow>
-                </TableBody>
-            </Table>
-        </CardContent>
-    </Card>
+                )}
+
+                <TableRow>
+                    <TableCell className={classes.cell}>Unused</TableCell>
+                    <TableCell className={classes.cell}/>
+                    <TableCell className={classes.cell}>{unused}</TableCell>
+                    <TableCell className={classes.cell}>?</TableCell>
+                    <TableCell className={classes.cell}>?</TableCell>
+                    <TableCell className={classes.cell}>?</TableCell>
+                </TableRow>
+            </TableBody>
+        </Table>
+    </>
 }
