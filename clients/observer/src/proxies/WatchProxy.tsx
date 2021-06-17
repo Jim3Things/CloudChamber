@@ -47,8 +47,8 @@ export class WatchProxy {
 
     // watch is the background async thread that keeps a watch outstanding.
     private watch(handler: ChangeHandlerFunc, lastEpoch: number, tickParam: number, epochParam: number) {
-        var tick = tickParam
-        var epoch = epochParam
+        let tick = tickParam
+        let epoch = epochParam
 
         if (lastEpoch === this.epoch) {
             const route = "/api/watch?tick=" + tick + "&epoch=" + epoch

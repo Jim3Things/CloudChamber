@@ -54,7 +54,11 @@ func (ts *InventoryTestSuite) TestListRacks() {
 	list := &pb.External_ZoneSummary{}
 	require.NoError(ts.getJSONBody(response, list))
 
-	require.Equal(int64(8), list.MaxBladeCount)
+	require.EqualValues(1, list.MaxTorCount)
+	require.EqualValues(1, list.MaxPduCount)
+	require.EqualValues(9, list.MaxConnectors)
+	require.EqualValues(8, list.MaxBladeCount)
+
 	require.Equal(int64(32), list.MaxCapacity.Cores)
 	require.Equal(int64(16384), list.MaxCapacity.MemoryInMb)
 	require.Equal(int64(240), list.MaxCapacity.DiskInGb)

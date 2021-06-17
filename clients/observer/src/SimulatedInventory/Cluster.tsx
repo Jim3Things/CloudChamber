@@ -80,6 +80,9 @@ export function Cluster(props: {
 
                         <Rack
                             bladeLimit={props.cluster.maxBladeCount}
+                            torLimit={props.cluster.maxTorCount}
+                            pduLimit={props.cluster.maxPduCount}
+                            connectorLimit={props.cluster.maxConnectors}
                             capacityLimit={props.cluster.maxCapacity}
                             rack={value}
                             palette={props.palette}

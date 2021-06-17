@@ -37,7 +37,7 @@
 //
 // To allow for object discovery, the inventory allows a caller to request a
 // list of all the children of a navigable node, e.g. search for all of the
-// racks within a zone. To achieve this, the pacakge maintains an index for
+// racks within a zone. To achieve this, the package maintains an index for
 // child objects which is kept separately from the objects themselves. Thus
 // when creating a new object, the package will also create an appropriate
 // index entry to allow that object to be discovered from its parent. In
@@ -45,7 +45,7 @@
 // located. Once a region is know, all the zones within that region can be
 // located. And so on for racks within zones, etc.
 //
-// NOTE: Currently there is no way to discover a parent for a given oject.
+// NOTE: Currently there is no way to discover a parent for a given object.
 //       However, each object contains sufficient information that a parent
 //       can be readily identified if required which would allow this feature
 //       to be added if needed.
@@ -54,6 +54,7 @@ package inventory
 
 import (
 	"context"
+	"fmt"
 	"sync"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
@@ -69,29 +70,29 @@ import (
 const (
 
 	// DefaultRegion is used to provide a value for the non-existing region name
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
 	DefaultRegion = "standard"
 
 	// DefaultZone is used to provide a value for the non-existing zone name
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
 	DefaultZone = "standard"
 
 	// DefaultPdu is used to provide a value for the non-existing pdu ID
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
 	DefaultPdu = int64(0)
 
 	// DefaultTor is used to provide a value for the non-existing tor ID
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
 	DefaultTor = int64(0)
@@ -114,7 +115,7 @@ type inventoryRevision interface {
 	//
 	GetRevisionRecord() int64
 
-	// GetRevisionStore returns the revison of the underlying store ifself as
+	// GetRevisionStore returns the revision of the underlying store itself as
 	// determined at the time of the last Create() Read() for the object. The
 	// store revision is not reset by a SetDetails() call and is provided
 	// for information only.
@@ -134,7 +135,7 @@ type inventoryRevision interface {
 	resetRevision() int64
 
 	// updateRevision is used to set/update the current revision information
-	// as part of a successful invokation of a store routine.
+	// as part of a successful invocation of a store routine.
 	//
 	updateRevisionInfo(rev int64) int64
 }
@@ -154,7 +155,7 @@ type inventoryRevision interface {
 type inventoryItem interface {
 	inventoryRevision
 
-	// Use to set the attribues of an object within the inventory
+	// Use to set the attributes of an object within the inventory
 	//
 	SetDetails(ctx context.Context, details *interface{})
 	GetDetails(ctx context.Context) *interface{}
@@ -176,7 +177,7 @@ type inventoryItem interface {
 	//
 	Read(ctx context.Context) (int64, error)
 
-	// Update will write a record the underlying store using the currenty
+	// Update will write a record the underlying store using the currently
 	// information  in the fields of the object. The update can be either
 	// unconditional by setting the unconditional parameter to true, or
 	// conditional based on the revision of the object compared to the
@@ -246,7 +247,7 @@ func (n *nullItem) GetRevisionStore() int64 {
 	return store.RevisionInvalid
 }
 
-func (n *nullItem) GetRevisionForRequest(unconditional bool) int64 {
+func (n *nullItem) GetRevisionForRequest(_ bool) int64 {
 	return store.RevisionInvalid
 }
 
@@ -254,7 +255,7 @@ func (n *nullItem) resetRevision() int64 {
 	return store.RevisionInvalid
 }
 
-func (n *nullItem) updateRevisionInfo(rev int64) int64 {
+func (n *nullItem) updateRevisionInfo(_ int64) int64 {
 	return store.RevisionInvalid
 }
 
@@ -404,6 +405,49 @@ func (n *nullItem) GetBootInfo() (bool, *interface{}) {
 	return false, nil
 }
 
+// RackSizeSummary contains the maximum content values for a set of racks.  The
+// values can be used to form a visual fixed rack size that is certain to be
+// sufficient to hold any rack's contents covered by this summary instance.
+type RackSizeSummary struct {
+	MaxTorCount   int
+	MaxPduCount   int
+	MaxBladeCount int
+	MaxConnectors int
+	MaxCapacity   *pb.BladeCapacity
+}
+
+// String returns a formatted description of the summary instance.
+func (s RackSizeSummary) String() string {
+	return fmt.Sprintf(
+		"max TORs/rack=%d, max PDUs/rack=%d, maxConnectors in either=%d, max blade capacity=%s",
+		s.MaxTorCount, s.MaxPduCount, s.MaxConnectors, s.MaxCapacity.String())
+}
+
+// setToMax updates the instance such that it encompasses the boundaries set by
+// both itself and the supplied summary instance.  It does this by setting each
+// member field to be the maximum of two values.
+func (s *RackSizeSummary) setToMax(t RackSizeSummary) {
+	s.MaxTorCount = common.MaxInt(s.MaxTorCount, t.MaxTorCount)
+	s.MaxPduCount = common.MaxInt(s.MaxPduCount, t.MaxPduCount)
+	s.MaxBladeCount = common.MaxInt(s.MaxBladeCount, t.MaxBladeCount)
+	s.MaxConnectors = common.MaxInt(s.MaxConnectors, t.MaxConnectors)
+	s.MaxCapacity = maxBladeCapacity(s.MaxCapacity, t.MaxCapacity)
+}
+
+// maxBladeCapacity is a helper function that returns a BladeCapacity instance
+// in which the core, memory, disk, and network capacity fields are the maximum
+// of the two supplied values.
+func maxBladeCapacity(s, t *pb.BladeCapacity) *pb.BladeCapacity {
+	return &pb.BladeCapacity{
+		Cores:                  common.MaxInt64(s.Cores, t.Cores),
+		MemoryInMb:             common.MaxInt64(s.MemoryInMb, t.MemoryInMb),
+		DiskInGb:               common.MaxInt64(s.DiskInGb, t.DiskInGb),
+		NetworkBandwidthInMbps: common.MaxInt64(s.NetworkBandwidthInMbps, t.NetworkBandwidthInMbps),
+		Arch:                   "",
+		Accelerators:           nil,
+	}
+}
+
 // ZoneSummary contains the summary data for a single zone. The contents
 // are either zero or are (re-)computed whenever the inventory definitions
 // are loaded from file. They are a cache of data in the store to avoid
@@ -411,9 +455,8 @@ func (n *nullItem) GetBootInfo() (bool, *interface{}) {
 // data is being handled.
 //
 type ZoneSummary struct {
-	RackCount     int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
+	RackCount int
+	RackSizeSummary
 }
 
 // RegionSummary contains the summary data for a single region. The contents
@@ -423,27 +466,25 @@ type ZoneSummary struct {
 // data is being handled.
 //
 type RegionSummary struct {
-	ZoneCount     int
-	MaxRackCount  int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
+	ZoneCount    int
+	MaxRackCount int
+	RackSizeSummary
 }
 
-// RootSummary contains the summary data for the entire invnetory. The contents
+// RootSummary contains the summary data for the entire inventory. The contents
 // are either zero or are (re-)computed whenever the inventory definitions
 // are loaded from file. They are a cache of data in the store to avoid
 // having to scan the entire zone whenever a simple query for the basic
 // data is being handled.
 //
 type RootSummary struct {
-	RegionCount   int
-	MaxZoneCount  int
-	MaxRackCount  int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
+	RegionCount  int
+	MaxZoneCount int
+	MaxRackCount int
+	RackSizeSummary
 }
 
-// Inventory is a structure used to estblished synchronized access to values
+// Inventory is a structure used to established synchronized access to values
 // required to make use of the inventory layer.
 //
 type Inventory struct {
@@ -464,8 +505,14 @@ func NewInventory(cfg *config.GlobalConfig, store *store.Store) *Inventory {
 		Store:       store,
 		RootSummary: &RootSummary{},
 		DefaultZoneSummary: &ZoneSummary{
-			MaxCapacity: &pb.BladeCapacity{
-				Accelerators: []*pb.Accelerator{},
+			RackSizeSummary: RackSizeSummary{
+				MaxTorCount:   0,
+				MaxPduCount:   0,
+				MaxBladeCount: 0,
+				MaxConnectors: 0,
+				MaxCapacity: &pb.BladeCapacity{
+					Accelerators: []*pb.Accelerator{},
+				},
 			},
 		},
 	}
@@ -1030,7 +1077,7 @@ func (m *Inventory) buildSummaryInformation(ctx context.Context, root *pb.Defini
 	if err != nil {
 		zoneSummary = &ZoneSummary{}
 
-		tracing.Error(
+		_ = tracing.Error(
 			ctx,
 			"Reset DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v - %v",
 			zoneSummary.RackCount,
@@ -1458,118 +1505,124 @@ func (m *Inventory) deleteInventoryDefinitionFromStore(ctx context.Context, stor
 // buildSummaryForRoot constructs the memo-ed summary data for the root. This should
 // be called whenever the configured inventory changes. This includes
 //
-// - the zone count
-// - the maximum number of blades in a rack
-// - the memo data itself
+// - the region count
+// - the maximum number of zones in a region
+// - the maximum number of racks in a zone
+// - the maximum number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
 //
 func (m *Inventory) buildSummaryForRoot(
 	root *pb.Definition_Root) *RootSummary {
 
-	maxCapacity := &pb.BladeCapacity{}
-	maxZoneCount := int(0)
-	maxRackCount := int(0)
-	maxBladeCount := int(0)
+	summary := RackSizeSummary{
+		MaxCapacity: &pb.BladeCapacity{},
+	}
+
+	maxZoneCount := 0
+	maxRackCount := 0
 
 	for _, region := range root.Regions {
 		regionSummary := m.buildSummaryForRegion(region)
 
-		maxBladeCount = common.MaxInt(maxBladeCount, regionSummary.MaxBladeCount)
+		summary.setToMax(regionSummary.RackSizeSummary)
 		maxRackCount = common.MaxInt(maxRackCount, regionSummary.MaxRackCount)
 		maxZoneCount = common.MaxInt(maxZoneCount, regionSummary.ZoneCount)
-
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, regionSummary.MaxCapacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, regionSummary.MaxCapacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, regionSummary.MaxCapacity.MemoryInMb)
-
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-			maxCapacity.NetworkBandwidthInMbps,
-			regionSummary.MaxCapacity.NetworkBandwidthInMbps)
 	}
 
 	return &RootSummary{
-		RegionCount:   len(root.Regions),
-		MaxZoneCount:  maxZoneCount,
-		MaxRackCount:  maxRackCount,
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
+		RegionCount:     len(root.Regions),
+		MaxZoneCount:    maxZoneCount,
+		MaxRackCount:    maxRackCount,
+		RackSizeSummary: summary,
 	}
 }
 
-// buildSummary constructs the memo-ed summary data for the zone.  This should
-// be called whenever the configured inventory changes. This includes
+// buildSummaryForRegion constructs the memo-ed summary data for the region.
+// This should be called whenever the configured inventory changes. This includes
 //
 // - the zone count
-// - the maximum number of blades in a rack
-// - the memo data itself
+// - the maximum number of racks in a zone
+// - the maximum number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
 //
 func (m *Inventory) buildSummaryForRegion(
 	region *pb.Definition_Region) *RegionSummary {
 
-	maxCapacity := &pb.BladeCapacity{}
-	maxRackCount := int(0)
-	maxBladeCount := int(0)
+	summary := RackSizeSummary{
+		MaxCapacity: &pb.BladeCapacity{},
+	}
+
+	maxRackCount := 0
 
 	for _, zone := range region.Zones {
 		zoneSummary := m.buildSummaryForZone(zone)
+		summary.setToMax(zoneSummary.RackSizeSummary)
 
-		maxBladeCount = common.MaxInt(maxBladeCount, zoneSummary.MaxBladeCount)
 		maxRackCount = common.MaxInt(maxRackCount, zoneSummary.RackCount)
-
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, zoneSummary.MaxCapacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, zoneSummary.MaxCapacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, zoneSummary.MaxCapacity.MemoryInMb)
-
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-			maxCapacity.NetworkBandwidthInMbps,
-			zoneSummary.MaxCapacity.NetworkBandwidthInMbps)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, zoneSummary.MaxBladeCount)
 	}
 
 	return &RegionSummary{
-		ZoneCount:     len(region.Zones),
-		MaxRackCount:  maxRackCount,
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
+		ZoneCount:       len(region.Zones),
+		MaxRackCount:    maxRackCount,
+		RackSizeSummary: summary,
 	}
 }
 
+// buildSummaryForZone constructs the memo-ed summary data for the zone. This
+// should be called whenever the configured inventory changes. This includes
+//
+// - the number of racks in a zone
+// - the maximum number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
+//
 func (m *Inventory) buildSummaryForZone(zone *pb.Definition_Zone) *ZoneSummary {
 
-	maxCapacity := &pb.BladeCapacity{}
-	maxBladeCount := int(0)
+	summary := RackSizeSummary{
+		MaxCapacity: &pb.BladeCapacity{},
+	}
 
 	for _, rack := range zone.Racks {
-		bladeCount, capacity := m.buildSummaryForRack(rack)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, bladeCount)
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, capacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, capacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, capacity.MemoryInMb)
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-			maxCapacity.NetworkBandwidthInMbps,
-			capacity.NetworkBandwidthInMbps)
+		summary.setToMax(m.buildSummaryForRack(rack))
 	}
 
 	return &ZoneSummary{
-		RackCount:     len(zone.Racks),
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
+		RackCount:       len(zone.Racks),
+		RackSizeSummary: summary,
 	}
 }
 
-func (m *Inventory) buildSummaryForRack(rack *pb.Definition_Rack) (int, *pb.BladeCapacity) {
+// buildSummaryForZone constructs the memo-ed summary data for the rack. This
+// should be called whenever the configured inventory changes. This includes
+//
+// - the number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
+//
+func (m *Inventory) buildSummaryForRack(rack *pb.Definition_Rack) RackSizeSummary {
 
 	memo := &pb.BladeCapacity{}
 
 	for _, blade := range rack.Blades {
-		memo.Cores = common.MaxInt64(memo.Cores, blade.Capacity.Cores)
-		memo.DiskInGb = common.MaxInt64(memo.DiskInGb, blade.Capacity.DiskInGb)
-		memo.MemoryInMb = common.MaxInt64(memo.MemoryInMb, blade.Capacity.MemoryInMb)
-		memo.NetworkBandwidthInMbps = common.MaxInt64(
-			memo.NetworkBandwidthInMbps,
-			blade.Capacity.NetworkBandwidthInMbps)
+		memo = maxBladeCapacity(memo, blade.Capacity)
 	}
 
-	return len(rack.Blades), memo
+	connectors := 0
+	for _, tor := range rack.Tors {
+		connectors = common.MaxInt(connectors, len(tor.Ports))
+	}
+
+	for _, pdu := range rack.Pdus {
+		connectors = common.MaxInt(connectors, len(pdu.Ports))
+	}
+
+	return RackSizeSummary{
+		MaxTorCount:   len(rack.Tors),
+		MaxPduCount:   len(rack.Pdus),
+		MaxBladeCount: len(rack.Blades),
+		MaxConnectors: connectors,
+		MaxCapacity:   memo,
+	}
 }

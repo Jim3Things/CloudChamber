@@ -59,21 +59,7 @@ message Actual {
         // this holds the simulated cables attached to this element.
         map<int64, Cable> cables = 2;
 
-        // This defines the state machine states
-        enum State {
-            invalid = 0;
-
-            // This is the state where the PDU is powered on and working.
-            working = 1;
-
-            // This is the state where the PDU is powered off.
-            off = 2;
-
-            // This is the state where the PDU is unresponsive, but power may or
-            // may not still be on.
-            stuck = 3;
-        }
-        State sm_state = 3;
+        PduState.SM sm_state = 3;
 
         // This is the stored core state machine recovery state.
         MachineCore core = 4;
@@ -87,17 +73,7 @@ message Actual {
         // this holds the simulated cables attached to this element.
         map<int64, Cable> cables = 2;
 
-        // This defines the state machine states
-        enum State {
-            invalid = 0;
-
-            working = 1;
-
-            // The TOR is faulted and unresponsive. Note that programmed cables
-            // may or may not continue to be programmed.
-            stuck = 2;
-        }
-        State sm_state = 3;
+        TorState.SM sm_state = 3;
 
         // This is the stored core state machine recovery state.
         MachineCore core = 4;
@@ -108,7 +84,7 @@ message Actual {
         // lifecycle state.
         Condition condition = 1;
 
-        BladeSmState sm_state = 2;
+        BladeState.SM sm_state = 2;
 
         // This is the stored core state machine recovery state.
         MachineCore core = 3;

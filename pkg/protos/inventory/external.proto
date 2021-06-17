@@ -15,30 +15,73 @@ option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/in
 option csharp_namespace = "CloudChamber.Protos.Inventory";
 
 message External {
+    message ObservedCable {
+        // The simulated time when the observation was made
+        int64 at = 1;
+
+        // The state the PDU was in at that time.
+        CableState.SM sm_state = 2;
+
+        // The simulated time when it entered this state.
+        int64 entered_at = 3;
+    }
+
     // Power distribution unit.  Network accessible power controller
     message Pdu {
         PduDetails details = 1;
+
+        message Port {
+            PowerPort port = 1;
+            ObservedCable observed = 2;
+        }
 
         // Defines a power "socket" which is used to provide power to a blade. There is
         // a 1 to 1 mapping of a power port to a blade within a single rack and it is an
         // error if there fewer power ports than blades.
         //
-        map<int64, PowerPort> ports = 2;
+        map<int64, Port> ports = 2;
 
         // Observed, actual, and target data follows on from here...
+        message ObservedState {
+            // The simulated time when the observation was made
+            int64 at = 1;
+
+            // The state the PDU was in at that time.
+            PduState.SM sm_state = 2;
+
+            // The simulated time when it entered this state.
+            int64 entered_at = 3;
+        }
+        ObservedState observed = 3;
     }
 
     // Rack-level network switch.
     message Tor {
         TorDetails details = 1;
 
+        message Port {
+            NetworkPort port = 1;
+            ObservedCable observed = 2;
+        }
+
         // Defines a network "port" which is used to provide a network connection to a
         // blade. There is a 1 to 1 mapping of a network port to a blade within a single
         // rack and it is an error if there fewer network ports than blades.
         //
-        map<int64, NetworkPort> ports = 2;
+        map<int64, Port> ports = 2;
 
         // Observed, actual, and target data follows on from here...
+        message ObservedState {
+            // The simulated time when the observation was made
+            int64 at = 1;
+
+            // The state the TOR was in at that time.
+            TorState.SM sm_state = 2;
+
+            // The simulated time when it entered this state.
+            int64 entered_at = 3;
+        }
+        ObservedState observed = 3;
     }
 
     // Individual blade within the rack
@@ -62,7 +105,7 @@ message External {
             int64 at = 1;
 
             // The state the blade was in at that time.
-            BladeSmState sm_state = 2;
+            BladeState.SM sm_state = 2;
 
             // The simulated time when it entered this state.
             int64 entered_at = 3;
@@ -123,5 +166,14 @@ message External {
 
         // Friendly name for the zone
         string name = 5;
+
+        // The largest number of TORs held in any rack.
+        int64 max_tor_count = 6;
+
+        // The largest number of PDUs held in any rack.
+        int64 max_pdu_count = 7;
+
+        // The largest number of connectors in either a TOR or a PDU.
+        int64 max_connectors = 8;
     }
 }
