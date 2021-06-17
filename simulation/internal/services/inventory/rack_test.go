@@ -266,7 +266,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	require.Nil(res)
 
 	for _, p := range r.pdus {
-		require.Equal(pb.Actual_Pdu_working, p.sm.CurrentIndex)
+		require.Equal(pb.PduState_working, p.sm.CurrentIndex)
 
 		for _, c := range p.cables {
 			require.False(c.on)
