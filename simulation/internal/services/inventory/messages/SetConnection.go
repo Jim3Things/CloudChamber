@@ -38,7 +38,7 @@ func NewSetConnection(
 // SendVia forwards the repair message to the rack's TOR for processing.  This
 // is not the final destination for the message.
 func (m *SetConnection) SendVia(ctx context.Context, r viaSender) error {
-	return r.ViaTor(ctx, m)
+	return r.ViaTor(ctx, m.Target, m)
 }
 
 // String provides a formatted description of the message.

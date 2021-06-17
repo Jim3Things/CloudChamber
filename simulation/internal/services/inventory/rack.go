@@ -23,8 +23,11 @@ type Rack struct {
 	// is where the state machine runs.
 	ch chan sm.Envelope
 
-	tor    *tor
-	pdu    *pdu
+	toTor map[string]int64
+	toPdu map[string]int64
+
+	tors   map[int64]*tor
+	pdus   map[int64]*pdu
 	blades map[int64]*blade
 
 	sm *sm.SM
@@ -52,26 +55,12 @@ func newRack(
 	torKey string,
 	bladeKey string,
 	timers *timestamp.Timers) *Rack {
-	return newRackInternal(ctx, name, def, pduKey, torKey, bladeKey, timers, newPdu, newTor)
-}
-
-// newRackInternal is the implementation behind newRack.  It supports
-// dependency injection, to more cleanly allow unit testing of the Rack state
-// machine logic.
-func newRackInternal(
-	ctx context.Context,
-	name string,
-	def *pb.Definition_Rack,
-	pduKey string,
-	torKey string,
-	bladeKey string,
-	timers *timestamp.Timers,
-	pduFunc func(context.Context, *pb.Definition_Pdu, string, *Rack) *pdu,
-	torFunc func(context.Context, *pb.Definition_Tor, string, *Rack) *tor) *Rack {
 	r := &Rack{
 		ch:        make(chan sm.Envelope, rackQueueDepth),
-		tor:       nil,
-		pdu:       nil,
+		toTor:     make(map[string]int64),
+		toPdu:     make(map[string]int64),
+		tors:      make(map[int64]*tor),
+		pdus:      make(map[int64]*pdu),
 		blades:    make(map[int64]*blade),
 		sm:        nil,
 		timers:    timers,
@@ -112,28 +101,52 @@ func newRackInternal(
 
 	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
 
-	r.pdu = pduFunc(ctx, def.GetPdus()[0], fmt.Sprintf("%s%d", pduKey, 0), r)
-	r.tor = torFunc(ctx, def.GetTors()[0], fmt.Sprintf("%s%d", torKey, 0), r)
+	for i, item := range def.GetTors() {
+		r.tors[i] = newTor(ctx, item, fmt.Sprintf("%s%d", torKey, i), r, i)
+	}
+
+	for i, item := range def.GetPdus() {
+		r.pdus[i] = newPdu(ctx, item, fmt.Sprintf("%s%d", pduKey, i), r, i)
+	}
 
 	for i, item := range def.GetBlades() {
 		r.blades[i] = newBlade(ctx, item, fmt.Sprintf("%s%d", bladeKey, i), r, i)
-
-		// These two calls are temporary fix-ups until the inventory definition
-		// includes the tor and pdu connectors
-		r.pdu.fixConnection(ctx, i)
-		r.tor.fixConnection(ctx, i)
 	}
 
 	return r
 }
 
+// AddToTorMap sets the specified target to route through the TOR at the index
+// supplied by the id parameter.
+func (r *Rack) AddToTorMap(key string, id int64) {
+	r.toTor[key] = id
+}
+
+// AddToPduMap sets the specified target to route through the PDU at the index
+// supplied by the id parameter.
+func (r *Rack) AddToPduMap(key string, id int64) {
+	r.toPdu[key] = id
+}
+
 // ViaTor forwards the supplied message to the Rack's simulated TOR for
 // processing.  This will likely not be the final destination, but requires
 // operation by the TOR in order to reach its final destination.
-func (r *Rack) ViaTor(ctx context.Context, msg sm.Envelope) error {
+func (r *Rack) ViaTor(ctx context.Context, t *messages.MessageTarget, msg sm.Envelope) error {
 	tracing.Info(ctx, "Forwarding %v to TOR in rack %q", msg, r.sm.Name)
+	key := t.Key()
+	idx, ok := r.toTor[key]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is invalid", idx)
+		return errors.ErrInvalidTarget
+	}
 
-	r.tor.Receive(ctx, msg)
+	tor, ok := r.tors[idx]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is valid, but no tor index '%d' is not.", idx, idx)
+		return errors.ErrInvalidTarget
+	}
+
+	tor.Receive(ctx, msg)
 
 	return nil
 }
@@ -141,24 +154,67 @@ func (r *Rack) ViaTor(ctx context.Context, msg sm.Envelope) error {
 // ViaPDU forwards the supplied message to the Rack's simulated PDU for
 // processing.  This may or may not impact the full PDU and the all blades,
 // or only one blade's power state.
-func (r *Rack) ViaPDU(ctx context.Context, msg sm.Envelope) error {
+func (r *Rack) ViaPDU(ctx context.Context, t *messages.MessageTarget, msg sm.Envelope) error {
 	tracing.Info(ctx, "Forwarding '%v' to PDU in rack %q", msg, r.sm.Name)
-	r.pdu.Receive(ctx, msg)
+	key := t.Key()
+	idx, ok := r.toPdu[key]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is invalid", key)
+		return errors.ErrInvalidTarget
+	}
 
+	pdu, ok := r.pdus[idx]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is valid, but no pdu index '%d' is not.", key, idx)
+		return errors.ErrInvalidTarget
+	}
+
+	pdu.Receive(ctx, msg)
 	return nil
 }
 
-// ViaBlade forwards the supplied message directly to the target blade, without
+// ToBlade forwards the supplied message directly to the target blade, without
 // any intermediate hops.  This should only be used by events that do not need
 // to simulate a working network connection for reachability, or a working power
 // cable for execution.
-func (r *Rack) ViaBlade(ctx context.Context, id int64, msg sm.Envelope) error {
-	tracing.Info(ctx, "Forwarding '%v' to blade %d in rack %q", msg, id, r.sm.Name)
+func (r *Rack) ToBlade(ctx context.Context, id int64, msg sm.Envelope) error {
+	tracing.Info(ctx, "Sending '%v' to blade %d in rack %q", msg, id, r.sm.Name)
 	if b, ok := r.blades[id]; ok {
 		b.Receive(ctx, msg)
 		return nil
 	}
 
+	tracing.Warn(ctx, "Blade %d not found", id)
+	return errors.ErrInvalidTarget
+}
+
+// ToTor forwards the supplied message directly to the target TOR, without
+// any intermediate hops.  This should only be used by events that do not need
+// to simulate a working network connection for reachability, or a working power
+// cable for execution.
+func (r *Rack) ToTor(ctx context.Context, id int64, msg sm.Envelope) error {
+	tracing.Info(ctx, "Sending '%v' to TOR %d in rack %q", msg, id, r.sm.Name)
+	if t, ok := r.tors[id]; ok {
+		t.Receive(ctx, msg)
+		return nil
+	}
+
+	tracing.Warn(ctx, "TOR %d not found", id)
+	return errors.ErrInvalidTarget
+}
+
+// ToPdu forwards the supplied message directly to the target PDU, without
+// any intermediate hops.  This should only be used by events that do not need
+// to simulate a working network connection for reachability, or a working power
+// cable for execution.
+func (r *Rack) ToPdu(ctx context.Context, id int64, msg sm.Envelope) error {
+	tracing.Info(ctx, "Sending '%v' to PDU %d in rack %q", msg, id, r.sm.Name)
+	if p, ok := r.pdus[id]; ok {
+		p.Receive(ctx, msg)
+		return nil
+	}
+
+	tracing.Warn(ctx, "PDU %d not found", id)
 	return errors.ErrInvalidTarget
 }
 
@@ -289,12 +345,20 @@ func startSim(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 
 	err := r.sm.Start(ctx)
 
-	if err == nil {
-		err = r.pdu.sm.Start(ctx)
+	for _, t := range r.tors {
+		if err != nil {
+			break
+		}
+
+		err = t.sm.Start(ctx)
 	}
 
-	if err == nil {
-		err = r.tor.sm.Start(ctx)
+	for _, p := range r.pdus {
+		if err != nil {
+			break
+		}
+
+		err = p.sm.Start(ctx)
 	}
 
 	for _, b := range r.blades {

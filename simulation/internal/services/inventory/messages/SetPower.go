@@ -37,7 +37,7 @@ func NewSetPower(
 // SendVia forwards the repair message to the rack's PDU for processing.  This
 // may or may not be the final destination for the message.
 func (m *SetPower) SendVia(ctx context.Context, r viaSender) error {
-	return r.ViaPDU(ctx, m)
+	return r.ViaPDU(ctx, m.Target, m)
 }
 
 // String provides a formatted description of the message.

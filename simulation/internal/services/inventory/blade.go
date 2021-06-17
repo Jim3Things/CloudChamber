@@ -231,7 +231,7 @@ func (b *blade) Receive(ctx context.Context, msg sm.Envelope) {
 }
 
 func (b *blade) me() *messages.MessageTarget {
-	return messages.NewTargetBlade(b.holder.sm.Name, b.id)
+	return messages.NewTargetBlade(b.holder.sm.Name, b.id, 0)
 }
 
 // +++ blade state machine actions
