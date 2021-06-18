@@ -56,7 +56,7 @@ type viaSender interface {
 
 	// ToBlade processes messages that must be directly delivered to a blade,
 	// with no intermediate routing.  These are messages that are internal to
-	// the operation of hte simulation itself, such as a simulated timeout.
+	// the operation of the simulation itself, such as a simulated timeout.
 	ToBlade(ctx context.Context, id int64, msg sm.Envelope) error
 
 	// ToTor processes messages that must be directly delivered to a TOR, for
