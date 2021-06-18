@@ -3,6 +3,8 @@ PROJECT = $(GOPATH)/src/github.com/Jim3Things/CloudChamber
 OBSERVER_UI = clients/observer
 OBSERVER_UI_BUILD = $(OBSERVER_UI)/build
 
+KIT_BUILD = simulation/deployments
+
 ProdFiles = $(filter-out %_test.go, $(wildcard $(1)/*.go))
 CssFiles = $(wildcard $(1)/*.css)
 SvgFiles = $(wildcard $(1)/*.svg)
@@ -181,7 +183,6 @@ SRC_TRACING_CLIENT = \
 SRC_VERSION = \
 	simulation/pkg/version/version.go
 
-
 SRC_CONTROLLER = \
 	$(call ProdFiles, simulation/cmd/controllerd) \
 	$(SRC_CONFIG) \
@@ -213,37 +214,36 @@ SRC_WEBSERVER = \
 	$(SRC_TRACING_EXPORTERS) \
 	$(SRC_TRACING_SETUP)
 
+SRC_ARTIFACTS = \
+	simulation/pkg/version/readme.md \
+	simulation/configs/cloudchamber.yaml \
+	simulation/configs/inventory.yaml \
+	simulation/scripts/Deploy.cmd \
+	simulation/scripts/StartEtcd.cmd \
+	simulation/scripts/StartAll.cmd \
+	simulation/scripts/StartCloudChamber.cmd \
+	simulation/scripts/MonitorEtcd.cmd
 
 
-
-SERVICES = \
-    simulation/deployments/controllerd.exe \
-    simulation/deployments/inventoryd.exe \
-    simulation/deployments/sim_supportd.exe \
-    simulation/deployments/web_server.exe
-
-VERSION_MARKER = \
-    simulation/pkg/version/generated.go \
-    simulation/pkg/version/version_stamp.md
-
-ARTIFACTS = \
-    simulation/deployments/readme.md \
-    simulation/deployments/cloudchamber.yaml \
-    simulation/deployments/inventory.yaml \
-    simulation/deployments/Deploy.cmd \
-    simulation/deployments/StartAll.cmd \
-    simulation/deployments/StartCloudChamber.cmd \
-    simulation/deployments/StartEtcd.cmd \
-    simulation/deployments/MonitorEtcd.cmd
+ARTIFACTS = $(addprefix $(KIT_BUILD)/, $(notdir $(SRC_ARTIFACTS)))
 
 OBSERVER = \
     $(OBSERVER_UI_BUILD)/asset-manifest.json \
     $(OBSERVER_UI_BUILD)/index.html
 
+SERVICES = \
+    $(KIT_BUILD)/controllerd.exe \
+    $(KIT_BUILD)/inventoryd.exe \
+    $(KIT_BUILD)/sim_supportd.exe \
+    $(KIT_BUILD)/web_server.exe
+
+VERSION_MARKER = \
+    simulation/pkg/version/generated.go \
+    simulation/pkg/version/version_stamp.md \
+	simulation/pkg/version/readme.md
 
 
 INSTALL_KIT = $(SERVICES) $(ARTIFACTS) $(OBSERVER)
-
 
 
 ifdef CC_INSTALL_TARGET
@@ -261,13 +261,12 @@ INSTALL_TARGET = ~/CloudChamber/Files
 endif
 
 
-
 PROTOC_BASE = protoc --proto_path=$(GOPATH)/src
 
-PROTOC_PBUF = $(PROTOC_BASE) --go_out=$(GOPATH)/src
+PROTOC_PBUF    = $(PROTOC_BASE) --go_out=$(GOPATH)/src
 PROTOC_PBUF_CS = $(PROTOC_BASE) --csharp_out=$(PROJECT)/pkg/protos --csharp_opt=file_extension=.pb.cs,base_namespace=CloudChamber.Protos
 PROTOC_PBUF_TS = $(PROTOC_BASE) --ts_proto_out=$(GOPATH)/src --ts_proto_opt=outputEncodeMethods=false,outputPartialMethods=false,outputClientImpl=false
-PROTOC_GRPC = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
+PROTOC_GRPC    = $(PROTOC_BASE) --go_out=plugins=grpc:$(GOPATH)/src
 
 
 CP = cp
@@ -277,16 +276,16 @@ MD = mkdir -p
 
 RM-RECURSIVE = $(RM) -r
 
+TOUCH = touch --no-create
 
-define run-proto-grpc = 
-	$(PROTOC_GRPC) $^
+
+define run-proto-grpc =
+	$(PROTOC_GRPC) $(PROJECT)/$^
 endef
-
 
 define run-go-build =
 	go build -o $(PROJECT)/$@ $(PROJECT)/$<
 endef
-
 
 
 all: build run_tests
@@ -314,10 +313,16 @@ install: $(INSTALL_KIT)
 .PHONY : install_clean
 
 install_clean:
-
 	$(RM-RECURSIVE) $(INSTALL_TARGET)/static
 	$(RM-RECURSIVE) $(INSTALL_TARGET)
 
+
+.PHONY : kit
+
+kit : $(INSTALL_KIT)
+	$(CP) $(OBSERVER_UI_BUILD)/*.* $(KIT_BUILD)/
+	$(CP-RECURSIVE) $(OBSERVER_UI_BUILD)/static $(KIT_BUILD)/
+	$(TOUCH) $(KIT_BUILD)
 
 
 .PHONY : run_tests
@@ -348,6 +353,12 @@ clean:
 test: run_tests
 
 
+.PHONY : ui
+
+ui:
+	$(MAKE) -C $(OBSERVER_UI) build
+
+
 %.pb.go : %.proto
 	$(PROTOC_PBUF) $(PROJECT)/$<
 
@@ -357,24 +368,13 @@ test: run_tests
 %.ts : %.proto
 	$(PROTOC_PBUF_TS) $(PROJECT)/$<
 
-%.ts_ref : %.ts 
-	echo ******* Check for out of date $@ *******
 
-%.tsx : %.ts_ref
-	echo ******* Check for out of date $@ *******
+$(ARTIFACTS) &: $(SRC_ARTIFACTS)
+	$(CP) $(SRC_ARTIFACTS) $(dir $@)
 
-
-#pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
-#	$(PROTOC_GRPC) $(PROJECT)/$<
-
-#pkg/protos/services/monitor.pb.go: pkg/protos/services/monitor.proto
-#	$(PROTOC_GRPC) $(PROJECT)/$<
-
-#pkg/protos/services/stepper.pb.go: pkg/protos/services/stepper.proto
-#	$(PROTOC_GRPC) $(PROJECT)/$<
-
-#pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
-#	$(PROTOC_GRPC) $(PROJECT)/$<
+$(VERSION_MARKER) &: $(SRC_VERSION)
+	go generate $(PROJECT)/$<
+	$(CP) simulation/pkg/version/version_stamp.md simulation/pkg/version/readme.md
 
 
 pkg/protos/services/inventory.pb.go: pkg/protos/services/inventory.proto
@@ -390,45 +390,14 @@ pkg/protos/services/trace_sink.pb.go: pkg/protos/services/trace_sink.proto
 	$(run-proto-grpc)
 
 
-
-$(VERSION_MARKER) &: $(SRC_VERSION)
-	go generate $(PROJECT)/$<
-
 simulation/deployments/controllerd.exe:  $(SRC_CONTROLLER) $(PROTO_GEN_FILES) $(VERSION_MARKER)
-	go build -o $(PROJECT)/$@ $(PROJECT)/$<
+	$(run-go-build)
 
 simulation/deployments/inventoryd.exe:   $(SRC_INVENTORY)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
-	go build -o $(PROJECT)/$@ $(PROJECT)/$<
+	$(run-go-build)
 
 simulation/deployments/sim_supportd.exe: $(SRC_SIMSUPPORT) $(PROTO_GEN_FILES) $(VERSION_MARKER)
-	go build -o $(PROJECT)/$@ $(PROJECT)/$<
+	$(run-go-build)
 
 simulation/deployments/web_server.exe:   $(SRC_WEBSERVER)  $(PROTO_GEN_FILES) $(VERSION_MARKER)
-	go build -o $(PROJECT)/$@ $(PROJECT)/$<
-
-simulation/deployments/readme.md: simulation/pkg/version/version_stamp.md
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-simulation/deployments/cloudchamber.yaml: simulation/configs/cloudchamber.yaml
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-simulation/deployments/inventory.yaml: simulation/configs/inventory.yaml
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-simulation/deployments/Deploy.cmd: simulation/scripts/Deploy.cmd
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-simulation/deployments/StartEtcd.cmd: simulation/scripts/StartEtcd.cmd
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-simulation/deployments/StartAll.cmd : simulation/scripts/StartAll.cmd
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-simulation/deployments/StartCloudChamber.cmd : simulation/scripts/StartCloudChamber.cmd
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-simulation/deployments/MonitorEtcd.cmd : simulation/scripts/MonitorEtcd.cmd
-	$(CP) $(PROJECT)/$< $(PROJECT)/$@
-
-
-
+	$(run-go-build)
