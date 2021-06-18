@@ -29,7 +29,7 @@ func (ts *BladeTestSuite) issueSetPower(ctx context.Context, r *Rack, id int64, 
 
 	msg := messages.NewSetPower(
 		ctx,
-		messages.NewTargetBlade(ts.rackName(), id),
+		messages.NewTargetBlade(ts.rackName(), id, 0),
 		common.TickFromContext(ctx),
 		on,
 		rsp)
@@ -49,7 +49,7 @@ func (ts *BladeTestSuite) issueSetConnection(ctx context.Context, r *Rack, id in
 
 	msg := messages.NewSetConnection(
 		ctx,
-		messages.NewTargetBlade(ts.rackName(), id),
+		messages.NewTargetBlade(ts.rackName(), id, 0),
 		common.TickFromContext(ctx),
 		on,
 		rsp)
@@ -67,7 +67,7 @@ func (ts *BladeTestSuite) issueGetStatus(ctx context.Context, r *Rack, id int64)
 
 	rsp := make(chan *sm.Response)
 	msg := messages.NewGetStatus(ctx,
-		messages.NewTargetBlade(ts.rackName(), id),
+		messages.NewTargetBlade(ts.rackName(), id, 0),
 		common.TickFromContext(ctx),
 		rsp)
 
@@ -89,9 +89,9 @@ func (ts *BladeTestSuite) TestGetStatus() {
 		context.Background(),
 		ts.rackName(),
 		rackDef,
-		fmt.Sprintf("racks/%s/pdus/",ts.rackName()),
-		fmt.Sprintf("racks/%s/tors/",ts.rackName()),
-		fmt.Sprintf("racks/%s/blades/",ts.rackName()),
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
 		ts.timers)
 	require.NotNil(r)
 	ctx := ts.advance(context.Background())
@@ -153,9 +153,9 @@ func (ts *BladeTestSuite) TestPowerOn() {
 		context.Background(),
 		ts.rackName(),
 		rackDef,
-		fmt.Sprintf("racks/%s/pdus/",ts.rackName()),
-		fmt.Sprintf("racks/%s/tors/",ts.rackName()),
-		fmt.Sprintf("racks/%s/blades/",ts.rackName()),
+		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
+		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
+		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
 		ts.timers)
 	require.NotNil(r)
 	ctx := ts.advance(context.Background())
@@ -310,8 +310,8 @@ func (ts *BladeTestSuite) TestWorkingToIsolatedToWorking() {
 	require := ts.Require()
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
-
-	ctx = ts.bootBlade(ctx, r, 0)
+	target := messages.NewTargetBlade(ts.rackName(), 0, 0)
+	ctx = ts.bootBlade(ctx, r, target)
 
 	ctx, span := tracing.StartSpan(
 		ctx,
@@ -350,8 +350,8 @@ func (ts *BladeTestSuite) TestWorkingToOffConn() {
 	require := ts.Require()
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
-
-	ctx = ts.bootBlade(ctx, r, 0)
+	target := messages.NewTargetBlade(ts.rackName(), 0, 0)
+	ctx = ts.bootBlade(ctx, r, target)
 
 	ctx, span := tracing.StartSpan(
 		ctx,
@@ -375,7 +375,8 @@ func (ts *BladeTestSuite) TestOffConnToOffDiscon() {
 
 	ctx, r := ts.createAndStartRack(context.Background(), 2, false, false)
 
-	ctx = ts.bootBlade(ctx, r, 0)
+	target := messages.NewTargetBlade(ts.rackName(), 0, 0)
+	ctx = ts.bootBlade(ctx, r, target)
 
 	ctx, span := tracing.StartSpan(
 		ctx,

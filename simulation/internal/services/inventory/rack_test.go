@@ -253,7 +253,7 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 
 	msg := messages.NewSetPower(
 		ctx,
-		messages.NewTargetPdu(ts.rackName()),
+		messages.NewTargetPdu(ts.rackName(), 0, 0),
 		common.TickFromContext(ctx),
 		true,
 		rsp)
@@ -265,11 +265,13 @@ func (ts *RackTestSuite) TestPowerOnPdu() {
 	require.True(ok)
 	require.Nil(res)
 
-	for _, c := range r.pdu.cables {
-		assert.False(c.on)
-	}
+	for _, p := range r.pdus {
+		require.Equal(pb.PduState_working, p.sm.CurrentIndex)
 
-	assert.Equal(pb.PduState_working, r.pdu.sm.CurrentIndex)
+		for _, c := range p.cables {
+			require.False(c.on)
+		}
+	}
 
 	r.stop(ctx)
 	assert.Equal(pb.Actual_Rack_terminated, r.sm.CurrentIndex)

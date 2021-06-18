@@ -67,15 +67,6 @@ func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.Definition_Rack {
 		Blades: make(map[int64]*pb.Definition_Blade),
 	}
 
-	for i := 0; i < bladeCount; i++ {
-		rackDef.Blades[int64(i)] = &pb.Definition_Blade{
-			Details:  &pb.BladeDetails{},
-			Capacity: &pb.BladeCapacity{},
-			BootInfo: &pb.BladeBootInfo{},
-			BootOnPowerOn: true,
-		}
-	}
-
 	rackDef.Pdus[0] = &pb.Definition_Pdu{
 		Details: &pb.PduDetails{},
 		Ports:   make(map[int64]*pb.PowerPort),
@@ -84,6 +75,31 @@ func (ts *testSuiteCore) createDummyRack(bladeCount int) *pb.Definition_Rack {
 	rackDef.Tors[0] = &pb.Definition_Tor{
 		Details: &pb.TorDetails{},
 		Ports:   make(map[int64]*pb.NetworkPort),
+	}
+
+	for i := 0; i < bladeCount; i++ {
+		hw := &pb.Hardware{
+			Type: pb.Hardware_blade,
+			Id:   int64(i),
+			Port: 0,
+		}
+
+		rackDef.Blades[int64(i)] = &pb.Definition_Blade{
+			Details:            &pb.BladeDetails{},
+			Capacity:           &pb.BladeCapacity{},
+			BootInfo:           &pb.BladeBootInfo{},
+			BootOnPowerOn: true,
+		}
+
+		rackDef.Pdus[0].Ports[int64(i)] = &pb.PowerPort{
+			Wired: false,
+			Item:  hw,
+		}
+
+		rackDef.Tors[0].Ports[int64(i)] = &pb.NetworkPort{
+			Wired: false,
+			Item:  hw,
+		}
 	}
 
 	return rackDef
@@ -119,12 +135,16 @@ func (ts *testSuiteCore) createAndStartRack(
 	tick := common.TickFromContext(ctx)
 	ctx = ts.advance(ctx)
 
-	for i := range r.pdu.cables {
-		r.pdu.cables[i] = newCable(power, false, tick)
+	for _, p := range r.pdus {
+		for _, c := range p.cables {
+			_, _ = c.set(power, tick, tick)
+		}
 	}
 
-	for i := range r.tor.cables {
-		r.tor.cables[i] = newCable(connect, false, tick)
+	for _, t := range r.tors {
+		for _, c := range t.cables {
+			_, _ = c.set(connect, tick, tick)
+		}
 	}
 
 	require.NoError(r.start(ctx))
@@ -132,14 +152,14 @@ func (ts *testSuiteCore) createAndStartRack(
 	return ctx, r
 }
 
-func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) context.Context {
+func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, target *messages.MessageTarget) context.Context {
 	require := ts.Require()
 
 	rsp := make(chan *sm.Response)
 
 	r.Receive(messages.NewSetPower(
 		ctx,
-		messages.NewTargetBlade(r.sm.Name, id),
+		target,
 		common.TickFromContext(ctx),
 		true,
 		rsp))
@@ -153,7 +173,7 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 
 	r.Receive(messages.NewSetConnection(
 		ctx,
-		messages.NewTargetBlade(r.sm.Name, id),
+		target,
 		common.TickFromContext(ctx),
 		true,
 		rsp))
@@ -164,7 +184,7 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, id int64) conte
 	require.NoError(res.Err)
 
 	return ts.advanceToStateChange(ctx, 10, func() bool {
-		return pb.BladeState_working == r.blades[id].sm.CurrentIndex
+		return pb.BladeState_working == r.blades[target.ElementId()].sm.CurrentIndex
 	})
 }
 

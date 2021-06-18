@@ -31,11 +31,12 @@ func NewGetStatus(
 // simulation, so either goes to the PDU directly (as a simplification of the
 // simulated inventory structure), or always passes through the TOR.
 func (m *GetStatus) SendVia(ctx context.Context, r viaSender) error {
+
 	if m.Target.IsPdu() {
-		return r.ViaPDU(ctx, m)
+		return r.ViaPDU(ctx, m.Target, m)
 	}
 
-	return r.ViaTor(ctx, m)
+	return r.ViaTor(ctx, m.Target, m)
 }
 
 func (m *GetStatus) String() string {
@@ -59,16 +60,22 @@ type StatusBody struct {
 // PduStatus contains the operational state for a PDU
 type PduStatus struct {
 	StatusBody
-	Cables map[int64]*CableState
+
+	// Cables contains the status of each wired cable, indexed by the receiving
+	// element's message target, formatted as a key.
+	Cables map[string]*CableState
 }
 
 // TorStatus contains the operational state for a TOR
 type TorStatus struct {
 	StatusBody
-	Cables map[int64]*CableState
+
+	// Cables contains the status of each wired cable, indexed by the receiving
+	// element's message target, formatted as a key.
+	Cables map[string]*CableState
 }
 
-// BladeStatus contains the operational state for a blade, including a summary
+// BladeStatus contains the operational state for a itemId, including a summary
 // of the currently placed workloads.
 type BladeStatus struct {
 	StatusBody
