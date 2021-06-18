@@ -368,6 +368,11 @@ ui:
 %.ts : %.proto
 	$(PROTOC_PBUF_TS) $(PROJECT)/$<
 
+%.ts_ref : %.ts
+	echo ******* Check for out of date $@ *******
+%.tsx : %.ts_ref
+	echo ******* Check for out of date $@ *******
+
 
 $(ARTIFACTS) &: $(SRC_ARTIFACTS)
 	$(CP) $(SRC_ARTIFACTS) $(dir $@)
