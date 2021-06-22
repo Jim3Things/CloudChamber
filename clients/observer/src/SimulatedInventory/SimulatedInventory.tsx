@@ -1,27 +1,10 @@
-import React, {Component} from 'react';
-import {green, grey, red, yellow} from "@material-ui/core/colors";
+import React, { useEffect, useState } from 'react'
+import { green, grey, red, yellow } from "@material-ui/core/colors"
 
-import {InventoryProxy, ClusterDetails, RackDetails} from "../proxies/InventoryProxy";
-import {Cluster} from "./Cluster";
-import {SuccessSnackbar} from "../common/SuccessSnackbar";
-import {ErrorSnackbar} from "../common/ErrorSnackbar";
+import { ClusterDetails, getCluster, getRackDetails, RackDetails } from "../proxies/InventoryProxy"
+import { Cluster } from "./Cluster"
+import { ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar } from "../common/Snackbar"
 
-interface Props {
-    proxy: InventoryProxy
-}
-
-enum MessageMode {
-    None = 0,                   // Show no snackbar
-    Success = 1,                // Show the success snackbar
-    Error = 2                   // Show the error snackbar
-}
-
-interface State {
-    cluster: ClusterDetails,
-
-    snackMode: MessageMode      // Which snackbar to display, if any
-    snackText: string           // ... and the text to supply
-}
 
 // This is the palette of colors used by the various parts of the
 // cluster, based on physical state, as well as instance state
@@ -36,36 +19,41 @@ export interface Colors {
 }
 
 // Draw the simulated inventory
-export class SimulatedInventory extends Component<Props, State> {
-    state: State = {
-        cluster: {
-            name: "Loading...",
-            maxCapacity: {
-                cores: 0,
-                diskInGb: 0,
-                memoryInMb: 0,
-                networkBandwidthInMbps: 0,
-                arch: "",
-                accelerators: [],
-            },
-            maxBladeCount: 1,
-            racks: new Map<string, RackDetails>()
+export function SimulatedInventory() {
+    const [cluster, setCluster] = useState<ClusterDetails>({
+        name: "Loading...",
+        location: "",
+        maxCapacity: {
+            cores: 0,
+            diskInGb: 0,
+            memoryInMb: 0,
+            networkBandwidthInMbps: 0,
+            arch: "",
+            accelerators: [],
         },
-        snackMode: MessageMode.None,
-        snackText: ""
-    }
+        maxBladeCount: 1,
+        maxTorCount: 1,
+        maxPduCount: 1,
+        maxConnectors: 1,
+        racks: new Map<string, RackDetails>()
+    })
+
+    const [snackData, setSnackData] = useState<SnackData>({
+        message: "",
+        mode: MessageMode.None
+    })
 
     // Start by getting a snapshot of the cluster's inventory
-    componentDidMount() {
-        this.props.proxy.getCluster()
+    useEffect(() => {
+        getCluster()
             .then((zone) => {
-                this.setState({  cluster: zone })
+                setCluster(zone)
 
                 // Now start getting each rack
                 zone.racks.forEach((rack, name) => {
-                    this.props.proxy.getRackDetails(rack)
+                    getRackDetails(rack)
                         .then(res => {
-                            let newZone = {...zone}
+                            let newZone = { ...zone }
                             newZone.racks.set(name, res)
 
                             let done = true
@@ -75,49 +63,43 @@ export class SimulatedInventory extends Component<Props, State> {
                                 }
                             })
 
-                            this.setState({
-                                cluster: zone,
-
-                                snackMode: done ? MessageMode.Success : MessageMode.None,
-                                snackText: done ? "Inventory successfully loaded" : ""
+                            setCluster(zone)
+                            setSnackData({
+                                message: done ? "Inventory successfully loaded" : "",
+                                mode: done ? MessageMode.Success : MessageMode.None
                             })
                         })
                 })
             })
             .catch((err: Error) => {
-                this.setState({
-                    snackMode: MessageMode.Error,
-                    snackText: err.message
-                })
+                setSnackData({ message: err.message, mode: MessageMode.Error })
             })
+    }, [])
+
+    const palette: Colors = {
+        backgroundColor: grey[100],
+        escrowColor: yellow[800],
+        faultedColor: red[900],
+        freeColor: grey[100],
+        illegal: red.A400,
+        offColor: grey[400],
+        runningColor: green[300]
     }
 
-    render() {
-        const palette: Colors = {
-            backgroundColor: grey[100],
-            escrowColor: yellow[800],
-            faultedColor: red[900],
-            freeColor: grey[100],
-            illegal: red.A400,
-            offColor: grey[400],
-            runningColor: green[300]
-        }
+    return <>
+        <Cluster cluster={cluster} palette={palette} />
 
-        return <React.Fragment>
-            <Cluster cluster={this.state.cluster} palette={palette}/>
+        <SuccessSnackbar
+            open={snackData.mode === MessageMode.Success}
+            onClose={() => setSnackData({ message: "", mode: MessageMode.None })}
+            autoHideDuration={3000}
+            message={snackData.message} />
 
-            <SuccessSnackbar
-                open={this.state.snackMode === MessageMode.Success}
-                onClose={() => this.setState({snackMode: MessageMode.None})}
-                autoHideDuration={3000}
-                message={this.state.snackText} />
+        <ErrorSnackbar
+            open={snackData.mode === MessageMode.Error}
+            onClose={() => setSnackData({ message: "", mode: MessageMode.None })}
+            autoHideDuration={4000}
+            message={snackData.message} />
 
-            <ErrorSnackbar
-                open={this.state.snackMode === MessageMode.Error}
-                onClose={() => this.setState({snackMode: MessageMode.None})}
-                autoHideDuration={4000}
-                message={this.state.snackText} />
-
-        </React.Fragment>
-    }
+    </>
 }

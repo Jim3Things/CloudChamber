@@ -2,9 +2,7 @@ package timestamp
 
 import (
 	"context"
-	"fmt"
 	"sync"
-	"time"
 
 	"google.golang.org/grpc"
 
@@ -13,16 +11,6 @@ import (
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
 )
 
-const (
-	// maxRetryLimit is the maximum backoff value.  The increasing backoff will
-	// level out at this value, irregardless of how long the stepper is not
-	// available.
-	maxRetryLimit = 5
-
-	// perRetryDuration is the number of milliseconds to wait per backoff
-	// increment.
-	perRetryDuration = 100
-)
 // Ticker is a mechanism that continuously requests notification of the next
 // simulated tick, until it is ordered to stop.
 type Ticker struct {
@@ -75,7 +63,6 @@ func (t *Ticker) Stop() {
 func (t *Ticker) listener() {
 	now := int64(-1)
 	startCtx := context.Background()
-	worked := false
 
 	_, span := tracing.StartSpan(
 		context.Background(),
@@ -84,15 +71,8 @@ func (t *Ticker) listener() {
 		tracing.WithContextValue(OutsideTime))
 	span.End()
 
-	for retries := 0; !t.stop; {
-		retries = t.waitBeforeReconnect(retries)
-		now, worked = t.listenUntilFailure(startCtx, now)
-
-		if worked {
-			// At least one call worked, so restart the delay interval
-			// back at its initial state.
-			retries = 0
-		}
+	for !t.stop {
+		now = t.listenUntilFailure(startCtx, now)
 	}
 
 	_, span = tracing.StartSpan(
@@ -109,11 +89,9 @@ func (t *Ticker) listener() {
 // wakes after each simulated time tick and signals the event.  It continues
 // until there is an error in contacting the simulated time service.  Any
 // decision to resume after some interval or exit is then made by the caller.
-func (t *Ticker) listenUntilFailure(ctx context.Context, now int64) (int64, bool) {
+func (t *Ticker) listenUntilFailure(ctx context.Context, now int64) int64 {
 	conn, err := grpc.Dial(t.dialName, t.dialOpts...)
 	defer func() { _ = conn.Close() }()
-
-	worked := false
 
 	client := pb.NewStepperClient(conn)
 
@@ -127,7 +105,6 @@ func (t *Ticker) listenUntilFailure(ctx context.Context, now int64) (int64, bool
 
 		if err == nil {
 			now = resp.Now
-			worked = true
 
 			t.post(&tickEvent{
 				tick: resp,
@@ -136,7 +113,7 @@ func (t *Ticker) listenUntilFailure(ctx context.Context, now int64) (int64, bool
 		}
 	}
 
-	return now, worked
+	return now
 }
 
 // post writes the tick event to the output channel, unless a stop order has
@@ -148,26 +125,4 @@ func (t *Ticker) post(ev *tickEvent) {
 	if !t.stop {
 		t.ch <- ev
 	}
-}
-
-// waitBeforeReconnect waits for an increasing backoff period to allow time for
-// the stepper service to recover from any transient connection issues.
-func (*Ticker) waitBeforeReconnect(retries int) int {
-	_, span := tracing.StartSpan(
-		context.Background(),
-		tracing.WithName(fmt.Sprintf("reconnect wait, retries=%d", retries)),
-		tracing.AsInternal(),
-		tracing.WithContextValue(OutsideTime))
-	span.End()
-
-	if retries > 0 {
-		time.Sleep(time.Duration(retries*perRetryDuration) * time.Millisecond)
-	}
-
-	retries++
-	if retries > maxRetryLimit {
-		retries = maxRetryLimit
-	}
-
-	return retries
 }

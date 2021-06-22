@@ -2,6 +2,7 @@ package frontend
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 
 	"github.com/golang/protobuf/jsonpb"
@@ -56,11 +57,18 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tracing.UpdateSpanName(
+		ctx,
+		fmt.Sprintf(
+			"Get up to %d trace entries, starting from entry #%d",
+			maxSize,
+			fromID))
+
 	ch := tsc.GetTraces(ctx, fromID, maxSize)
 
 	data := <-ch
 	if data.Err != nil {
-		postHTTPError(ctx, w, err)
+		postHTTPError(ctx, w, data.Err)
 		return
 	}
 
@@ -76,7 +84,7 @@ func handlerLogsGetAfter(w http.ResponseWriter, r *http.Request) {
 // current trace_sink policy.
 func handlerLogsGetPolicy(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName("Get Traces After..."),
+		tracing.WithName("Get tracing policy"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()

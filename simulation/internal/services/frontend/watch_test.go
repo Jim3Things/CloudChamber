@@ -40,14 +40,12 @@ func (ts *WatchTestSuite) advance() *pbc.Timestamp {
 	request := httptest.NewRequest("PUT", fmt.Sprintf("%s%s", ts.stepperPath(), "?advance"), nil)
 
 	response := ts.doHTTP(request, ts.cookies)
-	require.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	ts.cookies = response.Cookies()
 
 	res := &pbc.Timestamp{}
-	err := ts.getJSONBody(response, res)
-
-	require.NoError(err, "Unexpected error, err: %v", err)
+	require.NoError(ts.getJSONBody(response, res))
 
 	return res
 
@@ -58,7 +56,7 @@ func (ts *WatchTestSuite) getStatus() *pb.StatusResponse {
 	request := httptest.NewRequest("GET", ts.stepperPath(), nil)
 
 	response := ts.doHTTP(request, ts.cookies)
-	require.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	ts.cookies = response.Cookies()
 
@@ -75,7 +73,7 @@ func (ts *WatchTestSuite) setManual(match int64) {
 	request.Header.Set("If-Match", formatAsEtag(match))
 
 	response := ts.doHTTP(request, ts.cookies)
-	require.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	ts.cookies = response.Cookies()
 
@@ -101,7 +99,7 @@ func (ts *WatchTestSuite) doWatch(
 		nil)
 
 	response := ts.doHTTP(request, cookies)
-	require.Equal(http.StatusOK, response.StatusCode)
+	require.HTTPRSuccess(response)
 
 	require.NoError(ts.getJSONBody(response, res))
 
@@ -176,7 +174,7 @@ func (ts *WatchTestSuite) TestNoSession() {
 		nil)
 
 	response := ts.doHTTP(request, nil)
-	require.Equal(http.StatusForbidden, response.StatusCode)
+	require.HTTPRStatusEqual(http.StatusForbidden, response)
 }
 
 func (ts *WatchTestSuite) TestBadValue() {
@@ -190,9 +188,10 @@ func (ts *WatchTestSuite) TestBadValue() {
 		nil)
 
 	response := ts.doHTTP(request, ts.cookies)
-	require.Equal(http.StatusBadRequest, response.StatusCode)
-	body, err := ts.getBody(response)
-	require.NoError(err)
+	require.HTTPRStatusEqual(http.StatusBadRequest, response)
+
+	body := ts.getBody(response)
+
 	require.Equal(
 		"CloudChamber: the \"epoch\" field's value \"foo\" could not be parsed as a decimal number\n",
 		string(body))

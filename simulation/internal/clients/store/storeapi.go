@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"fmt"
 	"regexp"
 	"strings"
 
@@ -386,7 +385,7 @@ func (store *Store) Read(ctx context.Context, kr namespace.KeyRoot, n string) (v
 	k := namespace.GetKeyFromKeyRootAndName(kr, n)
 
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName(fmt.Sprintf("Read value from namespace %s with prefix %s for key %s", n, prefix, k)),
+		tracing.WithName("Read value from namespace %s with prefix %s for key %s", n, prefix, k),
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
@@ -431,7 +430,7 @@ func (store *Store) Read(ctx context.Context, kr namespace.KeyRoot, n string) (v
 			tracing.WithReplacement(
 				regexp.MustCompile(
 					`passwordHash\\\"\:(.*?),\\\"`),
-					`passwordHash\":\"...REDACTED...\",\"`),
+				`passwordHash\":\"...REDACTED...\",\"`),
 			"found record with revision %v and value %q",
 			rev,
 			val)
@@ -450,7 +449,7 @@ func (store *Store) Update(ctx context.Context, r namespace.KeyRoot, n string, r
 	k := namespace.GetKeyFromKeyRootAndName(r, n)
 
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName(fmt.Sprintf("Request to update value in namespace %s with prefix %s for key %s", n, prefix, k)),
+		tracing.WithName("Request to update value in namespace %s with prefix %s for key %s", n, prefix, k),
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
@@ -672,7 +671,7 @@ func (store *Store) List(ctx context.Context, r namespace.KeyRoot, n string) (re
 	k := namespace.GetKeyFromKeyRootAndName(r, n)
 
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithName(fmt.Sprintf("Request to list entries from namespace %s with prefix %s under key %s", n, prefix, k)),
+		tracing.WithName("Request to list entries from namespace %s with prefix %s under key %s", n, prefix, k),
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
@@ -720,7 +719,6 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 		tracing.WithContextValue(timestamp.EnsureTickInContext))
 	defer span.End()
 
-
 	prefix := namespace.GetNamespacePrefixFromKeyRoot(r)
 
 	tracing.UpdateSpanName(ctx, "Request to list keys under prefix %q", prefix)
@@ -736,7 +734,7 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 
 	notifications := make(chan WatchEvent)
 
-	go func ()  {
+	go func() {
 		for ev := range resp.Events {
 			notifications <- WatchEvent{
 				Type:     ev.Type,
@@ -765,8 +763,8 @@ func (store *Store) Watch(ctx context.Context, r namespace.KeyRoot, n string) (*
 //
 func (w *Watch) Close(ctx context.Context) error {
 	ctx, span := tracing.StartSpan(ctx,
-		tracing.WithContextValue(timestamp.EnsureTickInContext))
-		tracing.WithName("Attempting to close event channel")
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithName("Attempting to close event channel"))
 	defer span.End()
 
 	cancel := w.cancel

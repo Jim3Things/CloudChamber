@@ -21,9 +21,6 @@ type TraceDetail struct {
 	// replacements is the list of replacement processing commands used to
 	// filter the log string.
 	replacements []formatEntry
-
-	// details is the set of key-value pairs to add to the log event.
-	details map[string][]string
 }
 
 // TraceAnnotation defines the type signature for an annotation function that
@@ -34,7 +31,7 @@ type TraceAnnotation func(cfg *TraceDetail)
 // of a compiled regexp instance and the replacement string to use in a
 // ReplaceAllString call.
 type formatEntry struct {
-	re *regexp.Regexp
+	re   *regexp.Regexp
 	repl string
 }
 
@@ -53,22 +50,7 @@ func (td *TraceDetail) filteredFormat(a ...interface{}) string {
 func newTraceDetail() *TraceDetail {
 	return &TraceDetail{
 		replacements: []formatEntry{},
-		details: make(map[string][]string),
 	}
-}
-
-// addEntry adds a key-value pair.  If the key already exists, the new value
-// is appended into the value array.  This is in support of assembling the
-// results from multiple TraceAnnotation calls, such as multiple WithImpactXxx
-// calls.
-func (td *TraceDetail) addEntry(key string, value string) {
-	item, ok := td.details[key]
-	if !ok {
-		item = []string{}
-	}
-
-	item = append(item, value)
-	td.details[key] = item
 }
 
 // addFilter adds a filter replacement instance to the trace.  Each instance
@@ -79,58 +61,6 @@ func (td *TraceDetail) addFilter(re *regexp.Regexp, repl string) {
 		re:   re,
 		repl: repl,
 	})
-}
-
-// toKvPairs converts the returns of the TraceDetail instance as one or more
-// KeyValue instances.
-func (td *TraceDetail) toKvPairs() []kv.KeyValue {
-	var res = make([]kv.KeyValue, 0, len(td.details))
-
-	for key, val := range td.details {
-		res = append(res, kv.Array(key, val))
-	}
-
-	return res
-}
-
-// WithImpactCreate states that the activity covered in the calling trace event
-// created the specified element.
-func WithImpactCreate(element string) TraceAnnotation {
-	return func(cfg *TraceDetail) {
-		cfg.addEntry(ImpactKey, ImpactCreate+":"+element)
-	}
-}
-
-// WithImpactRead states that the activity covered in the calling trace event
-// read the specified element's state.
-func WithImpactRead(element string) TraceAnnotation {
-	return func(cfg *TraceDetail) {
-		cfg.addEntry(ImpactKey, ImpactRead+":"+element)
-	}
-}
-
-// WithImpactModify states that the activity covered in the calling trace event
-// modified the specified element.
-func WithImpactModify(element string) TraceAnnotation {
-	return func(cfg *TraceDetail) {
-		cfg.addEntry(ImpactKey, ImpactModify+":"+element)
-	}
-}
-
-// WithImpactDelete states that the activity covered in the calling trace event
-// deleted the specified element.
-func WithImpactDelete(element string) TraceAnnotation {
-	return func(cfg *TraceDetail) {
-		cfg.addEntry(ImpactKey, ImpactDelete+":"+element)
-	}
-}
-
-// WithImpactUse states that the activity covered in the calling trace event
-// used the specified element as part of its processing.
-func WithImpactUse(element string) TraceAnnotation {
-	return func(cfg *TraceDetail) {
-		cfg.addEntry(ImpactKey, ImpactUse+":"+element)
-	}
 }
 
 // WithReplacement states that the event text is to be searched using the match
@@ -169,18 +99,14 @@ func Debug(ctx context.Context, a ...interface{}) {
 	cfg := newTraceDetail()
 	start := addAnnotations(cfg, a)
 
-	res := append(
-		cfg.toKvPairs(),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Debug)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
-
 	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
 		time.Now(),
 		MethodName(2),
-		res...)
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Debug)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
 }
 
 // Info posts an informational trace event
@@ -188,18 +114,14 @@ func Info(ctx context.Context, a ...interface{}) {
 	cfg := newTraceDetail()
 	start := addAnnotations(cfg, a)
 
-	res := append(
-		cfg.toKvPairs(),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
-
 	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
 		time.Now(),
 		MethodName(2),
-		res...)
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Info)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
 }
 
 // Warn posts a warning trace event
@@ -207,30 +129,20 @@ func Warn(ctx context.Context, a ...interface{}) {
 	cfg := newTraceDetail()
 	start := addAnnotations(cfg, a)
 
-	res := append(
-		cfg.toKvPairs(),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
-		kv.String(StackTraceKey, StackTrace()),
-		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
-
 	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
 		time.Now(),
 		MethodName(2),
-		res...)
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, cfg.filteredFormat(a[start:]...)))
 }
 
 // Error posts an error trace event
 func Error(ctx context.Context, a ...interface{}) error {
 	cfg := newTraceDetail()
 	start := addAnnotations(cfg, a)
-
-	res := append(
-		cfg.toKvPairs(),
-		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
-		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
-		kv.String(StackTraceKey, StackTrace()))
 
 	var err error
 
@@ -258,13 +170,14 @@ func Error(ctx context.Context, a ...interface{}) error {
 		}
 	}
 
-	res = append(res, kv.String(MessageTextKey, err.Error()))
-
 	trace.SpanFromContext(ctx).AddEventWithTimestamp(
 		ctx,
 		time.Now(),
 		fmt.Sprintf("Error from %q", MethodName(3)),
-		res...)
+		kv.Int64(StepperTicksKey, common.TickFromContext(ctx)),
+		kv.Int64(SeverityKey, int64(pbl.Severity_Warning)),
+		kv.String(StackTraceKey, StackTrace()),
+		kv.String(MessageTextKey, err.Error()))
 
 	return err
 }
@@ -273,4 +186,3 @@ func Error(ctx context.Context, a ...interface{}) error {
 func Fatal(ctx context.Context, a ...interface{}) {
 	log.Fatal(Error(ctx, a))
 }
-

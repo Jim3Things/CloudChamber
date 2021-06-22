@@ -21,10 +21,13 @@ type tor struct {
 	// cables are the network connections to the Rack's blades.  They are
 	// either programmed and working, or un-programmed (black-holed).  They
 	// can also be in a faulted state.
-	cables map[int64]*cable
+	cables map[string]*cable
 
 	// Rack holds the pointer to the Rack that contains this TOR.
 	holder *Rack
+
+	// id is the index used to identify this TOR within the Rack.
+	id int64
 
 	// sm is the state machine for this TOR's simulation
 	sm *sm.SM
@@ -34,16 +37,18 @@ type tor struct {
 // and the containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
-func newTor(_ *pb.Definition_Tor, r *Rack) *tor {
+func newTor(ctx context.Context, def *pb.Definition_Tor, name string, r *Rack, id int64) *tor {
 	t := &tor{
-		cables: make(map[int64]*cable),
+		cables: make(map[string]*cable),
 		holder: r,
+		id:     id,
 		sm:     nil,
 	}
 
 	t.sm = sm.NewSM(t,
+		name,
 		sm.WithFirstState(
-			pb.Actual_Tor_working,
+			pb.TorState_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, torGetStatus, sm.Stay, sm.Stay},
@@ -53,7 +58,7 @@ func newTor(_ *pb.Definition_Tor, r *Rack) *tor {
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Tor_stuck,
+			pb.TorState_stuck,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, torOnlyGetStatus, sm.Stay, sm.Stay},
@@ -62,18 +67,37 @@ func newTor(_ *pb.Definition_Tor, r *Rack) *tor {
 			sm.NullLeave),
 	)
 
+
+	// Wire up all the cables, and also register this instance with the rack for
+	// routing to the cable's destination element.
+	at := common.TickFromContext(ctx)
+	t.sm.AdvanceGuard(at)
+
+	for _, port := range def.GetPorts() {
+		target := messages.HardwareToTarget(port.Item)
+		key := target.Key()
+		t.cables[key] = newCable(target, false, false, at)
+		r.AddToTorMap(key, id)
+	}
+
+	// Finally, add our self address into the map to ensure that messages that
+	// target this TOR directly are routed here.
+	r.AddToTorMap(messages.NewTargetTor(r.sm.Name, id, 0).Key(), id)
+
+	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
+
 	return t
 }
 
 // Save returns a protobuf message that contains the data sufficient to persist
 // and later restore this state machine to a logically equivalent state.
-func (p *tor) Save() (proto.Message, error) {
-	cur, entered, terminal, guard := p.sm.Savable()
+func (t *tor) Save() (proto.Message, error) {
+	cur, entered, terminal, guard := t.sm.Savable()
 
 	state := &pb.Actual_Tor{
 		Condition: pb.Actual_operational,
 		Cables:    make(map[int64]*pb.Actual_Cable),
-		SmState:   cur.(pb.Actual_Tor_State),
+		SmState:   cur.(pb.TorState_SM),
 		Core: &pb.Actual_MachineCore{
 			EnteredAt: entered,
 			Terminal:  terminal,
@@ -81,22 +105,13 @@ func (p *tor) Save() (proto.Message, error) {
 		},
 	}
 
-	for i, c := range p.cables {
+	i := int64(0)
+	for _, c := range t.cables {
 		state.Cables[i] = c.save()
+		i++
 	}
 
 	return state, nil
-}
-
-// fixConnection updates the TOR with presumed cable definitions to match up
-// with the blades defined for the Rack.  This is a temporary workaround until
-// the inventory definition structures include the cable definitions.
-func (t *tor) fixConnection(ctx context.Context, id int64) {
-	at := common.TickFromContext(ctx)
-
-	t.sm.AdvanceGuard(at)
-
-	t.cables[id] = newCable(false, false, at)
 }
 
 // Receive handles incoming messages for the TOR.
@@ -108,15 +123,15 @@ func (t *tor) Receive(ctx context.Context, msg sm.Envelope) {
 
 // notifyBladeOfConnectionChange constructs a setConnection message that targets the
 // specified blade, and forwards it along.
-func (t *tor) notifyBladeOfConnectionChange(ctx context.Context, msg *messages.SetConnection, i int64) {
+func (t *tor) notifyBladeOfConnectionChange(ctx context.Context, msg *messages.SetConnection) {
 	fwd := messages.NewSetConnection(
 		ctx,
-		messages.NewTargetBlade(msg.Target.Rack, i),
+		messages.NewTargetBlade(msg.Target.Rack, msg.Target.ElementId(), msg.Target.Port()),
 		msg.Guard,
 		msg.Enabled,
 		nil)
 
-	t.holder.forwardToBlade(ctx, i, fwd)
+	t.holder.forwardToBlade(ctx, msg.Target.ElementId(), fwd)
 
 	tracing.Info(
 		ctx,
@@ -134,9 +149,11 @@ func torGetStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 	occursAt := common.TickFromContext(ctx)
 
 	if m.Target.IsTor() {
+		tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
 		return torOnlyGetStatus(ctx, machine, msg)
-	} else if i, isBladeTarget := m.Target.BladeID(); isBladeTarget {
-		return torToBladeGetStatus(ctx, t, i, msg)
+	} else if m.Target.IsBlade() {
+		tracing.AddImpact(ctx, tracing.ImpactUse, machine.Name)
+		return torToBladeGetStatus(ctx, t, msg)
 	}
 
 	processInvalidTarget(ctx, m, m.Target.Describe(), occursAt)
@@ -145,12 +162,13 @@ func torGetStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool {
 
 // torToBladeGetStatus processes a get status request that has targeted a
 // blade.  It will forward it, if possible, or handle the error, if not.
-func torToBladeGetStatus(ctx context.Context, t *tor, i int64, msg sm.Envelope) bool {
+func torToBladeGetStatus(ctx context.Context, t *tor, msg sm.Envelope) bool {
 	m := msg.(*messages.GetStatus)
+	key := m.Target.Key()
 
 	occursAt := common.TickFromContext(ctx)
 
-	c, ok := t.cables[i]
+	c, ok := t.cables[key]
 
 	if !ok {
 		processInvalidTarget(ctx, msg, m.Target.Describe(), occursAt)
@@ -166,7 +184,7 @@ func torToBladeGetStatus(ctx context.Context, t *tor, i int64, msg sm.Envelope) 
 		return false
 	}
 
-	if !t.holder.forwardToBlade(ctx, i, msg) {
+	if !t.holder.forwardToBlade(ctx, c.target.ElementId(), msg) {
 		ch := msg.Ch()
 		if ch != nil {
 			close(ch)
@@ -196,11 +214,11 @@ func torOnlyGetStatus(ctx context.Context, machine *sm.SM, msg sm.Envelope) bool
 			State:     t.sm.CurrentIndex.String(),
 			EnteredAt: t.sm.EnteredAt,
 		},
-		Cables: make(map[int64]*messages.CableState),
+		Cables: make(map[string]*messages.CableState),
 	}
 
-	for i, c := range t.cables {
-		torStatus.Cables[i] = &messages.CableState{
+	for key, c := range t.cables {
+		torStatus.Cables[key] = &messages.CableState{
 			On:      c.on,
 			Faulted: c.faulted,
 		}
@@ -225,13 +243,12 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 
 	occursAt := common.TickFromContext(ctx)
 
-	var id int64
 	var c *cable
-	var ok bool
 
-	id, ok = msg.Target.BladeID()
+	key := msg.Target.Key()
+	ok := msg.Target.IsBlade()
 	if ok {
-		c, ok = t.cables[id]
+		c, ok = t.cables[key]
 	}
 
 	if c == nil || !ok {
@@ -244,9 +261,10 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 		return false
 	}
 
-	changed, err := t.cables[id].set(msg.Enabled, msg.Guard, occursAt)
+	changed, err := c.set(msg.Enabled, msg.Guard, occursAt)
 	switch err {
 	case nil:
+		tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 		tracing.UpdateSpanName(
 			ctx,
 			"%s the network connection for %s",
@@ -256,10 +274,11 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 		machine.AdvanceGuard(occursAt)
 
 		if changed {
-			t.notifyBladeOfConnectionChange(ctx, msg, id)
+			t.notifyBladeOfConnectionChange(ctx, msg)
 
 			ch <- sm.SuccessResponse(occursAt)
 		} else {
+			tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
 			tracing.Info(
 				ctx,
 				"Network connection for %s has not changed.  It is currently %s.",
@@ -268,9 +287,9 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 
 			ch <- sm.FailedResponse(occursAt, errors.ErrNoOperation)
 		}
-		break
 
 	case errors.ErrCableStuck:
+		tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
 		tracing.Warn(
 			ctx,
 			"Network connection for %s is stuck.  Unsure if it has been %s.",
@@ -278,7 +297,6 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 			common.AOrB(c.on, "enabled", "disabled"))
 
 		ch <- sm.FailedResponse(occursAt, err)
-		break
 
 	case errors.ErrInventoryChangeTooLate(msg.Guard):
 		tracing.Info(
@@ -289,7 +307,6 @@ func workingSetConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bo
 			msg.Target.Describe())
 
 		ch <- sm.FailedResponse(occursAt, err)
-		break
 
 	default:
 		tracing.Warn(ctx, "Unexpected error code: %v", err)

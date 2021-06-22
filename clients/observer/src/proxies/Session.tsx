@@ -1,16 +1,17 @@
 // Manage the REST session attributes
 
-interface JsonUserDetails {
-    enabled: boolean
-    accountManager: boolean
-    neverDelete: boolean
-}
+import {UserPublic} from "../pkg/protos/admin/users"
 
 export interface SessionUser {
     name: string
-    enabled: boolean
-    accountManager: boolean
-    neverDelete: boolean
+    details: UserPublic
+}
+
+export function CreateSessionUser(val: any, name: string): SessionUser {
+    return {
+        name: name,
+        details: UserPublic.fromJSON(val)
+    }
 }
 
 // CCError is a specialization of the Error interface that carries the
@@ -20,7 +21,7 @@ export class CCError extends Error {
     public resp: Response
 
     constructor(response: Response, msg: string) {
-        super(msg);
+        super(msg)
         this.resp = response
     }
 
@@ -29,44 +30,47 @@ export class CCError extends Error {
     }
 }
 
-export class Session {
-    // login, and get the user details for the logged in user.  Attach as
-    // session details here.
-    public logon(username: string, password: string): Promise<SessionUser> {
-        const path = "/api/users/" + username + "?op=login"
-        const request = new Request(path, {method: "PUT", body: password})
+// login, and get the user details for the logged in user.  Attach as
+// session details here.
+export function logon(username: string, password: string): Promise<SessionUser> {
+    const path = "/api/users/" + username + "?op=login"
+    const request = new Request(path, {method: "PUT", body: password})
 
-        return fetch(request)
-            .then((resp) => {
-                failIfError(request, resp)
+    return fetch(request)
+        .then((resp: Response) => {
+            failIfError(request, resp)
 
-                const detailsPath = "/api/users/" + username
-                const requestDetails = new Request(detailsPath, {method: "GET"})
+            return getDetails(username)
+        })
+}
 
-                return getJson<JsonUserDetails>(requestDetails)
-            })
-            .then((details) => {
-                return {...details, name: username }
-            })
-    }
+// Log out of the current session
+export function logout(username: string): Promise<string> {
+    const path = "/api/users/" + username + "?op=logout"
+    const request = new Request(path, {method: "PUT"})
 
-    // Log out of the current session
-    public logout(username: string) : Promise<string> {
-        const path = "/api/users/" + username + "?op=logout"
-        const request = new Request(path, {method: "PUT"})
+    return fetch(request)
+        .then((resp) => {
+            if (!resp.ok) {
+                // Something went wrong.  So we need to force that the
+                // session is gone and continue as if the logout was
+                // successful.
+                deleteCookie("CC-Session")
+            }
 
-        return fetch(request)
-            .then((resp) => {
-                if (!resp.ok) {
-                    // Something went wrong.  So we need to force that the
-                    // session is gone and continue as if the logout was
-                    // successful.
-                    deleteCookie("CC-Session")
-                }
+            return "logged out"
+        })
+}
 
-                return "logged out"
-            })
-    }
+// get the details for the supplied user.
+function getDetails(name: string): Promise<SessionUser> {
+    const path = "/api/users/" + name
+    const request = new Request(path, {method: "GET"})
+
+    return getJson<any>(request)
+        .then((value) => {
+            return CreateSessionUser(value, name)
+        })
 }
 
 // Throw a consistent error if the response indicates a failure to process
@@ -84,16 +88,16 @@ export function getErrorDetails(msg: any, save: (val: string) => void): void {
     if (msg.hasOwnProperty("resp")) {
         const err: CCError = {...msg}
         err.resp.text().then((details) => {
-            save(details )
+            save(details)
         })
     }
 
-    save (msg.toString())
+    save(msg.toString())
 }
 
 // Convert the response body into a JSON-parsed type
 export function getJson<T>(request: Request, signal?: AbortSignal | undefined): Promise<T> {
-    return fetch(request, { signal: signal })
+    return fetch(request, {signal: signal})
         .then((resp: Response) => {
             failIfError(request, resp)
             return resp.json() as Promise<T>
@@ -113,13 +117,6 @@ export function getETag(resp: Response): number {
     return parseInt(value, 10)
 }
 
-// Set the ETag into a header as a match condition
-export function ETagHeader(tag: number) : HeadersInit {
-    let requestHeaders: HeadersInit = new Headers()
-    requestHeaders.set('If-Match', tag.toString(10))
-
-    return requestHeaders
-}
 
 // --- ETag support functions
 
@@ -130,5 +127,5 @@ export function deleteCookie(name: string) {
 
     document.cookie = name +
         "=; expires=" + (new Date(Date.now() - oneHourInMs)).toUTCString() +
-        "; path=/";
+        "; path=/"
 }

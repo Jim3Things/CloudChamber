@@ -19,14 +19,15 @@ import (
 // governed by a mesh of state machines rooted in the one for the Rack as a
 // whole.
 type Rack struct {
-	name string
-
 	// ch is the channel to send requests along to the Rack's goroutine, which
 	// is where the state machine runs.
 	ch chan sm.Envelope
 
-	tor    *tor
-	pdu    *pdu
+	toTor map[string]int64
+	toPdu map[string]int64
+
+	tors   map[int64]*tor
+	pdus   map[int64]*pdu
 	blades map[int64]*blade
 
 	sm *sm.SM
@@ -46,25 +47,20 @@ const (
 // entries to determine its structure.  The resulting Rack is healthy, not yet
 // started, all blades are powered off, and all network connections are not yet
 // programmed.
-func newRack(ctx context.Context, name string, def *pb.Definition_Rack, timers *timestamp.Timers) *Rack {
-	return newRackInternal(ctx, name, def, timers, newPdu, newTor)
-}
-
-// newRackInternal is the implementation behind newRack.  It supports
-// dependency injection, to more cleanly allow unit testing of the Rack state
-// machine logic.
-func newRackInternal(
+func newRack(
 	ctx context.Context,
 	name string,
 	def *pb.Definition_Rack,
-	timers *timestamp.Timers,
-	pduFunc func(*pb.Definition_Pdu, *Rack) *pdu,
-	torFunc func(*pb.Definition_Tor, *Rack) *tor) *Rack {
+	pduKey string,
+	torKey string,
+	bladeKey string,
+	timers *timestamp.Timers) *Rack {
 	r := &Rack{
-		name:      name,
 		ch:        make(chan sm.Envelope, rackQueueDepth),
-		tor:       nil,
-		pdu:       nil,
+		toTor:     make(map[string]int64),
+		toPdu:     make(map[string]int64),
+		tors:      make(map[int64]*tor),
+		pdus:      make(map[int64]*pdu),
 		blades:    make(map[int64]*blade),
 		sm:        nil,
 		timers:    timers,
@@ -72,6 +68,7 @@ func newRackInternal(
 	}
 
 	r.sm = sm.NewSM(r,
+		name,
 		sm.WithFirstState(
 			pb.Actual_Rack_awaiting_start,
 			sm.NullEnter,
@@ -102,28 +99,54 @@ func newRackInternal(
 			sm.NullLeave),
 	)
 
-	r.pdu = pduFunc(def.Pdus[0], r)
-	r.tor = torFunc(def.Tors[0], r)
+	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
 
-	for i, item := range def.Blades {
-		r.blades[i] = newBlade(item.GetCapacity(), r, i)
+	for i, item := range def.GetTors() {
+		r.tors[i] = newTor(ctx, item, fmt.Sprintf("%s%d", torKey, i), r, i)
+	}
 
-		// These two calls are temporary fix-ups until the inventory definition
-		// includes the tor and pdu connectors
-		r.pdu.fixConnection(ctx, i)
-		r.tor.fixConnection(ctx, i)
+	for i, item := range def.GetPdus() {
+		r.pdus[i] = newPdu(ctx, item, fmt.Sprintf("%s%d", pduKey, i), r, i)
+	}
+
+	for i, item := range def.GetBlades() {
+		r.blades[i] = newBlade(ctx, item, fmt.Sprintf("%s%d", bladeKey, i), r, i)
 	}
 
 	return r
 }
 
+// AddToTorMap sets the specified target to route through the TOR at the index
+// supplied by the id parameter.
+func (r *Rack) AddToTorMap(key string, id int64) {
+	r.toTor[key] = id
+}
+
+// AddToPduMap sets the specified target to route through the PDU at the index
+// supplied by the id parameter.
+func (r *Rack) AddToPduMap(key string, id int64) {
+	r.toPdu[key] = id
+}
+
 // ViaTor forwards the supplied message to the Rack's simulated TOR for
 // processing.  This will likely not be the final destination, but requires
 // operation by the TOR in order to reach its final destination.
-func (r *Rack) ViaTor(ctx context.Context, msg sm.Envelope) error {
-	tracing.Info(ctx, "Forwarding %v to TOR in rack %q", msg, r.name)
+func (r *Rack) ViaTor(ctx context.Context, t *messages.MessageTarget, msg sm.Envelope) error {
+	tracing.Info(ctx, "Forwarding %v to TOR in rack %q", msg, r.sm.Name)
+	key := t.Key()
+	idx, ok := r.toTor[key]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is invalid", idx)
+		return errors.ErrInvalidTarget
+	}
 
-	r.tor.Receive(ctx, msg)
+	tor, ok := r.tors[idx]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is valid, but no tor index '%d' is not.", idx, idx)
+		return errors.ErrInvalidTarget
+	}
+
+	tor.Receive(ctx, msg)
 
 	return nil
 }
@@ -131,24 +154,67 @@ func (r *Rack) ViaTor(ctx context.Context, msg sm.Envelope) error {
 // ViaPDU forwards the supplied message to the Rack's simulated PDU for
 // processing.  This may or may not impact the full PDU and the all blades,
 // or only one blade's power state.
-func (r *Rack) ViaPDU(ctx context.Context, msg sm.Envelope) error {
-	tracing.Info(ctx, "Forwarding '%v' to PDU in rack %q", msg, r.name)
-	r.pdu.Receive(ctx, msg)
+func (r *Rack) ViaPDU(ctx context.Context, t *messages.MessageTarget, msg sm.Envelope) error {
+	tracing.Info(ctx, "Forwarding '%v' to PDU in rack %q", msg, r.sm.Name)
+	key := t.Key()
+	idx, ok := r.toPdu[key]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is invalid", key)
+		return errors.ErrInvalidTarget
+	}
 
+	pdu, ok := r.pdus[idx]
+	if !ok {
+		_ = tracing.Error(ctx, "Key '%s' is valid, but no pdu index '%d' is not.", key, idx)
+		return errors.ErrInvalidTarget
+	}
+
+	pdu.Receive(ctx, msg)
 	return nil
 }
 
-// ViaBlade forwards the supplied message directly to the target blade, without
+// ToBlade forwards the supplied message directly to the target blade, without
 // any intermediate hops.  This should only be used by events that do not need
 // to simulate a working network connection for reachability, or a working power
 // cable for execution.
-func (r *Rack) ViaBlade(ctx context.Context, id int64, msg sm.Envelope) error {
-	tracing.Info(ctx, "Forwarding '%v' to blade %d in rack %q", msg, id, r.name)
+func (r *Rack) ToBlade(ctx context.Context, id int64, msg sm.Envelope) error {
+	tracing.Info(ctx, "Sending '%v' to blade %d in rack %q", msg, id, r.sm.Name)
 	if b, ok := r.blades[id]; ok {
 		b.Receive(ctx, msg)
 		return nil
 	}
 
+	tracing.Warn(ctx, "Blade %d not found", id)
+	return errors.ErrInvalidTarget
+}
+
+// ToTor forwards the supplied message directly to the target TOR, without
+// any intermediate hops.  This should only be used by events that do not need
+// to simulate a working network connection for reachability, or a working power
+// cable for execution.
+func (r *Rack) ToTor(ctx context.Context, id int64, msg sm.Envelope) error {
+	tracing.Info(ctx, "Sending '%v' to TOR %d in rack %q", msg, id, r.sm.Name)
+	if t, ok := r.tors[id]; ok {
+		t.Receive(ctx, msg)
+		return nil
+	}
+
+	tracing.Warn(ctx, "TOR %d not found", id)
+	return errors.ErrInvalidTarget
+}
+
+// ToPdu forwards the supplied message directly to the target PDU, without
+// any intermediate hops.  This should only be used by events that do not need
+// to simulate a working network connection for reachability, or a working power
+// cable for execution.
+func (r *Rack) ToPdu(ctx context.Context, id int64, msg sm.Envelope) error {
+	tracing.Info(ctx, "Sending '%v' to PDU %d in rack %q", msg, id, r.sm.Name)
+	if p, ok := r.pdus[id]; ok {
+		p.Receive(ctx, msg)
+		return nil
+	}
+
+	tracing.Warn(ctx, "PDU %d not found", id)
 	return errors.ErrInvalidTarget
 }
 
@@ -159,7 +225,7 @@ func (r *Rack) forwardToBlade(ctxIn context.Context, id int64, msg sm.Envelope) 
 	if b, ok := r.blades[id]; ok {
 		ctx, span := tracing.StartSpan(
 			ctxIn,
-			tracing.WithName(fmt.Sprintf("Processing message %q on blade", msg)),
+			tracing.WithName("Processing message %q on blade", msg),
 			tracing.WithNewRoot(),
 			tracing.WithLink(msg.SpanContext(), msg.LinkID()),
 			tracing.WithContextValue(timestamp.EnsureTickInContext))
@@ -275,16 +341,24 @@ func startSim(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 	tracing.UpdateSpanName(
 		ctx,
 		"Starting the simulation of rack %q",
-		r.name)
+		r.sm.Name)
 
 	err := r.sm.Start(ctx)
 
-	if err == nil {
-		err = r.pdu.sm.Start(ctx)
+	for _, t := range r.tors {
+		if err != nil {
+			break
+		}
+
+		err = t.sm.Start(ctx)
 	}
 
-	if err == nil {
-		err = r.tor.sm.Start(ctx)
+	for _, p := range r.pdus {
+		if err != nil {
+			break
+		}
+
+		err = p.sm.Start(ctx)
 	}
 
 	for _, b := range r.blades {

@@ -8,7 +8,6 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
-	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
 
 // StateIndex denotes that the value is used as an index into the state machine
@@ -16,6 +15,12 @@ import (
 type StateIndex interface {
 	fmt.Stringer
 }
+
+type invalidIndexType int32
+
+func (s invalidIndexType) String() string { return "invalid" }
+
+const invalidIndex invalidIndexType = 0
 
 // SM defines a simplified state machine structure. It assumes that the issues
 // of concurrency and lifecycle management are handled by some external logic.
@@ -43,6 +48,9 @@ type SM struct {
 
 	// EnteredAt is the simulated time tick when the current state was entered.
 	EnteredAt int64
+
+	// name is the string that can be used to identify this particular instance.
+	Name string
 }
 
 type Persistable interface {
@@ -80,10 +88,10 @@ func WithFirstState(
 
 // NewSM creates a new state machine instance with the associated
 // parent instance reference, as well as the state declarations.
-func NewSM(parent interface{}, decls ...StateDecl) *SM {
+func NewSM(parent interface{}, name string, decls ...StateDecl) *SM {
 	states := make(map[StateIndex]State)
 
-	var firstState StateIndex = pb.Actual_Blade_invalid
+	var firstState StateIndex = invalidIndex
 
 	for _, decl := range decls {
 		first, name, instance := decl()
@@ -102,6 +110,7 @@ func NewSM(parent interface{}, decls ...StateDecl) *SM {
 		Parent:       parent,
 		Terminated:   false,
 		EnteredAt:    0,
+		Name:         name,
 	}
 }
 
@@ -110,9 +119,10 @@ func NewSM(parent interface{}, decls ...StateDecl) *SM {
 func (sm *SM) ChangeState(ctx context.Context, newState StateIndex) error {
 	tracing.Info(
 		ctx,
-		"Change state from %q to %q",
+		"Change state from %q to %q in state machine %q",
 		sm.CurrentIndex,
-		newState)
+		newState,
+		sm.Name)
 
 	cur := sm.Current
 	cur.Leave(ctx, sm, newState)

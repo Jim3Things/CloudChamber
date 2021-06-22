@@ -74,6 +74,7 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 	ctx, span := tracing.StartSpan(context.Background(),
 		tracing.WithName("Get User List"),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithImpact(tracing.ImpactRead, "/users"),
 		tracing.AsInternal())
 	defer span.End()
 
@@ -103,7 +104,6 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 		}
 
 		tracing.Info(ctx,
-			tracing.WithImpactRead("/users"),
 			"   Listing user %q: %q%s", entry.Name, target, protected)
 
 		users.Users = append(users.Users, &pb.UserList_Entry{
@@ -127,14 +127,15 @@ func handlerUsersList(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName("Create New User"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
 	vars := mux.Vars(r)
 	username := vars["username"]
+
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Creating user %q", username),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithImpact(tracing.ImpactCreate, "/users/"+username),
+		tracing.AsInternal())
+	defer span.End()
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -146,8 +147,6 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 		postHTTPError(ctx, w, err)
 		return
 	}
-
-	tracing.UpdateSpanName(ctx, "Creating user %q", username)
 
 	u := &pb.UserDefinition{}
 	if err = jsonpb.Unmarshal(r.Body, u); err != nil {
@@ -174,7 +173,6 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 
 	tracing.Info(
 		ctx,
-		tracing.WithImpactCreate("/users/"+username),
 		"Created user %q, pwd: <redacted>, enabled: %v, rights: %s",
 		username,
 		u.Enabled,
@@ -189,14 +187,15 @@ func handlerUserCreate(w http.ResponseWriter, r *http.Request) {
 }
 
 func handlerUserRead(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName("Get User Details"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
 	vars := mux.Vars(r)
 	username := vars["username"]
+
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Getting details for user %q", username),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithImpact(tracing.ImpactRead, "/users/"+username),
+		tracing.AsInternal())
+	defer span.End()
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -208,8 +207,6 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 		postHTTPError(ctx, w, err)
 		return
 	}
-
-	tracing.UpdateSpanName(ctx, "Getting details for user %q", username)
 
 	u, rev, err := userRead(ctx, username)
 
@@ -229,7 +226,6 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 
 	tracing.Info(
 		ctx,
-		tracing.WithImpactRead("/users/"+username),
 		"Returning details for user %s", formatUser(username, ext))
 
 	// Get the user entry, and serialize it to json
@@ -242,14 +238,15 @@ func handlerUserRead(w http.ResponseWriter, r *http.Request) {
 
 // Update the user entry
 func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName("Update User Details"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
 	vars := mux.Vars(r)
 	username := vars["username"]
+
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Updating details on user %q", username),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithImpact(tracing.ImpactModify, "/users/"+username),
+		tracing.AsInternal())
+	defer span.End()
 
 	var caller *pb.User
 
@@ -268,8 +265,6 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 		postHTTPError(ctx, w, err)
 		return
 	}
-
-	tracing.UpdateSpanName(ctx, "Updating details on user %q", username)
 
 	// All updates are qualified by an ETag match.  The ETag comes from the database
 	// revision number.  So, first we get the 'if-match' tag to determine the revision
@@ -323,7 +318,6 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 
 	tracing.Info(
 		ctx,
-		tracing.WithImpactModify("/users/"+username),
 		"Returning details for user %s", formatUser(username, ext))
 
 	p := jsonpb.Marshaler{}
@@ -334,14 +328,15 @@ func handlerUserUpdate(w http.ResponseWriter, r *http.Request) {
 
 // Delete the user entry
 func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName("Delete User"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
 	vars := mux.Vars(r)
 	username := vars["username"]
+
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Deleting user %q", username),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithImpact(tracing.ImpactDelete, "/users/"+username),
+		tracing.AsInternal())
+	defer span.End()
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -353,8 +348,6 @@ func handlerUserDelete(w http.ResponseWriter, r *http.Request) {
 		postHTTPError(ctx, w, err)
 		return
 	}
-
-	tracing.UpdateSpanName(ctx, "Deleting user %q", username)
 
 	if err = userRemove(ctx, username); err != nil {
 		postHTTPError(ctx, w, err)
@@ -383,10 +376,12 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 
 		switch op {
 		case Login:
+			tracing.AddImpact(ctx, tracing.ImpactUse, "/users/"+username)
 			tracing.UpdateSpanName(ctx, "Logging in user %q", username)
 			s, err = login(ctx, session, r)
 
 		case Logout:
+			tracing.AddImpact(ctx, tracing.ImpactUse, "/users/"+username)
 			tracing.UpdateSpanName(ctx, "Logging out user %q", username)
 			s, err = logout(ctx, session, r)
 
@@ -412,14 +407,15 @@ func handlerUserOperation(w http.ResponseWriter, r *http.Request) {
 
 // Set a new password on the specified account
 func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
-	ctx, span := tracing.StartSpan(context.Background(),
-		tracing.WithName("Perform User Operation"),
-		tracing.WithContextValue(timestamp.EnsureTickInContext),
-		tracing.AsInternal())
-	defer span.End()
-
 	vars := mux.Vars(r)
 	username := vars["username"]
+
+	ctx, span := tracing.StartSpan(context.Background(),
+		tracing.WithName("Updating the password for user %q", username),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.WithImpact(tracing.ImpactModify, "/users/"+username),
+		tracing.AsInternal())
+	defer span.End()
 
 	err := doSessionHeader(
 		ctx, w, r,
@@ -431,8 +427,6 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 		postHTTPError(ctx, w, err)
 		return
 	}
-
-	tracing.UpdateSpanName(ctx, "Updating the password for user %q", username)
 
 	// All updates are qualified by an ETag match.  The ETag comes from the database
 	// revision number.  So, first we get the 'if-match' tag to determine the revision
@@ -468,7 +462,6 @@ func handlerUserSetPassword(w http.ResponseWriter, r *http.Request) {
 
 	tracing.Info(
 		ctx,
-		tracing.WithImpactModify("/users/"+username),
 		"Password changed for user %q", username)
 	_, err = fmt.Fprintf(w, "Password changed for user %q", username)
 

@@ -5,20 +5,24 @@
 // opacity based on the physical state.  This supports the ability to
 // 'grey out' physical boxes that are turned off.
 
-import React, {FunctionComponent} from "react";
-import {PhysicalState} from "../proxies/InventoryProxy";
-import {Colors} from "./SimulatedInventory";
+import React from "react"
+import {PhysicalState} from "../proxies/InventoryProxy"
+import {Colors} from "./SimulatedInventory"
 
 export const Opacity = (state: PhysicalState): number => {
     switch (state) {
-        case PhysicalState.healthy: return 1.0
-        case PhysicalState.faulted: return 1.0
-        case PhysicalState.off: return .3
-        default: return 1.0
+        case PhysicalState.healthy:
+            return 1.0
+        case PhysicalState.faulted:
+            return 1.0
+        case PhysicalState.off:
+            return .3
+        default:
+            return 1.0
     }
 }
 
-export const PhysicalBox: FunctionComponent<{
+export function PhysicalBox(props: {
     x: number,
     y: number,
     width: number,
@@ -29,13 +33,18 @@ export const PhysicalBox: FunctionComponent<{
     pointerEvents?: string | number,
     onMouseEnter?: React.MouseEventHandler<SVGSVGElement>,
     onMouseLeave?: React.MouseEventHandler<SVGSVGElement>,
-}> = (props) => {
+    children?: React.ReactNode
+}) {
     const borderColor = (state: PhysicalState): string => {
         switch (state) {
-            case PhysicalState.healthy: return props.palette.runningColor
-            case PhysicalState.faulted: return props.palette.faultedColor
-            case PhysicalState.off: return props.palette.offColor
-            default: return props.palette.illegal
+            case PhysicalState.healthy:
+                return props.palette.runningColor
+            case PhysicalState.faulted:
+                return props.palette.faultedColor
+            case PhysicalState.off:
+                return props.palette.offColor
+            default:
+                return props.palette.illegal
         }
     }
 

@@ -29,6 +29,7 @@ PROTO_FILES = \
     pkg/protos/workload/actual.proto \
     pkg/protos/workload/external.proto \
     pkg/protos/workload/internal.proto \
+    pkg/protos/workload/observed.proto \
     pkg/protos/workload/target.proto \
     pkg/protos/services/inventory.proto \
     pkg/protos/services/monitor.proto \
@@ -48,6 +49,7 @@ PROTO_GEN_FILES = \
     pkg/protos/inventory/definition.pb.go \
     pkg/protos/inventory/external.pb.go \
     pkg/protos/inventory/internal.pb.go \
+    pkg/protos/inventory/observed.pb.go \
     pkg/protos/inventory/store.pb.go \
     pkg/protos/inventory/target.pb.go \
     pkg/protos/workload/actual.pb.go \
@@ -72,6 +74,7 @@ PROTO_CS_GEN_FILES = \
     pkg/protos/inventory/definition.pb.cs \
     pkg/protos/inventory/external.pb.cs \
     pkg/protos/inventory/internal.pb.cs \
+    pkg/protos/inventory/observed.pb.cs \
     pkg/protos/inventory/store.pb.cs \
     pkg/protos/inventory/target.pb.cs \
     pkg/protos/workload/actual.pb.cs \
@@ -91,6 +94,7 @@ PROTO_TS_GEN_FILES = \
     pkg/protos/inventory/definition.ts \
     pkg/protos/inventory/external.ts \
     pkg/protos/inventory/internal.ts \
+    pkg/protos/inventory/observed.ts \
     pkg/protos/inventory/store.ts \
     pkg/protos/inventory/target.ts \
     pkg/protos/log/entry.ts \

@@ -1,0 +1,19 @@
+// This file contains the data structures that define the last observed  state
+// of one or more inventory items, as of the point in time when the structure
+// is constructed.
+
+syntax = "proto3";
+
+package inventory;
+
+option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory";
+option csharp_namespace = "CloudChamber.Protos.Inventory";
+
+message Observed {
+	message Blade {
+		// This is the simulated time tick when the observation took place
+		int64 at = 1;
+
+		// The rest will be filled in as we create an actual internal observed state...
+	}
+}

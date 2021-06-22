@@ -1,26 +1,29 @@
-import React, {FunctionComponent} from 'react';
-import {Badge, Toolbar} from "@material-ui/core";
-import {Pause, PlayArrow} from "@material-ui/icons";
-import {makeStyles} from "@material-ui/core/styles";
+import React from 'react'
+import {Badge, Toolbar} from "@material-ui/core"
+import {Pause, PlayArrow} from "@material-ui/icons"
+import {makeStyles} from "@material-ui/core/styles"
 
-import {StepperMode, TimeContext} from "./proxies/StepperProxy";
+import {StepperMode, TimeContext} from "./proxies/StepperProxy"
+import {curSelector, useAppSelector} from "./store/Store"
 
-const useStyles = makeStyles((theme) => ({
+const useStyles = makeStyles(() => ({
     root: {
         flexGrow: 1,
     },
     iconTag: {
         fontSize: "small"
     }
-}));
+}))
 
 // This method constructs a status bar containing currently running summary information
 
 // TODO: This currently only has information on the stepper status, others need to be
 //       added as they make sense.
 
-export const StatusBar: FunctionComponent<{ cur: TimeContext }> = ({cur}) => {
-    const classes = useStyles();
+export function StatusBar() {
+    const classes = useStyles()
+
+    const cur = useAppSelector(curSelector)
 
     // Helpers to control visibility of the different type of execution icons
     const hideBadge = (cur: TimeContext) => (cur.mode !== StepperMode.Running) || (cur.rate <= 1)
@@ -59,16 +62,16 @@ export const StatusBar: FunctionComponent<{ cur: TimeContext }> = ({cur}) => {
 
     return (
         <div className={classes.root}>
-        <Toolbar variant="dense">
-            <div className={classes.root}/>
-            <div>
-                {badgeIcon(cur)}
-                {playIcon(cur)}
-                {pauseIcon(cur)}
-            </div>
-            &nbsp;&nbsp;
-            {cur.now}
-        </Toolbar>
+            <Toolbar variant="dense">
+                <div className={classes.root}/>
+                <div>
+                    {badgeIcon(cur)}
+                    {playIcon(cur)}
+                    {pauseIcon(cur)}
+                </div>
+                &nbsp;&nbsp;
+                {cur.now}
+            </Toolbar>
         </div>
-    );
+    )
 }

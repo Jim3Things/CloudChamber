@@ -79,6 +79,15 @@ message Hardware {
     int64 port = 3;
 }
 
+message CableState {
+    // Determine if the cable is on (working) or off (disabled).
+    enum SM {
+        invalid = 0;
+        on = 1;
+        off = 2;
+    }
+}
+
 message PowerPort {
     // Defines whether or not the port is actually connected to the associated item of equipment.
     //
@@ -111,6 +120,79 @@ message BladeBootInfo {
     string parameters = 4;
 }
 
+message BladeState {
+    // This defines the blade simulation state machine states
+    enum SM {
+        invalid = 0;
+
+        // This is the state where initialization of the state machine
+        // begins.
+        start = 1;
+
+        // This is the state when the blade has neither simulated power
+        // nor simulated network connectivity.
+        off_disconnected = 2;
+
+        // This is the state when the blade does not have power, but does
+        // have simulated network connectivity.
+        off_connected = 3;
+
+        // This is the state when the blade has simulated power, but does
+        // not have simulated network connectivity.
+        powered_disconnected = 4;
+
+        // This is the state when the blade has power and simulated network
+        // connectivity.  If auto-boot is enabled, this state will
+        // automatically transition to the booting state.
+        powered_connected = 5;
+
+        // This is the state when the blade is waiting for the simulated
+        // boot delay to complete.
+        booting = 6;
+
+        // This is the state when the blade is powered on, booted, and
+        // able to handle workload requests.
+        working = 7;
+
+        // This is the state when the blade is powered on and booted, but
+        // has not simulated network connectivity.  Existing workloads are
+        // informed the connectivity has been lost, but are otherwise
+        // undisturbed.
+        isolated = 8;
+
+        // This is a transitional state to clean up when the blade is
+        // finally shutting down.  This may involve notifying any active
+        // workloads that they have been forcibly stopped.
+        stopping = 9;
+
+        // This is a transitional state parallel to the stopping state, but
+        // where simulated network connectivity has been lost.
+        stopping_isolated = 10;
+
+        // This is the state when the blade has either had a processing
+        // fault, such as a timer failure, or an injected fault that leaves
+        // it in a position that requires an external reset/fix.
+        faulted = 11;
+    }
+}
+
+message PduState {
+    // This defines the PDU state machine states
+    enum SM {
+        invalid = 0;
+
+        // This is the state where the PDU is powered on and working.
+        working = 1;
+
+        // This is the state where the PDU is powered off.
+        off = 2;
+
+        // This is the state where the PDU is unresponsive, but power may or
+        // may not still be on.
+        stuck = 3;
+    }
+}
+
 // Power distribution unit.  Network accessible power controller
 //
 message PduDetails {
@@ -127,6 +209,19 @@ message PduDetails {
     // the condition must be operational.
     //
     Condition condition = 2;
+}
+
+message TorState {
+    // This defines the state machine states
+    enum SM {
+        invalid = 0;
+
+        working = 1;
+
+        // The TOR is faulted and unresponsive. Note that programmed cables
+        // may or may not continue to be programmed.
+        stuck = 2;
+    }
 }
 
 // Rack-level network switch.

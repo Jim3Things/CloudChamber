@@ -397,7 +397,7 @@ func (l *Listener) send(notify chan Completion, err error) {
 func (l *Listener) log(f string, args ...interface{}) {
 	_, span := tracing.StartSpan(
 		context.Background(),
-		tracing.WithName(fmt.Sprintf(f, args...)),
+		tracing.WithName(f, args...),
 		tracing.AsInternal(),
 		tracing.WithContextValue(OutsideTime))
 	span.End()

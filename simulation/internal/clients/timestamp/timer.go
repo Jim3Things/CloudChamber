@@ -3,7 +3,6 @@ package timestamp
 import (
 	"context"
 	"sync"
-	"time"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
@@ -123,15 +122,12 @@ func (t *Timers) Cancel(timerID int) error {
 // then processes each expired timer.
 func (t *Timers) listener(epoch int, now int64) {
 	startCtx := context.Background()
-	retries := 0
 
 	t.m.Lock()
 
 	for t.epoch == epoch {
 		t.m.Unlock()
 		now = t.listenUntilFailure(startCtx, epoch, now)
-
-		retries = waitBeforeReconnect(retries)
 		t.m.Lock()
 	}
 
@@ -222,15 +218,4 @@ func (t *Timers) mayCancelListener() bool {
 	}
 
 	return false
-}
-
-func waitBeforeReconnect(retries int) int {
-	retries++
-	if retries > 5 {
-		retries = 5
-	}
-
-	time.Sleep(time.Duration(retries*100) * time.Millisecond)
-
-	return retries
 }

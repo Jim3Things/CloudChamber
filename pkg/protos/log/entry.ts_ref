@@ -1,4 +1,8 @@
 /* eslint-disable */
+import { util, configure } from "protobufjs/minimal";
+import * as Long from "long";
+import { Timestamp } from "../../../../../../google/protobuf/timestamp";
+
 export const protobufPackage = "log";
 
 /** Describe the type of impact that this event has on a module. */
@@ -67,15 +71,6 @@ export enum Action {
    */
   Trace = 0,
   /**
-   * UpdateSpanName - UpdateSpanName and UpdateReason are directives to edit the containing span
-   * information.  The first replaces the span's name field, and the second
-   * replaces the span's reason text. This allows for better descriptions for a
-   * span once the details have been better understood - e.g. 'logging in a user'
-   * vs. 'logging in user "admin"'.
-   */
-  UpdateSpanName = 1,
-  UpdateReason = 2,
-  /**
    * SpanStart - SpanStart is used to place the child span in the correct spot in the
    * sequence of events in the containing span.  It identifies the child span's
    * ID.  Structured formatters will expand the child span at this point in the
@@ -98,6 +93,13 @@ export enum Action {
    * then they do not.
    */
   AddLink = 4,
+  /**
+   * AddImpact - AddImpact is used to add an impact target to the span information.  The
+   * impact value is a string stored in the text field, and is expected to
+   * match the format used by the normal span KV structure (e.g. R:foo to
+   * indicate a read impact on component 'foo').
+   */
+  AddImpact = 5,
   UNRECOGNIZED = -1,
 }
 
@@ -106,18 +108,15 @@ export function actionFromJSON(object: any): Action {
     case 0:
     case "Trace":
       return Action.Trace;
-    case 1:
-    case "UpdateSpanName":
-      return Action.UpdateSpanName;
-    case 2:
-    case "UpdateReason":
-      return Action.UpdateReason;
     case 3:
     case "SpanStart":
       return Action.SpanStart;
     case 4:
     case "AddLink":
       return Action.AddLink;
+    case 5:
+    case "AddImpact":
+      return Action.AddImpact;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -129,14 +128,12 @@ export function actionToJSON(object: Action): string {
   switch (object) {
     case Action.Trace:
       return "Trace";
-    case Action.UpdateSpanName:
-      return "UpdateSpanName";
-    case Action.UpdateReason:
-      return "UpdateReason";
     case Action.SpanStart:
       return "SpanStart";
     case Action.AddLink:
       return "AddLink";
+    case Action.AddImpact:
+      return "AddImpact";
     default:
       return "UNKNOWN";
   }
@@ -217,14 +214,14 @@ export interface Event {
   text: string;
   /** Formatted caller's stack trace */
   stackTrace: string;
-  /** The set of modules impacted, and the type of impact. */
-  impacted: Module[];
   /** Action to take when this trace is encountered. */
   eventAction: Action;
   /** Child's span ID.  Ignored if the action is not SpanStart. */
   spanId: string;
   /** Outgoing link ID.  Ignored if the action is not AddLink. */
   linkId: string;
+  /** Real-world time when this event occurred. */
+  at: Date | undefined;
 }
 
 /** Describe a full correlated span, consisting of zero or more events. */
@@ -257,8 +254,13 @@ export interface Entry {
    * The link span ID and trace ID identify the active span at the point
    * where the request to start a new related span was made.
    */
-  linkSpanID: string;
-  linkTraceID: string;
+  linkSpanid: string;
+  linkTraceid: string;
+  /** Real-world time when this span started and ended. */
+  startedAt: Date | undefined;
+  endedAt: Date | undefined;
+  /** The set of modules impacted, and the type of impact. */
+  impacted: Module[];
 }
 
 const baseModule: object = { impact: 0, name: "" };
@@ -301,7 +303,6 @@ const baseEvent: object = {
 export const Event = {
   fromJSON(object: any): Event {
     const message = { ...baseEvent } as Event;
-    message.impacted = [];
     if (object.tick !== undefined && object.tick !== null) {
       message.tick = Number(object.tick);
     } else {
@@ -327,11 +328,6 @@ export const Event = {
     } else {
       message.stackTrace = "";
     }
-    if (object.impacted !== undefined && object.impacted !== null) {
-      for (const e of object.impacted) {
-        message.impacted.push(Module.fromJSON(e));
-      }
-    }
     if (object.eventAction !== undefined && object.eventAction !== null) {
       message.eventAction = actionFromJSON(object.eventAction);
     } else {
@@ -347,6 +343,11 @@ export const Event = {
     } else {
       message.linkId = "";
     }
+    if (object.at !== undefined && object.at !== null) {
+      message.at = fromJsonTimestamp(object.at);
+    } else {
+      message.at = undefined;
+    }
     return message;
   },
 
@@ -358,17 +359,11 @@ export const Event = {
     message.name !== undefined && (obj.name = message.name);
     message.text !== undefined && (obj.text = message.text);
     message.stackTrace !== undefined && (obj.stackTrace = message.stackTrace);
-    if (message.impacted) {
-      obj.impacted = message.impacted.map((e) =>
-        e ? Module.toJSON(e) : undefined
-      );
-    } else {
-      obj.impacted = [];
-    }
     message.eventAction !== undefined &&
       (obj.eventAction = actionToJSON(message.eventAction));
     message.spanId !== undefined && (obj.spanId = message.spanId);
     message.linkId !== undefined && (obj.linkId = message.linkId);
+    message.at !== undefined && (obj.at = message.at.toISOString());
     return obj;
   },
 };
@@ -383,14 +378,15 @@ const baseEntry: object = {
   infrastructure: false,
   reason: "",
   startingLink: "",
-  linkSpanID: "",
-  linkTraceID: "",
+  linkSpanid: "",
+  linkTraceid: "",
 };
 
 export const Entry = {
   fromJSON(object: any): Entry {
     const message = { ...baseEntry } as Entry;
     message.event = [];
+    message.impacted = [];
     if (object.name !== undefined && object.name !== null) {
       message.name = String(object.name);
     } else {
@@ -441,15 +437,30 @@ export const Entry = {
     } else {
       message.startingLink = "";
     }
-    if (object.linkSpanID !== undefined && object.linkSpanID !== null) {
-      message.linkSpanID = String(object.linkSpanID);
+    if (object.linkSpanid !== undefined && object.linkSpanid !== null) {
+      message.linkSpanid = String(object.linkSpanid);
     } else {
-      message.linkSpanID = "";
+      message.linkSpanid = "";
     }
-    if (object.linkTraceID !== undefined && object.linkTraceID !== null) {
-      message.linkTraceID = String(object.linkTraceID);
+    if (object.linkTraceid !== undefined && object.linkTraceid !== null) {
+      message.linkTraceid = String(object.linkTraceid);
     } else {
-      message.linkTraceID = "";
+      message.linkTraceid = "";
+    }
+    if (object.startedAt !== undefined && object.startedAt !== null) {
+      message.startedAt = fromJsonTimestamp(object.startedAt);
+    } else {
+      message.startedAt = undefined;
+    }
+    if (object.endedAt !== undefined && object.endedAt !== null) {
+      message.endedAt = fromJsonTimestamp(object.endedAt);
+    } else {
+      message.endedAt = undefined;
+    }
+    if (object.impacted !== undefined && object.impacted !== null) {
+      for (const e of object.impacted) {
+        message.impacted.push(Module.fromJSON(e));
+      }
     }
     return message;
   },
@@ -472,9 +483,43 @@ export const Entry = {
     message.reason !== undefined && (obj.reason = message.reason);
     message.startingLink !== undefined &&
       (obj.startingLink = message.startingLink);
-    message.linkSpanID !== undefined && (obj.linkSpanID = message.linkSpanID);
-    message.linkTraceID !== undefined &&
-      (obj.linkTraceID = message.linkTraceID);
+    message.linkSpanid !== undefined && (obj.linkSpanid = message.linkSpanid);
+    message.linkTraceid !== undefined &&
+      (obj.linkTraceid = message.linkTraceid);
+    message.startedAt !== undefined &&
+      (obj.startedAt = message.startedAt.toISOString());
+    message.endedAt !== undefined &&
+      (obj.endedAt = message.endedAt.toISOString());
+    if (message.impacted) {
+      obj.impacted = message.impacted.map((e) =>
+        e ? Module.toJSON(e) : undefined
+      );
+    } else {
+      obj.impacted = [];
+    }
     return obj;
   },
 };
+
+function fromTimestamp(t: Timestamp): Date {
+  let millis = t.seconds * 1_000;
+  millis += t.nanos / 1_000_000;
+  return new Date(millis);
+}
+
+function fromJsonTimestamp(o: any): Date {
+  if (o instanceof Date) {
+    return o;
+  } else if (typeof o === "string") {
+    return new Date(o);
+  } else {
+    return fromTimestamp(Timestamp.fromJSON(o));
+  }
+}
+
+// If you get a compile-error about 'Constructor<Long> and ... have no overlap',
+// add '--ts_proto_opt=esModuleInterop=true' as a flag when calling 'protoc'.
+if (util.Long !== Long) {
+  util.Long = Long as any;
+  configure();
+}

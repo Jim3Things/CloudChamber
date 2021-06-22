@@ -1,17 +1,26 @@
-import React from "react";
-import {Check, CheckCircleOutline, Error, HighlightOff} from "@material-ui/icons";
-import {createStyles, Table, TableBody, TableCell, TableHead, TableRow} from "@material-ui/core";
+import React from "react"
+import {Check, CheckCircleOutline, Error, HighlightOff, Warning} from "@material-ui/icons"
+import {
+    createStyles,
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableRow,
+    Typography,
+} from "@material-ui/core"
 
-import {BladeDetails, InstanceState, PhysicalState} from "../proxies/InventoryProxy";
-import {makeStyles} from "@material-ui/core/styles";
+import {BladeDescription, InstanceState} from "../proxies/InventoryProxy"
+import {makeStyles, Theme} from "@material-ui/core/styles"
+import {
+    BladeBootInfo_Method, BladeState_SM, bladeState_SMToString,
+} from "../pkg/protos/inventory/common"
+import {Accelerator} from "../pkg/protos/inventory/capacity"
 
-const useStyles = makeStyles((theme) =>
+const useStyles = makeStyles((theme: Theme) =>
     createStyles({
         cell: {
             backgroundColor: theme.palette.action.hover
-        },
-        noBorder: {
-            borderStyle: "none",
         },
     }),
 );
@@ -33,84 +42,116 @@ function statusIcon(state: InstanceState) {
 }
 
 // Return the icon that matches the physical state of a blade
-function bladeStatusIcon(state: PhysicalState) {
+function bladeStatusIcon(state: BladeState_SM) {
     switch (state) {
-        case PhysicalState.faulted:
+        case BladeState_SM.faulted:
             return <Error/>
 
-        case PhysicalState.healthy:
+        case BladeState_SM.working:
             return <Check/>
 
-        case PhysicalState.off:
+        case BladeState_SM.off_disconnected:
+        case BladeState_SM.off_connected:
             return <HighlightOff/>
+
+        default:
+            return <Warning/>
     }
 }
 
-function acceleratorText(details: BladeDetails) {
-    const accel = details.capacity.accelerators.join(", ")
+function acceleratorText(accels: Accelerator[]) {
+    const accel = accels.join(", ")
 
     if (accel.length > 0) {
-        return " with accelerators " + accel
+        return accel
     }
 
-    return ""
+    return "none"
+}
+
+function bootSourceText(source: BladeBootInfo_Method): string {
+    switch (source) {
+        case BladeBootInfo_Method.local:
+            return "local"
+        case BladeBootInfo_Method.network:
+            return "network"
+        default:
+            return "unknown"
+    }
 }
 
 // Construct the details display showing the usage of a blade, its overall
 // capacity, and what remains available.
-export function BladeUsageDetails(props: { index: number, details: BladeDetails }) {
+export function BladeUsageDetails(props: { details: BladeDescription }) {
     const classes = useStyles();
 
     const totalUsed = props.details.usage.reduce((sum: number, item) => sum + item.usage, 0)
-    const unused = props.details.capacity.cores - totalUsed
+    const unused = props.details.blade.capacity.cores - totalUsed
+    const blade = props.details.blade
 
-    return <Table size="small">
-        <TableHead>
-            <TableRow className={classes.noBorder}>
-                <TableCell align="center" colSpan={6}>
-                    Details for blade {props.index}
-                    <br/>
-                    (Uses {props.details.capacity.arch} processors{acceleratorText(props.details)})
-                </TableCell>
-            </TableRow>
-            <TableRow>
-                <TableCell/>
-                <TableCell>Status</TableCell>
-                <TableCell>Cores</TableCell>
-                <TableCell>Memory</TableCell>
-                <TableCell>Disk</TableCell>
-                <TableCell>NIC</TableCell>
-            </TableRow>
-        </TableHead>
-        <TableBody>
-            <TableRow>
-                <TableCell className={classes.cell}>Blade Capacity</TableCell>
-                <TableCell className={classes.cell}>{bladeStatusIcon(props.details.state)}</TableCell>
-                <TableCell className={classes.cell}>{props.details.capacity.cores}</TableCell>
-                <TableCell className={classes.cell}>{props.details.capacity.memoryInMb}</TableCell>
-                <TableCell className={classes.cell}>{props.details.capacity.diskInGb}</TableCell>
-                <TableCell className={classes.cell}>{props.details.capacity.networkBandwidthInMbps}</TableCell>
-            </TableRow>
+    const accelCount = blade.capacity.accelerators.length
+    const accelText = "It has " + (accelCount === 0 ? "no" : accelCount) + " accelerator" +
+        (accelCount !== 1 ? "s" : "") +
+        (accelCount > 0 ? ", of type " + acceleratorText(blade.capacity.accelerators) : "")
 
-            {props.details.usage.map((v, k) => {
-                return <TableRow>
-                    <TableCell>Instance {k}</TableCell>
-                    <TableCell>{statusIcon(v.state)}</TableCell>
-                    <TableCell>{v.usage}</TableCell>
-                    <TableCell>?</TableCell>
-                    <TableCell>?</TableCell>
-                    <TableCell>?</TableCell>
+    return <>
+        <Typography paragraph>
+            This blades uses processor architecture {blade.capacity.arch}. {accelText}.
+            It is configured to {blade.bootOnPowerOn ? "" : "not "}automatically boot when powered on.
+            When booting, it uses the '{blade.bootInfo.image}' image at version '{blade.bootInfo.version}
+            ' from '{bootSourceText(blade.bootInfo.source)}' storage, with parameters '{blade.bootInfo.parameters}'.
+        </Typography>
+        <Typography paragraph>
+            At simulated time {blade.observed.at},
+            it was in the {bladeState_SMToString(blade.observed.smState)} state, which it entered at simulated time {blade.observed.enteredAt}.
+        </Typography>
+
+        <Table size="small">
+            <TableHead>
+                <TableRow>
+                    <TableCell align="center" colSpan={6}>
+                        Usage Details
+                    </TableCell>
                 </TableRow>
-            })}
+                <TableRow>
+                    <TableCell/>
+                    <TableCell>Status</TableCell>
+                    <TableCell>Cores</TableCell>
+                    <TableCell>Memory</TableCell>
+                    <TableCell>Disk</TableCell>
+                    <TableCell>NIC</TableCell>
+                </TableRow>
+            </TableHead>
+            <TableBody>
+                <TableRow>
+                    <TableCell className={classes.cell}>Blade Capacity</TableCell>
+                    <TableCell className={classes.cell}>{bladeStatusIcon(blade.observed.smState)}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.cores}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.memoryInMb}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.diskInGb}</TableCell>
+                    <TableCell className={classes.cell}>{blade.capacity.networkBandwidthInMbps}</TableCell>
+                </TableRow>
 
-            <TableRow>
-                <TableCell className={classes.cell}>Unused</TableCell>
-                <TableCell className={classes.cell} />
-                <TableCell className={classes.cell}>{unused}</TableCell>
-                <TableCell className={classes.cell}>?</TableCell>
-                <TableCell className={classes.cell}>?</TableCell>
-                <TableCell className={classes.cell}>?</TableCell>
-            </TableRow>
-        </TableBody>
-    </Table>
+                {props.details.usage.map((v, k) =>
+                     <TableRow>
+                        <TableCell>Instance {k}</TableCell>
+                        <TableCell>{statusIcon(v.state)}</TableCell>
+                        <TableCell>{v.usage}</TableCell>
+                        <TableCell>?</TableCell>
+                        <TableCell>?</TableCell>
+                        <TableCell>?</TableCell>
+                    </TableRow>
+                )}
+
+                <TableRow>
+                    <TableCell className={classes.cell}>Unused</TableCell>
+                    <TableCell className={classes.cell}/>
+                    <TableCell className={classes.cell}>{unused}</TableCell>
+                    <TableCell className={classes.cell}>?</TableCell>
+                    <TableCell className={classes.cell}>?</TableCell>
+                    <TableCell className={classes.cell}>?</TableCell>
+                </TableRow>
+            </TableBody>
+        </Table>
+    </>
 }

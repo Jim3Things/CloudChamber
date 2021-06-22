@@ -6,6 +6,7 @@ import (
 	"google.golang.org/grpc"
 
 	ic "github.com/Jim3Things/CloudChamber/simulation/internal/clients/inventory"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	ns "github.com/Jim3Things/CloudChamber/simulation/internal/clients/namespace"
 	st "github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
@@ -26,7 +27,7 @@ type server struct {
 
 	timers *ts.Timers
 
-	store *st.Store
+	store     *st.Store
 	inventory *ic.Inventory
 }
 
@@ -34,21 +35,27 @@ func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
 	if err := ts.InitTimestamp(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor)); err != nil {
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	); err != nil {
 		return err
 	}
 
 	if err := tsc.InitSinkClient(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor)); err != nil {
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	); err != nil {
 		return err
 	}
 
 	timers := ts.NewTimers(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 
 	s := &server{
 		racks:  make(map[string]*Rack),
@@ -100,7 +107,7 @@ func (s *server) initializeInventory(cfg *config.GlobalConfig) error {
 	st.Initialize(ctx, cfg)
 	s.store = st.NewStore()
 	s.inventory = ic.NewInventory(cfg, s.store)
-	
+
 	if err := s.inventory.Start(ctx); err != nil {
 		return err
 	}
@@ -148,9 +155,9 @@ func (s *server) initializeRacks() error {
 		return err
 	}
 
-	for name, rack := range *racks {
+	for _, rack := range *racks {
 		// For each rack, create a rack item, supplying the tor, pdu, and blade
-		tracing.Info(ctx, "Adding rack %q", name)
+		tracing.Info(ctx, "Adding rack %s", rack.Key)
 
 		r, err := rack.GetDefinitionRackWithChildren(ctx)
 
@@ -158,10 +165,17 @@ func (s *server) initializeRacks() error {
 			return err
 		}
 
-		s.racks[name] = newRack(ctx, name, r, s.timers)
+		s.racks[rack.Key] = newRack(
+			ctx,
+			rack.Key,
+			r,
+			rack.KeyIndexPdu,
+			rack.KeyIndexTor,
+			rack.KeyIndexBlade,
+			s.timers)
 
 		// Start each rack (this gives us a channel and a goroutine)
-		if err = s.racks[name].start(ctx); err != nil {
+		if err = s.racks[rack.Key].start(ctx); err != nil {
 			return err
 		}
 	}

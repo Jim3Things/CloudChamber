@@ -1,4 +1,7 @@
 /* eslint-disable */
+import { util, configure } from "protobufjs/minimal";
+import * as Long from "long";
+
 export const protobufPackage = "inventory";
 
 /**
@@ -201,6 +204,47 @@ export function hardware_HwTypeToJSON(object: Hardware_HwType): string {
   }
 }
 
+export interface CableState {}
+
+/** Determine if the cable is on (working) or off (disabled). */
+export enum CableState_SM {
+  invalid = 0,
+  on = 1,
+  off = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function cableState_SMFromJSON(object: any): CableState_SM {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return CableState_SM.invalid;
+    case 1:
+    case "on":
+      return CableState_SM.on;
+    case 2:
+    case "off":
+      return CableState_SM.off;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return CableState_SM.UNRECOGNIZED;
+  }
+}
+
+export function cableState_SMToJSON(object: CableState_SM): string {
+  switch (object) {
+    case CableState_SM.invalid:
+      return "invalid";
+    case CableState_SM.on:
+      return "on";
+    case CableState_SM.off:
+      return "off";
+    default:
+      return "UNKNOWN";
+  }
+}
+
 export interface PowerPort {
   /** Defines whether or not the port is actually connected to the associated item of equipment. */
   wired: boolean;
@@ -258,6 +302,203 @@ export function bladeBootInfo_MethodToJSON(
   }
 }
 
+export interface BladeState {}
+
+/** This defines the blade simulation state machine states */
+export enum BladeState_SM {
+  invalid = 0,
+  /**
+   * start - This is the state where initialization of the state machine
+   * begins.
+   */
+  start = 1,
+  /**
+   * off_disconnected - This is the state when the blade has neither simulated power
+   * nor simulated network connectivity.
+   */
+  off_disconnected = 2,
+  /**
+   * off_connected - This is the state when the blade does not have power, but does
+   * have simulated network connectivity.
+   */
+  off_connected = 3,
+  /**
+   * powered_disconnected - This is the state when the blade has simulated power, but does
+   * not have simulated network connectivity.
+   */
+  powered_disconnected = 4,
+  /**
+   * powered_connected - This is the state when the blade has power and simulated network
+   * connectivity.  If auto-boot is enabled, this state will
+   * automatically transition to the booting state.
+   */
+  powered_connected = 5,
+  /**
+   * booting - This is the state when the blade is waiting for the simulated
+   * boot delay to complete.
+   */
+  booting = 6,
+  /**
+   * working - This is the state when the blade is powered on, booted, and
+   * able to handle workload requests.
+   */
+  working = 7,
+  /**
+   * isolated - This is the state when the blade is powered on and booted, but
+   * has not simulated network connectivity.  Existing workloads are
+   * informed the connectivity has been lost, but are otherwise
+   * undisturbed.
+   */
+  isolated = 8,
+  /**
+   * stopping - This is a transitional state to clean up when the blade is
+   * finally shutting down.  This may involve notifying any active
+   * workloads that they have been forcibly stopped.
+   */
+  stopping = 9,
+  /**
+   * stopping_isolated - This is a transitional state parallel to the stopping state, but
+   * where simulated network connectivity has been lost.
+   */
+  stopping_isolated = 10,
+  /**
+   * faulted - This is the state when the blade has either had a processing
+   * fault, such as a timer failure, or an injected fault that leaves
+   * it in a position that requires an external reset/fix.
+   */
+  faulted = 11,
+  UNRECOGNIZED = -1,
+}
+
+export function bladeState_SMFromJSON(object: any): BladeState_SM {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return BladeState_SM.invalid;
+    case 1:
+    case "start":
+      return BladeState_SM.start;
+    case 2:
+    case "off_disconnected":
+      return BladeState_SM.off_disconnected;
+    case 3:
+    case "off_connected":
+      return BladeState_SM.off_connected;
+    case 4:
+    case "powered_disconnected":
+      return BladeState_SM.powered_disconnected;
+    case 5:
+    case "powered_connected":
+      return BladeState_SM.powered_connected;
+    case 6:
+    case "booting":
+      return BladeState_SM.booting;
+    case 7:
+    case "working":
+      return BladeState_SM.working;
+    case 8:
+    case "isolated":
+      return BladeState_SM.isolated;
+    case 9:
+    case "stopping":
+      return BladeState_SM.stopping;
+    case 10:
+    case "stopping_isolated":
+      return BladeState_SM.stopping_isolated;
+    case 11:
+    case "faulted":
+      return BladeState_SM.faulted;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return BladeState_SM.UNRECOGNIZED;
+  }
+}
+
+export function bladeState_SMToJSON(object: BladeState_SM): string {
+  switch (object) {
+    case BladeState_SM.invalid:
+      return "invalid";
+    case BladeState_SM.start:
+      return "start";
+    case BladeState_SM.off_disconnected:
+      return "off_disconnected";
+    case BladeState_SM.off_connected:
+      return "off_connected";
+    case BladeState_SM.powered_disconnected:
+      return "powered_disconnected";
+    case BladeState_SM.powered_connected:
+      return "powered_connected";
+    case BladeState_SM.booting:
+      return "booting";
+    case BladeState_SM.working:
+      return "working";
+    case BladeState_SM.isolated:
+      return "isolated";
+    case BladeState_SM.stopping:
+      return "stopping";
+    case BladeState_SM.stopping_isolated:
+      return "stopping_isolated";
+    case BladeState_SM.faulted:
+      return "faulted";
+    default:
+      return "UNKNOWN";
+  }
+}
+
+export interface PduState {}
+
+/** This defines the PDU state machine states */
+export enum PduState_SM {
+  invalid = 0,
+  /** working - This is the state where the PDU is powered on and working. */
+  working = 1,
+  /** off - This is the state where the PDU is powered off. */
+  off = 2,
+  /**
+   * stuck - This is the state where the PDU is unresponsive, but power may or
+   * may not still be on.
+   */
+  stuck = 3,
+  UNRECOGNIZED = -1,
+}
+
+export function pduState_SMFromJSON(object: any): PduState_SM {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return PduState_SM.invalid;
+    case 1:
+    case "working":
+      return PduState_SM.working;
+    case 2:
+    case "off":
+      return PduState_SM.off;
+    case 3:
+    case "stuck":
+      return PduState_SM.stuck;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return PduState_SM.UNRECOGNIZED;
+  }
+}
+
+export function pduState_SMToJSON(object: PduState_SM): string {
+  switch (object) {
+    case PduState_SM.invalid:
+      return "invalid";
+    case PduState_SM.working:
+      return "working";
+    case PduState_SM.off:
+      return "off";
+    case PduState_SM.stuck:
+      return "stuck";
+    default:
+      return "UNKNOWN";
+  }
+}
+
 /** Power distribution unit.  Network accessible power controller */
 export interface PduDetails {
   /**
@@ -272,6 +513,51 @@ export interface PduDetails {
    * the condition must be operational.
    */
   condition: Condition;
+}
+
+export interface TorState {}
+
+/** This defines the state machine states */
+export enum TorState_SM {
+  invalid = 0,
+  working = 1,
+  /**
+   * stuck - The TOR is faulted and unresponsive. Note that programmed cables
+   * may or may not continue to be programmed.
+   */
+  stuck = 2,
+  UNRECOGNIZED = -1,
+}
+
+export function torState_SMFromJSON(object: any): TorState_SM {
+  switch (object) {
+    case 0:
+    case "invalid":
+      return TorState_SM.invalid;
+    case 1:
+    case "working":
+      return TorState_SM.working;
+    case 2:
+    case "stuck":
+      return TorState_SM.stuck;
+    case -1:
+    case "UNRECOGNIZED":
+    default:
+      return TorState_SM.UNRECOGNIZED;
+  }
+}
+
+export function torState_SMToJSON(object: TorState_SM): string {
+  switch (object) {
+    case TorState_SM.invalid:
+      return "invalid";
+    case TorState_SM.working:
+      return "working";
+    case TorState_SM.stuck:
+      return "stuck";
+    default:
+      return "UNKNOWN";
+  }
 }
 
 /** Rack-level network switch. */
@@ -440,6 +726,20 @@ export const Hardware = {
   },
 };
 
+const baseCableState: object = {};
+
+export const CableState = {
+  fromJSON(_: any): CableState {
+    const message = { ...baseCableState } as CableState;
+    return message;
+  },
+
+  toJSON(_: CableState): unknown {
+    const obj: any = {};
+    return obj;
+  },
+};
+
 const basePowerPort: object = { wired: false };
 
 export const PowerPort = {
@@ -538,6 +838,34 @@ export const BladeBootInfo = {
   },
 };
 
+const baseBladeState: object = {};
+
+export const BladeState = {
+  fromJSON(_: any): BladeState {
+    const message = { ...baseBladeState } as BladeState;
+    return message;
+  },
+
+  toJSON(_: BladeState): unknown {
+    const obj: any = {};
+    return obj;
+  },
+};
+
+const basePduState: object = {};
+
+export const PduState = {
+  fromJSON(_: any): PduState {
+    const message = { ...basePduState } as PduState;
+    return message;
+  },
+
+  toJSON(_: PduState): unknown {
+    const obj: any = {};
+    return obj;
+  },
+};
+
 const basePduDetails: object = { enabled: false, condition: 0 };
 
 export const PduDetails = {
@@ -561,6 +889,20 @@ export const PduDetails = {
     message.enabled !== undefined && (obj.enabled = message.enabled);
     message.condition !== undefined &&
       (obj.condition = conditionToJSON(message.condition));
+    return obj;
+  },
+};
+
+const baseTorState: object = {};
+
+export const TorState = {
+  fromJSON(_: any): TorState {
+    const message = { ...baseTorState } as TorState;
+    return message;
+  },
+
+  toJSON(_: TorState): unknown {
+    const obj: any = {};
     return obj;
   },
 };
@@ -774,3 +1116,10 @@ export const RootDetails = {
     return obj;
   },
 };
+
+// If you get a compile-error about 'Constructor<Long> and ... have no overlap',
+// add '--ts_proto_opt=esModuleInterop=true' as a flag when calling 'protoc'.
+if (util.Long !== Long) {
+  util.Long = Long as any;
+  configure();
+}

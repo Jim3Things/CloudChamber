@@ -56,6 +56,12 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 				entry.LinkSpanID = data.Links[0].SpanID.String()
 				entry.LinkTraceID = data.Links[0].TraceID.String()
 			}
+
+		case tracing.ImpactKey:
+			entry.Impacted = append(entry.Impacted, processImpact(attr.Value.AsString()))
+
+		case tracing.SpanNameKey:
+			entry.Name = attr.Value.AsString()
 		}
 	}
 
@@ -89,18 +95,12 @@ func extractEntry(_ context.Context, data *trace.SpanData) *log.Entry {
 
 			case tracing.ActionKey:
 				item.EventAction = log.Action(attr.Value.AsInt64())
-
-			case tracing.ImpactKey:
-				item.Impacted = processImpacts(attr.Value.AsArray())
 			}
 		}
 
 		switch item.EventAction {
-		case log.Action_UpdateSpanName:
-			entry.Name = item.Text
-
-		case log.Action_UpdateReason:
-			entry.Reason = item.Text
+		case log.Action_AddImpact:
+			entry.Impacted = append(entry.Impacted, processImpact(item.Text))
 
 		default:
 			entry.Event = append(entry.Event, &item)
@@ -118,7 +118,7 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 	dur := entry.EndedAt.AsTime().Sub(entry.StartedAt.AsTime())
 
 	return doIndent(fmt.Sprintf(
-		"%s:%s [%s:%s]%s%s%s %s %s (%s):\n%s\n",
+		"%s:%s [%s:%s]%s%s%s %s %s (%s):\n%s%s\n",
 		entry.StartedAt.AsTime().Format(time.RFC3339Nano),
 		dur.String(),
 		entry.GetSpanID(),
@@ -129,6 +129,7 @@ func formatEntry(entry *log.Entry, deferred bool, leader string) string {
 		entry.GetStatus(),
 		entry.GetName(),
 		entry.GetReason(),
+		formatModules(entry.GetImpacted()),
 		stack), leader)
 }
 
@@ -193,23 +194,21 @@ func formatNormalEvent(event *log.Event, leader string) string {
 
 	if event.GetTick() < 0 {
 		return doIndent(fmt.Sprintf(
-			"%s       : [%s] (%s) %s\n%s%s\n",
+			"%s       : [%s] (%s) %s\n%s\n",
 			event.At.AsTime().Format(time.RFC3339Nano),
 			severityFlag(event.GetSeverity()),
 			event.GetName(),
 			event.GetText(),
-			formatModules(event.Impacted),
 			stack), leader)
 	}
 
 	return doIndent(fmt.Sprintf(
-		"%s  @%4d: [%s] (%s) %s\n%s%s\n",
+		"%s  @%4d: [%s] (%s) %s\n%s\n",
 		event.At.AsTime().Format(time.RFC3339Nano),
 		event.GetTick(),
 		severityFlag(event.GetSeverity()),
 		event.GetName(),
 		event.GetText(),
-		formatModules(event.Impacted),
 		stack), leader)
 }
 
@@ -224,7 +223,6 @@ func doIndent(s string, indent string) string {
 func severityFlag(severity log.Severity) string {
 	var severityToText = map[log.Severity]string{
 		log.Severity_Debug:   "D",
-		log.Severity_Reason:  "R",
 		log.Severity_Info:    "I",
 		log.Severity_Warning: "W",
 		log.Severity_Error:   "E",
@@ -276,20 +274,12 @@ func formatModules(modules []*log.Module) string {
 	return res
 }
 
-func processImpacts(attrs interface{}) []*log.Module {
-	var modules []*log.Module
-	values := attrs.([]string)
-
-	for _, value := range values {
-		tags := strings.Split(value, ":")
-
-		modules = append(modules, &log.Module{
-			Impact: decodeImpact(tags[0]),
-			Name:   tags[1],
-		})
+func processImpact(value string) *log.Module {
+	tags := strings.Split(value, ":")
+	return &log.Module{
+		Impact: decodeImpact(tags[0]),
+		Name:   tags[1],
 	}
-
-	return modules
 }
 
 func decodeImpact(tag string) log.Impact {

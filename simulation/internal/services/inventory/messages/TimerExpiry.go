@@ -41,20 +41,21 @@ func NewTimerExpiry(
 
 // SendVia forwards the timer expiration directly to the target element.
 func (m *TimerExpiry) SendVia(ctx context.Context, r viaSender) error {
+	id := m.Target.ElementId()
+
 	if m.Target.IsPdu() {
-		return r.ViaPDU(ctx, m)
+		return r.ToPdu(ctx, id, m)
 	}
 
 	if m.Target.IsTor() {
-		return r.ViaTor(ctx, m)
+		return r.ToTor(ctx, id, m)
 	}
 
-	id, ok := m.Target.BladeID()
-	if !ok {
-		return errors.ErrInvalidTarget
+	if m.Target.IsBlade() {
+		return r.ToBlade(ctx, id, m)
 	}
 
-	return r.ViaBlade(ctx, id, m)
+	return errors.ErrInvalidTarget
 }
 
 // String provides a formatted description of the message.

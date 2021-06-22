@@ -1,7 +1,27 @@
 /* eslint-disable */
+import { util, configure } from "protobufjs/minimal";
+import * as Long from "long";
 import {
+  CableState_SM,
+  PduState_SM,
+  TorState_SM,
+  BladeState_SM,
+  PduDetails,
+  PowerPort,
+  TorDetails,
+  NetworkPort,
+  BladeDetails,
+  BladeBootInfo,
   RackDetails,
   ZoneDetails,
+  cableState_SMFromJSON,
+  cableState_SMToJSON,
+  pduState_SMFromJSON,
+  pduState_SMToJSON,
+  torState_SMFromJSON,
+  torState_SMToJSON,
+  bladeState_SMFromJSON,
+  bladeState_SMToJSON,
 } from "../../../../../../github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common";
 import { BladeCapacity } from "../../../../../../github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity";
 
@@ -9,11 +29,102 @@ export const protobufPackage = "inventory";
 
 export interface External {}
 
+export interface External_ObservedCable {
+  /** The simulated time when the observation was made */
+  at: number;
+  /** The state the PDU was in at that time. */
+  smState: CableState_SM;
+  /** The simulated time when it entered this state. */
+  enteredAt: number;
+}
+
 /** Power distribution unit.  Network accessible power controller */
-export interface External_Pdu {}
+export interface External_Pdu {
+  details: PduDetails | undefined;
+  /**
+   * Defines a power "socket" which is used to provide power to a blade. There is
+   * a 1 to 1 mapping of a power port to a blade within a single rack and it is an
+   * error if there fewer power ports than blades.
+   */
+  ports: { [key: number]: External_Pdu_Port };
+  observed: External_Pdu_ObservedState | undefined;
+}
+
+export interface External_Pdu_Port {
+  port: PowerPort | undefined;
+  observed: External_ObservedCable | undefined;
+}
+
+export interface External_Pdu_PortsEntry {
+  key: number;
+  value: External_Pdu_Port | undefined;
+}
+
+/** Observed, actual, and target data follows on from here... */
+export interface External_Pdu_ObservedState {
+  /** The simulated time when the observation was made */
+  at: number;
+  /** The state the PDU was in at that time. */
+  smState: PduState_SM;
+  /** The simulated time when it entered this state. */
+  enteredAt: number;
+}
 
 /** Rack-level network switch. */
-export interface External_Tor {}
+export interface External_Tor {
+  details: TorDetails | undefined;
+  /**
+   * Defines a network "port" which is used to provide a network connection to a
+   * blade. There is a 1 to 1 mapping of a network port to a blade within a single
+   * rack and it is an error if there fewer network ports than blades.
+   */
+  ports: { [key: number]: External_Tor_Port };
+  observed: External_Tor_ObservedState | undefined;
+}
+
+export interface External_Tor_Port {
+  port: NetworkPort | undefined;
+  observed: External_ObservedCable | undefined;
+}
+
+export interface External_Tor_PortsEntry {
+  key: number;
+  value: External_Tor_Port | undefined;
+}
+
+/** Observed, actual, and target data follows on from here... */
+export interface External_Tor_ObservedState {
+  /** The simulated time when the observation was made */
+  at: number;
+  /** The state the TOR was in at that time. */
+  smState: TorState_SM;
+  /** The simulated time when it entered this state. */
+  enteredAt: number;
+}
+
+/** Individual blade within the rack */
+export interface External_Blade {
+  details: BladeDetails | undefined;
+  capacity: BladeCapacity | undefined;
+  /**
+   * Defines whether or not the blade automatically begins a boot sequence when power is
+   * applied to the blade.
+   */
+  bootOnPowerOn: boolean;
+  /** Describes the default boot mechanism */
+  bootInfo: BladeBootInfo | undefined;
+  observed: External_Blade_ObservedState | undefined;
+}
+
+/** Define the observed state for this blade */
+export interface External_Blade_ObservedState {
+  /** The simulated time when the observation was made */
+  at: number;
+  /** The state the blade was in at that time. */
+  smState: BladeState_SM;
+  /** The simulated time when it entered this state. */
+  enteredAt: number;
+}
 
 export interface External_Rack {
   details: RackDetails | undefined;
@@ -24,11 +135,29 @@ export interface External_Rack {
    * rack, which is used here as the key.
    */
   blades: { [key: number]: BladeCapacity };
+  pdus: { [key: number]: External_Pdu };
+  tors: { [key: number]: External_Tor };
+  fullBlades: { [key: number]: External_Blade };
 }
 
 export interface External_Rack_BladesEntry {
   key: number;
   value: BladeCapacity | undefined;
+}
+
+export interface External_Rack_PdusEntry {
+  key: number;
+  value: External_Pdu | undefined;
+}
+
+export interface External_Rack_TorsEntry {
+  key: number;
+  value: External_Tor | undefined;
+}
+
+export interface External_Rack_FullBladesEntry {
+  key: number;
+  value: External_Blade | undefined;
 }
 
 /**
@@ -62,6 +191,12 @@ export interface External_ZoneSummary {
   details: ZoneDetails | undefined;
   /** Friendly name for the zone */
   name: string;
+  /** The largest number of TORs held in any rack. */
+  maxTorCount: number;
+  /** The largest number of PDUs held in any rack. */
+  maxPduCount: number;
+  /** The largest number of connectors in either a TOR or a PDU. */
+  maxConnectors: number;
 }
 
 export interface External_ZoneSummary_RacksEntry {
@@ -83,16 +218,179 @@ export const External = {
   },
 };
 
-const baseExternal_Pdu: object = {};
+const baseExternal_ObservedCable: object = { at: 0, smState: 0, enteredAt: 0 };
 
-export const External_Pdu = {
-  fromJSON(_: any): External_Pdu {
-    const message = { ...baseExternal_Pdu } as External_Pdu;
+export const External_ObservedCable = {
+  fromJSON(object: any): External_ObservedCable {
+    const message = { ...baseExternal_ObservedCable } as External_ObservedCable;
+    if (object.at !== undefined && object.at !== null) {
+      message.at = Number(object.at);
+    } else {
+      message.at = 0;
+    }
+    if (object.smState !== undefined && object.smState !== null) {
+      message.smState = cableState_SMFromJSON(object.smState);
+    } else {
+      message.smState = 0;
+    }
+    if (object.enteredAt !== undefined && object.enteredAt !== null) {
+      message.enteredAt = Number(object.enteredAt);
+    } else {
+      message.enteredAt = 0;
+    }
     return message;
   },
 
-  toJSON(_: External_Pdu): unknown {
+  toJSON(message: External_ObservedCable): unknown {
     const obj: any = {};
+    message.at !== undefined && (obj.at = message.at);
+    message.smState !== undefined &&
+      (obj.smState = cableState_SMToJSON(message.smState));
+    message.enteredAt !== undefined && (obj.enteredAt = message.enteredAt);
+    return obj;
+  },
+};
+
+const baseExternal_Pdu: object = {};
+
+export const External_Pdu = {
+  fromJSON(object: any): External_Pdu {
+    const message = { ...baseExternal_Pdu } as External_Pdu;
+    message.ports = {};
+    if (object.details !== undefined && object.details !== null) {
+      message.details = PduDetails.fromJSON(object.details);
+    } else {
+      message.details = undefined;
+    }
+    if (object.ports !== undefined && object.ports !== null) {
+      Object.entries(object.ports).forEach(([key, value]) => {
+        message.ports[Number(key)] = External_Pdu_Port.fromJSON(value);
+      });
+    }
+    if (object.observed !== undefined && object.observed !== null) {
+      message.observed = External_Pdu_ObservedState.fromJSON(object.observed);
+    } else {
+      message.observed = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Pdu): unknown {
+    const obj: any = {};
+    message.details !== undefined &&
+      (obj.details = message.details
+        ? PduDetails.toJSON(message.details)
+        : undefined);
+    obj.ports = {};
+    if (message.ports) {
+      Object.entries(message.ports).forEach(([k, v]) => {
+        obj.ports[k] = External_Pdu_Port.toJSON(v);
+      });
+    }
+    message.observed !== undefined &&
+      (obj.observed = message.observed
+        ? External_Pdu_ObservedState.toJSON(message.observed)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Pdu_Port: object = {};
+
+export const External_Pdu_Port = {
+  fromJSON(object: any): External_Pdu_Port {
+    const message = { ...baseExternal_Pdu_Port } as External_Pdu_Port;
+    if (object.port !== undefined && object.port !== null) {
+      message.port = PowerPort.fromJSON(object.port);
+    } else {
+      message.port = undefined;
+    }
+    if (object.observed !== undefined && object.observed !== null) {
+      message.observed = External_ObservedCable.fromJSON(object.observed);
+    } else {
+      message.observed = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Pdu_Port): unknown {
+    const obj: any = {};
+    message.port !== undefined &&
+      (obj.port = message.port ? PowerPort.toJSON(message.port) : undefined);
+    message.observed !== undefined &&
+      (obj.observed = message.observed
+        ? External_ObservedCable.toJSON(message.observed)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Pdu_PortsEntry: object = { key: 0 };
+
+export const External_Pdu_PortsEntry = {
+  fromJSON(object: any): External_Pdu_PortsEntry {
+    const message = {
+      ...baseExternal_Pdu_PortsEntry,
+    } as External_Pdu_PortsEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = Number(object.key);
+    } else {
+      message.key = 0;
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = External_Pdu_Port.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Pdu_PortsEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? External_Pdu_Port.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Pdu_ObservedState: object = {
+  at: 0,
+  smState: 0,
+  enteredAt: 0,
+};
+
+export const External_Pdu_ObservedState = {
+  fromJSON(object: any): External_Pdu_ObservedState {
+    const message = {
+      ...baseExternal_Pdu_ObservedState,
+    } as External_Pdu_ObservedState;
+    if (object.at !== undefined && object.at !== null) {
+      message.at = Number(object.at);
+    } else {
+      message.at = 0;
+    }
+    if (object.smState !== undefined && object.smState !== null) {
+      message.smState = pduState_SMFromJSON(object.smState);
+    } else {
+      message.smState = 0;
+    }
+    if (object.enteredAt !== undefined && object.enteredAt !== null) {
+      message.enteredAt = Number(object.enteredAt);
+    } else {
+      message.enteredAt = 0;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Pdu_ObservedState): unknown {
+    const obj: any = {};
+    message.at !== undefined && (obj.at = message.at);
+    message.smState !== undefined &&
+      (obj.smState = pduState_SMToJSON(message.smState));
+    message.enteredAt !== undefined && (obj.enteredAt = message.enteredAt);
     return obj;
   },
 };
@@ -100,13 +398,239 @@ export const External_Pdu = {
 const baseExternal_Tor: object = {};
 
 export const External_Tor = {
-  fromJSON(_: any): External_Tor {
+  fromJSON(object: any): External_Tor {
     const message = { ...baseExternal_Tor } as External_Tor;
+    message.ports = {};
+    if (object.details !== undefined && object.details !== null) {
+      message.details = TorDetails.fromJSON(object.details);
+    } else {
+      message.details = undefined;
+    }
+    if (object.ports !== undefined && object.ports !== null) {
+      Object.entries(object.ports).forEach(([key, value]) => {
+        message.ports[Number(key)] = External_Tor_Port.fromJSON(value);
+      });
+    }
+    if (object.observed !== undefined && object.observed !== null) {
+      message.observed = External_Tor_ObservedState.fromJSON(object.observed);
+    } else {
+      message.observed = undefined;
+    }
     return message;
   },
 
-  toJSON(_: External_Tor): unknown {
+  toJSON(message: External_Tor): unknown {
     const obj: any = {};
+    message.details !== undefined &&
+      (obj.details = message.details
+        ? TorDetails.toJSON(message.details)
+        : undefined);
+    obj.ports = {};
+    if (message.ports) {
+      Object.entries(message.ports).forEach(([k, v]) => {
+        obj.ports[k] = External_Tor_Port.toJSON(v);
+      });
+    }
+    message.observed !== undefined &&
+      (obj.observed = message.observed
+        ? External_Tor_ObservedState.toJSON(message.observed)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Tor_Port: object = {};
+
+export const External_Tor_Port = {
+  fromJSON(object: any): External_Tor_Port {
+    const message = { ...baseExternal_Tor_Port } as External_Tor_Port;
+    if (object.port !== undefined && object.port !== null) {
+      message.port = NetworkPort.fromJSON(object.port);
+    } else {
+      message.port = undefined;
+    }
+    if (object.observed !== undefined && object.observed !== null) {
+      message.observed = External_ObservedCable.fromJSON(object.observed);
+    } else {
+      message.observed = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Tor_Port): unknown {
+    const obj: any = {};
+    message.port !== undefined &&
+      (obj.port = message.port ? NetworkPort.toJSON(message.port) : undefined);
+    message.observed !== undefined &&
+      (obj.observed = message.observed
+        ? External_ObservedCable.toJSON(message.observed)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Tor_PortsEntry: object = { key: 0 };
+
+export const External_Tor_PortsEntry = {
+  fromJSON(object: any): External_Tor_PortsEntry {
+    const message = {
+      ...baseExternal_Tor_PortsEntry,
+    } as External_Tor_PortsEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = Number(object.key);
+    } else {
+      message.key = 0;
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = External_Tor_Port.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Tor_PortsEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? External_Tor_Port.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Tor_ObservedState: object = {
+  at: 0,
+  smState: 0,
+  enteredAt: 0,
+};
+
+export const External_Tor_ObservedState = {
+  fromJSON(object: any): External_Tor_ObservedState {
+    const message = {
+      ...baseExternal_Tor_ObservedState,
+    } as External_Tor_ObservedState;
+    if (object.at !== undefined && object.at !== null) {
+      message.at = Number(object.at);
+    } else {
+      message.at = 0;
+    }
+    if (object.smState !== undefined && object.smState !== null) {
+      message.smState = torState_SMFromJSON(object.smState);
+    } else {
+      message.smState = 0;
+    }
+    if (object.enteredAt !== undefined && object.enteredAt !== null) {
+      message.enteredAt = Number(object.enteredAt);
+    } else {
+      message.enteredAt = 0;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Tor_ObservedState): unknown {
+    const obj: any = {};
+    message.at !== undefined && (obj.at = message.at);
+    message.smState !== undefined &&
+      (obj.smState = torState_SMToJSON(message.smState));
+    message.enteredAt !== undefined && (obj.enteredAt = message.enteredAt);
+    return obj;
+  },
+};
+
+const baseExternal_Blade: object = { bootOnPowerOn: false };
+
+export const External_Blade = {
+  fromJSON(object: any): External_Blade {
+    const message = { ...baseExternal_Blade } as External_Blade;
+    if (object.details !== undefined && object.details !== null) {
+      message.details = BladeDetails.fromJSON(object.details);
+    } else {
+      message.details = undefined;
+    }
+    if (object.capacity !== undefined && object.capacity !== null) {
+      message.capacity = BladeCapacity.fromJSON(object.capacity);
+    } else {
+      message.capacity = undefined;
+    }
+    if (object.bootOnPowerOn !== undefined && object.bootOnPowerOn !== null) {
+      message.bootOnPowerOn = Boolean(object.bootOnPowerOn);
+    } else {
+      message.bootOnPowerOn = false;
+    }
+    if (object.bootInfo !== undefined && object.bootInfo !== null) {
+      message.bootInfo = BladeBootInfo.fromJSON(object.bootInfo);
+    } else {
+      message.bootInfo = undefined;
+    }
+    if (object.observed !== undefined && object.observed !== null) {
+      message.observed = External_Blade_ObservedState.fromJSON(object.observed);
+    } else {
+      message.observed = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Blade): unknown {
+    const obj: any = {};
+    message.details !== undefined &&
+      (obj.details = message.details
+        ? BladeDetails.toJSON(message.details)
+        : undefined);
+    message.capacity !== undefined &&
+      (obj.capacity = message.capacity
+        ? BladeCapacity.toJSON(message.capacity)
+        : undefined);
+    message.bootOnPowerOn !== undefined &&
+      (obj.bootOnPowerOn = message.bootOnPowerOn);
+    message.bootInfo !== undefined &&
+      (obj.bootInfo = message.bootInfo
+        ? BladeBootInfo.toJSON(message.bootInfo)
+        : undefined);
+    message.observed !== undefined &&
+      (obj.observed = message.observed
+        ? External_Blade_ObservedState.toJSON(message.observed)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Blade_ObservedState: object = {
+  at: 0,
+  smState: 0,
+  enteredAt: 0,
+};
+
+export const External_Blade_ObservedState = {
+  fromJSON(object: any): External_Blade_ObservedState {
+    const message = {
+      ...baseExternal_Blade_ObservedState,
+    } as External_Blade_ObservedState;
+    if (object.at !== undefined && object.at !== null) {
+      message.at = Number(object.at);
+    } else {
+      message.at = 0;
+    }
+    if (object.smState !== undefined && object.smState !== null) {
+      message.smState = bladeState_SMFromJSON(object.smState);
+    } else {
+      message.smState = 0;
+    }
+    if (object.enteredAt !== undefined && object.enteredAt !== null) {
+      message.enteredAt = Number(object.enteredAt);
+    } else {
+      message.enteredAt = 0;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Blade_ObservedState): unknown {
+    const obj: any = {};
+    message.at !== undefined && (obj.at = message.at);
+    message.smState !== undefined &&
+      (obj.smState = bladeState_SMToJSON(message.smState));
+    message.enteredAt !== undefined && (obj.enteredAt = message.enteredAt);
     return obj;
   },
 };
@@ -117,6 +641,9 @@ export const External_Rack = {
   fromJSON(object: any): External_Rack {
     const message = { ...baseExternal_Rack } as External_Rack;
     message.blades = {};
+    message.pdus = {};
+    message.tors = {};
+    message.fullBlades = {};
     if (object.details !== undefined && object.details !== null) {
       message.details = RackDetails.fromJSON(object.details);
     } else {
@@ -137,6 +664,21 @@ export const External_Rack = {
         message.blades[Number(key)] = BladeCapacity.fromJSON(value);
       });
     }
+    if (object.pdus !== undefined && object.pdus !== null) {
+      Object.entries(object.pdus).forEach(([key, value]) => {
+        message.pdus[Number(key)] = External_Pdu.fromJSON(value);
+      });
+    }
+    if (object.tors !== undefined && object.tors !== null) {
+      Object.entries(object.tors).forEach(([key, value]) => {
+        message.tors[Number(key)] = External_Tor.fromJSON(value);
+      });
+    }
+    if (object.fullBlades !== undefined && object.fullBlades !== null) {
+      Object.entries(object.fullBlades).forEach(([key, value]) => {
+        message.fullBlades[Number(key)] = External_Blade.fromJSON(value);
+      });
+    }
     return message;
   },
 
@@ -154,6 +696,24 @@ export const External_Rack = {
     if (message.blades) {
       Object.entries(message.blades).forEach(([k, v]) => {
         obj.blades[k] = BladeCapacity.toJSON(v);
+      });
+    }
+    obj.pdus = {};
+    if (message.pdus) {
+      Object.entries(message.pdus).forEach(([k, v]) => {
+        obj.pdus[k] = External_Pdu.toJSON(v);
+      });
+    }
+    obj.tors = {};
+    if (message.tors) {
+      Object.entries(message.tors).forEach(([k, v]) => {
+        obj.tors[k] = External_Tor.toJSON(v);
+      });
+    }
+    obj.fullBlades = {};
+    if (message.fullBlades) {
+      Object.entries(message.fullBlades).forEach(([k, v]) => {
+        obj.fullBlades[k] = External_Blade.toJSON(v);
       });
     }
     return obj;
@@ -186,6 +746,99 @@ export const External_Rack_BladesEntry = {
     message.value !== undefined &&
       (obj.value = message.value
         ? BladeCapacity.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Rack_PdusEntry: object = { key: 0 };
+
+export const External_Rack_PdusEntry = {
+  fromJSON(object: any): External_Rack_PdusEntry {
+    const message = {
+      ...baseExternal_Rack_PdusEntry,
+    } as External_Rack_PdusEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = Number(object.key);
+    } else {
+      message.key = 0;
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = External_Pdu.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Rack_PdusEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? External_Pdu.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Rack_TorsEntry: object = { key: 0 };
+
+export const External_Rack_TorsEntry = {
+  fromJSON(object: any): External_Rack_TorsEntry {
+    const message = {
+      ...baseExternal_Rack_TorsEntry,
+    } as External_Rack_TorsEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = Number(object.key);
+    } else {
+      message.key = 0;
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = External_Tor.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Rack_TorsEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? External_Tor.toJSON(message.value)
+        : undefined);
+    return obj;
+  },
+};
+
+const baseExternal_Rack_FullBladesEntry: object = { key: 0 };
+
+export const External_Rack_FullBladesEntry = {
+  fromJSON(object: any): External_Rack_FullBladesEntry {
+    const message = {
+      ...baseExternal_Rack_FullBladesEntry,
+    } as External_Rack_FullBladesEntry;
+    if (object.key !== undefined && object.key !== null) {
+      message.key = Number(object.key);
+    } else {
+      message.key = 0;
+    }
+    if (object.value !== undefined && object.value !== null) {
+      message.value = External_Blade.fromJSON(object.value);
+    } else {
+      message.value = undefined;
+    }
+    return message;
+  },
+
+  toJSON(message: External_Rack_FullBladesEntry): unknown {
+    const obj: any = {};
+    message.key !== undefined && (obj.key = message.key);
+    message.value !== undefined &&
+      (obj.value = message.value
+        ? External_Blade.toJSON(message.value)
         : undefined);
     return obj;
   },
@@ -268,7 +921,13 @@ export const External_RackSummary = {
   },
 };
 
-const baseExternal_ZoneSummary: object = { maxBladeCount: 0, name: "" };
+const baseExternal_ZoneSummary: object = {
+  maxBladeCount: 0,
+  name: "",
+  maxTorCount: 0,
+  maxPduCount: 0,
+  maxConnectors: 0,
+};
 
 export const External_ZoneSummary = {
   fromJSON(object: any): External_ZoneSummary {
@@ -299,6 +958,21 @@ export const External_ZoneSummary = {
     } else {
       message.name = "";
     }
+    if (object.maxTorCount !== undefined && object.maxTorCount !== null) {
+      message.maxTorCount = Number(object.maxTorCount);
+    } else {
+      message.maxTorCount = 0;
+    }
+    if (object.maxPduCount !== undefined && object.maxPduCount !== null) {
+      message.maxPduCount = Number(object.maxPduCount);
+    } else {
+      message.maxPduCount = 0;
+    }
+    if (object.maxConnectors !== undefined && object.maxConnectors !== null) {
+      message.maxConnectors = Number(object.maxConnectors);
+    } else {
+      message.maxConnectors = 0;
+    }
     return message;
   },
 
@@ -321,6 +995,12 @@ export const External_ZoneSummary = {
         ? ZoneDetails.toJSON(message.details)
         : undefined);
     message.name !== undefined && (obj.name = message.name);
+    message.maxTorCount !== undefined &&
+      (obj.maxTorCount = message.maxTorCount);
+    message.maxPduCount !== undefined &&
+      (obj.maxPduCount = message.maxPduCount);
+    message.maxConnectors !== undefined &&
+      (obj.maxConnectors = message.maxConnectors);
     return obj;
   },
 };
@@ -355,3 +1035,10 @@ export const External_ZoneSummary_RacksEntry = {
     return obj;
   },
 };
+
+// If you get a compile-error about 'Constructor<Long> and ... have no overlap',
+// add '--ts_proto_opt=esModuleInterop=true' as a flag when calling 'protoc'.
+if (util.Long !== Long) {
+  util.Long = Long as any;
+  configure();
+}

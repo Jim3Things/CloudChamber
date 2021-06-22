@@ -61,143 +61,148 @@ type blade struct {
 	expiration int64
 }
 
-func newBlade(def *pb.BladeCapacity, r *Rack, id int64) *blade {
+func newBlade(ctx context.Context, def *pb.Definition_Blade, name string, r *Rack, id int64) *blade {
+	capacity := def.GetCapacity()
+
 	b := &blade{
 		holder:           r,
 		id:               id,
 		sm:               nil,
 		capacity:         messages.NewCapacity(),
-		architecture:     def.Arch,
+		architecture:     capacity.GetArch(),
 		used:             messages.NewCapacity(),
 		workloads:        make(map[string]*workload),
-		bootOnPower:      true,
+		bootOnPower:      def.GetBootOnPowerOn(),
 		hasActiveTimer:   false,
 		activeTimerID:    0,
 		matchTimerExpiry: 0,
 	}
 
-	b.capacity.Consumables[messages.CapacityCores] = float64(def.Cores)
-	b.capacity.Consumables[messages.CapacityMemory] = float64(def.MemoryInMb)
-	b.capacity.Consumables[messages.CapacityDisk] = float64(def.DiskInGb)
-	b.capacity.Consumables[messages.CapacityNetwork] = float64(def.NetworkBandwidthInMbps)
+	b.capacity.Consumables[messages.CapacityCores] = float64(capacity.GetCores())
+	b.capacity.Consumables[messages.CapacityMemory] = float64(capacity.GetMemoryInMb())
+	b.capacity.Consumables[messages.CapacityDisk] = float64(capacity.GetDiskInGb())
+	b.capacity.Consumables[messages.CapacityNetwork] = float64(capacity.GetNetworkBandwidthInMbps())
 
-	for _, a := range def.Accelerators {
+	for _, a := range capacity.GetAccelerators() {
 		b.capacity.Consumables[messages.AcceleratorPrefix+a.String()] = float64(1)
 	}
 
 	b.sm = sm.NewSM(b,
+		name,
 		sm.WithFirstState(
-			pb.Actual_Blade_start,
+			pb.BladeState_start,
 			startedOnEnter,
 			[]sm.ActionEntry{},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_off_disconnected,
+			pb.BladeState_off_disconnected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_off_connected, sm.Stay},
-				{messages.TagSetPower, setPower, pb.Actual_Blade_powered_disconnected, sm.Stay},
+				{messages.TagSetConnection, setConnection, pb.BladeState_off_connected, sm.Stay},
+				{messages.TagSetPower, setPower, pb.BladeState_powered_disconnected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_off_connected,
+			pb.BladeState_off_connected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, sm.Ignore, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_off_disconnected},
-				{messages.TagSetPower, setPower, pb.Actual_Blade_powered_connected, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeState_off_disconnected},
+				{messages.TagSetPower, setPower, pb.BladeState_powered_connected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_powered_disconnected,
+			pb.BladeState_powered_disconnected,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_powered_connected, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_powered_disconnected},
+				{messages.TagSetConnection, setConnection, pb.BladeState_powered_connected, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeState_powered_disconnected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_powered_connected,
+			pb.BladeState_powered_connected,
 			poweredConnOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_powered_disconnected},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeState_powered_disconnected},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeState_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_booting,
+			pb.BladeState_booting,
 			bootingOnEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_powered_disconnected},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
-				{messages.TagTimerExpiry, bootingTimerExpiry, pb.Actual_Blade_working, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeState_powered_disconnected},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeState_off_connected},
+				{messages.TagTimerExpiry, bootingTimerExpiry, pb.BladeState_working, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			bootingOnLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_working,
+			pb.BladeState_working,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_isolated},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeState_isolated},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeState_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_isolated,
+			pb.BladeState_isolated,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_working, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
+				{messages.TagSetConnection, setConnection, pb.BladeState_working, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeState_off_connected},
 			},
 			sm.UnexpectedMessage,
 			sm.NullLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_stopping,
+			pb.BladeState_stopping,
 			sm.NullEnter,
 			[]sm.ActionEntry{
 				{messages.TagGetStatus, bladeGetStatus, sm.Stay, sm.Stay},
-				{messages.TagSetConnection, setConnection, sm.Stay, pb.Actual_Blade_stopping_isolated},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_connected},
-				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.Actual_Blade_off_connected, sm.Stay},
+				{messages.TagSetConnection, setConnection, sm.Stay, pb.BladeState_stopping_isolated},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeState_off_connected},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.BladeState_off_connected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			stoppingOnLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_stopping_isolated,
+			pb.BladeState_stopping_isolated,
 			sm.NullEnter,
 			[]sm.ActionEntry{
-				{messages.TagSetConnection, setConnection, pb.Actual_Blade_stopping, sm.Stay},
-				{messages.TagSetPower, setPower, sm.Stay, pb.Actual_Blade_off_disconnected},
-				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.Actual_Blade_off_disconnected, sm.Stay},
+				{messages.TagSetConnection, setConnection, pb.BladeState_stopping, sm.Stay},
+				{messages.TagSetPower, setPower, sm.Stay, pb.BladeState_off_disconnected},
+				{messages.TagTimerExpiry, stoppingTimerExpiry, pb.BladeState_off_disconnected, sm.Stay},
 			},
 			sm.UnexpectedMessage,
 			stoppingOnLeave),
 
 		sm.WithState(
-			pb.Actual_Blade_faulted,
+			pb.BladeState_faulted,
 			faultedEnter,
 			[]sm.ActionEntry{},
 			messages.DropMessage,
 			sm.NullLeave),
 	)
+
+	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
 
 	return b
 }
@@ -210,7 +215,7 @@ func (b *blade) Save() (proto.Message, error) {
 
 	return &pb.Actual_Blade{
 		Condition:    pb.Actual_operational,
-		SmState:      cur.(pb.Actual_Blade_State),
+		SmState:      cur.(pb.BladeState_SM),
 		StateExpires: b.hasActiveTimer,
 		Expiration:   b.expiration,
 		Core: &pb.Actual_MachineCore{
@@ -226,7 +231,7 @@ func (b *blade) Receive(ctx context.Context, msg sm.Envelope) {
 }
 
 func (b *blade) me() *messages.MessageTarget {
-	return messages.NewTargetBlade(b.holder.name, b.id)
+	return messages.NewTargetBlade(b.holder.sm.Name, b.id, 0)
 }
 
 // +++ blade state machine actions
@@ -234,7 +239,7 @@ func (b *blade) me() *messages.MessageTarget {
 // startedOnEnter initializes the simulation state and transitions to the
 // off and disconnected state.
 func startedOnEnter(ctx context.Context, machine *sm.SM) error {
-	return machine.ChangeState(ctx, pb.Actual_Blade_off_disconnected)
+	return machine.ChangeState(ctx, pb.BladeState_off_disconnected)
 }
 
 // poweredConnOnEnter checks if automatic booting is enabled.  If it is, the
@@ -243,7 +248,7 @@ func poweredConnOnEnter(ctx context.Context, machine *sm.SM) error {
 	b := machine.Parent.(*blade)
 
 	if b.bootOnPower {
-		return machine.ChangeState(ctx, pb.Actual_Blade_booting)
+		return machine.ChangeState(ctx, pb.BladeState_booting)
 	}
 
 	return nil
@@ -264,7 +269,7 @@ func bootingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) bool
 // bootingOnLeave ensures that any active boot delay timer is canceled before
 // proceeding to a non-booting state.
 func bootingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
-	if nextState != pb.Actual_Blade_booting {
+	if nextState != pb.BladeState_booting {
 		cancelTimer(ctx, machine, "boot")
 	}
 }
@@ -279,8 +284,8 @@ func stoppingTimerExpiry(ctx context.Context, machine *sm.SM, m sm.Envelope) boo
 // stoppingOnLeave ensures that any active time is canceled before proceeding
 // to a non-stopping state.
 func stoppingOnLeave(ctx context.Context, machine *sm.SM, nextState sm.StateIndex) {
-	if nextState != pb.Actual_Blade_stopping &&
-		nextState != pb.Actual_Blade_stopping_isolated {
+	if nextState != pb.BladeState_stopping &&
+		nextState != pb.BladeState_stopping_isolated {
 		cancelTimer(ctx, machine, "shutdown")
 	}
 }
@@ -314,6 +319,8 @@ func bladeGetStatus(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 		status.Workloads = append(status.Workloads, k)
 	}
 
+	tracing.AddImpact(ctx, tracing.ImpactRead, machine.Name)
+
 	ch <- messages.NewStatusResponse(common.TickFromContext(ctx), status)
 	return true
 }
@@ -330,6 +337,8 @@ func setConnection(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 		"Processing network connection %s notification at %s",
 		common.AOrB(msg.Enabled, "enabled", "disabled"),
 		msg.Target.Describe())
+
+	tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 
 	machine.AdvanceGuard(common.TickFromContext(ctx))
 
@@ -348,6 +357,8 @@ func setPower(ctx context.Context, machine *sm.SM, m sm.Envelope) bool {
 		"Processing power %s command at %s",
 		common.AOrB(msg.On, "on", "off"),
 		msg.Target.Describe())
+
+	tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 
 	machine.AdvanceGuard(common.TickFromContext(ctx))
 
@@ -408,6 +419,8 @@ func timerExpiration(
 			msg.Target.Describe())
 
 		b.hasActiveTimer = false
+
+		tracing.AddImpact(ctx, tracing.ImpactModify, machine.Name)
 
 		machine.AdvanceGuard(common.TickFromContext(ctx))
 		return true

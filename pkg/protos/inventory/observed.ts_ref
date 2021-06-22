@@ -1,0 +1,53 @@
+/* eslint-disable */
+import { util, configure } from "protobufjs/minimal";
+import * as Long from "long";
+
+export const protobufPackage = "inventory";
+
+export interface Observed {}
+
+export interface Observed_Blade {
+  /** This is the simulated time tick when the observation took place */
+  at: number;
+}
+
+const baseObserved: object = {};
+
+export const Observed = {
+  fromJSON(_: any): Observed {
+    const message = { ...baseObserved } as Observed;
+    return message;
+  },
+
+  toJSON(_: Observed): unknown {
+    const obj: any = {};
+    return obj;
+  },
+};
+
+const baseObserved_Blade: object = { at: 0 };
+
+export const Observed_Blade = {
+  fromJSON(object: any): Observed_Blade {
+    const message = { ...baseObserved_Blade } as Observed_Blade;
+    if (object.at !== undefined && object.at !== null) {
+      message.at = Number(object.at);
+    } else {
+      message.at = 0;
+    }
+    return message;
+  },
+
+  toJSON(message: Observed_Blade): unknown {
+    const obj: any = {};
+    message.at !== undefined && (obj.at = message.at);
+    return obj;
+  },
+};
+
+// If you get a compile-error about 'Constructor<Long> and ... have no overlap',
+// add '--ts_proto_opt=esModuleInterop=true' as a flag when calling 'protoc'.
+if (util.Long !== Long) {
+  util.Long = Long as any;
+  configure();
+}

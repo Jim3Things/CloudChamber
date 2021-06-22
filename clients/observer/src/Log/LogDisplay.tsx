@@ -1,28 +1,20 @@
-import React from 'react';
-import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core";
-import {makeStyles} from "@material-ui/core/styles";
-import {
-    BugReport,
-    Error,
-    ErrorOutline,
-    ExpandLess,
-    ExpandMore,
-    HelpOutline,
-    Info,
-    Menu,
-    Warning
-} from '@material-ui/icons';
+import React from 'react'
+import {List, ListItem, ListItemIcon, ListItemText, Paper} from "@material-ui/core"
+import {makeStyles} from "@material-ui/core/styles"
+import {BugReport, Error, ErrorOutline, HelpOutline, Info, Warning} from '@material-ui/icons'
 
-import {Organizer} from "./Organizer";
-import {RenderIf} from "../common/If";
-import {SettingsState} from "../Settings";
-import {Action, Event, Severity} from "../pkg/protos/log/entry";
-import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests";
+import {Organizer} from "./Organizer"
+import {MoreOrLess, RenderIf} from "../common/If"
+import {SettingsState} from "../Settings"
+import {Action, Event, Severity} from "../pkg/protos/log/entry"
+import {GetAfterResponse_traceEntry} from "../pkg/protos/services/requests"
+import {logSelector, logSlice, settingsSelector, useAppDispatch, useAppSelector} from "../store/Store"
 
 interface styleProps {
     indent: number
     infra: boolean
     height: number
+    size: string
 }
 
 const useStyles = makeStyles((theme) => ({
@@ -32,7 +24,7 @@ const useStyles = makeStyles((theme) => ({
         overflow: "auto",
         fontSize: "small",
         pt: 0,
-        pb: 0
+        pb: 0,
     }),
     nested: (props: styleProps) => ({
         fontSize: "small",
@@ -47,7 +39,7 @@ const useStyles = makeStyles((theme) => ({
         whiteSpace: "pre-wrap",
     }),
     success: (props: styleProps) => ({
-        fontSize: "small",
+        fontSize: props.size,
         color: (props.infra
             ? theme.palette.grey.A400
             : theme.palette.success.main),
@@ -56,7 +48,7 @@ const useStyles = makeStyles((theme) => ({
             : theme.palette.background.paper)
     }),
     warning: (props: styleProps) => ({
-        fontSize: "small",
+        fontSize: props.size,
         color: (props.infra
             ? theme.palette.grey.A400
             : theme.palette.warning.main),
@@ -65,7 +57,7 @@ const useStyles = makeStyles((theme) => ({
             : theme.palette.background.paper)
     }),
     error: (props: styleProps) => ({
-        fontSize: "small",
+        fontSize: props.size,
         color: (props.infra
             ? theme.palette.grey.A400
             : theme.palette.error.main),
@@ -73,14 +65,41 @@ const useStyles = makeStyles((theme) => ({
             ? theme.palette.action.hover
             : theme.palette.background.paper)
     })
-}));
+}))
 
 export interface ExpansionHandler {
     (id: string): void
 }
 
-const ExpandIcon = (props: { expanded: boolean }) =>
-    props.expanded ? <ExpandLess/> : <ExpandMore/>
+// Construct the icon to use to denote the severity code in a log event.
+function SevIcon(props: {
+    indent: number,
+    severity: Severity,
+    iconSize: string,
+    infra: boolean }) {
+    const classes = useStyles({indent: props.indent, infra: props.infra, height: 0, size: props.iconSize})
+
+    switch (props.severity) {
+        case Severity.Debug:
+            return <BugReport className={classes.success}/>
+
+        case Severity.Info:
+            return <Info className={classes.success}/>
+
+        case Severity.Warning:
+            return <Warning className={classes.warning}/>
+
+        case Severity.Error:
+            return <ErrorOutline className={classes.error}/>
+
+        case Severity.Fatal:
+            return <Error className={classes.error}/>
+
+        default:
+            return <HelpOutline className={classes.error}/>
+    }
+}
+
 
 // FilteredCount produces the child element count for a span after applying the
 // active display filters.
@@ -93,7 +112,7 @@ function FilteredCount(
         return event.length
     }
 
-    let count = event.length;
+    let count = event.length
 
     for (const item of event) {
         switch (item.eventAction) {
@@ -130,24 +149,30 @@ function FilteredCount(
 
 // TraceSpanElement provides the list entry for a trace span element
 function TraceSpanElement(props: {
+    severity: Severity,
     text: string,
     reason: string | null,
     expanded: boolean,
     expandable: boolean,
-    onTrackChange: ExpansionHandler,
     indent: number,
     infra: boolean,
     id: string
 }) {
-    const classes = useStyles({infra: props.infra, indent: props.indent, height: 0})
+    const classes = useStyles({infra: props.infra, indent: props.indent, height: 0, size: "small"})
+    const dispatch = useAppDispatch()
 
-    return <ListItem dense button onClick={() => props.onTrackChange(props.id)} className={classes.nested}>
+    return <ListItem dense button onClick={() => dispatch(logSlice.actions.flip(props.id))} className={classes.nested}>
         <ListItemIcon>
-            <Menu/>
+            <SevIcon
+                indent={props.indent}
+                infra={props.infra}
+                severity={props.severity}
+                iconSize="medium"
+            />
         </ListItemIcon>
         <ListItemText className={classes.labelText} primary={props.text} secondary={props.reason}/>
         <RenderIf cond={props.expandable}>
-            <ExpandIcon expanded={props.expanded}/>
+            <MoreOrLess cond={!props.expanded}/>
         </RenderIf>
     </ListItem>
 }
@@ -157,7 +182,6 @@ function TraceSpanElement(props: {
 function TraceSpanSubtree(props: {
     organizer: Organizer,
     settings: SettingsState,
-    onTrackChange: ExpansionHandler,
     indent: number,
     id: string
 }) {
@@ -165,11 +189,11 @@ function TraceSpanSubtree(props: {
 
     if (entry === undefined) {
         return <TraceSpanElement
+            severity={Severity.Debug}
             text="Missing"
             reason={null}
             expanded={false}
             expandable={false}
-            onTrackChange={props.onTrackChange}
             indent={props.indent}
             infra={false}
             id={props.id}/>
@@ -184,11 +208,11 @@ function TraceSpanSubtree(props: {
 
     return <React.Fragment>
         <TraceSpanElement
+            severity={entry.maxSeverity}
             text={entry.entry.name}
             reason={entry.entry.reason}
             expanded={isExpanded}
             expandable={canExpand}
-            onTrackChange={props.onTrackChange}
             indent={props.indent}
             infra={entry.entry.infrastructure}
             id={props.id}
@@ -199,7 +223,6 @@ function TraceSpanSubtree(props: {
                 return <TraceEvent
                     organizer={props.organizer}
                     settings={props.settings}
-                    onTrackChange={props.onTrackChange}
                     indent={props.indent + 4}
                     event={ev}
                     entry={entry}
@@ -215,36 +238,12 @@ function TraceSpanSubtree(props: {
 function TraceEvent(props: {
     organizer: Organizer,
     settings: SettingsState,
-    onTrackChange: ExpansionHandler,
     indent: number,
     entry: GetAfterResponse_traceEntry,
     event: Event,
     infra: boolean
 }) {
-    const classes = useStyles({indent: props.indent, infra: props.infra, height: 0})
-
-    // Construct the icon to use to denote the severity code in a log event.
-    const SevIcon = (props: { ev: Event }) => {
-        switch (props.ev.severity) {
-            case Severity.Debug:
-                return <BugReport className={classes.success}/>
-
-            case Severity.Info:
-                return <Info className={classes.success}/>
-
-            case Severity.Warning:
-                return <Warning className={classes.warning}/>
-
-            case Severity.Error:
-                return <ErrorOutline className={classes.error}/>
-
-            case Severity.Fatal:
-                return <Error className={classes.error}/>
-
-            default:
-                return <HelpOutline className={classes.error}/>
-        }
-    }
+    const classes = useStyles({indent: props.indent, infra: props.infra, height: 0, size: "small"})
 
     switch (props.event.eventAction) {
         case Action.SpanStart: {
@@ -253,9 +252,9 @@ function TraceEvent(props: {
             const span = props.organizer.get(props.event.spanId)
             if (span === undefined) {
                 return <TraceSpanElement
+                    severity={Severity.Debug}
                     expanded={false}
                     expandable={false}
-                    onTrackChange={props.onTrackChange}
                     text={"Missing:" + props.event.spanId}
                     reason="Could not find this log entry"
                     indent={props.indent}
@@ -271,7 +270,6 @@ function TraceEvent(props: {
             return <TraceSpanSubtree
                 organizer={props.organizer}
                 settings={props.settings}
-                onTrackChange={props.onTrackChange}
                 indent={props.indent}
                 id={props.event.spanId}/>
         }
@@ -286,7 +284,6 @@ function TraceEvent(props: {
                 return <TraceSpanSubtree
                     organizer={props.organizer}
                     settings={props.settings}
-                    onTrackChange={props.onTrackChange}
                     indent={props.indent}
                     id={span}/>
             }
@@ -302,7 +299,12 @@ function TraceEvent(props: {
 
             return <ListItem dense className={classes.nested}>
                 <ListItemIcon>
-                    <SevIcon ev={props.event}/>
+                    <SevIcon
+                        indent={props.indent}
+                        infra={props.infra}
+                        severity={props.event.severity}
+                        iconSize="small"
+                    />
                 </ListItemIcon>
                 <ListItemText className={classes.labelText} primary={props.event.text}/>
             </ListItem>
@@ -310,25 +312,26 @@ function TraceEvent(props: {
 }
 
 export function LogDisplay(props: {
-    height: number,
-    organizer: Organizer,
-    settings: SettingsState,
-    onTrackChange: ExpansionHandler
-}) {
-    const classes = useStyles({indent: 0, infra: false, height: props.height})
+    matchId: string}) {
+    const elem = document.getElementById(props.matchId)
+    const height = elem !== null ? (elem.offsetHeight - 5) : 500
+
+    const classes = useStyles({indent: 0, infra: false, height: height, size: "small"})
+
+    const settings = useAppSelector(settingsSelector)
+    const logData = useAppSelector(logSelector)
 
     return (
         <Paper variant="outlined" className={classes.root}>
             <List dense disablePadding>
-                {props.organizer.roots.map((key) => {
+                {logData.organizer.roots.map((key) => {
                     return <TraceSpanSubtree
-                        settings={props.settings}
-                        organizer={props.organizer}
-                        onTrackChange={props.onTrackChange}
-                        indent={0}
+                        settings={settings}
+                        organizer={logData.organizer}
+                        indent={1}
                         id={key}/>
                 })}
             </List>
         </Paper>
-    );
+    )
 }

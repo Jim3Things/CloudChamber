@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/inventory"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing/exporters"
@@ -29,7 +30,9 @@ func main() {
 	}
 
 	iow := exporters.NewExporter(exporters.NewIOWForwarder())
-	sink := exporters.NewExporter(exporters.NewSinkForwarder(grpc.WithInsecure()))
+	sink := exporters.NewExporter(exporters.NewSinkForwarder(
+		grpc.WithInsecure(),
+		grpc.WithConnectParams(limits.BackoffSettings)))
 	exporters.ConnectToProvider(iow, sink)
 
 	version.Trace()

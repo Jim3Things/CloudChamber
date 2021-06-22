@@ -30,6 +30,7 @@ import (
 	"github.com/gorilla/sessions"
 	"google.golang.org/grpc"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/limits"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/store"
 	ts "github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	tsc "github.com/Jim3Things/CloudChamber/simulation/internal/clients/trace_sink"
@@ -108,7 +109,7 @@ func normalizeURL(next http.Handler) http.Handler {
 func traceRequest(spanName string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, span := tracing.StartSpan(context.Background(),
-			tracing.WithName(fmt.Sprintf("%s: %s %q", spanName, r.Method, r.URL.String())),
+			tracing.WithName("%s: %s %q", spanName, r.Method, r.URL.String()),
 			tracing.AsInternal(),
 			tracing.WithContextValue(ts.OutsideTime))
 		defer span.End()
@@ -127,7 +128,6 @@ func initHandlers() error {
 	injectionAddRoutes(routeAPI)
 	inventoryAddRoutes(routeAPI)
 	logsAddRoutes(routeAPI)
-	pingAddRoutes(routeAPI)
 	simulationAddRoutes(routeAPI)
 	stepperAddRoutes(routeAPI)
 	usersAddRoutes(routeAPI)
@@ -154,7 +154,9 @@ func initClients(cfg *config.GlobalConfig) error {
 	err := ts.InitTimestamp(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 
 	if err != nil {
 		return err
@@ -163,7 +165,9 @@ func initClients(cfg *config.GlobalConfig) error {
 	err = tsc.InitSinkClient(
 		cfg.SimSupport.EP.String(),
 		grpc.WithInsecure(),
-		grpc.WithUnaryInterceptor(ct.Interceptor))
+		grpc.WithUnaryInterceptor(ct.Interceptor),
+		grpc.WithConnectParams(limits.BackoffSettings),
+	)
 
 	return err
 }

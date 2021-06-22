@@ -74,6 +74,25 @@ func (s *ioSpans) getOrAddActive(traceID string) *activeEntry {
 	return entry
 }
 
+// collectChildImpacted lifts the impact statements from child spans up to the
+// supplied root span.  This function is called recursively, applying the same
+// uplift feature to each child span under it.
+func (s *ioSpans) collectChildImpacts(root *log.Entry) []*log.Module {
+	impacts := root.Impacted
+
+	for _, e := range root.Event {
+		if e.EventAction == log.Action_SpanStart {
+			if child, ok := s.known[e.SpanId]; ok {
+				impacts = append(impacts, s.collectChildImpacts(child)...)
+			}
+		}
+	}
+
+	root.Impacted = impacts
+
+	return impacts
+}
+
 // emit processes the indicated span, sending the formatted output to the
 // supplied writer.  It will recursively process child spans, and manages the
 // line indent amount to indicate descent level
@@ -82,6 +101,9 @@ func (s *ioSpans) emit(a *activeEntry, spanID string, io io.Writer, indent strin
 	if !ok {
 		stdLog.Fatalf("Missing span: %q", spanID)
 	}
+
+	// Uplift the impacts
+	_ = s.collectChildImpacts(entry)
 
 	// Spans are set off by surrounding blank lines
 	_, _ = io.Write([]byte(
@@ -176,7 +198,7 @@ func (s *ioSpans) recordFatal(a *activeEntry, entry *log.Entry, cause string) {
 	msg := fmt.Sprintf("%s, %v: \n", cause, a)
 	msg = fmt.Sprintf("%sCurrent entry:\n%s\n", msg, formatEntry(entry, false, tab))
 	for _, event := range entry.Event {
-		msg = fmt.Sprintf("%s%s\n", msg, formatEvent(event, tab + tab))
+		msg = fmt.Sprintf("%s%s\n", msg, formatEvent(event, tab+tab))
 	}
 	msg = fmt.Sprintf("%sClosed (%d):\n", msg, len(a.closed))
 	for id := range a.closed {
@@ -187,7 +209,7 @@ func (s *ioSpans) recordFatal(a *activeEntry, entry *log.Entry, cause string) {
 			msg = fmt.Sprintf("%s%s\n", msg, formatEntry(sp, false, tab))
 
 			for _, event := range sp.Event {
-				msg = fmt.Sprintf("%s%s\n", msg, formatEvent(event, tab + tab))
+				msg = fmt.Sprintf("%s%s\n", msg, formatEvent(event, tab+tab))
 			}
 		}
 	}

@@ -2,6 +2,7 @@ package inventory
 
 import (
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory"
 )
@@ -11,6 +12,10 @@ import (
 // PDU, a network cable from the TOR, or some other control cable.
 type cable struct {
 	common.Guarded
+
+	// target is the rack local address of the element that this cable is
+	// connected to
+	target *messages.MessageTarget
 
 	// on is true if the cable is actually connected and 'functioning' (i.e.
 	// providing power, if a PDU power cable)
@@ -24,11 +29,12 @@ type cable struct {
 
 // newCable creates a new cable instance with the specified state and guard
 // values.
-func newCable(on bool, faulted bool, at int64) *cable {
+func newCable(target *messages.MessageTarget, on bool, faulted bool, at int64) *cable {
 	return &cable{
 		Guarded: common.Guarded{
 			Guard: at,
 		},
+		target:  target,
 		on:      on,
 		faulted: faulted,
 	}

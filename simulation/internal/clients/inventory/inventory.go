@@ -37,7 +37,7 @@
 //
 // To allow for object discovery, the inventory allows a caller to request a
 // list of all the children of a navigable node, e.g. search for all of the
-// racks within a zone. To achieve this, the pacakge maintains an index for
+// racks within a zone. To achieve this, the package maintains an index for
 // child objects which is kept separately from the objects themselves. Thus
 // when creating a new object, the package will also create an appropriate
 // index entry to allow that object to be discovered from its parent. In
@@ -45,7 +45,7 @@
 // located. Once a region is know, all the zones within that region can be
 // located. And so on for racks within zones, etc.
 //
-// NOTE: Currently there is no way to discover a parent for a given oject.
+// NOTE: Currently there is no way to discover a parent for a given object.
 //       However, each object contains sufficient information that a parent
 //       can be readily identified if required which would allow this feature
 //       to be added if needed.
@@ -70,33 +70,32 @@ import (
 const (
 
 	// DefaultRegion is used to provide a value for the non-existing region name
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
 	DefaultRegion = "standard"
 
 	// DefaultZone is used to provide a value for the non-existing zone name
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
-	DefaultZone   = "standard"
+	DefaultZone = "standard"
 
 	// DefaultPdu is used to provide a value for the non-existing pdu ID
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
-	DefaultPdu    = int64(0)
+	DefaultPdu = int64(0)
 
 	// DefaultTor is used to provide a value for the non-existing tor ID
-	// while the transition to the new inventory extended schemaa continues.
-	// Eventually these will dissapear as the front-end and higher layers learn
+	// while the transition to the new inventory extended schema continues.
+	// Eventually these will disappear as the front-end and higher layers learn
 	// abouts regions, zones, multiple pdus and tors.
 	//
-	DefaultTor    = int64(0)
-
+	DefaultTor = int64(0)
 )
 
 type inventoryRevision interface {
@@ -116,7 +115,7 @@ type inventoryRevision interface {
 	//
 	GetRevisionRecord() int64
 
-	// GetRevisionStore returns the revison of the underlying store ifself as
+	// GetRevisionStore returns the revision of the underlying store itself as
 	// determined at the time of the last Create() Read() for the object. The
 	// store revision is not reset by a SetDetails() call and is provided
 	// for information only.
@@ -136,7 +135,7 @@ type inventoryRevision interface {
 	resetRevision() int64
 
 	// updateRevision is used to set/update the current revision information
-	// as part of a successful invokation of a store routine.
+	// as part of a successful invocation of a store routine.
 	//
 	updateRevisionInfo(rev int64) int64
 }
@@ -156,7 +155,7 @@ type inventoryRevision interface {
 type inventoryItem interface {
 	inventoryRevision
 
-	// Use to set the attribues of an object within the inventory
+	// Use to set the attributes of an object within the inventory
 	//
 	SetDetails(ctx context.Context, details *interface{})
 	GetDetails(ctx context.Context) *interface{}
@@ -178,7 +177,7 @@ type inventoryItem interface {
 	//
 	Read(ctx context.Context) (int64, error)
 
-	// Update will write a record the underlying store using the currenty
+	// Update will write a record the underlying store using the currently
 	// information  in the fields of the object. The update can be either
 	// unconditional by setting the unconditional parameter to true, or
 	// conditional based on the revision of the object compared to the
@@ -248,7 +247,7 @@ func (n *nullItem) GetRevisionStore() int64 {
 	return store.RevisionInvalid
 }
 
-func (n *nullItem) GetRevisionForRequest(unconditional bool) int64 {
+func (n *nullItem) GetRevisionForRequest(_ bool) int64 {
 	return store.RevisionInvalid
 }
 
@@ -256,7 +255,7 @@ func (n *nullItem) resetRevision() int64 {
 	return store.RevisionInvalid
 }
 
-func (n *nullItem) updateRevisionInfo(rev int64) int64 {
+func (n *nullItem) updateRevisionInfo(_ int64) int64 {
 	return store.RevisionInvalid
 }
 
@@ -301,7 +300,6 @@ type inventoryBlade interface {
 
 	SetBootPowerOn(bootOnPowerOn bool)
 	GetBootOnPowerOn() bool
-
 }
 
 // Provide a set of definitions to cope with calls to a "null" object.
@@ -350,7 +348,7 @@ func (n *nullItem) NewPdu(name string) (*interface{}, error) {
 	return nil, errors.ErrNullItem
 }
 
-func (n *nullItem) NewTor( name string) (*interface{}, error) {
+func (n *nullItem) NewTor(name string) (*interface{}, error) {
 	return nil, errors.ErrNullItem
 }
 
@@ -407,6 +405,48 @@ func (n *nullItem) GetBootInfo() (bool, *interface{}) {
 	return false, nil
 }
 
+// RackSizeSummary contains the maximum content values for a set of racks.  The
+// values can be used to form a visual fixed rack size that is certain to be
+// sufficient to hold any rack's contents covered by this summary instance.
+type RackSizeSummary struct {
+	MaxTorCount   int
+	MaxPduCount   int
+	MaxBladeCount int
+	MaxConnectors int
+	MaxCapacity   *pb.BladeCapacity
+}
+
+// String returns a formatted description of the summary instance.
+func (s RackSizeSummary) String() string {
+	return fmt.Sprintf(
+		"max TORs/rack=%d, max PDUs/rack=%d, maxConnectors in either=%d, max blade capacity=%s",
+		s.MaxTorCount, s.MaxPduCount, s.MaxConnectors, s.MaxCapacity.String())
+}
+
+// setToMax updates the instance such that it encompasses the boundaries set by
+// both itself and the supplied summary instance.  It does this by setting each
+// member field to be the maximum of two values.
+func (s *RackSizeSummary) setToMax(t RackSizeSummary) {
+	s.MaxTorCount = common.MaxInt(s.MaxTorCount, t.MaxTorCount)
+	s.MaxPduCount = common.MaxInt(s.MaxPduCount, t.MaxPduCount)
+	s.MaxBladeCount = common.MaxInt(s.MaxBladeCount, t.MaxBladeCount)
+	s.MaxConnectors = common.MaxInt(s.MaxConnectors, t.MaxConnectors)
+	s.MaxCapacity = maxBladeCapacity(s.MaxCapacity, t.MaxCapacity)
+}
+
+// maxBladeCapacity is a helper function that returns a BladeCapacity instance
+// in which the core, memory, disk, and network capacity fields are the maximum
+// of the two supplied values.
+func maxBladeCapacity(s, t *pb.BladeCapacity) *pb.BladeCapacity {
+	return &pb.BladeCapacity{
+		Cores:                  common.MaxInt64(s.Cores, t.Cores),
+		MemoryInMb:             common.MaxInt64(s.MemoryInMb, t.MemoryInMb),
+		DiskInGb:               common.MaxInt64(s.DiskInGb, t.DiskInGb),
+		NetworkBandwidthInMbps: common.MaxInt64(s.NetworkBandwidthInMbps, t.NetworkBandwidthInMbps),
+		Arch:                   "",
+		Accelerators:           nil,
+	}
+}
 
 // ZoneSummary contains the summary data for a single zone. The contents
 // are either zero or are (re-)computed whenever the inventory definitions
@@ -415,9 +455,8 @@ func (n *nullItem) GetBootInfo() (bool, *interface{}) {
 // data is being handled.
 //
 type ZoneSummary struct {
-	RackCount     int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
+	RackCount int
+	RackSizeSummary
 }
 
 // RegionSummary contains the summary data for a single region. The contents
@@ -427,27 +466,25 @@ type ZoneSummary struct {
 // data is being handled.
 //
 type RegionSummary struct {
-	ZoneCount     int
-	MaxRackCount  int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
+	ZoneCount    int
+	MaxRackCount int
+	RackSizeSummary
 }
 
-// RootSummary contains the summary data for the entire invnetory. The contents
+// RootSummary contains the summary data for the entire inventory. The contents
 // are either zero or are (re-)computed whenever the inventory definitions
 // are loaded from file. They are a cache of data in the store to avoid
 // having to scan the entire zone whenever a simple query for the basic
 // data is being handled.
 //
 type RootSummary struct {
-	RegionCount   int
-	MaxZoneCount  int
-	MaxRackCount  int
-	MaxBladeCount int
-	MaxCapacity   *pb.BladeCapacity
+	RegionCount  int
+	MaxZoneCount int
+	MaxRackCount int
+	RackSizeSummary
 }
 
-// Inventory is a structure used to estblished synchronized access to values
+// Inventory is a structure used to established synchronized access to values
 // required to make use of the inventory layer.
 //
 type Inventory struct {
@@ -463,13 +500,19 @@ type Inventory struct {
 //
 func NewInventory(cfg *config.GlobalConfig, store *store.Store) *Inventory {
 	return &Inventory{
-		mutex:              sync.RWMutex{},
-		cfg:                cfg,
-		Store:              store,
-		RootSummary:        &RootSummary{},
+		mutex:       sync.RWMutex{},
+		cfg:         cfg,
+		Store:       store,
+		RootSummary: &RootSummary{},
 		DefaultZoneSummary: &ZoneSummary{
-			MaxCapacity:   &pb.BladeCapacity{
-				Accelerators: []*pb.Accelerator{},
+			RackSizeSummary: RackSizeSummary{
+				MaxTorCount:   0,
+				MaxPduCount:   0,
+				MaxBladeCount: 0,
+				MaxConnectors: 0,
+				MaxCapacity: &pb.BladeCapacity{
+					Accelerators: []*pb.Accelerator{},
+				},
 			},
 		},
 	}
@@ -558,9 +601,9 @@ func (m *Inventory) DeleteInventoryDefinition(ctx context.Context) error {
 }
 
 func (m *Inventory) reconcileNewInventoryRegion(
-	ctx         context.Context,
+	ctx context.Context,
 	regionStore *Region,
-	regionFile  *pb.Definition_Region,
+	regionFile *pb.Definition_Region,
 ) error {
 	_, err := regionStore.Read(ctx)
 
@@ -582,9 +625,9 @@ func (m *Inventory) reconcileNewInventoryRegion(
 }
 
 func (m *Inventory) reconcileNewInventoryZone(
-	ctx         context.Context,
-	zoneStore   *Zone,
-	zoneFile    *pb.Definition_Zone,
+	ctx context.Context,
+	zoneStore *Zone,
+	zoneFile *pb.Definition_Zone,
 ) error {
 	_, err := zoneStore.Read(ctx)
 
@@ -606,9 +649,9 @@ func (m *Inventory) reconcileNewInventoryZone(
 }
 
 func (m *Inventory) reconcileNewInventoryRack(
-	ctx         context.Context,
-	rackStore   *Rack,
-	rackFile    *pb.Definition_Rack,
+	ctx context.Context,
+	rackStore *Rack,
+	rackFile *pb.Definition_Rack,
 ) error {
 	_, err := rackStore.Read(ctx)
 
@@ -642,9 +685,9 @@ func (m *Inventory) reconcileNewInventoryRack(
 }
 
 func (m *Inventory) reconcileNewInventoryPdu(
-	ctx      context.Context,
+	ctx context.Context,
 	pduStore *Pdu,
-	pduFile  *pb.Definition_Pdu,
+	pduFile *pb.Definition_Pdu,
 ) error {
 	_, err := pduStore.Read(ctx)
 
@@ -670,9 +713,9 @@ func (m *Inventory) reconcileNewInventoryPdu(
 }
 
 func (m *Inventory) reconcileNewInventoryTor(
-	ctx      context.Context,
+	ctx context.Context,
 	torStore *Tor,
-	torFile  *pb.Definition_Tor,
+	torFile *pb.Definition_Tor,
 ) error {
 	_, err := torStore.Read(ctx)
 
@@ -698,9 +741,9 @@ func (m *Inventory) reconcileNewInventoryTor(
 }
 
 func (m *Inventory) reconcileNewInventoryBlade(
-	ctx      context.Context,
+	ctx context.Context,
 	bladeStore *Blade,
-	bladeFile  *pb.Definition_Blade,
+	bladeFile *pb.Definition_Blade,
 ) error {
 	_, err := bladeStore.Read(ctx)
 
@@ -728,9 +771,9 @@ func (m *Inventory) reconcileNewInventoryBlade(
 }
 
 func (m *Inventory) reconcileNewInventoryPdus(
-	ctx       context.Context,
+	ctx context.Context,
 	rackStore *Rack,
-	pdus      *map[int64]*pb.Definition_Pdu,
+	pdus *map[int64]*pb.Definition_Pdu,
 ) error {
 	for index, pduFile := range *pdus {
 		pduStore, err := rackStore.NewPdu(index)
@@ -747,9 +790,9 @@ func (m *Inventory) reconcileNewInventoryPdus(
 }
 
 func (m *Inventory) reconcileNewInventoryTors(
-	ctx       context.Context,
+	ctx context.Context,
 	rackStore *Rack,
-	tors      *map[int64]*pb.Definition_Tor,
+	tors *map[int64]*pb.Definition_Tor,
 ) error {
 	for index, torFile := range *tors {
 		torStore, err := rackStore.NewTor(index)
@@ -766,9 +809,9 @@ func (m *Inventory) reconcileNewInventoryTors(
 }
 
 func (m *Inventory) reconcileNewInventoryBlades(
-	ctx       context.Context,
+	ctx context.Context,
 	rackStore *Rack,
-	blades    *map[int64]*pb.Definition_Blade,
+	blades *map[int64]*pb.Definition_Blade,
 ) error {
 	for index, bladeFile := range *blades {
 		bladeStore, err := rackStore.NewBlade(index)
@@ -785,10 +828,10 @@ func (m *Inventory) reconcileNewInventoryBlades(
 }
 
 func (m *Inventory) reconcileOldInventoryRacks(
-	ctx       context.Context,
-	zone      *Zone,
+	ctx context.Context,
+	zone *Zone,
 	zoneStore *pb.Definition_Zone,
-	zoneFile  *pb.Definition_Zone,
+	zoneFile *pb.Definition_Zone,
 ) error {
 	for rackName, rackStore := range zoneStore.Racks {
 		rack, err := zone.NewChild(rackName)
@@ -821,10 +864,10 @@ func (m *Inventory) reconcileOldInventoryRacks(
 }
 
 func (m *Inventory) reconcileOldInventoryPdus(
-	ctx       context.Context,
-	rack      *Rack,
+	ctx context.Context,
+	rack *Rack,
 	pdusStore *map[int64]*pb.Definition_Pdu,
-	pdusFile  *map[int64]*pb.Definition_Pdu,
+	pdusFile *map[int64]*pb.Definition_Pdu,
 ) error {
 	for index := range *pdusStore {
 		pdu, err := rack.NewPdu(index)
@@ -843,10 +886,10 @@ func (m *Inventory) reconcileOldInventoryPdus(
 }
 
 func (m *Inventory) reconcileOldInventoryTors(
-	ctx       context.Context,
-	rack      *Rack,
+	ctx context.Context,
+	rack *Rack,
 	torsStore *map[int64]*pb.Definition_Tor,
-	torsFile  *map[int64]*pb.Definition_Tor,
+	torsFile *map[int64]*pb.Definition_Tor,
 ) error {
 	for index := range *torsStore {
 		tor, err := rack.NewTor(index)
@@ -865,10 +908,10 @@ func (m *Inventory) reconcileOldInventoryTors(
 }
 
 func (m *Inventory) reconcileOldInventoryBlades(
-	ctx         context.Context,
-	rack        *Rack,
+	ctx context.Context,
+	rack *Rack,
 	bladesStore *map[int64]*pb.Definition_Blade,
-	bladesFile  *map[int64]*pb.Definition_Blade,
+	bladesFile *map[int64]*pb.Definition_Blade,
 ) error {
 	for index := range *bladesStore {
 		blade, err := rack.NewBlade(index)
@@ -1029,13 +1072,12 @@ func (m *Inventory) buildSummaryInformation(ctx context.Context, root *pb.Defini
 		rootSummary.MaxBladeCount,
 		rootSummary.MaxCapacity)
 
-
 	zone, err := m.getDefaultZone(root)
 
 	if err != nil {
 		zoneSummary = &ZoneSummary{}
 
-		tracing.Error(
+		_ = tracing.Error(
 			ctx,
 			"Reset DEFAULT inventory summary - MaxRackCount: %d MaxBladeCount: %d MaxCapacity: %v - %v",
 			zoneSummary.RackCount,
@@ -1162,124 +1204,225 @@ func (m *Inventory) writeInventoryDefinitionToStore(ctx context.Context, root *p
 	storeRoot.SetDetails(root.Details)
 
 	for regionName, region := range root.Regions {
-		ctx, span := tracing.StartSpan(ctx,
-			tracing.WithName(fmt.Sprintf("Write inventory definition for region %q", regionName)),
-			tracing.WithContextValue(timestamp.EnsureTickInContext),
-			tracing.AsInternal())
-		defer span.End()
-
-		storeRegion, err := storeRoot.NewChild(regionName)
-		if err != nil {
+		if err = m.writeOneRegion(ctx, regionName, storeRoot, region); err != nil {
 			return err
 		}
+	}
 
-		storeRegion.SetDetails(region.GetDetails())
+	return nil
+}
 
-		if _, err = storeRegion.Create(ctx); err != nil {
+// writeOneRegion writes the records associated with the supplied region to the
+// store.
+func (m *Inventory) writeOneRegion(
+	ctx context.Context,
+	regionName string,
+	storeRoot *Root,
+	region *pb.Definition_Region) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName("Write inventory definition for region %q", regionName),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	storeRegion, err := storeRoot.NewChild(regionName)
+	if err != nil {
+		return err
+	}
+
+	storeRegion.SetDetails(region.GetDetails())
+
+	if _, err = storeRegion.Create(ctx); err != nil {
+		return err
+	}
+
+	for zoneName, zone := range region.Zones {
+		if err = m.writeOneZone(ctx, regionName, zoneName, storeRegion, zone); err != nil {
 			return err
 		}
+	}
 
-		for zoneName, zone := range region.Zones {
-			ctx, span := tracing.StartSpan(ctx,
-				tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q", regionName, zoneName)),
-				tracing.WithContextValue(timestamp.EnsureTickInContext),
-				tracing.AsInternal())
-			defer span.End()
+	return nil
+}
 
-			storeZone, err := storeRegion.NewChild(zoneName)
-			if err != nil {
-				return err
-			}
+// writeOneZone writes the records associated with the supplied zone to the store.
+func (m *Inventory) writeOneZone(
+	ctx context.Context,
+	regionName string,
+	zoneName string,
+	storeRegion *Region,
+	zone *pb.Definition_Zone) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(
+			"Write inventory definition for region %q, zone %q",
+			regionName, zoneName),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
 
-			storeZone.SetDetails(zone.GetDetails())
+	storeZone, err := storeRegion.NewChild(zoneName)
+	if err != nil {
+		return err
+	}
 
-			if _, err = storeZone.Create(ctx); err != nil {
-				return err
-			}
+	storeZone.SetDetails(zone.GetDetails())
 
-			for rackName, rack := range zone.Racks {
-				ctx, span := tracing.StartSpan(ctx,
-					tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q", regionName, zoneName, rackName)),
-					tracing.WithContextValue(timestamp.EnsureTickInContext),
-					tracing.AsInternal())
-				defer span.End()
+	if _, err = storeZone.Create(ctx); err != nil {
+		return err
+	}
 
-				storeRack, err := storeZone.NewChild(rackName)
-				if err != nil {
-					return err
-				}
-
-				storeRack.SetDetails(rack.GetDetails())
-
-				if _, err = storeRack.Create(ctx); err != nil {
-					return err
-				}
-
-				for index, pdu := range rack.Pdus {
-					ctx, span := tracing.StartSpan(ctx,
-						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, pdu %d", regionName, zoneName, rackName, index)),
-						tracing.WithContextValue(timestamp.EnsureTickInContext),
-						tracing.AsInternal())
-					defer span.End()
-
-					storePdu, err := storeRack.NewPdu(index)
-					if err != nil {
-						return err
-					}
-					ports := pdu.GetPorts()
-
-					storePdu.SetDetails(pdu.GetDetails())
-					storePdu.SetPorts(&ports)
-
-					if _, err = storePdu.Create(ctx); err != nil {
-						return err
-					}
-				}
-
-				for index, tor := range rack.Tors {
-					ctx, span := tracing.StartSpan(ctx,
-						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, tor %d", regionName, zoneName, rackName, index)),
-						tracing.WithContextValue(timestamp.EnsureTickInContext),
-						tracing.AsInternal())
-					defer span.End()
-
-					storeTor, err := storeRack.NewTor(index)
-					if err != nil {
-						return err
-					}
-
-					ports := tor.GetPorts()
-					storeTor.SetDetails(tor.GetDetails())
-					storeTor.SetPorts(&ports)
-
-					if _, err = storeTor.Create(ctx); err != nil {
-						return err
-					}
-				}
-
-				for index, blade := range rack.Blades {
-					ctx, span := tracing.StartSpan(ctx,
-						tracing.WithName(fmt.Sprintf("Write inventory definition for region %q, zone %q, rack %q, blade %d", regionName, zoneName, rackName, index)),
-						tracing.WithContextValue(timestamp.EnsureTickInContext),
-						tracing.AsInternal())
-					defer span.End()
-
-					storeBlade, err := storeRack.NewBlade(index)
-					if err != nil {
-						return err
-					}
-
-					storeBlade.SetDetails(blade.GetDetails())
-					storeBlade.SetCapacity(blade.GetCapacity())
-					storeBlade.SetBootInfo(blade.GetBootInfo())
-					storeBlade.SetBootPowerOn(blade.GetBootOnPowerOn())
-
-					if _, err = storeBlade.Create(ctx); err != nil {
-						return err
-					}
-				}
-			}
+	for rackName, rack := range zone.Racks {
+		if err = m.writeOneRack(ctx, regionName, zoneName, rackName, storeZone, rack); err != nil {
+			return err
 		}
+	}
+
+	return nil
+}
+
+// writeOneRack writes the records associated with the supplied rack to the store.
+func (m *Inventory) writeOneRack(
+	ctx context.Context,
+	regionName string,
+	zoneName string,
+	rackName string,
+	storeZone *Zone,
+	rack *pb.Definition_Rack) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(
+			"Write inventory definition for region %q, zone %q, rack %q",
+			regionName, zoneName, rackName),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	storeRack, err := storeZone.NewChild(rackName)
+	if err != nil {
+		return err
+	}
+
+	storeRack.SetDetails(rack.GetDetails())
+
+	if _, err = storeRack.Create(ctx); err != nil {
+		return err
+	}
+
+	for index, pdu := range rack.Pdus {
+		if err = m.writeOnePdu(ctx, regionName, zoneName, rackName, index, storeRack, pdu); err != nil {
+			return err
+		}
+	}
+
+	for index, tor := range rack.Tors {
+		if err = m.writeOneTor(ctx, regionName, zoneName, rackName, index, storeRack, tor); err != nil {
+			return err
+		}
+	}
+
+	for index, blade := range rack.Blades {
+		if err = m.writeOneBlade(ctx, regionName, zoneName, rackName, index, storeRack, blade); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// writeOnePdu writes the record associated with the supplied PDU.
+func (m *Inventory) writeOnePdu(
+	ctx context.Context,
+	regionName string,
+	zoneName string,
+	rackName string,
+	index int64,
+	storeRack *Rack,
+	pdu *pb.Definition_Pdu) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(
+			"Write inventory definition for region %q, zone %q, rack %q, pdu %d",
+			regionName, zoneName, rackName, index),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	storePdu, err := storeRack.NewPdu(index)
+	if err != nil {
+		return err
+	}
+	ports := pdu.GetPorts()
+
+	storePdu.SetDetails(pdu.GetDetails())
+	storePdu.SetPorts(&ports)
+
+	if _, err = storePdu.Create(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// writeOneTor writes the record associated with the supplied TOR.
+func (m *Inventory) writeOneTor(
+	ctx context.Context,
+	regionName string,
+	zoneName string,
+	rackName string,
+	index int64,
+	storeRack *Rack,
+	tor *pb.Definition_Tor) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(
+			"Write inventory definition for region %q, zone %q, rack %q, tor %d",
+			regionName, zoneName, rackName, index),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	storeTor, err := storeRack.NewTor(index)
+	if err != nil {
+		return err
+	}
+
+	ports := tor.GetPorts()
+	storeTor.SetDetails(tor.GetDetails())
+	storeTor.SetPorts(&ports)
+
+	if _, err = storeTor.Create(ctx); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// writeOneBlade writes the record associated with the supplied blade.
+func (m *Inventory) writeOneBlade(
+	ctx context.Context,
+	regionName string,
+	zoneName string,
+	rackName string,
+	index int64,
+	storeRack *Rack,
+	blade *pb.Definition_Blade) error {
+	ctx, span := tracing.StartSpan(ctx,
+		tracing.WithName(
+			"Write inventory definition for region %q, zone %q, rack %q, blade %d",
+			regionName, zoneName, rackName, index),
+		tracing.WithContextValue(timestamp.EnsureTickInContext),
+		tracing.AsInternal())
+	defer span.End()
+
+	storeBlade, err := storeRack.NewBlade(index)
+	if err != nil {
+		return err
+	}
+
+	storeBlade.SetDetails(blade.GetDetails())
+	storeBlade.SetCapacity(blade.GetCapacity())
+	storeBlade.SetBootInfo(blade.GetBootInfo())
+	storeBlade.SetBootPowerOn(blade.GetBootOnPowerOn())
+
+	if _, err = storeBlade.Create(ctx); err != nil {
+		return err
 	}
 
 	return nil
@@ -1347,13 +1490,13 @@ func (m *Inventory) deleteInventoryDefinitionFromStore(ctx context.Context, stor
 					blade.Delete(ctx, true)
 				}
 
-			rack.Delete(ctx, true)
+				rack.Delete(ctx, true)
 			}
 
-		zone.Delete(ctx, true)
+			zone.Delete(ctx, true)
 		}
 
-	region.Delete(ctx, true)
+		region.Delete(ctx, true)
 	}
 
 	return nil
@@ -1362,118 +1505,124 @@ func (m *Inventory) deleteInventoryDefinitionFromStore(ctx context.Context, stor
 // buildSummaryForRoot constructs the memo-ed summary data for the root. This should
 // be called whenever the configured inventory changes. This includes
 //
-// - the zone count
-// - the maximum number of blades in a rack
-// - the memo data itself
+// - the region count
+// - the maximum number of zones in a region
+// - the maximum number of racks in a zone
+// - the maximum number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
 //
 func (m *Inventory) buildSummaryForRoot(
 	root *pb.Definition_Root) *RootSummary {
 
-	maxCapacity := &pb.BladeCapacity{}
-	maxZoneCount := int(0)
-	maxRackCount := int(0)
-	maxBladeCount := int(0)
+	summary := RackSizeSummary{
+		MaxCapacity: &pb.BladeCapacity{},
+	}
+
+	maxZoneCount := 0
+	maxRackCount := 0
 
 	for _, region := range root.Regions {
 		regionSummary := m.buildSummaryForRegion(region)
 
-		maxBladeCount = common.MaxInt(maxBladeCount, regionSummary.MaxBladeCount)
+		summary.setToMax(regionSummary.RackSizeSummary)
 		maxRackCount = common.MaxInt(maxRackCount, regionSummary.MaxRackCount)
 		maxZoneCount = common.MaxInt(maxZoneCount, regionSummary.ZoneCount)
-
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, regionSummary.MaxCapacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, regionSummary.MaxCapacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, regionSummary.MaxCapacity.MemoryInMb)
-
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-				maxCapacity.NetworkBandwidthInMbps,
-				regionSummary.MaxCapacity.NetworkBandwidthInMbps)
 	}
 
 	return &RootSummary{
-		RegionCount:   len(root.Regions),
-		MaxZoneCount:  maxZoneCount,
-		MaxRackCount:  maxRackCount,
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
+		RegionCount:     len(root.Regions),
+		MaxZoneCount:    maxZoneCount,
+		MaxRackCount:    maxRackCount,
+		RackSizeSummary: summary,
 	}
 }
 
-// buildSummary constructs the memo-ed summary data for the zone.  This should
-// be called whenever the configured inventory changes. This includes
+// buildSummaryForRegion constructs the memo-ed summary data for the region.
+// This should be called whenever the configured inventory changes. This includes
 //
 // - the zone count
-// - the maximum number of blades in a rack
-// - the memo data itself
+// - the maximum number of racks in a zone
+// - the maximum number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
 //
 func (m *Inventory) buildSummaryForRegion(
 	region *pb.Definition_Region) *RegionSummary {
 
-	maxCapacity := &pb.BladeCapacity{}
-	maxRackCount := int(0)
-	maxBladeCount := int(0)
+	summary := RackSizeSummary{
+		MaxCapacity: &pb.BladeCapacity{},
+	}
+
+	maxRackCount := 0
 
 	for _, zone := range region.Zones {
 		zoneSummary := m.buildSummaryForZone(zone)
+		summary.setToMax(zoneSummary.RackSizeSummary)
 
-		maxBladeCount = common.MaxInt(maxBladeCount, zoneSummary.MaxBladeCount)
 		maxRackCount = common.MaxInt(maxRackCount, zoneSummary.RackCount)
-
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, zoneSummary.MaxCapacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, zoneSummary.MaxCapacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, zoneSummary.MaxCapacity.MemoryInMb)
-
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-				maxCapacity.NetworkBandwidthInMbps,
-				zoneSummary.MaxCapacity.NetworkBandwidthInMbps)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, zoneSummary.MaxBladeCount)
 	}
 
 	return &RegionSummary{
-		ZoneCount:     len(region.Zones),
-		MaxRackCount:  maxRackCount,
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
+		ZoneCount:       len(region.Zones),
+		MaxRackCount:    maxRackCount,
+		RackSizeSummary: summary,
 	}
 }
 
+// buildSummaryForZone constructs the memo-ed summary data for the zone. This
+// should be called whenever the configured inventory changes. This includes
+//
+// - the number of racks in a zone
+// - the maximum number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
+//
 func (m *Inventory) buildSummaryForZone(zone *pb.Definition_Zone) *ZoneSummary {
 
-	maxCapacity := &pb.BladeCapacity{}
-	maxBladeCount := int(0)
+	summary := RackSizeSummary{
+		MaxCapacity: &pb.BladeCapacity{},
+	}
 
 	for _, rack := range zone.Racks {
-		bladeCount, capacity := m.buildSummaryForRack(rack)
-
-		maxBladeCount = common.MaxInt(maxBladeCount, bladeCount)
-		maxCapacity.Cores = common.MaxInt64(maxCapacity.Cores, capacity.Cores)
-		maxCapacity.DiskInGb = common.MaxInt64(maxCapacity.DiskInGb, capacity.DiskInGb)
-		maxCapacity.MemoryInMb = common.MaxInt64(maxCapacity.MemoryInMb, capacity.MemoryInMb)
-		maxCapacity.NetworkBandwidthInMbps = common.MaxInt64(
-			maxCapacity.NetworkBandwidthInMbps,
-			capacity.NetworkBandwidthInMbps)
+		summary.setToMax(m.buildSummaryForRack(rack))
 	}
 
 	return &ZoneSummary{
-		RackCount:     len(zone.Racks),
-		MaxBladeCount: maxBladeCount,
-		MaxCapacity:   maxCapacity,
+		RackCount:       len(zone.Racks),
+		RackSizeSummary: summary,
 	}
 }
 
-func (m *Inventory) buildSummaryForRack(rack *pb.Definition_Rack) (int, *pb.BladeCapacity) {
+// buildSummaryForZone constructs the memo-ed summary data for the rack. This
+// should be called whenever the configured inventory changes. This includes
+//
+// - the number of TORs, PDUs, and blades in a rack
+// - the maximum number of connectors in any TOR or PDU
+// - the maximum blade capacity
+//
+func (m *Inventory) buildSummaryForRack(rack *pb.Definition_Rack) RackSizeSummary {
 
 	memo := &pb.BladeCapacity{}
 
 	for _, blade := range rack.Blades {
-		memo.Cores = common.MaxInt64(memo.Cores, blade.Capacity.Cores)
-		memo.DiskInGb = common.MaxInt64(memo.DiskInGb, blade.Capacity.DiskInGb)
-		memo.MemoryInMb = common.MaxInt64(memo.MemoryInMb, blade.Capacity.MemoryInMb)
-		memo.NetworkBandwidthInMbps = common.MaxInt64(
-			memo.NetworkBandwidthInMbps,
-			blade.Capacity.NetworkBandwidthInMbps)
+		memo = maxBladeCapacity(memo, blade.Capacity)
 	}
 
-	return len(rack.Blades), memo
+	connectors := 0
+	for _, tor := range rack.Tors {
+		connectors = common.MaxInt(connectors, len(tor.Ports))
+	}
+
+	for _, pdu := range rack.Pdus {
+		connectors = common.MaxInt(connectors, len(pdu.Ports))
+	}
+
+	return RackSizeSummary{
+		MaxTorCount:   len(rack.Tors),
+		MaxPduCount:   len(rack.Pdus),
+		MaxBladeCount: len(rack.Blades),
+		MaxConnectors: connectors,
+		MaxCapacity:   memo,
+	}
 }

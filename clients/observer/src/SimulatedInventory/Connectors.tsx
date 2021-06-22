@@ -2,10 +2,10 @@
 // and colors them, based on a boolean area indicating if the connector is
 // enabled or not
 
-import React, {FunctionComponent} from "react";
-import {grey} from "@material-ui/core/colors";
+import React from "react"
+import {grey} from "@material-ui/core/colors"
 
-export const Connectors: FunctionComponent<{
+export function Connectors(props: {
     x: number,
     y: number,
     width: number,
@@ -14,30 +14,22 @@ export const Connectors: FunctionComponent<{
     onColor: string,
     offColor: string,
     opacity: number
-        }> = ({
-            x,
-            y,
-            width,
-            height,
-            state,
-            onColor,
-            offColor,
-            opacity}) => {
-    const radius = Math.min((height / 4) - 2, (width / state.length))
-    const cy = height - radius - 1 + y
-    const dx = width / state.length
+}) {
+    const radius = Math.min((props.height / 4) - 2, (props.width / props.state.length))
+    const cy = (props.height / 2) + props.y
+    const dx = props.width / props.state.length
 
     const linkColor = (flag: boolean): string => {
-        if (flag) return onColor
-        return offColor
+        if (flag) return props.onColor
+        return props.offColor
     }
 
-    let leftX = x + (dx / 2)
+    let leftX = props.x + (dx / 2)
 
     return (
         <React.Fragment>
 
-            {state.map((value) => {
+            {props.state.map((value: boolean) => {
                 const thisX = leftX
                 leftX += dx
 
@@ -48,7 +40,7 @@ export const Connectors: FunctionComponent<{
                     fill={linkColor(value)}
                     strokeWidth={1}
                     stroke={grey[700]}
-                    fillOpacity={opacity}
+                    fillOpacity={props.opacity}
                 />
             })}
 
