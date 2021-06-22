@@ -1,9 +1,9 @@
-import React, {useEffect, useState} from 'react'
-import {green, grey, red, yellow} from "@material-ui/core/colors"
+import React, { useEffect, useState } from 'react'
+import { green, grey, red, yellow } from "@material-ui/core/colors"
 
-import {ClusterDetails, getCluster, getRackDetails, RackDetails} from "../proxies/InventoryProxy"
-import {Cluster} from "./Cluster"
-import {ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar} from "../common/Snackbar"
+import { ClusterDetails, getCluster, getRackDetails, RackDetails } from "../proxies/InventoryProxy"
+import { Cluster } from "./Cluster"
+import { ErrorSnackbar, MessageMode, SnackData, SuccessSnackbar } from "../common/Snackbar"
 
 
 // This is the palette of colors used by the various parts of the
@@ -53,7 +53,7 @@ export function SimulatedInventory() {
                 zone.racks.forEach((rack, name) => {
                     getRackDetails(rack)
                         .then(res => {
-                            let newZone = {...zone}
+                            let newZone = { ...zone }
                             newZone.racks.set(name, res)
 
                             let done = true
@@ -72,7 +72,7 @@ export function SimulatedInventory() {
                 })
             })
             .catch((err: Error) => {
-                setSnackData({message: err.message, mode: MessageMode.Error})
+                setSnackData({ message: err.message, mode: MessageMode.Error })
             })
     }, [])
 
@@ -86,20 +86,20 @@ export function SimulatedInventory() {
         runningColor: green[300]
     }
 
-    return <React.Fragment>
-        <Cluster cluster={cluster} palette={palette}/>
+    return <>
+        <Cluster cluster={cluster} palette={palette} />
 
         <SuccessSnackbar
             open={snackData.mode === MessageMode.Success}
-            onClose={() => setSnackData({message: "", mode: MessageMode.None})}
+            onClose={() => setSnackData({ message: "", mode: MessageMode.None })}
             autoHideDuration={3000}
-            message={snackData.message}/>
+            message={snackData.message} />
 
         <ErrorSnackbar
             open={snackData.mode === MessageMode.Error}
-            onClose={() => setSnackData({message: "", mode: MessageMode.None})}
+            onClose={() => setSnackData({ message: "", mode: MessageMode.None })}
             autoHideDuration={4000}
-            message={snackData.message}/>
+            message={snackData.message} />
 
-    </React.Fragment>
+    </>
 }

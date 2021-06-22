@@ -1,19 +1,22 @@
 // This module contains the redux store definitions and access functions.
 
-import {combineReducers, configureStore, createSlice, PayloadAction} from '@reduxjs/toolkit'
+import { combineReducers, configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux"
+import { Organizer } from "../Log/Organizer"
+import { LogEntry } from "../proxies/LogProxy"
+import { CreateSessionUser, SessionUser } from "../proxies/Session"
+import { StepperMode, TimeContext } from "../proxies/StepperProxy"
+import { SettingsState } from "../Settings"
+import { Impacts, NoImpacts } from '../SimulatedController/Constants'
 
-import {StepperMode, TimeContext} from "../proxies/StepperProxy"
-import {TypedUseSelectorHook, useDispatch, useSelector} from "react-redux"
-import {SettingsState} from "../Settings"
-import {CreateSessionUser, SessionUser} from "../proxies/Session"
-import {LogEntry} from "../proxies/LogProxy"
-import {Organizer} from "../Log/Organizer"
 
 // The store consists of slices associated with:
 //   - simulated time (stepper),
 //   - the current server session (logon),
 //   - the display settings (settings),
-//   - the error alert bar (snackbar)
+//   - the error alert bar (snackbar),
+//   - the event log and display,
+//   - the controller element impact map,
 //
 // Each section has the definition for the slice, and the retrieval functions
 // used to select specific information from that slice.
@@ -231,12 +234,42 @@ export const logSelector = (state: StoreSchema) => state.log
 
 // --- Simulation log tracking slice
 
+// +++ Controller impacts slice
+
+export const impactsSlice = createSlice({
+    name: "impacts",
+    initialState: {
+        controllerImpacts: NoImpacts
+    },
+    reducers: {
+        // replace the impact claims with the newly provided ones
+        update: {
+            reducer: (state, action: PayloadAction<Impacts>) => {
+                state.controllerImpacts = action.payload
+            },
+            prepare: (impacts: Impacts) => {
+                return { payload: impacts }
+            }
+        },
+
+        // clear all impact claims
+        clear: (state) => {
+            state.controllerImpacts = NoImpacts
+        }
+    }
+})
+
+export const impactsSelector = (state: StoreSchema) => state.impacts
+
+// --- controller impacts slice
+
 const rootReducer = combineReducers({
     cur: stepperSlice.reducer,
     settings: settingsSlice.reducer,
     snackText: snackbarSlice.reducer,
     session: logonSlice.reducer,
-    log: logSlice.reducer
+    log: logSlice.reducer,
+    impacts: impactsSlice.reducer
 })
 
 export const store = configureStore({
