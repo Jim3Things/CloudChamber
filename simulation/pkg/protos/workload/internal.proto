@@ -5,6 +5,6 @@ package workload;
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/workload";
 option csharp_namespace = "CloudChamber.Protos.Workload";
 
-message internal {
+message Internal {
 
 }

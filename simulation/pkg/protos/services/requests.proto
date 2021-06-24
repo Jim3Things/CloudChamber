@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package services;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
-import "github.com/Jim3Things/CloudChamber/pkg/protos/log/entry.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common/timestamp.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/log/entry.proto";
 
 import "google/protobuf/duration.proto";
 
@@ -204,7 +204,7 @@ message GetPolicyResponse {
 // Return a notification of a change in the CloudChamber status.
 message WatchResponse {
     oneof event_type {
-        // expired is reported if there were no changes before the long wait 
+        // expired is reported if there were no changes before the long wait
         // delay epxired.
         bool expired = 1;
 
