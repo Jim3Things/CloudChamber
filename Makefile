@@ -13,29 +13,29 @@ TsFiles  = $(wildcard $(1)/*.ts)
 TsxFiles = $(wildcard $(1)/*.tsx)
 
 PROTO_FILES = \
-    simulation/pkg/protos/admin/simulation.proto \
-    simulation/pkg/protos/admin/users.proto \
-    simulation/pkg/protos/common/completion.proto \
-    simulation/pkg/protos/common/timestamp.proto \
-    simulation/pkg/protos/log/entry.proto \
-    simulation/pkg/protos/inventory/capacity.proto \
-    simulation/pkg/protos/inventory/common.proto \
-    simulation/pkg/protos/inventory/actual.proto \
-    simulation/pkg/protos/inventory/definition.proto \
-    simulation/pkg/protos/inventory/external.proto \
-    simulation/pkg/protos/inventory/internal.proto \
+	simulation/pkg/protos/admin/simulation.proto \
+	simulation/pkg/protos/admin/users.proto \
+	simulation/pkg/protos/common/completion.proto \
+	simulation/pkg/protos/common/timestamp.proto \
+	simulation/pkg/protos/log/entry.proto \
+	simulation/pkg/protos/inventory/capacity.proto \
+	simulation/pkg/protos/inventory/common.proto \
+	simulation/pkg/protos/inventory/actual.proto \
+	simulation/pkg/protos/inventory/definition.proto \
+	simulation/pkg/protos/inventory/external.proto \
+	simulation/pkg/protos/inventory/internal.proto \
 	simulation/pkg/protos/inventory/observed.proto \
 	simulation/pkg/protos/inventory/store.proto \
 	simulation/pkg/protos/inventory/target.proto \
 	simulation/pkg/protos/workload/actual.proto \
-    simulation/pkg/protos/workload/external.proto \
-    simulation/pkg/protos/workload/internal.proto \
-    simulation/pkg/protos/workload/target.proto \
-    simulation/pkg/protos/services/inventory.proto \
-    simulation/pkg/protos/services/monitor.proto \
-    simulation/pkg/protos/services/requests.proto \
-    simulation/pkg/protos/services/stepper.proto \
-    simulation/pkg/protos/services/traceSink.proto
+	simulation/pkg/protos/workload/external.proto \
+	simulation/pkg/protos/workload/internal.proto \
+	simulation/pkg/protos/workload/target.proto \
+	simulation/pkg/protos/services/inventory.proto \
+	simulation/pkg/protos/services/monitor.proto \
+	simulation/pkg/protos/services/requests.proto \
+	simulation/pkg/protos/services/stepper.proto \
+	simulation/pkg/protos/services/traceSink.proto
 
 # Every proto file is compiled into go, csharp, and typescript results.
 PROTO_GEN_FILES = $(subst .proto,.pb.go,$(PROTO_FILES))
@@ -46,14 +46,14 @@ PROTO_TS_GEN_FILES = $(subst .proto,.ts,$(PROTO_FILES))
 # use in other subprojects.
 EXPORT_CS_GEN_FILES = $(subst simulation/pkg/,pkg/,$(PROTO_CS_GEN_FILES))
 export EXPORT_TSX_FILES = \
-    pkg/protos/utils.tsx \
-    pkg/protos/admin/users.tsx \
-    pkg/protos/common/Timestamp.tsx \
-    pkg/protos/inventory/capacity.tsx \
-    pkg/protos/inventory/common.tsx \
-    pkg/protos/inventory/external.tsx \
-    pkg/protos/log/entry.tsx \
-    pkg/protos/services/requests.tsx
+	pkg/protos/utils.tsx \
+	pkg/protos/admin/users.tsx \
+	pkg/protos/common/Timestamp.tsx \
+	pkg/protos/inventory/capacity.tsx \
+	pkg/protos/inventory/common.tsx \
+	pkg/protos/inventory/external.tsx \
+	pkg/protos/log/entry.tsx \
+	pkg/protos/services/requests.tsx
 
 SRC_ERRORS = \
 	$(call ProdFiles, simulation/pkg/errors)
@@ -175,25 +175,21 @@ SRC_ARTIFACTS = \
 ARTIFACTS = $(addprefix $(KIT_BUILD)/, $(notdir $(SRC_ARTIFACTS)))
 
 OBSERVER = \
-    $(OBSERVER_UI_BUILD)/asset-manifest.json \
-    $(OBSERVER_UI_BUILD)/index.html
+	$(OBSERVER_UI_BUILD)/asset-manifest.json \
+	$(OBSERVER_UI_BUILD)/index.html
 
 SERVICES = \
-    $(KIT_BUILD)/controllerd.exe \
-    $(KIT_BUILD)/inventoryd.exe \
-    $(KIT_BUILD)/sim_supportd.exe \
-    $(KIT_BUILD)/web_server.exe
+	$(KIT_BUILD)/controllerd.exe \
+	$(KIT_BUILD)/inventoryd.exe \
+	$(KIT_BUILD)/sim_supportd.exe \
+	$(KIT_BUILD)/web_server.exe
 
 VERSION_MARKER = \
-    simulation/pkg/version/generated.go \
-    simulation/pkg/version/version_stamp.md \
+	simulation/pkg/version/generated.go \
+	simulation/pkg/version/version_stamp.md \
 	simulation/pkg/version/readme.md
 
-
 INSTALL_KIT = $(SERVICES) $(ARTIFACTS) $(OBSERVER)
-
-
-INSTALL_KIT = $(SERVICES) $(ARTIFACTS)
 
 
 ifdef CC_INSTALL_TARGET
@@ -259,7 +255,8 @@ copy_to: $(ARTIFACTS)
 .PHONY : install
 
 install: $(INSTALL_KIT)
-	$(MD) $(INSTALL_TARGET)
+	$(MD) $(INSTALL_TARGET)/static
+	$(RM-RECURSIVE) $(INSTALL_TARGET)/static
 	$(CP) $(INSTALL_KIT) $(INSTALL_TARGET)/
 	$(CP) $(OBSERVER_UI_BUILD)/*.* $(INSTALL_TARGET)/
 	$(CP-RECURSIVE) $(OBSERVER_UI_BUILD)/static $(INSTALL_TARGET)/
@@ -303,6 +300,7 @@ run_tests: $(PROTO_GEN_FILES) $(VERSION_MARKER)
 clean:
 	$(RM) $(SERVICES) $(ARTIFACTS) $(PROTO_GEN_FILES) $(PROTO_CS_GEN_FILES) $(PROTO_TS_GEN_FILES) $(EXPORT_CS_GEN_FILES) $(EXPORT_TSX_FILES) $(VERSION_MARKER)
 	$(MAKE) -C $(OBSERVER_UI) clean
+	$(RM-RECURSIVE) $(KIT_BUILD)
 
 
 .PHONY : test
@@ -354,6 +352,13 @@ pkg/protos/%.pb.cs : simulation/pkg/protos/%.pb.cs
 
 pkg/protos/%.tsx : simulation/pkg/protos/%.tsx
 	$(CP) $(PROJECT)/$< $(PROJECT)/$@
+
+
+
+$(SERVICES) $(ARTIFACTS) $(OBSERVER) : | $(KIT_BUILD)
+
+$(KIT_BUILD) :
+	$(MD) $(KIT_BUILD)
 
 
 $(VERSION_MARKER) &: $(SRC_VERSION)
