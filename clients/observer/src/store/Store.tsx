@@ -1,13 +1,13 @@
 // This module contains the redux store definitions and access functions.
 
-import { combineReducers, configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit'
+import { combineReducers, configureStore, createSlice, PayloadAction } from "@reduxjs/toolkit"
 import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux"
 import { Organizer } from "../Log/Organizer"
 import { LogEntry } from "../proxies/LogProxy"
 import { CreateSessionUser, SessionUser } from "../proxies/Session"
 import { StepperMode, TimeContext } from "../proxies/StepperProxy"
 import { SettingsState } from "../Settings"
-import { Impacts, NoImpacts } from '../SimulatedController/Constants'
+import { Impacts, NoImpacts } from "../SimulatedController/Constants"
 
 
 // The store consists of slices associated with:
@@ -174,14 +174,21 @@ export const snackbarSelector = (state: StoreSchema) => state.snackText.msg
 
 // +++ Simulation log tracking slice
 
+// The ogranizer is not held in the redux store itself, but is generated when
+// the log slice is selected.  Therefore, the form of the data in the store is
+// in logStoreData, and the type returned is logStore.
+
+interface logStoreData {
+    entries: LogEntry[],
+}
+
 interface logStore {
     entries: LogEntry[],
     organizer: Organizer
 }
 
-const initialState: logStore = {
+const initialState: logStoreData = {
     entries: [],
-    organizer: new Organizer([])
 }
 
 export const logSlice = createSlice({
@@ -198,7 +205,6 @@ export const logSlice = createSlice({
                 const start = Math.max(newEntries.length - action.payload.toHold, 0)
                 const slice = newEntries.slice(start)
 
-                state.organizer = new Organizer(slice)
                 state.entries = slice
             },
             prepare: (toHold: number, entries: LogEntry[]) => {
@@ -230,7 +236,12 @@ export const logSlice = createSlice({
 })
 
 // get the current set of log entries
-export const logSelector = (state: StoreSchema) => state.log
+export const logSelector = (state: StoreSchema): logStore => {
+    return {
+        entries: state.log.entries,
+        organizer: new Organizer(state.log.entries),
+    }
+}
 
 // --- Simulation log tracking slice
 

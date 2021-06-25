@@ -81,13 +81,9 @@ clean:
 	$(RM-RECURSIVE) build/*
 	$(RM-RECURSIVE) src/pkg/protos/*
 
-# Unit tests are disabled for now because they emit a noisy error about Organizer
-# serialization.  Doesn't seem to impact behavior (and the test itself passes),
-# but I'm suppressing the test running in make until I've resolved the serialization
-# issue.
 .PHONY: test
 test:
-#	set CI=true && npm run-script test
+	npm test -- --watchAll=false
 
 src/pkg/protos/%.tsx : $(PROJECT)/pkg/protos/%.tsx
 	$(MD) $(dir $(OBSERVER_PROJECT)/$@)
