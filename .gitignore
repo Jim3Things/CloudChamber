@@ -1,9 +1,9 @@
 .exe
 .vscode
-/deployments/
 /pkg/protos/**/*pb.go
 /pkg/protos/**/*pb.cs
 /pkg/protos/**/*.ts
+/pkg/protos/**/*.tsx
 /.idea/
 *~
 /**/#*#

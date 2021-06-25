@@ -23,18 +23,16 @@
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^5.12.0",
-    "@testing-library/react": "^11.2.6",
+    "@testing-library/react": "^12.0.0",
     "@testing-library/react-hooks": "^7.0.0",
     "@testing-library/user-event": "^13.1.5",
     "@types/jest": "^26.0.23",
     "@types/react-redux": "^7.1.16",
-    "copyfiles": "2.4.1",
     "eslint-plugin-react-hooks": "^4.2.0",
     "react-test-renderer": "^17.0.2"
   },
   "scripts": {
     "start": "react-scripts start",
-    "prebuild": "copyfiles -V ../../pkg/protos/**/*.tsx src/src/protos",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",

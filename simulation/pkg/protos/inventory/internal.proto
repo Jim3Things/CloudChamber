@@ -7,10 +7,10 @@ syntax = "proto3";
 
 package inventory;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common.proto";
-import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/actual.proto";
-import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/definition.proto";
-import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/target.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory/common.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory/actual.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory/definition.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory/target.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory";
 option csharp_namespace = "CloudChamber.Protos.Inventory";

@@ -5,12 +5,13 @@ syntax = "proto3";
 
 package services;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
-import "github.com/Jim3Things/CloudChamber/pkg/protos/common/timestamp.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory/capacity.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/common/timestamp.proto";
 
 import "google/protobuf/empty.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services";
+option csharp_namespace = "CloudChamber.Protos.Services";
 
 // Define the service implemented by the inventory monitor.
 service Monitor {

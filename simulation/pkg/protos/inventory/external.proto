@@ -8,8 +8,8 @@ syntax = "proto3";
 
 package inventory;
 
-import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/capacity.proto";
-import "github.com/Jim3Things/CloudChamber/pkg/protos/inventory/common.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory/capacity.proto";
+import "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory/common.proto";
 
 option go_package = "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/inventory";
 option csharp_namespace = "CloudChamber.Protos.Inventory";
@@ -161,7 +161,7 @@ message External {
         // The largest capacity values found in any blade
         BladeCapacity max_capacity = 3;
 
-        // Overview detail 
+        // Overview detail
         ZoneDetails details = 4;
 
         // Friendly name for the zone
