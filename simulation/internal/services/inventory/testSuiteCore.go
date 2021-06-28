@@ -126,6 +126,7 @@ func (ts *testSuiteCore) createAndStartRack(
 		ctx,
 		ts.rackName(),
 		rackDef,
+		ts.cfg,
 		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
 		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
 		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
@@ -168,6 +169,8 @@ func (ts *testSuiteCore) bootBlade(ctx context.Context, r *Rack, target *message
 	require.True(ok)
 	require.NotNil(res)
 	require.NoError(res.Err)
+
+	ctx = ts.advance(ctx)
 
 	rsp = make(chan *sm.Response)
 

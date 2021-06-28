@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
 	"github.com/spf13/viper"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
@@ -59,6 +60,13 @@ const (
 	storeDefaultTestUseTestNamespace  = false
 	storeDefaultTestUseUniqueInstance = false
 	storeDefaultTestPreCleanStore     = false
+
+	inventoryPowerDelayLow         = 1
+	inventoryPowerDelayHigh        = 1
+	inventoryNetworkDelayLow       = 1
+	inventoryNetworkDelayHigh      = 1
+	inventoryBladeBootingDelayLow  = 5
+	inventoryBladeBootingDelayHigh = 8
 )
 
 // GlobalConfig defines the global configuration structure produced from reading
@@ -71,6 +79,7 @@ type GlobalConfig struct {
 	SimSupport SimSupportType
 	WebServer  WebServerType
 	Store      StoreType
+	Delays     DelaysType
 }
 
 // Endpoint is a helper type that defines a simple endpoint
@@ -168,6 +177,16 @@ type StoreType struct {
 	Test           StoreTypeTest
 }
 
+type DelayTypeInventory struct {
+	SetPower      common.Range
+	SetConnection common.Range
+	Booting       common.Range
+}
+
+type DelaysType struct {
+	Inventory DelayTypeInventory
+}
+
 // Create a new global configuration object, preset with defaults
 func newGlobalConfig() *GlobalConfig {
 	return &GlobalConfig{
@@ -223,6 +242,22 @@ func newGlobalConfig() *GlobalConfig {
 				UseTestNamespace:  storeDefaultTestUseTestNamespace,
 				UseUniqueInstance: storeDefaultTestUseUniqueInstance,
 				PreCleanStore:     storeDefaultTestPreCleanStore,
+			},
+		},
+		Delays: DelaysType{
+			Inventory: DelayTypeInventory{
+				SetPower: common.Range{
+					Low:  inventoryPowerDelayLow,
+					High: inventoryPowerDelayHigh,
+				},
+				SetConnection: common.Range{
+					Low:  inventoryNetworkDelayLow,
+					High: inventoryNetworkDelayHigh,
+				},
+				Booting: common.Range{
+					Low:  inventoryBladeBootingDelayLow,
+					High: inventoryBladeBootingDelayHigh,
+				},
 			},
 		},
 	}
@@ -297,7 +332,7 @@ func (data *GlobalConfig) String() string {
 			"  SystemAccountPassword: %s\n"+
 			"  SessionInactivity: %d\n"+
 			"  ActiveSessionLimit: %d\n"+
-			"Store:"+
+			"Store:\n"+
 			"  ConnectTimeout: %v\n"+
 			"  RequestTimeout: %v\n"+
 			"  TraceLevel: %v\n"+
@@ -305,6 +340,17 @@ func (data *GlobalConfig) String() string {
 			"    UseTestNamespace: %v\n"+
 			"    UseUniqueInstance: %v\n"+
 			"    PreCleanStore: %v\n"+
+			"Delays:\n" +
+			"  Inventory:\n" +
+			"    SetPower:\n" +
+			"      Low: %d\n" +
+			"      High: %d\n" +
+			"    SetConnection:\n" +
+			"      Low: %d\n" +
+			"      High: %d\n" +
+			"    Booting:\n" +
+			"      Low: %d\n" +
+			"      High: %d\n" +
 			"",
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
 		data.Controller.TraceFile,
@@ -328,5 +374,11 @@ func (data *GlobalConfig) String() string {
 		data.Store.TraceLevel,
 		data.Store.Test.UseTestNamespace,
 		data.Store.Test.UseUniqueInstance,
-		data.Store.Test.PreCleanStore)
+		data.Store.Test.PreCleanStore,
+		data.Delays.Inventory.SetPower.Low,
+		data.Delays.Inventory.SetPower.High,
+		data.Delays.Inventory.SetConnection.Low,
+		data.Delays.Inventory.SetConnection.High,
+		data.Delays.Inventory.Booting.Low,
+		data.Delays.Inventory.Booting.High)
 }

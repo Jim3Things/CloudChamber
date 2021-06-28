@@ -66,7 +66,7 @@ func Register(svc *grpc.Server, cfg *config.GlobalConfig) error {
 		return err
 	}
 
-	if err := s.initializeRacks(); err != nil {
+	if err := s.initializeRacks(cfg); err != nil {
 		return err
 	}
 
@@ -123,7 +123,7 @@ func (s *server) initializeInventory(cfg *config.GlobalConfig) error {
 	return nil
 }
 
-func (s *server) initializeRacks() error {
+func (s *server) initializeRacks(cfg *config.GlobalConfig) error {
 	ctx, span := tracing.StartSpan(
 		context.Background(),
 		tracing.WithName("Initializing the simulated inventory racks"),
@@ -169,6 +169,7 @@ func (s *server) initializeRacks() error {
 			ctx,
 			rack.Key,
 			r,
+			cfg,
 			rack.KeyIndexPdu,
 			rack.KeyIndexTor,
 			rack.KeyIndexBlade,
@@ -183,24 +184,50 @@ func (s *server) initializeRacks() error {
 	return nil
 }
 
+// startBlades begins the mocked repair actions to move from an initial rack
+// appearing to the point where the blades are booted.  This first step involves
+// powering on each blade.  It then proceeds to connectBladeAfterPower.
+//
+// As this is a purely temporary mock, errors are currently ignored in the power
+// on operation.
 func (s *server) startBlades() error {
 	ctx, span := tracing.StartSpan(
 		context.Background(),
-		tracing.WithName("Booting the simulated inventory"),
+		tracing.WithName("Booting the simulated inventory, step 1: powering on"),
 		tracing.WithContextValue(ts.EnsureTickInContext))
 	defer span.End()
 
 	for name, r := range s.racks {
-		tracing.Info(ctx, "Booting the blades in rack %q", name)
+		tracing.Info(ctx, "Applying power to the blades in rack %q", name)
 		for _, b := range r.blades {
 			rsp := make(chan *sm.Response)
 
 			r.Receive(
 				messages.NewSetPower(ctx, b.me(), common.TickFromContext(ctx), true, rsp))
 
-			<-rsp
+			go s.connectBladeAfterPower(r, b, rsp)
 		}
 	}
 
 	return nil
+}
+
+// connectBladeAfterPower waits for the power operation to complete, and then
+// initiates a network connection operation.  It exits the goroutine when the
+// network connection operation completes.  As with startBlades, errors from the
+// network operation are ignored.
+func (s *server) connectBladeAfterPower(r *Rack, b *blade, rsp chan *sm.Response) {
+	<- rsp
+
+	ctx, span := tracing.StartSpan(
+		context.Background(),
+		tracing.WithName("Connecting the network for %q", b.me().Describe()),
+		tracing.WithContextValue(ts.EnsureTickInContext))
+	defer span.End()
+
+	rsp = make(chan *sm.Response)
+	r.Receive(
+		messages.NewSetConnection(ctx, b.me(), common.TickFromContext(ctx), true, rsp))
+
+	<- rsp
 }

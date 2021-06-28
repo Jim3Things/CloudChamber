@@ -29,6 +29,10 @@ type tor struct {
 	// id is the index used to identify this TOR within the Rack.
 	id int64
 
+	// propDelay is the propagation delay in network connections, stored as a
+	// range of ticks that the network operation is delayed from taking effect.
+	propDelay common.Range
+
 	// sm is the state machine for this TOR's simulation
 	sm *sm.SM
 }
@@ -37,12 +41,19 @@ type tor struct {
 // and the containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
-func newTor(ctx context.Context, def *pb.Definition_Tor, name string, r *Rack, id int64) *tor {
+func newTor(
+	ctx context.Context,
+	def *pb.Definition_Tor,
+	propDelay common.Range,
+	name string,
+	r *Rack,
+	id int64) *tor {
 	t := &tor{
-		cables: make(map[string]*cable),
-		holder: r,
-		id:     id,
-		sm:     nil,
+		cables:    make(map[string]*cable),
+		holder:    r,
+		id:        id,
+		propDelay: propDelay,
+		sm:        nil,
 	}
 
 	t.sm = sm.NewSM(t,
@@ -66,7 +77,6 @@ func newTor(ctx context.Context, def *pb.Definition_Tor, name string, r *Rack, i
 			messages.DropMessage,
 			sm.NullLeave),
 	)
-
 
 	// Wire up all the cables, and also register this instance with the rack for
 	// routing to the cable's destination element.
@@ -131,7 +141,7 @@ func (t *tor) notifyBladeOfConnectionChange(ctx context.Context, msg *messages.S
 		msg.Enabled,
 		nil)
 
-	t.holder.forwardToBlade(ctx, msg.Target.ElementId(), fwd)
+	t.holder.forwardToBlade(ctx, t.propDelay.Pick(), msg.Target, fwd)
 
 	tracing.Info(
 		ctx,
@@ -184,7 +194,7 @@ func torToBladeGetStatus(ctx context.Context, t *tor, msg sm.Envelope) bool {
 		return false
 	}
 
-	if !t.holder.forwardToBlade(ctx, c.target.ElementId(), msg) {
+	if !t.holder.forwardToBlade(ctx, 0, m.Target, msg) {
 		ch := msg.Ch()
 		if ch != nil {
 			close(ch)

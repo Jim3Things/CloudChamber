@@ -150,7 +150,6 @@ func (t *Timers) listenUntilFailure(ctx context.Context, epoch int, now int64) i
 
 		resp, err = client.Delay(ctx, &pb.DelayRequest{
 			AtLeast: &ct.Timestamp{Ticks: now + 1},
-			Jitter:  0,
 		})
 
 		if err == nil {

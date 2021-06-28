@@ -25,6 +25,10 @@ type pdu struct {
 	// id is the index used to identify this PDU within the Rack.
 	id int64
 
+	// propDelay is the propagation delay in power notification, stored as a
+	// range of ticks that the power operation is delayed from taking effect.
+	propDelay common.Range
+
 	// sm is the state machine for this PDU simulation.
 	sm *sm.SM
 }
@@ -33,12 +37,13 @@ type pdu struct {
 // containing Rack.  Note that it currently does not fill in the cable
 // information, as that is missing from the inventory definition.  That is
 // done is the fixConnection function below.
-func newPdu(ctx context.Context, def *pb.Definition_Pdu, name string, r *Rack, id int64) *pdu {
+func newPdu(ctx context.Context, def *pb.Definition_Pdu, propDelay common.Range, name string, r *Rack, id int64) *pdu {
 	p := &pdu{
-		cables: make(map[string]*cable),
-		holder: r,
-		id:     id,
-		sm:     nil,
+		cables:    make(map[string]*cable),
+		holder:    r,
+		id:        id,
+		propDelay: propDelay,
+		sm:        nil,
 	}
 
 	p.sm = sm.NewSM(p,
@@ -128,14 +133,16 @@ func (p *pdu) Receive(ctx context.Context, msg sm.Envelope) {
 // notifyBladeOfPowerChange constructs a setPower message that notifies the specified
 // blade of the change in power, and sends it along.
 func (p *pdu) notifyBladeOfPowerChange(ctx context.Context, msg *messages.SetPower, i int64) {
+	target := messages.NewTargetBlade(msg.Target.Rack, i, 0)
+
 	fwd := messages.NewSetPower(
 		ctx,
-		messages.NewTargetBlade(msg.Target.Rack, i, 0),
+		target,
 		msg.Guard,
 		msg.On,
 		nil)
 
-	p.holder.forwardToBlade(ctx, i, fwd)
+	p.holder.forwardToBlade(ctx, p.propDelay.Pick(), target, fwd)
 
 	tracing.Info(
 		ctx,

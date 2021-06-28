@@ -100,7 +100,6 @@ func (t *Ticker) listenUntilFailure(ctx context.Context, now int64) int64 {
 
 		resp, err = client.Delay(ctx, &pb.DelayRequest{
 			AtLeast: &ct.Timestamp{Ticks: now + 1},
-			Jitter:  0,
 		})
 
 		if err == nil {

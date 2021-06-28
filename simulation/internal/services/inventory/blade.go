@@ -2,7 +2,6 @@ package inventory
 
 import (
 	"context"
-	"math/rand"
 
 	"github.com/golang/protobuf/proto"
 
@@ -20,17 +19,15 @@ type workload struct {
 	// Note that workloads will also be state machines
 }
 
-const (
-	bladeBootDelayMin = int64(3)
-	bladeBootDelayMax = int64(5)
-)
-
 type blade struct {
 	// Rack holds the pointer to the Rack that contains this blade.
 	holder *Rack
 
 	// id is the index used to identify this blade within the Rack.
 	id int64
+
+	// bootDelay is the range of ticks that a boot operation takes to execute.
+	bootDelay common.Range
 
 	// sm is the state machine for this blade's simulation.
 	sm *sm.SM
@@ -61,12 +58,19 @@ type blade struct {
 	expiration int64
 }
 
-func newBlade(ctx context.Context, def *pb.Definition_Blade, name string, r *Rack, id int64) *blade {
+func newBlade(
+	ctx context.Context,
+	def *pb.Definition_Blade,
+	bootDelay common.Range,
+	name string,
+	r *Rack,
+	id int64) *blade {
 	capacity := def.GetCapacity()
 
 	b := &blade{
 		holder:           r,
 		id:               id,
+		bootDelay:        bootDelay,
 		sm:               nil,
 		capacity:         messages.NewCapacity(),
 		architecture:     capacity.GetArch(),
@@ -257,7 +261,9 @@ func poweredConnOnEnter(ctx context.Context, machine *sm.SM) error {
 // bootingOnEnter starts the delay timer used to simulate the time needed to
 // boot.
 func bootingOnEnter(ctx context.Context, machine *sm.SM) error {
-	return setTimer(ctx, machine, bootDelay())
+	b := machine.Parent.(*blade)
+
+	return setTimer(ctx, machine, b.bootDelay.Pick())
 }
 
 // bootingTimerExpiry processes the boot delay timer expiration message.  This
@@ -376,25 +382,15 @@ func setTimer(ctx context.Context, machine *sm.SM, delay int64) error {
 	if !b.hasActiveTimer {
 		r := b.holder
 
-		occursAt := common.TickFromContext(ctx)
-		b.activeTimerID++
-
-		// set the new timer
-		expiryMsg := messages.NewTimerExpiry(
-			b.me(),
-			occursAt,
-			b.activeTimerID,
-			nil,
-			nil)
-
-		timerId, err := r.setTimer(ctx, delay, expiryMsg)
+		exp, callerId, timerId, err := r.setTimer(ctx, delay, b.me(), nil)
 		if err != nil {
 			return err
 		}
 
 		b.hasActiveTimer = true
+		b.activeTimerID = callerId
 		b.matchTimerExpiry = timerId
-		b.expiration = occursAt + delay
+		b.expiration = exp
 	}
 
 	return nil
@@ -424,6 +420,13 @@ func timerExpiration(
 
 		machine.AdvanceGuard(common.TickFromContext(ctx))
 		return true
+	} else {
+		tracing.UpdateSpanName(
+			ctx,
+			"Ignoring timer expiration: timer expected: %v, expected ID: %d, actual ID: %d",
+			b.hasActiveTimer,
+			b.activeTimerID,
+			msg.Id)
 	}
 
 	return false
@@ -450,10 +453,4 @@ func cancelTimer(ctx context.Context, machine *sm.SM, name string) {
 
 		b.hasActiveTimer = false
 	}
-}
-
-// bootDelay calculates a simulated length of time that booting should take,
-// within the acceptable limits.
-func bootDelay() int64 {
-	return bladeBootDelayMin + rand.Int63n(bladeBootDelayMax-bladeBootDelayMin)
 }

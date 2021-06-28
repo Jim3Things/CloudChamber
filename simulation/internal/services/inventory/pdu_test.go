@@ -30,6 +30,7 @@ func (ts *PduTestSuite) TestCreatePdu() {
 		context.Background(),
 		ts.rackName(),
 		rackDef,
+		ts.cfg,
 		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
 		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
 		fmt.Sprintf("racks/%s/blades/", ts.rackName()),

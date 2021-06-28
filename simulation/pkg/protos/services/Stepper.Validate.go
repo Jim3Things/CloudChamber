@@ -38,15 +38,6 @@ func (x *DelayRequest) Validate() error {
 		return err
 	}
 
-	// .. and the jitter allowance cannot be negative
-	if x.Jitter < 0 {
-		return errors.ErrMustBeGTE{
-			Field:    "Jitter",
-			Actual:   x.Jitter,
-			Required: 0,
-		}
-	}
-
 	// All ok
 	return nil
 }
