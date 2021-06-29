@@ -39,7 +39,9 @@ func NewTimerExpiry(
 	return msg
 }
 
-// SendVia forwards the timer expiration directly to the target element.
+// SendVia forwards the timer expiration directly to the target element.  This
+// either sends the enclosed body, or the outer TimerExpiry message itself, if
+// no body is present.
 func (m *TimerExpiry) SendVia(ctx context.Context, r viaSender) error {
 	var msg sm.Envelope = m
 	if m.Body != nil {
@@ -49,19 +51,19 @@ func (m *TimerExpiry) SendVia(ctx context.Context, r viaSender) error {
 	t := m.Target
 	id := t.ElementId()
 
-	if t.IsPdu() {
+	switch {
+	case t.IsPdu():
 		return r.ToPdu(ctx, id, msg)
-	}
 
-	if t.IsTor() {
+	case t.IsTor():
 		return r.ToTor(ctx, id, msg)
-	}
 
-	if t.IsBlade() {
+	case t.IsBlade():
 		return r.ToBlade(ctx, id, msg)
-	}
 
-	return errors.ErrInvalidTarget
+	default:
+		return errors.ErrInvalidTarget
+	}
 }
 
 // String provides a formatted description of the message.
