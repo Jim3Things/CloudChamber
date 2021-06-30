@@ -55,57 +55,23 @@ export EXPORT_TSX_FILES = \
 	pkg/protos/log/entry.tsx \
 	pkg/protos/services/requests.tsx
 
+SRC_COMMON = \
+	$(call ProdFiles, simulation/internal/common)
+
 SRC_ERRORS = \
 	$(call ProdFiles, simulation/pkg/errors)
 
 SRC_CONFIG = \
+	$(SRC_COMMON) \
 	$(SRC_ERRORS) \
 	$(call ProdFiles, simulation/internal/config)
 
-SRC_FRONTEND = \
-	$(SRC_CONFIG) \
-	$(SRC_ERRORS) \
-	$(SRC_INVENTORY_CLIENT) \
-	$(SRC_STORE) \
-	$(SRC_TIMESTAMP) \
-	$(SRC_TRACING) \
-	$(SRC_TRACING_CLIENT) \
-	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, simulation/internal/services/frontend)
+SRC_LIMITS_CLIENT = \
+	$(call ProdFiles, simulation/internal/clients/limits)
 
-SRC_MONITOR = \
-	$(call ProdFiles, simulation/internal/services/monitor)
-
-SRC_INVENTORY_SERVICE = \
-	$(SRC_TIMESTAMP) \
-	$(SRC_TRACING) \
-	$(SRC_TRACING_CLIENT) \
-	$(call ProdFiles, simulation/internal/services/inventory)
-
-SRC_SM = \
-	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, internal/sm)
-
-SRC_STEPPER_ACTOR = \
-    $(SRC_SM) \
-	$(SRC_TRACING) \
-	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, simulation/internal/services/stepper)
-
-SRC_INVENTORY_CLIENT = \
-	$(SRC_TRACING) \
-	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, simulation/internal/clients/inventory)
-
-SRC_STORE = \
-	$(SRC_ERRORS) \
-	$(SRC_TRACING) \
-	$(SRC_TRACING_SERVER) \
-	$(call ProdFiles, simulation/internal/clients/store)
-
-SRC_TIMESTAMP = \
-	$(SRC_ERRORS) \
-	$(call ProdFiles, simulation/internal/clients/timestamp)
+SRC_NAMESPACE_CLIENT = \
+	$(SRC_LIMITS_CLIENT) \
+	$(call ProdFiles, simulation/internal/clients/namespace)
 
 SRC_TRACING = \
 	$(call ProdFiles, simulation/internal/tracing)
@@ -126,12 +92,75 @@ SRC_TRACING_CLIENT = \
 	$(SRC_ERRORS) \
 	$(call ProdFiles, simulation/internal/tracing/client)
 
+SRC_INVENTORY_CLIENT = \
+	$(SRC_COMMON) \
+	$(SRC_NAMESPACE_CLIENT) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, simulation/internal/clients/inventory)
+
+SRC_FRONTEND = \
+	$(SRC_COMMON) \
+	$(SRC_CONFIG) \
+	$(SRC_ERRORS) \
+	$(SRC_INVENTORY_CLIENT) \
+	$(SRC_STORE) \
+	$(SRC_TIMESTAMP) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_CLIENT) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, simulation/internal/services/frontend)
+
+SRC_MONITOR = \
+	$(call ProdFiles, simulation/internal/services/monitor)
+
+SRC_REPAIR_MANAGER = \
+	$(SRC_ERRORS) \
+	$(SRC_COMMON) \
+	$(SRC_TRACING) \
+	$(call ProdFiles, simulation/internal/services/rules_manager) \
+	$(call ProdFiles, simulation/internal/services/rules_manager/inventory) \
+	$(call ProdFiles, simulation/internal/services/rules_manager/inventory/rules) \
+	$(call ProdFiles, simulation/internal/services/rules_manager/ruler) \
+	$(call ProdFiles, simulation/internal/services/rules_manager/workload)
+
+SRC_SM = \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, internal/sm)
+
+SRC_STEPPER = \
+	$(SRC_COMMON) \
+    $(SRC_SM) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, simulation/internal/services/stepper)
+
+SRC_STORE = \
+	$(SRC_ERRORS) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_SERVER) \
+	$(call ProdFiles, simulation/internal/clients/store)
+
+SRC_TIMESTAMP = \
+	$(SRC_COMMON) \
+	$(SRC_ERRORS) \
+	$(call ProdFiles, simulation/internal/clients/timestamp)
+
+SRC_INVENTORY_SERVICE = \
+	$(SRC_COMMON) \
+	$(SRC_TIMESTAMP) \
+	$(SRC_TRACING) \
+	$(SRC_TRACING_CLIENT) \
+	$(call ProdFiles, simulation/internal/services/inventory) \
+	$(call ProdFiles, simulation/internal/services/inventory/messages)
+
 SRC_VERSION = \
 	simulation/pkg/version/version.go
 
 
 SRC_CONTROLLER = \
 	$(call ProdFiles, simulation/cmd/controllerd) \
+	$(SRC_REPAIR_MANAGER) \
 	$(SRC_CONFIG) \
 	$(SRC_MONITOR) \
 	$(SRC_TRACING_EXPORTERS) \
@@ -148,7 +177,7 @@ SRC_INVENTORY = \
 SRC_SIMSUPPORT = \
 	$(call ProdFiles, simulation/cmd/sim_supportd) \
 	$(SRC_CONFIG) \
-	$(SRC_STEPPER_ACTOR) \
+	$(SRC_STEPPER) \
 	$(SRC_TRACINGSINK) \
 	$(SRC_TRACING_EXPORTERS) \
 	$(SRC_TRACING_SERVER) \
@@ -159,7 +188,8 @@ SRC_WEBSERVER = \
 	$(SRC_CONFIG) \
 	$(SRC_FRONTEND) \
 	$(SRC_TRACING_EXPORTERS) \
-	$(SRC_TRACING_SETUP)
+	$(SRC_TRACING_SETUP) \
+	$(SRC_LIMITS_CLIENT)
 
 SRC_ARTIFACTS = \
 	simulation/pkg/version/readme.md \

@@ -32,6 +32,7 @@ func (ts *TorTestSuite) TestCreateTor() {
 		context.Background(),
 		ts.rackName(),
 		rackDef,
+		ts.cfg,
 		fmt.Sprintf("racks/%s/pdus/", ts.rackName()),
 		fmt.Sprintf("racks/%s/tors/", ts.rackName()),
 		fmt.Sprintf("racks/%s/blades/", ts.rackName()),
@@ -189,6 +190,9 @@ func (ts *TorTestSuite) TestConnectBlade() {
 	assert.True(c.on)
 	assert.False(c.faulted)
 
+	ctx = ts.advance(ctx)
+	ctx = ts.advance(ctx)
+
 	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == pb.BladeState_off_connected
 	}, time.Second, 10*time.Millisecond,
@@ -257,6 +261,9 @@ func (ts *TorTestSuite) TestConnectBladeWhileWorking() {
 	assert.False(c.on)
 	assert.False(c.faulted)
 	require.Equal(c.target.Key(), target.Key())
+
+	ctx = ts.advance(ctx)
+	ctx = ts.advance(ctx)
 
 	require.Eventually(func() bool {
 		return r.blades[0].sm.CurrentIndex == pb.BladeState_isolated

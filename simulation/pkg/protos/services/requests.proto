@@ -62,12 +62,6 @@ message StepRequest {}
 message DelayRequest {
     // The minimum simulated time before the delay is completed.
     common.Timestamp atLeast = 1;
-
-    // An additional maximum number of ticks that can be added to the delay.
-    // A random number of ticks [0-jitter) are added to the delay time.  This
-    // is to simulate the random delays seen in, e.g., disk I/O or network
-    // communications.
-    int64 jitter = 2;
 }
 
 // Define the request associated with a status request

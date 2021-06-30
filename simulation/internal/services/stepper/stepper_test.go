@@ -146,7 +146,7 @@ func (ts *StepperTestSuite) testDelay(ctx context.Context, atLeast int64, jitter
 
 	start := ts.callNow(ctx)
 
-	resp, err := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: atLeast}, Jitter: jitter})
+	resp, err := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: atLeast}})
 	assert.NoError(err)
 
 	minLegal := atLeast
@@ -298,16 +298,7 @@ func (ts *StepperTestSuite) TestInvalidDelay() {
 
 	_, err = ts.client.Delay(
 		ctx,
-		&pb.DelayRequest{
-			AtLeast: &ct.Timestamp{Ticks: -1},
-			Jitter:  0})
-	assert.Error(err)
-
-	_, err = ts.client.Delay(
-		ctx,
-		&pb.DelayRequest{
-			AtLeast: &ct.Timestamp{Ticks: 1},
-			Jitter:  -1})
+		&pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: -1}})
 	assert.Error(err)
 }
 
@@ -397,7 +388,7 @@ func (ts *StepperTestSuite) TestStepper_Manual() {
 	ch := make(chan bool)
 
 	go func(res chan<- bool) {
-		rsp, err2 := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
+		rsp, err2 := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}})
 		assert.NoError(err2)
 		assert.Equal(rsp.Now, int64(3))
 
@@ -434,7 +425,7 @@ func (ts *StepperTestSuite) TestStepperResetWithActiveDelays() {
 	ch := make(chan bool)
 
 	go func(res chan<- bool) {
-		rsp, err2 := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}, Jitter: 0})
+		rsp, err2 := ts.client.Delay(ctx, &pb.DelayRequest{AtLeast: &ct.Timestamp{Ticks: 3}})
 		assert.Error(err2, "Delay called succeeded")
 		assert.Nil(rsp)
 
@@ -471,7 +462,6 @@ func (ts *StepperTestSuite) TestInvalidOperations() {
 
 	delayRsp, err := ts.client.Delay(ctx, &pb.DelayRequest{
 		AtLeast: &ct.Timestamp{Ticks: 1},
-		Jitter:  0,
 	})
 
 	assert.Error(err)

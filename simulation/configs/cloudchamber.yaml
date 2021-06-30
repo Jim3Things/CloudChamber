@@ -113,3 +113,26 @@ webServer:
 
   # maximum number of simultaneous active sessions allowed.
   activeSessionLimit: 100
+
+# Simulated delays for operations
+delays:
+  # simulated inventory delays
+  inventory:
+    # Simulated propagation delay for the power operation to impact the target
+    # component, after arrival at the PDU
+    setPower:
+      low: 1
+      high: 1
+
+    # Simulated propagation delay for the network connection operation to impact
+    # the target component, after arrival at the TOR
+    setConnection:
+      low: 1
+      high: 1
+
+    # Simulated time to boot, which covers the delays implicit in the image load
+    # time, boot processing, and startup - all of which are below the level of
+    # detailed simulation.
+    booting:
+      low: 5
+      high: 8

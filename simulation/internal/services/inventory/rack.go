@@ -7,6 +7,7 @@ import (
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
+	"github.com/Jim3Things/CloudChamber/simulation/internal/config"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/services/inventory/messages"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/sm"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
@@ -32,7 +33,8 @@ type Rack struct {
 
 	sm *sm.SM
 
-	timers *timestamp.Timers
+	timerClientID int64
+	timers        *timestamp.Timers
 
 	// startLock controls access to start and stop operations, and therefore to
 	// the setup and tear down of the lister goroutine.
@@ -51,20 +53,22 @@ func newRack(
 	ctx context.Context,
 	name string,
 	def *pb.Definition_Rack,
+	cfg *config.GlobalConfig,
 	pduKey string,
 	torKey string,
 	bladeKey string,
 	timers *timestamp.Timers) *Rack {
 	r := &Rack{
-		ch:        make(chan sm.Envelope, rackQueueDepth),
-		toTor:     make(map[string]int64),
-		toPdu:     make(map[string]int64),
-		tors:      make(map[int64]*tor),
-		pdus:      make(map[int64]*pdu),
-		blades:    make(map[int64]*blade),
-		sm:        nil,
-		timers:    timers,
-		startLock: sync.Mutex{},
+		ch:            make(chan sm.Envelope, rackQueueDepth),
+		toTor:         make(map[string]int64),
+		toPdu:         make(map[string]int64),
+		tors:          make(map[int64]*tor),
+		pdus:          make(map[int64]*pdu),
+		blades:        make(map[int64]*blade),
+		sm:            nil,
+		timerClientID: 0,
+		timers:        timers,
+		startLock:     sync.Mutex{},
 	}
 
 	r.sm = sm.NewSM(r,
@@ -102,15 +106,33 @@ func newRack(
 	tracing.AddImpact(ctx, tracing.ImpactCreate, name)
 
 	for i, item := range def.GetTors() {
-		r.tors[i] = newTor(ctx, item, fmt.Sprintf("%s%d", torKey, i), r, i)
+		r.tors[i] = newTor(
+			ctx,
+			item,
+			cfg.Delays.Inventory.SetConnection,
+			fmt.Sprintf("%s%d", torKey, i),
+			r,
+			i)
 	}
 
 	for i, item := range def.GetPdus() {
-		r.pdus[i] = newPdu(ctx, item, fmt.Sprintf("%s%d", pduKey, i), r, i)
+		r.pdus[i] = newPdu(
+			ctx,
+			item,
+			cfg.Delays.Inventory.SetPower,
+			fmt.Sprintf("%s%d", pduKey, i),
+			r,
+			i)
 	}
 
 	for i, item := range def.GetBlades() {
-		r.blades[i] = newBlade(ctx, item, fmt.Sprintf("%s%d", bladeKey, i), r, i)
+		r.blades[i] = newBlade(
+			ctx,
+			item,
+			cfg.Delays.Inventory.Booting,
+			fmt.Sprintf("%s%d", bladeKey, i),
+			r,
+			i)
 	}
 
 	return r
@@ -221,17 +243,42 @@ func (r *Rack) ToPdu(ctx context.Context, id int64, msg sm.Envelope) error {
 // forwardToBlade is a helper function that forwards a message to the target
 // blade in this Rack.  It returns true if the message was forwarded, false if
 // no target blade could be found.
-func (r *Rack) forwardToBlade(ctxIn context.Context, id int64, msg sm.Envelope) bool {
-	if b, ok := r.blades[id]; ok {
-		ctx, span := tracing.StartSpan(
-			ctxIn,
-			tracing.WithName("Processing message %q on blade", msg),
-			tracing.WithNewRoot(),
-			tracing.WithLink(msg.SpanContext(), msg.LinkID()),
-			tracing.WithContextValue(timestamp.EnsureTickInContext))
-		defer span.End()
+//
+// Note that forwarding may involve an inbuilt propagation delay.  The delay
+// parameter specifies the number of ticks to wait before passing the message
+// to the blade.  If delay value is zero, it is passed immediately.
+func (r *Rack) forwardToBlade(ctxIn context.Context, delay int64, target *messages.MessageTarget, msg sm.Envelope) bool {
+	id := target.ElementId()
 
-		b.Receive(ctx, msg)
+	if b, ok := r.blades[id]; ok {
+		// Blade currently exists
+		if delay != 0 {
+			// Dispatch immediately
+			ctx, span := tracing.StartSpan(
+				ctxIn,
+				tracing.WithName("Deferring message %q for %q by %d ticks", msg, target.Describe(), delay),
+				tracing.WithNewRoot(),
+				tracing.WithLink(msg.SpanContext(), msg.LinkID()),
+				tracing.WithContextValue(timestamp.EnsureTickInContext))
+			defer span.End()
+
+			_, _, _, err := r.setTimer(ctx, delay, target, msg)
+			if err != nil {
+				return false
+			}
+		} else {
+			// Dispatch immediately
+			ctx, span := tracing.StartSpan(
+				ctxIn,
+				tracing.WithName("Processing message %q on blade", msg),
+				tracing.WithNewRoot(),
+				tracing.WithLink(msg.SpanContext(), msg.LinkID()),
+				tracing.WithContextValue(timestamp.EnsureTickInContext))
+			defer span.End()
+
+			b.Receive(ctx, msg)
+		}
+
 		return true
 	}
 
@@ -240,11 +287,36 @@ func (r *Rack) forwardToBlade(ctxIn context.Context, id int64, msg sm.Envelope) 
 
 // setTimer registers for a notification at a future point in simulated time.
 // When it expires, the supplied message is delivered for processing.
-func (r *Rack) setTimer(ctx context.Context, delay int64, msg sm.Envelope) (int, error) {
-	return r.timers.Timer(ctx, delay, msg, func(msg interface{}) {
+//
+// This function returns the expiration time for the generated timer, the ID
+// that is passed in the expiration event for matching, the ID to use if the
+// caller wants to cancel the timer, and whether or not an error occurred.
+//
+// Note that the first of the two IDs is generated before calling the timer
+// subsystem, and is locally unique only.  The second is returned from the
+// timer subsystem, and is both globally unique and not known before the timer
+// creation has completed.
+func (r *Rack) setTimer(
+	ctx context.Context,
+	delay int64,
+	target *messages.MessageTarget,
+	body sm.Envelope) (int64, int64, int, error) {
+	occursAt := common.TickFromContext(ctx)
+	r.timerClientID++
+
+	msg := messages.NewTimerExpiry(
+		target,
+		occursAt,
+		r.timerClientID,
+		body,
+		nil)
+
+	id, err := r.timers.Timer(ctx, delay, msg, func(msg interface{}) {
 		m := msg.(sm.Envelope)
 		r.Receive(m)
 	})
+
+	return occursAt + delay, r.timerClientID, id, err
 }
 
 // cancelTimer attempts to cancel a previously registered timer.

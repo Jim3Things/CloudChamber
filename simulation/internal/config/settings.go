@@ -9,13 +9,24 @@ package config
 import (
 	"context"
 	"fmt"
+	"math"
 	"strings"
 
+	"github.com/Jim3Things/CloudChamber/simulation/internal/common"
+	"github.com/Jim3Things/CloudChamber/simulation/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/Jim3Things/CloudChamber/simulation/internal/clients/timestamp"
 	"github.com/Jim3Things/CloudChamber/simulation/internal/tracing"
 	pb "github.com/Jim3Things/CloudChamber/simulation/pkg/protos/services"
+)
+
+// Range values for validation checks
+//
+const (
+	minTraceFileLen        = 1
+	minStringLen           = 1
+	minTraceRetentionLimit = 100
 )
 
 // Default values for the configurable parameters
@@ -59,6 +70,13 @@ const (
 	storeDefaultTestUseTestNamespace  = false
 	storeDefaultTestUseUniqueInstance = false
 	storeDefaultTestPreCleanStore     = false
+
+	inventoryPowerDelayLow         = 1
+	inventoryPowerDelayHigh        = 1
+	inventoryNetworkDelayLow       = 1
+	inventoryNetworkDelayHigh      = 1
+	inventoryBladeBootingDelayLow  = 5
+	inventoryBladeBootingDelayHigh = 8
 )
 
 // GlobalConfig defines the global configuration structure produced from reading
@@ -71,12 +89,34 @@ type GlobalConfig struct {
 	SimSupport SimSupportType
 	WebServer  WebServerType
 	Store      StoreType
+	Delays     DelaysType
 }
 
 // Endpoint is a helper type that defines a simple endpoint
 type Endpoint struct {
 	Hostname string
 	Port     uint16
+}
+
+// Validate ensures that an Endpoint contains minimally legal values.
+func (e *Endpoint) Validate(name string) error {
+	if err := validateStringMinLen(
+		name,
+		"HostName",
+		minStringLen,
+		e.Hostname); err != nil {
+		return err
+	}
+
+	if e.Port > 65535 {
+		return &errors.ErrMustBeLTE{
+			Field:    fmt.Sprintf("%s.Port", name),
+			Actual:   int64(e.Port),
+			Required: 65535,
+		}
+	}
+
+	return nil
 }
 
 // String provides a formatted 'host:port' string for the endpoint
@@ -91,12 +131,46 @@ type ControllerType struct {
 	TraceFile string
 }
 
+// Validate ensures that a controller configuration contains minimally legal values.
+func (ct *ControllerType) Validate(name string) error {
+	if err := validateStringMinLen(
+		name,
+		"TraceFile",
+		minTraceFileLen,
+		ct.TraceFile); err != nil {
+		return err
+	}
+
+	return ct.EP.Validate(fmt.Sprintf("%s.EP", name))
+}
+
 // InventoryType is a helper type that describes the inventoryd configuration settings
 type InventoryType struct {
 	// Exposed GRPC endpoint
 	EP                  Endpoint
 	TraceFile           string
 	InventoryDefinition string
+}
+
+// Validate checks that the fields in the InventoryType instance are legal.
+func (it *InventoryType) Validate(name string) error {
+	if err := validateStringMinLen(
+		name,
+		"TraceFile",
+		minTraceFileLen,
+		it.TraceFile); err != nil {
+		return err
+	}
+
+	if err := validateStringMinLen(
+		name,
+		"InventoryDefinition",
+		minStringLen,
+		it.InventoryDefinition); err != nil {
+		return err
+	}
+
+	return it.EP.Validate(fmt.Sprintf("%s.EP", name))
 }
 
 // SimSupportType is a helper type that describes the sim_supportd configuration settings
@@ -110,6 +184,36 @@ type SimSupportType struct {
 
 	// Number of trace spans to retain
 	TraceRetentionLimit int
+}
+
+// Validate ensures that the simulation support service configuration contains
+// minimally legal values.
+func (sst *SimSupportType) Validate(name string) error {
+	if err := validateStringMinLen(
+		name,
+		"TraceFile",
+		minTraceFileLen,
+		sst.TraceFile); err != nil {
+		return err
+	}
+
+	if err := validateIntMin(
+		name,
+		"TraceRetentionLimit",
+		minTraceRetentionLimit,
+		sst.TraceRetentionLimit); err != nil {
+		return err
+	}
+
+	if sst.GetPolicyType() == pb.StepperPolicy_Invalid {
+		return &errors.ErrInvalidID{
+			Field: fmt.Sprintf("%s.StepperPolicy", name),
+			Type:  "StepperPolicy",
+			ID:    sst.StepperPolicy,
+		}
+	}
+
+	return sst.EP.Validate(fmt.Sprintf("%s.EP", name))
 }
 
 // GetPolicyType is a function that returns the configured default policy as
@@ -148,6 +252,64 @@ type WebServerType struct {
 	TraceFile string
 }
 
+// Validate ensures that the frontend service configuration contains minimally
+// legal values.
+func (ws *WebServerType) Validate(name string) error {
+	if err := validateStringMinLen(
+		name,
+		"TraceFile",
+		minTraceFileLen,
+		ws.TraceFile); err != nil {
+		return err
+	}
+
+	if err := validateStringMinLen(
+		name,
+		"RootFilePath",
+		minStringLen,
+		ws.RootFilePath); err != nil {
+		return err
+	}
+
+	if err := validateStringMinLen(
+		name,
+		"SystemAccount",
+		minStringLen,
+		ws.SystemAccount); err != nil {
+		return err
+	}
+
+	if err := validateStringMinLen(
+		name,
+		"SystemAccountPassword",
+		minStringLen,
+		ws.SystemAccountPassword); err != nil {
+		return err
+	}
+
+	if err := validateIntMin(
+		name,
+		"SessionInactivity",
+		1,
+		ws.SessionInactivity); err != nil {
+		return err
+	}
+
+	if err := validateIntMin(
+		name,
+		"ActiveSessionLimit",
+		1,
+		ws.ActiveSessionLimit); err != nil {
+		return err
+	}
+
+	if err := ws.BE.Validate(fmt.Sprintf("%s.BE", name)); err != nil {
+		return err
+	}
+
+	return ws.FE.Validate(fmt.Sprintf("%s.FE", name))
+}
+
 // StoreTypeTest describes the specific configured elements for
 // a store test
 //
@@ -166,6 +328,55 @@ type StoreType struct {
 	TraceLevel     int
 	EtcdService    Endpoint
 	Test           StoreTypeTest
+}
+
+func (st *StoreType) Validate(name string) error {
+
+	return st.EtcdService.Validate(fmt.Sprintf("%s.EtcdService", name))
+}
+
+// DelayTypeInventory defines the simulated propagation or execution delays for
+// particular simulated inventory actions.
+type DelayTypeInventory struct {
+	SetPower      common.Range
+	SetConnection common.Range
+	Booting       common.Range
+}
+
+// Validate ensures that the simulated inventory delay settings are legal.
+func (dt *DelayTypeInventory) Validate(name string) error {
+	if err := dt.SetPower.Validate(
+		fmt.Sprintf(
+			"%s.SetPower", name),
+		0,
+		math.MaxInt64); err != nil {
+		return err
+	}
+
+	if err := dt.SetConnection.Validate(
+		fmt.Sprintf(
+			"%s.SetConnection", name),
+		0,
+		math.MaxInt64); err != nil {
+		return err
+	}
+
+	if err := dt.Booting.Validate(
+		fmt.Sprintf("%s.Booting", name), 0, math.MaxInt64); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// DelaysType defines the simulated delays used in the CloudChamber services.
+type DelaysType struct {
+	Inventory DelayTypeInventory
+}
+
+// Validate ensures that the CloudChamber simulated delay settings are legal.
+func (dt *DelaysType) Validate(name string) error {
+	return dt.Inventory.Validate(fmt.Sprintf("%s.Inventory", name))
 }
 
 // Create a new global configuration object, preset with defaults
@@ -225,6 +436,22 @@ func newGlobalConfig() *GlobalConfig {
 				PreCleanStore:     storeDefaultTestPreCleanStore,
 			},
 		},
+		Delays: DelaysType{
+			Inventory: DelayTypeInventory{
+				SetPower: common.Range{
+					Low:  inventoryPowerDelayLow,
+					High: inventoryPowerDelayHigh,
+				},
+				SetConnection: common.Range{
+					Low:  inventoryNetworkDelayLow,
+					High: inventoryNetworkDelayHigh,
+				},
+				Booting: common.Range{
+					Low:  inventoryBladeBootingDelayLow,
+					High: inventoryBladeBootingDelayHigh,
+				},
+			},
+		},
 	}
 }
 
@@ -262,9 +489,43 @@ func ReadGlobalConfig(path string) (*GlobalConfig, error) {
 		}
 	}
 
+	if err := cfg.Validate(); err != nil {
+		return nil, tracing.Error(ctx, err)
+	}
+
 	tracing.Info(ctx, "Configuration Read: \n%v", cfg)
 
 	return cfg, nil
+}
+
+// Validate checks the contents of the global configuration instance for legal
+// values.  It returns an error if an illegal value is encountered.
+func (data *GlobalConfig) Validate() error {
+	if err := data.Controller.Validate("Controller"); err != nil {
+		return err
+	}
+
+	if err := data.Inventory.Validate("Inventory"); err != nil {
+		return err
+	}
+
+	if err := data.SimSupport.Validate("SimSupport"); err != nil {
+		return err
+	}
+
+	if err := data.WebServer.Validate("WebServer"); err != nil {
+		return err
+	}
+
+	if err := data.Store.Validate("Store"); err != nil {
+		return err
+	}
+
+	if err := data.Delays.Validate("Delays"); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // ToString is a function to format the configuration data as a returned string.
@@ -297,7 +558,7 @@ func (data *GlobalConfig) String() string {
 			"  SystemAccountPassword: %s\n"+
 			"  SessionInactivity: %d\n"+
 			"  ActiveSessionLimit: %d\n"+
-			"Store:"+
+			"Store:\n"+
 			"  ConnectTimeout: %v\n"+
 			"  RequestTimeout: %v\n"+
 			"  TraceLevel: %v\n"+
@@ -305,6 +566,17 @@ func (data *GlobalConfig) String() string {
 			"    UseTestNamespace: %v\n"+
 			"    UseUniqueInstance: %v\n"+
 			"    PreCleanStore: %v\n"+
+			"Delays:\n"+
+			"  Inventory:\n"+
+			"    SetPower:\n"+
+			"      Low: %d\n"+
+			"      High: %d\n"+
+			"    SetConnection:\n"+
+			"      Low: %d\n"+
+			"      High: %d\n"+
+			"    Booting:\n"+
+			"      Low: %d\n"+
+			"      High: %d\n"+
 			"",
 		data.Controller.EP.Port, data.Controller.EP.Hostname,
 		data.Controller.TraceFile,
@@ -328,5 +600,41 @@ func (data *GlobalConfig) String() string {
 		data.Store.TraceLevel,
 		data.Store.Test.UseTestNamespace,
 		data.Store.Test.UseUniqueInstance,
-		data.Store.Test.PreCleanStore)
+		data.Store.Test.PreCleanStore,
+		data.Delays.Inventory.SetPower.Low,
+		data.Delays.Inventory.SetPower.High,
+		data.Delays.Inventory.SetConnection.Low,
+		data.Delays.Inventory.SetConnection.High,
+		data.Delays.Inventory.Booting.Low,
+		data.Delays.Inventory.Booting.High)
+}
+
+// validateStringMinLen is a helper function that verifies the length of the
+// supplied value string, returning an error with the field name appended to
+// the name value.
+func validateStringMinLen(name string, field string, minLen int, value string) error {
+	if len(value) < minLen {
+		return &errors.ErrMinLenString{
+			Field:    fmt.Sprintf("%s.%s", name, field),
+			Actual:   int64(len(value)),
+			Required: int64(minLen),
+		}
+	}
+
+	return nil
+}
+
+// validateIntMin is a helper function that verifies the int value is at least
+// the supplied minimum.  It also returns an error with the field name appended
+// to the base name if the value does not meet the requirements.
+func validateIntMin(name string, field string, minValue int, value int) error {
+	if value < minValue {
+		return &errors.ErrMustBeGTE{
+			Field:    fmt.Sprintf("%s.%s", name, field),
+			Actual:   int64(value),
+			Required: int64(minValue),
+		}
+	}
+
+	return nil
 }

@@ -18,7 +18,7 @@ type TimerExpiry struct {
 
 	// timer expiration context - what the state machine needs, if anything, to
 	// work On the expiration notice.
-	Body *messageBase
+	Body sm.Envelope
 }
 
 // NewTimerExpiry creates a new TimerExpiry message.
@@ -26,7 +26,7 @@ func NewTimerExpiry(
 	target *MessageTarget,
 	guard int64,
 	id int64,
-	body *messageBase,
+	body sm.Envelope,
 	ch chan *sm.Response) *TimerExpiry {
 	msg := &TimerExpiry{}
 
@@ -39,23 +39,31 @@ func NewTimerExpiry(
 	return msg
 }
 
-// SendVia forwards the timer expiration directly to the target element.
+// SendVia forwards the timer expiration directly to the target element.  This
+// either sends the enclosed body, or the outer TimerExpiry message itself, if
+// no body is present.
 func (m *TimerExpiry) SendVia(ctx context.Context, r viaSender) error {
-	id := m.Target.ElementId()
-
-	if m.Target.IsPdu() {
-		return r.ToPdu(ctx, id, m)
+	var msg sm.Envelope = m
+	if m.Body != nil {
+		msg = m.Body
 	}
 
-	if m.Target.IsTor() {
-		return r.ToTor(ctx, id, m)
-	}
+	t := m.Target
+	id := t.ElementId()
 
-	if m.Target.IsBlade() {
-		return r.ToBlade(ctx, id, m)
-	}
+	switch {
+	case t.IsPdu():
+		return r.ToPdu(ctx, id, msg)
 
-	return errors.ErrInvalidTarget
+	case t.IsTor():
+		return r.ToTor(ctx, id, msg)
+
+	case t.IsBlade():
+		return r.ToBlade(ctx, id, msg)
+
+	default:
+		return errors.ErrInvalidTarget
+	}
 }
 
 // String provides a formatted description of the message.

@@ -6,7 +6,6 @@ package stepper
 
 import (
 	"context"
-	"math/rand"
 
 	"github.com/golang/protobuf/ptypes"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -32,7 +31,7 @@ func toInternal(
 		return convertToInternalPolicyRequest(ctx, m, ch)
 
 	case *pb.DelayRequest:
-		return messages.NewDelay(ctx, calculateDueTime(m), ch), nil
+		return messages.NewDelay(ctx, m.AtLeast.Ticks, ch), nil
 
 	case *pb.AutoStepRequest:
 		return messages.NewAutoStep(ctx, m.Epoch, ch), nil
@@ -134,18 +133,6 @@ func convertToInternalPolicyRequest(
 	}
 
 	return nil, errors.ErrInvalidMessage
-}
-
-// calculateDueTime constructs the due time for a delay request, accounting for
-// any jitter value.  The concept of 'Jitter' does not proceed past this point.
-func calculateDueTime(m *pb.DelayRequest) int64 {
-	dueTime := m.AtLeast.Ticks
-
-	if m.Jitter > 0 {
-		dueTime += rand.Int63n(m.Jitter)
-	}
-
-	return dueTime
 }
 
 // --- Helper functions
