@@ -88,6 +88,8 @@ var (
 	// ErrRackNameMissing indicates the required rack name is absent.
 	//
 	ErrRackNameMissing = errors.New("CloudChamber: rack name is missing")
+
+	ErrUnimplementedView = errors.New("CloudChamber: only the Definition view has been implemented")
 )
 
 // ErrInventoryChangeTooLate indicates that an attempt to modify an inventory

@@ -54,7 +54,7 @@ func (x *BladeCapacity) Validate(prefix string) error {
 		}
 	}
 
-	//...but no more than some sensible upper amount
+	// ...but no more than some sensible upper amount
 	//
 	if x.MemoryInMb > maxMemoryInMb {
 		return errors.ErrMustBeLTE{

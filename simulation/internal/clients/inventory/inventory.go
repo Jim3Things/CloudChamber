@@ -82,216 +82,45 @@ const (
 	// abouts regions, zones, multiple pdus and tors.
 	//
 	DefaultZone = "standard"
-
-	// DefaultPdu is used to provide a value for the non-existing pdu ID
-	// while the transition to the new inventory extended schema continues.
-	// Eventually these will disappear as the front-end and higher layers learn
-	// abouts regions, zones, multiple pdus and tors.
-	//
-	DefaultPdu = int64(0)
-
-	// DefaultTor is used to provide a value for the non-existing tor ID
-	// while the transition to the new inventory extended schema continues.
-	// Eventually these will disappear as the front-end and higher layers learn
-	// abouts regions, zones, multiple pdus and tors.
-	//
-	DefaultTor = int64(0)
 )
 
-type inventoryRevision interface {
-	// GetRevision returns the revision of the details field within the object.
-	// This will be either the revision of the object in the store after a
-	// Create(), Read() or Update() call or be store.RevisionInvalid if the
-	// details have been set or no Create(), Read() or Update() call has been
-	// executed.
-	//
-	GetRevision() int64
-
-	// GetRevisionRecord returns the revision of the underlying store object as
-	// determined at the time of the last Create(), Read() or Update() for the
-	// object. The record revision is not reset by a SetDetails() call and is
-	// used when performing either a conditional update or conditional delete
-	// using the object.
-	//
-	GetRevisionRecord() int64
-
-	// GetRevisionStore returns the revision of the underlying store itself as
-	// determined at the time of the last Create() Read() for the object. The
-	// store revision is not reset by a SetDetails() call and is provided
-	// for information only.
-	//
-	GetRevisionStore() int64
-
-	// GetRevisionForRequest returns the appropriate revision for the update
-	// for either a conditional update based upon the revision of the most
-	// recently read record, or an unconditional update.
-	//
-	GetRevisionForRequest(unconditional bool) int64
-
-	// resetRevision resets the revision for the details field within the object.
-	// Subsequent calls to GetRevision() will return store.RevisionInvalid until
-	// a successful call is made to one of the routines which invoke the store
-	//
-	resetRevision() int64
-
-	// updateRevision is used to set/update the current revision information
-	// as part of a successful invocation of a store routine.
-	//
-	updateRevisionInfo(rev int64) int64
-}
-
-// Region, zone and rack are "containers" whereas tor, pdu and blade are "things".
-// You can send operations and commands to things, but not containers.
+// ViewType and the associated enum values define the various views that the
+// store has.
 //
-// Of the following SetXxx() and GetXxx() methods fetch or set values within the
-// fields of an object (cursor) and do NOT perform any operations to the underlying
-// store.
-//
-// the Create(), Read(), Update() and Delete() methods perform the appropriate
-// operation to the persisted object based upon the current values of fields
-// within the object (cursor) being used and will return an error if needed fields
-// are not set.
-//
-type inventoryItem interface {
-	inventoryRevision
-
-	// Use to set the attributes of an object within the inventory
-	//
-	SetDetails(ctx context.Context, details *interface{})
-	GetDetails(ctx context.Context) *interface{}
-
-	// Create uses the current object to persist the object to the underlying
-	// store  and also create any index entries that may be required.
-	//
-	// This is not valid to call on a root object and doing so will return
-	// an error.
-	//
-	Create(ctx context.Context) (int64, error)
-
-	// Read issues a request to the underlying store to populate all the fields
-	// within the cursor object, including any attributes for that object or
-	// other information specific to that object.
-	//
-	// This is not valid to call on a root object and doing so will return
-	// an error.
-	//
-	Read(ctx context.Context) (int64, error)
-
-	// Update will write a record the underlying store using the currently
-	// information  in the fields of the object. The update can be either
-	// unconditional by setting the unconditional parameter to true, or
-	// conditional based on the revision of the object compared to the
-	// revision of the associated record in the underlying store.
-	//
-	// Note the object maintains revision information returned from the
-	// store for any actions involving the store, e.g. Create(), Read() or
-	// Update().
-	//
-	Update(ctx context.Context, unconditional bool) (int64, error)
-
-	// Delete is used to remove the persisted copy of the object from the
-	// store along with any index information needed to navigate to or
-	// through that object. The delete can be either unconditional by
-	// setting the unconditional parameter to true, or conditional based
-	// on the revision of the object compared to the revision of the
-	// associated record in the underlying store.
-	//
-	// Note the object maintains revision information returned from the
-	// store for any actions involving the store, e.g. Create(), Read() or
-	// Update().
-	//
-	Delete(ctx context.Context, unconditional bool) (int64, error)
-}
-
-// A node object within the inventory is one which in addition to having its own
-// attributes also allows for navigation of the namespace
-//
-type inventoryItemNode interface {
-	inventoryItem
-
-	// NewChild creates a child of the current object but uses only on the
-	// current object to create a new child object and no store
-	// operations are involved.
-	//
-	// Note, this method does not populate the attributes of the new child
-	// object. To retrieve the attributes a Read() using the child must be
-	// performed.
-	//
-	NewChild(name string) (*interface{}, error)
-
-	// ListChildren uses the current object to discover the names of all the
-	// child objects of the current object, The elements of the returned list
-	// can be used in subsequent operations to create child objects.
-	//
-	ListChildren(ctx context.Context) (int64, *[]string, error)
-
-	// FetchChildren is used to locate all the children of the current object
-	// and to generate an object for each of those children. It is a
-	// convenience wrapper around ListChildren() followed by a NewChild() on
-	// each name discovered.
-	//
-	FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error)
-}
-
-// Provide a set of definitions to cope with calls to a "null" object.
-//
-func (n *nullItem) GetRevision() int64 {
-	return store.RevisionInvalid
-}
-
-func (n *nullItem) GetRevisionRecord() int64 {
-	return store.RevisionInvalid
-}
-
-func (n *nullItem) GetRevisionStore() int64 {
-	return store.RevisionInvalid
-}
-
-func (n *nullItem) GetRevisionForRequest(_ bool) int64 {
-	return store.RevisionInvalid
-}
-
-func (n *nullItem) resetRevision() int64 {
-	return store.RevisionInvalid
-}
-
-func (n *nullItem) updateRevisionInfo(_ int64) int64 {
-	return store.RevisionInvalid
-}
+// Note: only ViewDefinition is currently in use.
+type ViewType int
+const (
+	ViewDefinition ViewType = iota
+	ViewTarget
+	ViewObserved
+	ViewActual
+)
 
 type inventoryItemRack interface {
-	inventoryItemNode
+	NewPdu(name string) (interface{}, error)
+	NewTor(name string) (interface{}, error)
+	NewBlade(name string) (interface{}, error)
 
-	NewPdu(name string) (*interface{}, error)
-	NewTor(name string) (*interface{}, error)
-	NewBlade(name string) (*interface{}, error)
+	ListPdus(ctx context.Context) (int64, map[int64]interface{}, error)
+	ListTors(ctx context.Context) (int64, map[int64]interface{}, error)
+	ListBlades(ctx context.Context) (int64, map[int64]interface{}, error)
 
-	ListPdus(ctx context.Context) (int64, *map[int64]*interface{}, error)
-	ListTors(ctx context.Context) (int64, *map[int64]*interface{}, error)
-	ListBlades(ctx context.Context) (int64, *map[int64]*interface{}, error)
-
-	FetchPdus(ctx context.Context) (int64, *map[int64]*interface{}, error)
-	FetchTors(ctx context.Context) (int64, *map[int64]*interface{}, error)
-	FetchBlades(ctx context.Context) (int64, *map[int64]*interface{}, error)
+	FetchPdus(ctx context.Context) (int64, map[int64]interface{}, error)
+	FetchTors(ctx context.Context) (int64, map[int64]interface{}, error)
+	FetchBlades(ctx context.Context) (int64, map[int64]interface{}, error)
 }
 
 type inventoryItemPdu interface {
-	inventoryItem
-
-	SetPorts(ports *map[int64]*pb.PowerPort)
-	GetPorts() *map[int64]*pb.PowerPort
+	SetPorts(ports map[int64]*pb.PowerPort)
+	GetPorts() map[int64]*pb.PowerPort
 }
 
 type inventoryTor interface {
-	inventoryItem
-
-	SetPorts(cports *map[int64]*pb.NetworkPort)
-	GetPorts() *map[int64]*pb.NetworkPort
+	SetPorts(cports map[int64]*pb.NetworkPort)
+	GetPorts() map[int64]*pb.NetworkPort
 }
 
 type inventoryBlade interface {
-	inventoryItem
-
 	SetCapacity(capacity *pb.BladeCapacity)
 	GetCapacity() *pb.BladeCapacity
 
@@ -302,108 +131,6 @@ type inventoryBlade interface {
 	GetBootOnPowerOn() bool
 }
 
-// Provide a set of definitions to cope with calls to a "null" object.
-//
-type nullItem struct{}
-
-func (n *nullItem) SetDetails(details *nullItem) {
-}
-
-func (n *nullItem) GetDetails() *nullItem {
-	return nil
-}
-
-func (n *nullItem) Create(ctx context.Context) (int64, error) {
-	return store.RevisionInvalid, errors.ErrNullItem
-}
-
-func (n *nullItem) Read(ctx context.Context) (int64, error) {
-	return store.RevisionInvalid, errors.ErrNullItem
-}
-
-func (n *nullItem) Update(ctx context.Context) (int64, error) {
-	return store.RevisionInvalid, errors.ErrNullItem
-}
-
-func (n *nullItem) Delete(ctx context.Context) (int64, error) {
-	return store.RevisionInvalid, errors.ErrNullItem
-}
-
-// Additional functions for the node specialization of the basic inventory item
-//
-func (n *nullItem) NewChild(name string) (*interface{}, error) {
-	return nil, errors.ErrNullItem
-}
-
-func (n *nullItem) ListChildren(ctx context.Context) (int64, *[]string, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-func (n *nullItem) FetchChildren(ctx context.Context) (int64, *map[string]interface{}, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-
-// Additional functions for the rack specialization of the basic inventory item
-//
-func (n *nullItem) NewPdu(name string) (*interface{}, error) {
-	return nil, errors.ErrNullItem
-}
-
-func (n *nullItem) NewTor(name string) (*interface{}, error) {
-	return nil, errors.ErrNullItem
-}
-
-func (n *nullItem) NewBlade(name string) (*interface{}, error) {
-	return nil, errors.ErrNullItem
-}
-
-func (n *nullItem) ListPdus(ctx context.Context) (int64, *map[int64]*interface{}, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-
-func (n *nullItem) ListTors(ctx context.Context) (int64, *map[int64]*interface{}, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-
-func (n *nullItem) ListBlades(ctx context.Context) (int64, *map[int64]*interface{}, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-
-func (n *nullItem) FetchPdus(ctx context.Context) (int64, *[]string, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-
-func (n *nullItem) FetchTors(ctx context.Context) (int64, *[]string, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-
-func (n *nullItem) FetchBlades(ctx context.Context) (int64, *[]string, error) {
-	return store.RevisionInvalid, nil, errors.ErrNullItem
-}
-
-// Additional functions for the pdu and tor specializations of the basic inventory item
-//
-func (n *nullItem) SetPorts(ports *map[int64]*interface{}) {
-}
-
-func (n *nullItem) GetPorts() *map[int64]*interface{} {
-	return nil
-}
-
-// Additional functions for the blade specialization of the basic inventory item
-//
-func (n *nullItem) SetCapacity(capacity *interface{}) {
-}
-
-func (n *nullItem) GetCapacity() *interface{} {
-	return nil
-}
-
-func (n *nullItem) SetBootInfo(bootOnPowerOn bool, bootInfo *interface{}) {
-}
-
-func (n *nullItem) GetBootInfo() (bool, *interface{}) {
-	return false, nil
-}
 
 // RackSizeSummary contains the maximum content values for a set of racks.  The
 // values can be used to form a visual fixed rack size that is certain to be
@@ -529,6 +256,20 @@ func (m *Inventory) Start(ctx context.Context) error {
 	return m.updateSummaryInformation(ctx)
 }
 
+// NewRoot returns a root object which acts as a well-known point in a namespace
+// and which can be used to navigate the namespace for a given table.
+//
+// Valid tables are
+//	- DefinitionTable
+//	- ActualTable
+//	- ObservedTable
+//	- TargetTable
+//
+func (m *Inventory) NewRoot(table namespace.TableName) (*Root, error) {
+
+	return newRoot(m.Store, table)
+}
+
 // GetDefaultZoneSummary returns the maximum number of blades held in any rack
 // in the inventory.
 func (m *Inventory) GetDefaultZoneSummary() *ZoneSummary {
@@ -605,20 +346,20 @@ func (m *Inventory) reconcileNewInventoryRegion(
 	regionStore *Region,
 	regionFile *pb.Definition_Region,
 ) error {
-	_, err := regionStore.Read(ctx)
+	_, err := regionStore.Read(ctx, ViewDefinition)
 
 	if err == error(errors.ErrRegionNotFound{Region: regionStore.Region}) {
 		tracing.Info(ctx, "creating new region %s", regionStore.Region)
 
 		regionStore.SetDetails(regionFile.GetDetails())
 
-		_, err = regionStore.Create(ctx)
+		_, err = regionStore.Create(ctx, ViewDefinition)
 	} else if err == nil && regionStore.NotEqual(regionFile) {
 		tracing.Info(ctx, "updating region %s", regionStore.Region)
 
 		regionStore.SetDetails(regionFile.GetDetails())
 
-		_, err = regionStore.Update(ctx, true)
+		_, err = regionStore.Update(ctx, true, ViewDefinition)
 	}
 
 	return err
@@ -629,20 +370,20 @@ func (m *Inventory) reconcileNewInventoryZone(
 	zoneStore *Zone,
 	zoneFile *pb.Definition_Zone,
 ) error {
-	_, err := zoneStore.Read(ctx)
+	_, err := zoneStore.Read(ctx, ViewDefinition)
 
 	if err == error(errors.ErrZoneNotFound{Region: zoneStore.Region, Zone: zoneStore.Zone}) {
 		tracing.Info(ctx, "creating new zone %s/%s", zoneStore.Region, zoneStore.Zone)
 
 		zoneStore.SetDetails(zoneFile.GetDetails())
 
-		_, err = zoneStore.Create(ctx)
+		_, err = zoneStore.Create(ctx, ViewDefinition)
 	} else if err == nil && zoneStore.NotEqual(zoneFile) {
 		tracing.Info(ctx, "updating zone %s/%s", zoneStore.Region, zoneStore.Zone)
 
 		zoneStore.SetDetails(zoneFile.GetDetails())
 
-		_, err = zoneStore.Update(ctx, true)
+		_, err = zoneStore.Update(ctx, true, ViewDefinition)
 	}
 
 	return err
@@ -653,32 +394,32 @@ func (m *Inventory) reconcileNewInventoryRack(
 	rackStore *Rack,
 	rackFile *pb.Definition_Rack,
 ) error {
-	_, err := rackStore.Read(ctx)
+	_, err := rackStore.Read(ctx, ViewDefinition)
 
 	if err == error(errors.ErrRackNotFound{Region: rackStore.Region, Zone: rackStore.Zone, Rack: rackStore.Rack}) {
 		tracing.Info(ctx, "creating new rack %s/%s/%s", rackStore.Region, rackStore.Zone, rackStore.Rack)
 
 		rackStore.SetDetails(rackFile.GetDetails())
 
-		_, err = rackStore.Create(ctx)
+		_, err = rackStore.Create(ctx, ViewDefinition)
 	} else if err == nil && rackStore.NotEqual(rackFile) {
 		tracing.Info(ctx, "updating rack %s/%s/%s", rackStore.Region, rackStore.Zone, rackStore.Rack)
 
 		rackStore.SetDetails(rackFile.GetDetails())
 
-		_, err = rackStore.Update(ctx, true)
+		_, err = rackStore.Update(ctx, true, ViewDefinition)
 	}
 
 	if err == nil {
-		if err = m.reconcileNewInventoryPdus(ctx, rackStore, &rackFile.Pdus); err != nil {
+		if err = m.reconcileNewInventoryPdus(ctx, rackStore, rackFile.Pdus); err != nil {
 			return err
 		}
 
-		if err = m.reconcileNewInventoryTors(ctx, rackStore, &rackFile.Tors); err != nil {
+		if err = m.reconcileNewInventoryTors(ctx, rackStore, rackFile.Tors); err != nil {
 			return err
 		}
 
-		err = m.reconcileNewInventoryBlades(ctx, rackStore, &rackFile.Blades)
+		err = m.reconcileNewInventoryBlades(ctx, rackStore, rackFile.Blades)
 	}
 
 	return err
@@ -689,24 +430,24 @@ func (m *Inventory) reconcileNewInventoryPdu(
 	pduStore *Pdu,
 	pduFile *pb.Definition_Pdu,
 ) error {
-	_, err := pduStore.Read(ctx)
+	_, err := pduStore.Read(ctx, ViewDefinition)
 
 	if err == error(errors.ErrPduNotFound{Region: pduStore.Region, Zone: pduStore.Zone, Rack: pduStore.Rack, Pdu: pduStore.ID}) {
 		tracing.Info(ctx, "creating new pdu %s/%s/%s/%d", pduStore.Region, pduStore.Zone, pduStore.Rack, pduStore.ID)
 
 		ports := pduFile.GetPorts()
-		pduStore.SetPorts(&ports)
+		pduStore.SetPorts(ports)
 		pduStore.SetDetails(pduFile.GetDetails())
 
-		_, err = pduStore.Create(ctx)
+		_, err = pduStore.Create(ctx, ViewDefinition)
 	} else if err == nil && pduStore.NotEqual(pduFile) {
 		tracing.Info(ctx, "updating pdu %s/%s/%s/%d", pduStore.Region, pduStore.Zone, pduStore.Rack, pduStore.ID)
 
 		ports := pduFile.GetPorts()
-		pduStore.SetPorts(&ports)
+		pduStore.SetPorts(ports)
 		pduStore.SetDetails(pduFile.GetDetails())
 
-		_, err = pduStore.Update(ctx, true)
+		_, err = pduStore.Update(ctx, true, ViewDefinition)
 	}
 
 	return err
@@ -717,24 +458,24 @@ func (m *Inventory) reconcileNewInventoryTor(
 	torStore *Tor,
 	torFile *pb.Definition_Tor,
 ) error {
-	_, err := torStore.Read(ctx)
+	_, err := torStore.Read(ctx, ViewDefinition)
 
 	if err == error(errors.ErrTorNotFound{Region: torStore.Region, Zone: torStore.Zone, Rack: torStore.Rack, Tor: torStore.ID}) {
-		tracing.Info(ctx, "creating new tor %s/%s/%s/%d", torStore.Region, torStore.Zone, torStore.Rack, torStore.ID)
+		tracing.Info(ctx, "creating new %s/%s/%s/%d", torStore.Region, torStore.Zone, torStore.Rack, torStore.ID)
 
 		ports := torFile.GetPorts()
-		torStore.SetPorts(&ports)
+		torStore.SetPorts(ports)
 		torStore.SetDetails(torFile.GetDetails())
 
-		_, err = torStore.Create(ctx)
+		_, err = torStore.Create(ctx, ViewDefinition)
 	} else if err == nil && torStore.NotEqual(torFile) {
-		tracing.Info(ctx, "updating tor %s/%s/%s/%d", torStore.Region, torStore.Zone, torStore.Rack, torStore.ID)
+		tracing.Info(ctx, "updating %s/%s/%s/%d", torStore.Region, torStore.Zone, torStore.Rack, torStore.ID)
 
 		ports := torFile.GetPorts()
-		torStore.SetPorts(&ports)
+		torStore.SetPorts(ports)
 		torStore.SetDetails(torFile.GetDetails())
 
-		_, err = torStore.Update(ctx, true)
+		_, err = torStore.Update(ctx, true, ViewDefinition)
 	}
 
 	return err
@@ -745,7 +486,7 @@ func (m *Inventory) reconcileNewInventoryBlade(
 	bladeStore *Blade,
 	bladeFile *pb.Definition_Blade,
 ) error {
-	_, err := bladeStore.Read(ctx)
+	_, err := bladeStore.Read(ctx, ViewDefinition)
 
 	if err == error(errors.ErrBladeNotFound{Region: bladeStore.Region, Zone: bladeStore.Zone, Rack: bladeStore.Rack, Blade: bladeStore.ID}) {
 		tracing.Info(ctx, "creating new blade %s/%s/%s/%d", bladeStore.Region, bladeStore.Zone, bladeStore.Rack, bladeStore.ID)
@@ -755,7 +496,7 @@ func (m *Inventory) reconcileNewInventoryBlade(
 		bladeStore.SetBootInfo(bladeFile.GetBootInfo())
 		bladeStore.SetBootPowerOn(bladeFile.GetBootOnPowerOn())
 
-		_, err = bladeStore.Create(ctx)
+		_, err = bladeStore.Create(ctx, ViewDefinition)
 	} else if err == nil && bladeStore.NotEqual(bladeFile) {
 		tracing.Info(ctx, "updating blade %s/%s/%s/%d", bladeStore.Region, bladeStore.Zone, bladeStore.Rack, bladeStore.ID)
 
@@ -764,7 +505,7 @@ func (m *Inventory) reconcileNewInventoryBlade(
 		bladeStore.SetBootInfo(bladeFile.GetBootInfo())
 		bladeStore.SetBootPowerOn(bladeFile.GetBootOnPowerOn())
 
-		_, err = bladeStore.Update(ctx, true)
+		_, err = bladeStore.Update(ctx, true, ViewDefinition)
 	}
 
 	return err
@@ -773,9 +514,9 @@ func (m *Inventory) reconcileNewInventoryBlade(
 func (m *Inventory) reconcileNewInventoryPdus(
 	ctx context.Context,
 	rackStore *Rack,
-	pdus *map[int64]*pb.Definition_Pdu,
+	pdus map[int64]*pb.Definition_Pdu,
 ) error {
-	for index, pduFile := range *pdus {
+	for index, pduFile := range pdus {
 		pduStore, err := rackStore.NewPdu(index)
 		if err != nil {
 			return err
@@ -792,9 +533,9 @@ func (m *Inventory) reconcileNewInventoryPdus(
 func (m *Inventory) reconcileNewInventoryTors(
 	ctx context.Context,
 	rackStore *Rack,
-	tors *map[int64]*pb.Definition_Tor,
+	tors map[int64]*pb.Definition_Tor,
 ) error {
-	for index, torFile := range *tors {
+	for index, torFile := range tors {
 		torStore, err := rackStore.NewTor(index)
 		if err != nil {
 			return err
@@ -811,9 +552,9 @@ func (m *Inventory) reconcileNewInventoryTors(
 func (m *Inventory) reconcileNewInventoryBlades(
 	ctx context.Context,
 	rackStore *Rack,
-	blades *map[int64]*pb.Definition_Blade,
+	blades map[int64]*pb.Definition_Blade,
 ) error {
-	for index, bladeFile := range *blades {
+	for index, bladeFile := range blades {
 		bladeStore, err := rackStore.NewBlade(index)
 		if err != nil {
 			return err
@@ -842,7 +583,7 @@ func (m *Inventory) reconcileOldInventoryRacks(
 		rackFile, ok := zoneFile.Racks[rackName]
 
 		if !ok {
-			if _, err = rack.Delete(ctx, true); err != nil {
+			if _, err = rack.Delete(ctx, true, ViewDefinition); err != nil {
 				return err
 			}
 		} else {
@@ -876,7 +617,7 @@ func (m *Inventory) reconcileOldInventoryPdus(
 		}
 
 		if _, ok := (*pdusFile)[index]; !ok {
-			if _, err = pdu.Delete(ctx, true); err != nil {
+			if _, err = pdu.Delete(ctx, true, ViewDefinition); err != nil {
 				return err
 			}
 		}
@@ -898,7 +639,7 @@ func (m *Inventory) reconcileOldInventoryTors(
 		}
 
 		if _, ok := (*torsFile)[index]; !ok {
-			if _, err = tor.Delete(ctx, true); err != nil {
+			if _, err = tor.Delete(ctx, true, ViewDefinition); err != nil {
 				return err
 			}
 		}
@@ -920,7 +661,7 @@ func (m *Inventory) reconcileOldInventoryBlades(
 		}
 
 		if _, ok := (*bladesFile)[index]; !ok {
-			if _, err = blade.Delete(ctx, true); err != nil {
+			if _, err = blade.Delete(ctx, true, ViewDefinition); err != nil {
 				return err
 			}
 		}
@@ -1012,7 +753,7 @@ func (m *Inventory) reconcileNewInventory(
 		regionFile, ok := rootFile.Regions[regionName]
 
 		if !ok {
-			if _, err = region.Delete(ctx, true); err != nil {
+			if _, err = region.Delete(ctx, true, ViewDefinition); err != nil {
 				return err
 			}
 		} else {
@@ -1025,7 +766,7 @@ func (m *Inventory) reconcileNewInventory(
 				zoneFile, ok := regionFile.Zones[zoneName]
 
 				if !ok {
-					if _, err = zone.Delete(ctx, true); err != nil {
+					if _, err = zone.Delete(ctx, true, ViewDefinition); err != nil {
 						return err
 					}
 				} else {
@@ -1232,12 +973,12 @@ func (m *Inventory) writeOneRegion(
 
 	storeRegion.SetDetails(region.GetDetails())
 
-	if _, err = storeRegion.Create(ctx); err != nil {
+	if _, err = storeRegion.Create(ctx, ViewDefinition); err != nil {
 		return err
 	}
 
 	for zoneName, zone := range region.Zones {
-		if err = m.writeOneZone(ctx, regionName, zoneName, storeRegion, zone); err != nil {
+		if err = m.writeOneZone(ctx, zoneName, storeRegion, zone); err != nil {
 			return err
 		}
 	}
@@ -1248,14 +989,13 @@ func (m *Inventory) writeOneRegion(
 // writeOneZone writes the records associated with the supplied zone to the store.
 func (m *Inventory) writeOneZone(
 	ctx context.Context,
-	regionName string,
 	zoneName string,
 	storeRegion *Region,
 	zone *pb.Definition_Zone) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName(
 			"Write inventory definition for region %q, zone %q",
-			regionName, zoneName),
+			storeRegion.Region, zoneName),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
@@ -1267,12 +1007,12 @@ func (m *Inventory) writeOneZone(
 
 	storeZone.SetDetails(zone.GetDetails())
 
-	if _, err = storeZone.Create(ctx); err != nil {
+	if _, err = storeZone.Create(ctx, ViewDefinition); err != nil {
 		return err
 	}
 
 	for rackName, rack := range zone.Racks {
-		if err = m.writeOneRack(ctx, regionName, zoneName, rackName, storeZone, rack); err != nil {
+		if err = m.writeOneRack(ctx, rackName, storeZone, rack); err != nil {
 			return err
 		}
 	}
@@ -1283,15 +1023,13 @@ func (m *Inventory) writeOneZone(
 // writeOneRack writes the records associated with the supplied rack to the store.
 func (m *Inventory) writeOneRack(
 	ctx context.Context,
-	regionName string,
-	zoneName string,
 	rackName string,
 	storeZone *Zone,
 	rack *pb.Definition_Rack) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName(
 			"Write inventory definition for region %q, zone %q, rack %q",
-			regionName, zoneName, rackName),
+			storeZone.Region, storeZone.Zone, rackName),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
@@ -1303,24 +1041,24 @@ func (m *Inventory) writeOneRack(
 
 	storeRack.SetDetails(rack.GetDetails())
 
-	if _, err = storeRack.Create(ctx); err != nil {
+	if _, err = storeRack.Create(ctx, ViewDefinition); err != nil {
 		return err
 	}
 
 	for index, pdu := range rack.Pdus {
-		if err = m.writeOnePdu(ctx, regionName, zoneName, rackName, index, storeRack, pdu); err != nil {
+		if err = m.writeOnePdu(ctx, index, storeRack, pdu); err != nil {
 			return err
 		}
 	}
 
 	for index, tor := range rack.Tors {
-		if err = m.writeOneTor(ctx, regionName, zoneName, rackName, index, storeRack, tor); err != nil {
+		if err = m.writeOneTor(ctx, index, storeRack, tor); err != nil {
 			return err
 		}
 	}
 
 	for index, blade := range rack.Blades {
-		if err = m.writeOneBlade(ctx, regionName, zoneName, rackName, index, storeRack, blade); err != nil {
+		if err = m.writeOneBlade(ctx, index, storeRack, blade); err != nil {
 			return err
 		}
 	}
@@ -1331,16 +1069,13 @@ func (m *Inventory) writeOneRack(
 // writeOnePdu writes the record associated with the supplied PDU.
 func (m *Inventory) writeOnePdu(
 	ctx context.Context,
-	regionName string,
-	zoneName string,
-	rackName string,
 	index int64,
 	storeRack *Rack,
 	pdu *pb.Definition_Pdu) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName(
 			"Write inventory definition for region %q, zone %q, rack %q, pdu %d",
-			regionName, zoneName, rackName, index),
+			storeRack.Region, storeRack.Zone, storeRack.Rack, index),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
@@ -1352,9 +1087,9 @@ func (m *Inventory) writeOnePdu(
 	ports := pdu.GetPorts()
 
 	storePdu.SetDetails(pdu.GetDetails())
-	storePdu.SetPorts(&ports)
+	storePdu.SetPorts(ports)
 
-	if _, err = storePdu.Create(ctx); err != nil {
+	if _, err = storePdu.Create(ctx, ViewDefinition); err != nil {
 		return err
 	}
 
@@ -1364,16 +1099,13 @@ func (m *Inventory) writeOnePdu(
 // writeOneTor writes the record associated with the supplied TOR.
 func (m *Inventory) writeOneTor(
 	ctx context.Context,
-	regionName string,
-	zoneName string,
-	rackName string,
 	index int64,
 	storeRack *Rack,
 	tor *pb.Definition_Tor) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName(
 			"Write inventory definition for region %q, zone %q, rack %q, tor %d",
-			regionName, zoneName, rackName, index),
+			storeRack.Region, storeRack.Zone, storeRack.Rack, index),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
@@ -1385,9 +1117,9 @@ func (m *Inventory) writeOneTor(
 
 	ports := tor.GetPorts()
 	storeTor.SetDetails(tor.GetDetails())
-	storeTor.SetPorts(&ports)
+	storeTor.SetPorts(ports)
 
-	if _, err = storeTor.Create(ctx); err != nil {
+	if _, err = storeTor.Create(ctx, ViewDefinition); err != nil {
 		return err
 	}
 
@@ -1395,18 +1127,11 @@ func (m *Inventory) writeOneTor(
 }
 
 // writeOneBlade writes the record associated with the supplied blade.
-func (m *Inventory) writeOneBlade(
-	ctx context.Context,
-	regionName string,
-	zoneName string,
-	rackName string,
-	index int64,
-	storeRack *Rack,
-	blade *pb.Definition_Blade) error {
+func (m *Inventory) writeOneBlade(ctx context.Context, index int64, storeRack *Rack, blade *pb.Definition_Blade) error {
 	ctx, span := tracing.StartSpan(ctx,
 		tracing.WithName(
 			"Write inventory definition for region %q, zone %q, rack %q, blade %d",
-			regionName, zoneName, rackName, index),
+			storeRack.Region, storeRack.Zone, storeRack.Rack, index),
 		tracing.WithContextValue(timestamp.EnsureTickInContext),
 		tracing.AsInternal())
 	defer span.End()
@@ -1421,7 +1146,7 @@ func (m *Inventory) writeOneBlade(
 	storeBlade.SetBootInfo(blade.GetBootInfo())
 	storeBlade.SetBootPowerOn(blade.GetBootOnPowerOn())
 
-	if _, err = storeBlade.Create(ctx); err != nil {
+	if _, err = storeBlade.Create(ctx, ViewDefinition); err != nil {
 		return err
 	}
 
@@ -1467,7 +1192,7 @@ func (m *Inventory) deleteInventoryDefinitionFromStore(ctx context.Context, stor
 						return err
 					}
 
-					pdu.Delete(ctx, true)
+					pdu.Delete(ctx, true, ViewDefinition)
 				}
 
 				for i := range storeRack.Tors {
@@ -1477,7 +1202,7 @@ func (m *Inventory) deleteInventoryDefinitionFromStore(ctx context.Context, stor
 						return err
 					}
 
-					tor.Delete(ctx, true)
+					tor.Delete(ctx, true, ViewDefinition)
 				}
 
 				for i := range storeRack.Blades {
@@ -1487,16 +1212,16 @@ func (m *Inventory) deleteInventoryDefinitionFromStore(ctx context.Context, stor
 						return err
 					}
 
-					blade.Delete(ctx, true)
+					blade.Delete(ctx, true, ViewDefinition)
 				}
 
-				rack.Delete(ctx, true)
+				rack.Delete(ctx, true, ViewDefinition)
 			}
 
-			zone.Delete(ctx, true)
+			zone.Delete(ctx, true, ViewDefinition)
 		}
 
-		region.Delete(ctx, true)
+		region.Delete(ctx, true, ViewDefinition)
 	}
 
 	return nil

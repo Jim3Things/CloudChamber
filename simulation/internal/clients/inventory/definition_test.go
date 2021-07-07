@@ -79,7 +79,7 @@ func (ts *definitionTestSuite) stdPduDetails(ID int64) *pb.PduDetails {
 	}
 }
 
-func (ts *definitionTestSuite) stdPowerPorts(count int) *map[int64]*pb.PowerPort {
+func (ts *definitionTestSuite) stdPowerPorts(count int) map[int64]*pb.PowerPort {
 	ports := make(map[int64]*pb.PowerPort)
 
 	for i := 0; i < count; i++ {
@@ -93,7 +93,7 @@ func (ts *definitionTestSuite) stdPowerPorts(count int) *map[int64]*pb.PowerPort
 		}
 	}
 
-	return &ports
+	return ports
 }
 
 func (ts *definitionTestSuite) stdTorDetails() *pb.TorDetails {
@@ -103,7 +103,7 @@ func (ts *definitionTestSuite) stdTorDetails() *pb.TorDetails {
 	}
 }
 
-func (ts *definitionTestSuite) stdNetworkPorts(count int) *map[int64]*pb.NetworkPort {
+func (ts *definitionTestSuite) stdNetworkPorts(count int) map[int64]*pb.NetworkPort {
 	ports := make(map[int64]*pb.NetworkPort)
 
 	for i := 0; i < count; i++ {
@@ -117,7 +117,7 @@ func (ts *definitionTestSuite) stdNetworkPorts(count int) *map[int64]*pb.Network
 		}
 	}
 
-	return &ports
+	return ports
 }
 
 func (ts *definitionTestSuite) stdBladeDetails() *pb.BladeDetails {
@@ -208,10 +208,10 @@ func (ts *definitionTestSuite) verifyStandardInventoryPdu(index int64, pdu Pdu) 
 
 	ports := ts.stdPowerPorts(ts.portsPerPdu)
 
-	assert.Equal(len(*ports), len(*pdu.ports))
+	assert.Equal(len(ports), len(pdu.ports))
 
-	for k, v := range *ports {
-		p := (*pdu.ports)[k]
+	for k, v := range ports {
+		p := (pdu.ports)[k]
 
 		assert.Equal(v.Wired, p.Wired)
 		assert.Equal(v.Item.Type, p.Item.Type)
@@ -230,10 +230,10 @@ func (ts *definitionTestSuite) verifyStandardInventoryTor(index int64, tor *Tor)
 
 	ports := ts.stdNetworkPorts(ts.portsPerTor)
 
-	assert.Equal(len(*ports), len(*tor.ports))
+	assert.Equal(len(ports), len(tor.ports))
 
-	for k, v := range *ports {
-		p := (*tor.ports)[k]
+	for k, v := range ports {
+		p := (tor.ports)[k]
 
 		assert.Equal(v.Wired, p.Wired)
 		assert.Equal(v.Item.Type, p.Item.Type)
@@ -294,7 +294,7 @@ func (ts *definitionTestSuite)createInventory(
 
 		region.SetDetails(ts.stdRegionDetails(regionName))
 
-		_, err = region.Create(ctx)
+		_, err = region.Create(ctx, ViewDefinition)
 		if err != nil {
 			return err
 		}
@@ -309,7 +309,7 @@ func (ts *definitionTestSuite)createInventory(
 
 				zone.SetDetails(ts.stdZoneDetails(zoneName))
 
-			_, err = zone.Create(ctx)
+			_, err = zone.Create(ctx, ViewDefinition)
 			if err != nil {
 				return err
 			}
@@ -324,7 +324,7 @@ func (ts *definitionTestSuite)createInventory(
 
 				rack.SetDetails(ts.stdRackDetails(rackName))
 
-				_, err = rack.Create(ctx)
+				_, err = rack.Create(ctx, ViewDefinition)
 				if err != nil {
 					return err
 				}
@@ -338,7 +338,7 @@ func (ts *definitionTestSuite)createInventory(
 					pdu.SetDetails(ts.stdPduDetails(1))
 					pdu.SetPorts(ts.stdPowerPorts(ts.portsPerPdu))
 
-					_, err = pdu.Create(ctx)
+					_, err = pdu.Create(ctx, ViewDefinition)
 					if err != nil {
 						return err
 					}
@@ -353,7 +353,7 @@ func (ts *definitionTestSuite)createInventory(
 					tor.SetDetails(ts.stdTorDetails())
 					tor.SetPorts(ts.stdNetworkPorts(ts.portsPerTor))
 
-					_, err = tor.Create(ctx)
+					_, err = tor.Create(ctx, ViewDefinition)
 					if err != nil {
 						return err
 					}
@@ -370,7 +370,7 @@ func (ts *definitionTestSuite)createInventory(
 					blade.SetBootInfo(ts.stdBladeBootInfo())
 					blade.SetBootPowerOn(true)
 
-					_, err = blade.Create(ctx)
+					_, err = blade.Create(ctx, ViewDefinition)
 					if err != nil {
 						return err
 					}
@@ -456,27 +456,27 @@ func (ts *definitionTestSuite) TestNewRoot() {
 	details = root.GetDetails()
 	require.Nil(details)
 
-	rev, err = root.Read(ctx)
+	rev, err = root.Read(ctx, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = root.Update(ctx, false)
+	rev, err = root.Update(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = root.Update(ctx, true)
+	rev, err = root.Update(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = root.Delete(ctx, false)
+	rev, err = root.Delete(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = root.Delete(ctx, true)
+	rev, err = root.Delete(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrFunctionNotAvailable, err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -526,17 +526,17 @@ func (ts *definitionTestSuite) TestNewRegion() {
 	// we have yet to create the region, we expect to see a "not found"
 	// type error.
 	//
-	rev, err = region.Read(ctx)
+	rev, err = region.Read(ctx, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrRegionNotFound{Region: region.Region}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = region.Update(ctx, false)
+	rev, err = region.Update(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("region"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = region.Update(ctx, true)
+	rev, err = region.Update(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("region"), err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -609,17 +609,17 @@ func (ts *definitionTestSuite) TestNewZone() {
 	// we have yet to create the zone, we expect to see a "not found"
 	// type error.
 	//
-	rev, err = zone.Read(ctx)
+	rev, err = zone.Read(ctx, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrZoneNotFound{Region: zone.Region, Zone: zone.Zone}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = zone.Update(ctx, false)
+	rev, err = zone.Update(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("zone"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = zone.Update(ctx, true)
+	rev, err = zone.Update(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("zone"), err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -697,17 +697,17 @@ func (ts *definitionTestSuite) TestNewRack() {
 	// we have yet to create the rack, we expect to see a "not found"
 	// type error.
 	//
-	rev, err = rack.Read(ctx)
+	rev, err = rack.Read(ctx, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrRackNotFound{Region: rack.Region, Zone: rack.Zone, Rack: rack.Rack}, err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = rack.Update(ctx, false)
+	rev, err = rack.Update(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("rack"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = rack.Update(ctx, true)
+	rev, err = rack.Update(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("rack"), err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -820,7 +820,7 @@ func (ts *definitionTestSuite) TestNewPdu() {
 	ports = pdu.GetPorts()
 	require.Nil(ports)
 
-	// And then once agains, set both details and ports
+	// And then once again, set both details and ports
 	//
 	pdu.SetDetails(stdDetails)
 	pdu.SetPorts(stdPorts)
@@ -837,7 +837,7 @@ func (ts *definitionTestSuite) TestNewPdu() {
 	// we have yet to create the pdu, we expect to see a "not found"
 	// type error.
 	//
-	rev, err = pdu.Read(ctx)
+	rev, err = pdu.Read(ctx, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrPduNotFound{Region: pdu.Region, Zone: pdu.Zone, Rack: pdu.Rack, Pdu: pdu.ID}, err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -847,26 +847,26 @@ func (ts *definitionTestSuite) TestNewPdu() {
 	// Note: the ordering of this and the subsequent statements assume
 	//       the Update() call checks for the details being present before
 	//       checking for the ports being present. Any change in the
-	//       ordering may result in the tests neding amendment.
+	//       ordering may result in the tests needing amendment.
 	//
 	pdu.SetPorts(nil)
 
-	rev, err = pdu.Update(ctx, false)
+	rev, err = pdu.Update(ctx, false, ViewDefinition)
 	require.Equal(errors.ErrPortsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = pdu.Update(ctx, true)
+	rev, err = pdu.Update(ctx, true, ViewDefinition)
 	require.Equal(errors.ErrPortsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	pdu.SetDetails(nil)
 
-	rev, err = pdu.Update(ctx, false)
+	rev, err = pdu.Update(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = pdu.Update(ctx, true)
+	rev, err = pdu.Update(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("pdu"), err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -996,7 +996,7 @@ func (ts *definitionTestSuite) TestNewTor() {
 	// we have yet to create the zone, we expect to see a "not found"
 	// type error.
 	//
-	rev, err = tor.Read(ctx)
+	rev, err = tor.Read(ctx, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrTorNotFound{Region: tor.Region, Zone: tor.Zone, Rack: tor.Rack, Tor: tor.ID}, err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -1006,26 +1006,26 @@ func (ts *definitionTestSuite) TestNewTor() {
 	// Note: the ordering of this and the subsequent statements assume
 	//       the Update() call checks for the details being present before
 	//       checking for the ports being present. Any change in the
-	//       ordering may result in the tests neding amendment.
+	//       ordering may result in the tests needing amendment.
 	//
 	tor.SetPorts(nil)
 
-	rev, err = tor.Update(ctx, false)
+	rev, err = tor.Update(ctx, false, ViewDefinition)
 	require.Equal(errors.ErrPortsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = tor.Update(ctx, true)
+	rev, err = tor.Update(ctx, true, ViewDefinition)
 	require.Equal(errors.ErrPortsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	tor.SetDetails(nil)
 
-	rev, err = tor.Update(ctx, false)
+	rev, err = tor.Update(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = tor.Update(ctx, true)
+	rev, err = tor.Update(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("tor"), err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -1162,7 +1162,7 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	// we have yet to create the blade, we expect to see a "not found"
 	// type error.
 	//
-	rev, err = blade.Read(ctx)
+	rev, err = blade.Read(ctx, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrBladeNotFound{Region: blade.Region, Zone: blade.Zone, Rack: blade.Rack, Blade: blade.ID}, err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -1172,37 +1172,37 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	// Note: the ordering of this and the subsequent statements assume
 	//       the Update() call checks for the details being present before
 	//       checking for the capacity or bootInfo being present. Any
-	//	     change in the ordering may result in the tests neding amendment.
+	//	     change in the ordering may result in the tests needing amendment.
 	//
 	blade.SetBootInfo(nil)
 	blade.SetBootPowerOn(false)
 
-	rev, err = blade.Update(ctx, false)
+	rev, err = blade.Update(ctx, false, ViewDefinition)
 	require.Equal(errors.ErrBootInfoNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = blade.Update(ctx, true)
+	rev, err = blade.Update(ctx, true, ViewDefinition)
 	require.Equal(errors.ErrBootInfoNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	blade.SetCapacity(nil)
 
-	rev, err = blade.Update(ctx, false)
+	rev, err = blade.Update(ctx, false, ViewDefinition)
 	require.Equal(errors.ErrCapacityNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = blade.Update(ctx, true)
+	rev, err = blade.Update(ctx, true, ViewDefinition)
 	require.Equal(errors.ErrCapacityNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
 	blade.SetDetails(nil)
 
-	rev, err = blade.Update(ctx, false)
+	rev, err = blade.Update(ctx, false, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
 
-	rev, err = blade.Update(ctx, true)
+	rev, err = blade.Update(ctx, true, ViewDefinition)
 	require.Error(err)
 	assert.Equal(errors.ErrDetailsNotAvailable("blade"), err)
 	assert.Equal(store.RevisionInvalid, rev)
@@ -1245,12 +1245,12 @@ func (ts *definitionTestSuite) TestNewRegionWithCreate() {
 
 	region.SetDetails(stdDetails)
 
-	rev, err := region.Create(ctx)
+	rev, err := region.Create(ctx, ViewDefinition)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := region.Delete(ctx, false)
+	revDel, err := region.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1260,21 +1260,21 @@ func (ts *definitionTestSuite) TestNewZoneWithCreate() {
 	require := ts.Require()
 
 	stdSuffix := "TestNewZoneWithCreate"
-	stdDedails := ts.stdZoneDetails(stdSuffix)
+	stdDetails := ts.stdZoneDetails(stdSuffix)
 
 	ctx := context.Background()
 
 	zone, err := ts.inventory.NewZone(namespace.DefinitionTable, ts.regionName(stdSuffix), ts.zoneName(stdSuffix))
 	require.NoError(err)
 
-	zone.SetDetails(stdDedails)
+	zone.SetDetails(stdDetails)
 
-	rev, err := zone.Create(ctx)
+	rev, err := zone.Create(ctx, ViewDefinition)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := zone.Delete(ctx, false)
+	revDel, err := zone.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1298,12 +1298,12 @@ func (ts *definitionTestSuite) TestNewRackWithCreate() {
 
 	rack.SetDetails(stdDetails)
 
-	rev, err := rack.Create(ctx)
+	rev, err := rack.Create(ctx, ViewDefinition)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := rack.Delete(ctx, false)
+	revDel, err := rack.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1330,12 +1330,12 @@ func (ts *definitionTestSuite) TestNewPduWithCreate() {
 	pdu.SetDetails(stdDetails)
 	pdu.SetPorts(stdPorts)
 
-	rev, err := pdu.Create(ctx)
+	rev, err := pdu.Create(ctx, ViewDefinition)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := pdu.Delete(ctx, false)
+	revDel, err := pdu.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1362,12 +1362,12 @@ func (ts *definitionTestSuite) TestNewTorWithCreate() {
 	tor.SetDetails(stdDetails)
 	tor.SetPorts(stdPorts)
 
-	rev, err := tor.Create(ctx)
+	rev, err := tor.Create(ctx, ViewDefinition)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := tor.Delete(ctx, false)
+	revDel, err := tor.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1398,12 +1398,12 @@ func (ts *definitionTestSuite) TestNewBladeWithCreate() {
 	blade.SetBootInfo(stdBootInfo)
 	blade.SetBootPowerOn(stdBootOnPowerOn)
 
-	rev, err := blade.Create(ctx)
+	rev, err := blade.Create(ctx, ViewDefinition)
 
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := blade.Delete(ctx, false)
+	revDel, err := blade.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1428,11 +1428,11 @@ func (ts *definitionTestSuite) TestRootNewChild() {
 
 	region.SetDetails(ts.stdRegionDetails(stdSuffix))
 
-	rev, err := region.Create(ctx)
+	rev, err := region.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := region.Delete(ctx, false)
+	revDel, err := region.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1459,11 +1459,11 @@ func (ts *definitionTestSuite) TestNewChildZone() {
 
 	zone.SetDetails(ts.stdZoneDetails(stdSuffix))
 
-	rev, err := zone.Create(ctx)
+	rev, err := zone.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := zone.Delete(ctx, false)
+	revDel, err := zone.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1494,11 +1494,11 @@ func (ts *definitionTestSuite) TestNewChildRack() {
 
 	rack.SetDetails(ts.stdRackDetails(stdSuffix))
 
-	rev, err := rack.Create(ctx)
+	rev, err := rack.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := rack.Delete(ctx, false)
+	revDel, err := rack.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1534,11 +1534,11 @@ func (ts *definitionTestSuite) TestNewChildPdu() {
 	pdu.SetDetails(ts.stdPduDetails(pduID))
 	pdu.SetPorts(ts.stdPowerPorts(8))
 
-	rev, err := pdu.Create(ctx)
+	rev, err := pdu.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := pdu.Delete(ctx, false)
+	revDel, err := pdu.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1574,11 +1574,11 @@ func (ts *definitionTestSuite) TestNewChildTor() {
 	tor.SetDetails(ts.stdTorDetails())
 	tor.SetPorts(ts.stdNetworkPorts(8))
 
-	rev, err := tor.Create(ctx)
+	rev, err := tor.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := tor.Delete(ctx, false)
+	revDel, err := tor.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1622,11 +1622,11 @@ func (ts *definitionTestSuite) TestNewChildBlade() {
 	blade.SetBootInfo(stdBootInfo)
 	blade.SetBootPowerOn(stdBootOnPowerOn)
 
-	rev, err := blade.Create(ctx)
+	rev, err := blade.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
-	revDel, err := blade.Delete(ctx, false)
+	revDel, err := blade.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rev, revDel)
 }
@@ -1648,7 +1648,7 @@ func (ts *definitionTestSuite) TestRegionReadDetails() {
 
 	r.SetDetails(stdDetails)
 
-	rev, err := r.Create(ctx)
+	rev, err := r.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
@@ -1660,7 +1660,7 @@ func (ts *definitionTestSuite) TestRegionReadDetails() {
 	rRead, err := ts.inventory.NewRegion(namespace.DefinitionTable, regionName)
 	require.NoError(err)
 
-	revRead, err := rRead.Read(ctx)
+	revRead, err := rRead.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, revRead)
 	assert.Equal(revRead, rRead.GetRevision())
@@ -1677,7 +1677,7 @@ func (ts *definitionTestSuite) TestRegionReadDetails() {
 	cr, err := root.NewChild(regionName)
 	require.NoError(err)
 
-	crRev, err := cr.Read(ctx)
+	crRev, err := cr.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, crRev)
 	assert.Equal(revRead, cr.GetRevision())
@@ -1686,7 +1686,7 @@ func (ts *definitionTestSuite) TestRegionReadDetails() {
 	require.NoError(err)
 	assert.Equal(stdDetails, crDet)
 
-	revDel, err := cr.Delete(ctx, false)
+	revDel, err := cr.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(crRev, revDel)
 }
@@ -1709,7 +1709,7 @@ func (ts *definitionTestSuite) TestZoneReadDetails() {
 
 	z.SetDetails(stdDetails)
 
-	rev, err := z.Create(ctx)
+	rev, err := z.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
@@ -1721,7 +1721,7 @@ func (ts *definitionTestSuite) TestZoneReadDetails() {
 	rRead, err := ts.inventory.NewZone(namespace.DefinitionTable, regionName, zoneName)
 	require.NoError(err)
 
-	revRead, err := rRead.Read(ctx)
+	revRead, err := rRead.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, revRead)
 	assert.Equal(revRead, rRead.GetRevision())
@@ -1741,7 +1741,7 @@ func (ts *definitionTestSuite) TestZoneReadDetails() {
 	zone, err := region.NewChild(zoneName)
 	require.NoError(err)
 
-	zoneRev, err := zone.Read(ctx)
+	zoneRev, err := zone.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, zoneRev)
 	assert.Equal(zoneRev, zone.GetRevision())
@@ -1750,7 +1750,7 @@ func (ts *definitionTestSuite) TestZoneReadDetails() {
 	require.NoError(err)
 	assert.Equal(stdDetails, zoneDet)
 
-	revDel, err := zone.Delete(ctx, false)
+	revDel, err := zone.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(zoneRev, revDel)
 }
@@ -1779,7 +1779,7 @@ func (ts *definitionTestSuite) TestRackReadDetails() {
 
 	r.SetDetails(stdDetails)
 
-	rev, err := r.Create(ctx)
+	rev, err := r.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
@@ -1796,7 +1796,7 @@ func (ts *definitionTestSuite) TestRackReadDetails() {
 	)
 	require.NoError(err)
 
-	revRead, err := rRead.Read(ctx)
+	revRead, err := rRead.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, revRead)
 	assert.Equal(revRead, rRead.GetRevision())
@@ -1819,7 +1819,7 @@ func (ts *definitionTestSuite) TestRackReadDetails() {
 	rack, err := zone.NewChild(rackName)
 	require.NoError(err)
 
-	rackRev, err := rack.Read(ctx)
+	rackRev, err := rack.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, rackRev)
 	assert.Equal(rackRev, rack.GetRevision())
@@ -1828,7 +1828,7 @@ func (ts *definitionTestSuite) TestRackReadDetails() {
 	require.NoError(err)
 	assert.Equal(stdDetails, rackDet)
 
-	revDel, err := rack.Delete(ctx, false)
+	revDel, err := rack.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(rackRev, revDel)
 }
@@ -1861,7 +1861,7 @@ func (ts *definitionTestSuite) TestPduReadDetails() {
 	p.SetDetails(stdDetails)
 	p.SetPorts(stdPorts)
 
-	rev, err := p.Create(ctx)
+	rev, err := p.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
@@ -1879,7 +1879,7 @@ func (ts *definitionTestSuite) TestPduReadDetails() {
 	)
 	require.NoError(err)
 
-	p2Rev, err := p2.Read(ctx)
+	p2Rev, err := p2.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, p2Rev)
 	assert.Equal(p2Rev, p2.GetRevision())
@@ -1905,7 +1905,7 @@ func (ts *definitionTestSuite) TestPduReadDetails() {
 	pdu, err := rack.NewPdu(pduID)
 	require.NoError(err)
 
-	pduRev, err := pdu.Read(ctx)
+	pduRev, err := pdu.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, pduRev)
 	assert.Equal(pduRev, pdu.GetRevision())
@@ -1918,7 +1918,7 @@ func (ts *definitionTestSuite) TestPduReadDetails() {
 	require.NoError(err)
 	assert.Equal(stdPorts, pduPorts)
 
-	revDel, err := pdu.Delete(ctx, false)
+	revDel, err := pdu.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(pduRev, revDel)
 }
@@ -1951,7 +1951,7 @@ func (ts *definitionTestSuite) TestTorReadDetails() {
 	t.SetDetails(stdDetails)
 	t.SetPorts(stdPorts)
 
-	rev, err := t.Create(ctx)
+	rev, err := t.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
@@ -1969,7 +1969,7 @@ func (ts *definitionTestSuite) TestTorReadDetails() {
 	)
 	require.NoError(err)
 
-	t2Rev, err := t2.Read(ctx)
+	t2Rev, err := t2.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, t2Rev)
 	assert.Equal(t2Rev, t2.GetRevision())
@@ -1995,7 +1995,7 @@ func (ts *definitionTestSuite) TestTorReadDetails() {
 	tor, err := rack.NewTor(torID)
 	require.NoError(err)
 
-	torRev, err := tor.Read(ctx)
+	torRev, err := tor.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, torRev)
 	assert.Equal(torRev, tor.GetRevision())
@@ -2008,7 +2008,7 @@ func (ts *definitionTestSuite) TestTorReadDetails() {
 	require.NoError(err)
 	assert.Equal(stdPorts, torPorts)
 
-	revDel, err := tor.Delete(ctx, false)
+	revDel, err := tor.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(torRev, revDel)
 }
@@ -2045,7 +2045,7 @@ func (ts *definitionTestSuite) TestBladeReadDetails() {
 	b.SetBootInfo(stdBootInfo)
 	b.SetBootPowerOn(stdBootOnPowerOn)
 
-	rev, err := b.Create(ctx)
+	rev, err := b.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, rev)
 
@@ -2063,7 +2063,7 @@ func (ts *definitionTestSuite) TestBladeReadDetails() {
 	)
 	require.NoError(err)
 
-	t2Rev, err := b2.Read(ctx)
+	t2Rev, err := b2.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, t2Rev)
 	assert.Equal(t2Rev, b2.GetRevision())
@@ -2089,7 +2089,7 @@ func (ts *definitionTestSuite) TestBladeReadDetails() {
 	blade, err := rack.NewBlade(bladeID)
 	require.NoError(err)
 
-	bladeRev, err := blade.Read(ctx)
+	bladeRev, err := blade.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(rev, bladeRev)
 	assert.Equal(bladeRev, blade.GetRevision())
@@ -2109,7 +2109,7 @@ func (ts *definitionTestSuite) TestBladeReadDetails() {
 	bladeBootOnPowerOn := blade.GetBootOnPowerOn()
 	assert.Equal(stdBootOnPowerOn, bladeBootOnPowerOn)
 
-	revDel, err := blade.Delete(ctx, false)
+	revDel, err := blade.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(bladeRev, revDel)
 }
@@ -2132,7 +2132,7 @@ func (ts *definitionTestSuite) TestRegionUpdateDetails() {
 
 	r.SetDetails(stdDetails)
 
-	revCreate, err := r.Create(ctx)
+	revCreate, err := r.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, revCreate)
 
@@ -2144,7 +2144,7 @@ func (ts *definitionTestSuite) TestRegionUpdateDetails() {
 	cr, err := root.NewChild(regionName)
 	require.NoError(err)
 
-	revRead, err := cr.Read(ctx)
+	revRead, err := cr.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
@@ -2158,13 +2158,13 @@ func (ts *definitionTestSuite) TestRegionUpdateDetails() {
 	//
 	r.SetDetails(details)
 
-	revUpdate, err := r.Update(ctx, false)
+	revUpdate, err := r.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revRead, revUpdate)
 
 	// Verify update using relative constructor
 	//
-	revVerify, err := cr.Read(ctx)
+	revVerify, err := cr.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
@@ -2175,7 +2175,7 @@ func (ts *definitionTestSuite) TestRegionUpdateDetails() {
 	//
 	assert.Equal(details, detailsVerify)
 
-	revDel, err := cr.Delete(ctx, false)
+	revDel, err := cr.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revUpdate, revDel)
 
@@ -2200,7 +2200,7 @@ func (ts *definitionTestSuite) TestZoneUpdateDetails() {
 
 	z.SetDetails(stdDetails)
 
-	revCreate, err := z.Create(ctx)
+	revCreate, err := z.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, revCreate)
 
@@ -2215,7 +2215,7 @@ func (ts *definitionTestSuite) TestZoneUpdateDetails() {
 	cz, err := region.NewChild(zoneName)
 	require.NoError(err)
 
-	revRead, err := cz.Read(ctx)
+	revRead, err := cz.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
@@ -2229,13 +2229,13 @@ func (ts *definitionTestSuite) TestZoneUpdateDetails() {
 	//
 	z.SetDetails(details)
 
-	revUpdate, err := z.Update(ctx, false)
+	revUpdate, err := z.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revRead, revUpdate)
 
 	// Verify update using relative constructor
 	//
-	revVerify, err := cz.Read(ctx)
+	revVerify, err := cz.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
@@ -2246,7 +2246,7 @@ func (ts *definitionTestSuite) TestZoneUpdateDetails() {
 	//
 	assert.Equal(details, detailsVerify)
 
-	revDel, err := cz.Delete(ctx, false)
+	revDel, err := cz.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revUpdate, revDel)
 }
@@ -2285,7 +2285,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 
 	// Create the zone we are interested in monitoring.
 	//
-	revZoneCreate, err := z.Create(ctx)
+	revZoneCreate, err := z.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, revZoneCreate)
 
@@ -2311,7 +2311,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 
 	z.SetDetails(details)
 
-	revZoneUpdate, err := z.Update(ctx, false)
+	revZoneUpdate, err := z.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 
 	ev = <-watch.Events
@@ -2335,7 +2335,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	require.NoError(err)
 
 	r.SetDetails(ts.stdRackDetails(stdSuffix))
-	revRackCreate, err := r.Create(ctx)
+	revRackCreate, err := r.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	require.Less(revZoneUpdate, revRackCreate)
 
@@ -2363,7 +2363,7 @@ func (ts *definitionTestSuite) TestZoneWatch() {
 	b.SetBootInfo(ts.stdBladeBootInfo())
 	b.SetBootPowerOn(ts.stdBladeBootOnPowerOn())
 
-	revBladeCreate, err := b.Create(ctx)
+	revBladeCreate, err := b.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	require.Less(revZoneUpdate, revBladeCreate)
 
@@ -2447,7 +2447,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 
 	// Create the zone we are interested in monitoring.
 	//
-	revZone0, err := z.Create(ctx)
+	revZone0, err := z.Create(ctx, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2466,7 +2466,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 
 	z.SetDetails(details)
 
-	revZone1, err := z.Update(ctx, false)
+	revZone1, err := z.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2477,7 +2477,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		eventType: store.WatchEventTypeUpdate})
 
 
-	revRack0, err := r.Create(ctx)
+	revRack0, err := r.Create(ctx, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2488,7 +2488,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		eventType: store.WatchEventTypeCreate})
 
 
-	revBlade0, err := b.Create(ctx)
+	revBlade0, err := b.Create(ctx, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2503,7 +2503,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	rackDetails.Condition = pb.Condition_out_for_repair
 	r.SetDetails(rackDetails)
 
-	revRack1, err := r.Update(ctx, true)
+	revRack1, err := r.Update(ctx, true, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2517,7 +2517,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	bladeDetails := b.GetDetails()
 	bladeDetails.Condition = pb.Condition_retired
 
-	revBlade1, err := b.Update(ctx, true)
+	revBlade1, err := b.Update(ctx, true, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2531,7 +2531,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 	rackDetails.Condition = pb.Condition_operational
 	r.SetDetails(rackDetails)
 
-	revRack2, err := r.Update(ctx, true)
+	revRack2, err := r.Update(ctx, true, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2542,7 +2542,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		eventType: store.WatchEventTypeUpdate})
 
 
-	revBlade2, err := b.Delete(ctx, true)
+	revBlade2, err := b.Delete(ctx, true, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2553,7 +2553,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		eventType: store.WatchEventTypeDelete})
 
 
-	revRack3, err := r.Delete(ctx, true)
+	revRack3, err := r.Delete(ctx, true, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2564,7 +2564,7 @@ func (ts *definitionTestSuite) TestZoneWatchSequence() {
 		eventType: store.WatchEventTypeDelete})
 
 
-	revZone2, err := z.Delete(ctx, true)
+	revZone2, err := z.Delete(ctx, true, ViewDefinition)
 	require.NoError(err)
 
 	ops = append(ops, operation{
@@ -2623,7 +2623,7 @@ func (ts *definitionTestSuite) TestRackUpdateDetails() {
 
 	r.SetDetails(stdDetails)
 
-	revCreate, err := r.Create(ctx)
+	revCreate, err := r.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, revCreate)
 
@@ -2641,7 +2641,7 @@ func (ts *definitionTestSuite) TestRackUpdateDetails() {
 	cr, err := zone.NewChild(rackName)
 	require.NoError(err)
 
-	revRead, err := cr.Read(ctx)
+	revRead, err := cr.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
@@ -2656,13 +2656,13 @@ func (ts *definitionTestSuite) TestRackUpdateDetails() {
 	//
 	r.SetDetails(details)
 
-	revUpdate, err := r.Update(ctx, false)
+	revUpdate, err := r.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revRead, revUpdate)
 
 	// Verify update using relative constructor
 	//
-	revVerify, err := cr.Read(ctx)
+	revVerify, err := cr.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
@@ -2673,7 +2673,7 @@ func (ts *definitionTestSuite) TestRackUpdateDetails() {
 	//
 	assert.Equal(details, detailsVerify)
 
-	revDel, err := cr.Delete(ctx, false)
+	revDel, err := cr.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revUpdate, revDel)
 }
@@ -2701,7 +2701,7 @@ func (ts *definitionTestSuite) TestPduUpdateDetails() {
 	p.SetDetails(stdDetails)
 	p.SetPorts(stdPorts)
 
-	revCreate, err := p.Create(ctx)
+	revCreate, err := p.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, revCreate)
 
@@ -2722,7 +2722,7 @@ func (ts *definitionTestSuite) TestPduUpdateDetails() {
 	cp, err := rack.NewPdu(pduID)
 	require.NoError(err)
 
-	revRead, err := cp.Read(ctx)
+	revRead, err := cp.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
@@ -2736,13 +2736,13 @@ func (ts *definitionTestSuite) TestPduUpdateDetails() {
 	//
 	p.SetDetails(details)
 
-	revUpdate, err := p.Update(ctx, false)
+	revUpdate, err := p.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revRead, revUpdate)
 
 	// Verify update using relative constructor
 	//
-	revVerify, err := cp.Read(ctx)
+	revVerify, err := cp.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
@@ -2757,7 +2757,7 @@ func (ts *definitionTestSuite) TestPduUpdateDetails() {
 	assert.Equal(details, detailsVerify)
 	assert.Equal(stdPorts, portsVerify)
 
-	revDel, err := cp.Delete(ctx, false)
+	revDel, err := cp.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revUpdate, revDel)
 }
@@ -2785,7 +2785,7 @@ func (ts *definitionTestSuite) TestTorUpdateDetails() {
 	t.SetDetails(stdDetails)
 	t.SetPorts(stdPorts)
 
-	revCreate, err := t.Create(ctx)
+	revCreate, err := t.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, revCreate)
 
@@ -2806,7 +2806,7 @@ func (ts *definitionTestSuite) TestTorUpdateDetails() {
 	ct, err := rack.NewTor(torID)
 	require.NoError(err)
 
-	revRead, err := ct.Read(ctx)
+	revRead, err := ct.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
@@ -2820,13 +2820,13 @@ func (ts *definitionTestSuite) TestTorUpdateDetails() {
 	//
 	t.SetDetails(details)
 
-	revUpdate, err := t.Update(ctx, false)
+	revUpdate, err := t.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revRead, revUpdate)
 
 	// Verify update using relative constructor
 	//
-	revVerify, err := ct.Read(ctx)
+	revVerify, err := ct.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
@@ -2841,7 +2841,7 @@ func (ts *definitionTestSuite) TestTorUpdateDetails() {
 	assert.Equal(details, detailsVerify)
 	assert.Equal(stdPorts, portsVerify)
 
-	revDel, err := ct.Delete(ctx, false)
+	revDel, err := ct.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revUpdate, revDel)
 }
@@ -2873,7 +2873,7 @@ func (ts *definitionTestSuite) TestBladeUpdateDetails() {
 	b.SetBootInfo(stdBootInfo)
 	b.SetBootPowerOn(stdBootOnPowerOn)
 
-	revCreate, err := b.Create(ctx)
+	revCreate, err := b.Create(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.NotEqual(store.RevisionInvalid, revCreate)
 
@@ -2894,7 +2894,7 @@ func (ts *definitionTestSuite) TestBladeUpdateDetails() {
 	cb, err := rack.NewBlade(bladeID)
 	require.NoError(err)
 
-	revRead, err := cb.Read(ctx)
+	revRead, err := cb.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revCreate, revRead)
 
@@ -2908,13 +2908,13 @@ func (ts *definitionTestSuite) TestBladeUpdateDetails() {
 	//
 	b.SetDetails(details)
 
-	revUpdate, err := b.Update(ctx, false)
+	revUpdate, err := b.Update(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revRead, revUpdate)
 
 	// Verify update using relative constructor
 	//
-	revVerify, err := cb.Read(ctx)
+	revVerify, err := cb.Read(ctx, ViewDefinition)
 	require.NoError(err)
 	assert.Equal(revUpdate, revVerify)
 
@@ -2936,7 +2936,7 @@ func (ts *definitionTestSuite) TestBladeUpdateDetails() {
 	assert.Equal(stdBootInfo, bootInfoVerify)
 	assert.Equal(stdBootOnPowerOn, bootOnPowerOnVerify)
 
-	revDel, err := cb.Delete(ctx, false)
+	revDel, err := cb.Delete(ctx, false, ViewDefinition)
 	require.NoError(err)
 	assert.Less(revUpdate, revDel)
 }
@@ -3196,25 +3196,25 @@ func (ts *definitionTestSuite) TestRackFetchChildren() {
 
 				_, pdus, err := rack.FetchPdus(ctx)
 				require.NoError(err)
-				assert.Equal(ts.pdusPerRack, len(*pdus))
+				assert.Equal(ts.pdusPerRack, len(pdus))
 
 				_, tors, err := rack.FetchTors(ctx)
 				require.NoError(err)
-				assert.Equal(ts.torsPerRack, len(*tors))
+				assert.Equal(ts.torsPerRack, len(tors))
 
 				_, blades, err := rack.FetchBlades(ctx)
 				require.NoError(err)
-				assert.Equal(ts.bladesPerRack, len(*blades))
+				assert.Equal(ts.bladesPerRack, len(blades))
 
-				for n, v := range *pdus {
+				for n, v := range pdus {
 					ts.verifyStandardInventoryPdu(n, v)
 				}
 
-				for n, v := range *tors {
+				for n, v := range tors {
 					ts.verifyStandardInventoryTor(n, &v)
 				}
 
-				for n, v := range *blades {
+				for n, v := range blades {
 					ts.verifyStandardInventoryBlade(n, &v)
 				}
 			}
@@ -3286,7 +3286,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedNoChange() {
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
 
-	_, err = region.Read(ctx)
+	_, err = region.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	storeRevision := region.GetRevisionStore()
@@ -3311,11 +3311,11 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedNoChange() {
 		// Nothing to do.
 	}
 
-	watch.Close(ctx)
+	require.NoError(watch.Close(ctx))
 
 	// Also check that the store revision is unchanged.
 	//
-	_, err = region.Read(ctx)
+	_, err = region.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	require.Equal(storeRevision, region.GetRevisionStore())
@@ -3347,7 +3347,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedAddBlade() {
 
 	// Check for the absence of the blade that is about to be added
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errBladeNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddBlade")
@@ -3355,7 +3355,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedAddBlade() {
 
 	// Check that the blade has been properly loaded
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 
@@ -3364,7 +3364,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChainedAddBlade() {
 
 	// And finally, check that the blade has now been removed.
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errBladeNotFound)
 }
 
@@ -3387,7 +3387,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChangeBlade() {
 
 	// Check for the original state of the blade that is about to be modified
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	d := blade.GetDetails()
@@ -3401,7 +3401,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChangeBlade() {
 
 	// Check for the expected modified state of the blade that should have been updated
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	d = blade.GetDetails()
@@ -3413,7 +3413,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionChangeBlade() {
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
 	require.NoError(err)
 
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	d = blade.GetDetails()
@@ -3445,7 +3445,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRack() {
 
 	// Check for the absence of the blade that is about to be added
 	//
-	_, err = rack.Read(ctx)
+	_, err = rack.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errRackNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddRack")
@@ -3453,7 +3453,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRack() {
 
 	// Check that the rack has been properly loaded
 	//
-	_, err = rack.Read(ctx)
+	_, err = rack.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
@@ -3461,7 +3461,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRack() {
 
 	// And finally, check that the rack has now been removed.
 	//
-	_, err = rack.Read(ctx)
+	_, err = rack.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errRackNotFound)
 }
 
@@ -3487,7 +3487,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddZone() {
 
 	// Check for the absence of the zone that is about to be added
 	//
-	_, err = zone.Read(ctx)
+	_, err = zone.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errZoneNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddZone")
@@ -3495,7 +3495,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddZone() {
 
 	// Check that the zone has been properly loaded
 	//
-	_, err = zone.Read(ctx)
+	_, err = zone.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
@@ -3503,7 +3503,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddZone() {
 
 	// And finally, check that the zone has now been removed.
 	//
-	_, err = zone.Read(ctx)
+	_, err = zone.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errZoneNotFound)
 }
 
@@ -3527,7 +3527,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRegion() {
 
 	// Check for the absence of the zone that is about to be added
 	//
-	_, err = region.Read(ctx)
+	_, err = region.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errRegionNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedAddRegion")
@@ -3535,7 +3535,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRegion() {
 
 	// Check that the zone has been properly loaded
 	//
-	_, err = region.Read(ctx)
+	_, err = region.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/ChainedBase")
@@ -3543,7 +3543,7 @@ func (ts *definitionTestSuite) TestUpdateInventoryDefinitionAddRegion() {
 
 	// And finally, check that the zone has now been removed.
 	//
-	_, err = region.Read(ctx)
+	_, err = region.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errRegionNotFound)
 }
 
@@ -3563,25 +3563,25 @@ func (ts *definitionTestSuite) TestDeleteInventoryDefinitionBasic() {
 
 	ctx := context.Background()
 
-	// Verify the sameple tor is not currently present in the inventory.
+	// Verify the sample tor is not currently present in the inventory.
 	//
-	_, err = tor.Read(ctx)
+	_, err = tor.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errTorNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/basic")
 	require.NoError(err)
 
-	// Verify the sameple tor is now present in the inventory.
+	// Verify the sample tor is now present in the inventory.
 	//
-	_, err = tor.Read(ctx)
+	_, err = tor.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	err = ts.inventory.DeleteInventoryDefinition(ctx)
 	require.NoError(err)
 
-	// Verify the sameple tor has been removed from the inventory.
+	// Verify the sample tor has been removed from the inventory.
 	//
-	_, err = tor.Read(ctx)
+	_, err = tor.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errTorNotFound)
 }
 
@@ -3601,25 +3601,25 @@ func (ts *definitionTestSuite) TestDeleteInventoryDefinitionSimple() {
 
 	ctx := context.Background()
 
-	// Verify the sameple blade is not currently present in the inventory.
+	// Verify the sample blade is not currently present in the inventory.
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errBladeNotFound)
 
 	err = ts.inventory.UpdateInventoryDefinition(ctx, "./testdata/simple")
 	require.NoError(err)
 
-	// Verify the sameple blade is now present in the inventory.
+	// Verify the sample blade is now present in the inventory.
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.NoError(err)
 
 	err = ts.inventory.DeleteInventoryDefinition(ctx)
 	require.NoError(err)
 
-	// Verify the sameple blade has been removed from the inventory.
+	// Verify the sample blade has been removed from the inventory.
 	//
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, ViewDefinition)
 	require.ErrorIs(err, errBladeNotFound)
 }
 
