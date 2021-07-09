@@ -164,7 +164,7 @@ func (m *DBInventory) GetRegion(ctx context.Context, regionName string) (*pb.Def
 		return nil, m.transformError(err, regionName, "", "", 0)
 	}
 
-	_, err = region.Read(ctx)
+	_, err = region.Read(ctx, inventory.ViewDefinition)
 	if err != nil {
 		return nil, m.transformError(err, regionName, "", "", 0)
 	}
@@ -230,7 +230,7 @@ func (m *DBInventory) GetZoneDetails(ctx context.Context, regionName string, zon
 		return nil, m.transformError(err, regionName, zoneName, "", 0)
 	}
 
-	_, err = zone.Read(ctx)
+	_, err = zone.Read(ctx, inventory.ViewDefinition)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, "", 0)
 	}
@@ -274,7 +274,7 @@ func (m *DBInventory) GetRackInZone(ctx context.Context, regionName string, zone
 		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
 
-	_, err = rack.Read(ctx)
+	_, err = rack.Read(ctx, inventory.ViewDefinition)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, rackName, 0)
 	}
@@ -296,20 +296,20 @@ func (m *DBInventory) GetRackInZone(ctx context.Context, regionName string, zone
 
 	r := &pb.Definition_Rack{
 		Details: rack.GetDetails(),
-		Pdus:    make(map[int64]*pb.Definition_Pdu, len(*pdus)),
-		Tors:    make(map[int64]*pb.Definition_Tor, len(*tors)),
-		Blades:  make(map[int64]*pb.Definition_Blade, len(*blades)),
+		Pdus:    make(map[int64]*pb.Definition_Pdu, len(pdus)),
+		Tors:    make(map[int64]*pb.Definition_Tor, len(tors)),
+		Blades:  make(map[int64]*pb.Definition_Blade, len(blades)),
 	}
 
-	for index, pdu := range *pdus {
+	for index, pdu := range pdus {
 		r.Pdus[index] = pdu.GetDefinitionPdu()
 	}
 
-	for index, tor := range *tors {
+	for index, tor := range tors {
 		r.Tors[index] = tor.GetDefinitionTor()
 	}
 
-	for index, blade := range *blades {
+	for index, blade := range blades {
 		r.Blades[index] = blade.GetDefinitionBlade()
 	}
 
@@ -358,7 +358,7 @@ func (m *DBInventory) GetBlade(ctx context.Context, regionName string, zoneName 
 		return nil, m.transformError(err, regionName, zoneName, rackName, bladeID)
 	}
 
-	_, err = blade.Read(ctx)
+	_, err = blade.Read(ctx, inventory.ViewDefinition)
 	if err != nil {
 		return nil, m.transformError(err, regionName, zoneName, rackName, bladeID)
 	}
@@ -652,7 +652,7 @@ func (m *DBInventory) CreateRegion(
 
 	r.SetDetails(region.Details)
 
-	rev, err := r.Create(ctx)
+	rev, err := r.Create(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -685,7 +685,7 @@ func (m *DBInventory) CreateZone(
 
 	z.SetDetails(zone.Details)
 
-	rev, err := z.Create(ctx)
+	rev, err := z.Create(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -720,7 +720,7 @@ func (m *DBInventory) CreateRack(
 
 	r.SetDetails(rack.Details)
 
-	rev, err := r.Create(ctx)
+	rev, err := r.Create(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -761,9 +761,9 @@ func (m *DBInventory) CreatePdu(
 	}
 
 	p.SetDetails(pdu.Details)
-	p.SetPorts(&pdu.Ports)
+	p.SetPorts(pdu.Ports)
 
-	rev, err := p.Create(ctx)
+	rev, err := p.Create(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -804,9 +804,9 @@ func (m *DBInventory) CreateTor(
 	}
 
 	t.SetDetails(tor.Details)
-	t.SetPorts(&tor.Ports)
+	t.SetPorts(tor.Ports)
 
-	rev, err := t.Create(ctx)
+	rev, err := t.Create(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -847,7 +847,7 @@ func (m *DBInventory) CreateBlade(
 	b.SetBootInfo(blade.BootInfo)
 	b.SetBootPowerOn(blade.BootOnPowerOn)
 
-	rev, err := b.Create(ctx)
+	rev, err := b.Create(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -873,7 +873,7 @@ func (m *DBInventory) ReadRegion(
 		return nil, InvalidRev, err
 	}
 
-	rev, err := r.Read(ctx)
+	rev, err := r.Read(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -901,7 +901,7 @@ func (m *DBInventory) ReadZone(
 		return nil, InvalidRev, err
 	}
 
-	rev, err := z.Read(ctx)
+	rev, err := z.Read(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -930,7 +930,7 @@ func (m *DBInventory) ReadRack(
 		return nil, InvalidRev, err
 	}
 
-	rev, err := r.Read(ctx)
+	rev, err := r.Read(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -960,7 +960,7 @@ func (m *DBInventory) ReadPdu(
 		return nil, InvalidRev, err
 	}
 
-	rev, err := p.Read(ctx)
+	rev, err := p.Read(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -990,7 +990,7 @@ func (m *DBInventory) ReadTor(
 		return nil, InvalidRev, err
 	}
 
-	rev, err := t.Read(ctx)
+	rev, err := t.Read(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -1020,7 +1020,7 @@ func (m *DBInventory) ReadBlade(
 		return nil, InvalidRev, err
 	}
 
-	rev, err := b.Read(ctx)
+	rev, err := b.Read(ctx, inventory.ViewDefinition)
 
 	if err != nil {
 		return nil, InvalidRev, err
@@ -1051,7 +1051,7 @@ func (m *DBInventory) UpdateRegion(
 
 	r.SetDetails(region.Details)
 
-	rev, err := r.Update(ctx, true)
+	rev, err := r.Update(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1084,7 +1084,7 @@ func (m *DBInventory) UpdateZone(
 
 	z.SetDetails(zone.Details)
 
-	rev, err := z.Update(ctx, true)
+	rev, err := z.Update(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1118,7 +1118,7 @@ func (m *DBInventory) UpdateRack(
 
 	r.SetDetails(rack.Details)
 
-	rev, err := r.Update(ctx, true)
+	rev, err := r.Update(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1151,9 +1151,9 @@ func (m *DBInventory) UpdatePdu(
 	}
 
 	p.SetDetails(pdu.Details)
-	p.SetPorts(&pdu.Ports)
+	p.SetPorts(pdu.Ports)
 
-	rev, err := p.Update(ctx, true)
+	rev, err := p.Update(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1186,9 +1186,9 @@ func (m *DBInventory) UpdateTor(
 	}
 
 	t.SetDetails(tor.Details)
-	t.SetPorts(&tor.Ports)
+	t.SetPorts(tor.Ports)
 
-	rev, err := t.Update(ctx, true)
+	rev, err := t.Update(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1225,7 +1225,7 @@ func (m *DBInventory) UpdateBlade(
 	b.SetBootInfo(blade.BootInfo)
 	b.SetBootPowerOn(blade.BootOnPowerOn)
 
-	rev, err := b.Update(ctx, true)
+	rev, err := b.Update(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1251,7 +1251,7 @@ func (m *DBInventory) DeleteRegion(
 		return InvalidRev, err
 	}
 
-	rev, err := r.Delete(ctx, true)
+	rev, err := r.Delete(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1279,7 +1279,7 @@ func (m *DBInventory) DeleteZone(
 		return InvalidRev, err
 	}
 
-	rev, err := z.Delete(ctx, true)
+	rev, err := z.Delete(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1309,7 +1309,7 @@ func (m *DBInventory) DeleteRack(
 		return InvalidRev, err
 	}
 
-	rev, err := r.Delete(ctx, true)
+	rev, err := r.Delete(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1346,7 +1346,7 @@ func (m *DBInventory) DeletePdu(
 		return InvalidRev, err
 	}
 
-	rev, err := p.Delete(ctx, true)
+	rev, err := p.Delete(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1383,7 +1383,7 @@ func (m *DBInventory) DeleteTor(
 		return InvalidRev, err
 	}
 
-	rev, err := t.Delete(ctx, true)
+	rev, err := t.Delete(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
@@ -1420,7 +1420,7 @@ func (m *DBInventory) DeleteBlade(
 		return InvalidRev, err
 	}
 
-	rev, err := b.Delete(ctx, true)
+	rev, err := b.Delete(ctx, true, inventory.ViewDefinition)
 
 	if err != nil {
 		return InvalidRev, err
