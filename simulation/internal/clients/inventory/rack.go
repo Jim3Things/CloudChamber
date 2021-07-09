@@ -84,7 +84,7 @@ func newRack(
 			rack),
 	}
 
-	r.itemStoreLeaf.isp = r
+	r.itemStoreLeaf.provider = r
 
 	return r, nil
 }

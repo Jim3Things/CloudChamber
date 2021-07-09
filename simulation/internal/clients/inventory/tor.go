@@ -18,7 +18,7 @@ type Tor struct {
 	rackElement
 
 	revisionInfo
-    itemStoreLeaf
+	itemStoreLeaf
 
 	details *pb.TorDetails
 	ports   map[int64]*pb.NetworkPort
@@ -59,7 +59,7 @@ func newTor(
 		rackElement: newRackElement(store, keyIndexEntry, key, table, region, zone, rack, id),
 	}
 
-	t.itemStoreLeaf.isp = t
+	t.itemStoreLeaf.provider = t
 
 	return t, nil
 }

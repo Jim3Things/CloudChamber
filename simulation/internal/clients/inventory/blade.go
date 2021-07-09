@@ -61,7 +61,7 @@ func newBlade(
 		rackElement: newRackElement(store, keyIndexEntry, key, table, region, zone, rack, id),
 	}
 
-	b.itemStoreLeaf.isp = b
+	b.itemStoreLeaf.provider = b
 
 	return b, nil
 }

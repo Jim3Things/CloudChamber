@@ -114,4 +114,3 @@ func (r *revisionInfo) updateRevisionInfo(rev int64) int64 {
 
 	return rev
 }
-

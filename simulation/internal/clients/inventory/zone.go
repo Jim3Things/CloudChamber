@@ -20,7 +20,7 @@ type Zone struct {
 	zoneNode
 
 	revisionInfo
-    itemStore
+	itemStore
 
 	details *pb.ZoneDetails
 }
@@ -53,7 +53,7 @@ func newZone(store *store.Store, table namespace.TableName, region string, zone 
 		zoneNode: newZoneNode(store, keyIndexEntry, key, table, keyIndex, region, zone),
 	}
 
-	z.itemStore.isp = z
+	z.itemStore.provider = z
 
 	return z, nil
 }
@@ -215,7 +215,7 @@ func (z *Zone) Watch(ctx context.Context) (*Watch, error) {
 
 	notifications := make(chan WatchEvent)
 
-	go func ()  {
+	go func() {
 		for ev := range storeWatch.Events {
 			var we WatchEvent
 
@@ -276,4 +276,3 @@ func (z *Zone) mapErrStoreValue(err error) error {
 
 	return err
 }
-

@@ -1172,7 +1172,7 @@ func (ts *definitionTestSuite) TestNewBlade() {
 	// Note: the ordering of this and the subsequent statements assume
 	//       the Update() call checks for the details being present before
 	//       checking for the capacity or bootInfo being present. Any
-	//	     change in the ordering may result in the tests needing amendment.
+	//       change in the ordering may result in the tests needing amendment.
 	//
 	blade.SetBootInfo(nil)
 	blade.SetBootPowerOn(false)

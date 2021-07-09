@@ -116,7 +116,7 @@ type itemStoreProvider interface {
 // itemStoreLeaf defines the access functions for an instance that has no
 // standard children.
 type itemStoreLeaf struct {
-	isp itemStoreProvider
+	provider itemStoreProvider
 }
 
 // Create is used to create a record in the underlying store for the
@@ -131,35 +131,35 @@ type itemStoreLeaf struct {
 // subsequent conditional operations such as a conditional Update() call.
 //
 func (is *itemStoreLeaf) Create(ctx context.Context, view ViewType) (int64, error) {
-	v, err := is.isp.Save(view)
+	v, err := is.provider.Save(view)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	// Create the child and its index as an atomic pair.
 	//
-	indexName, err := is.isp.IndexName(view)
+	indexName, err := is.provider.IndexName(view)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	keyName, err := is.isp.KeyName(view)
+	keyName, err := is.provider.KeyName(view)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	keySet := &map[string]string{
-		indexName: is.isp.IndexValue(),
+		indexName: is.provider.IndexValue(),
 		keyName:   v,
 	}
 
-	rev, err := is.isp.DbStore().CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
+	rev, err := is.provider.DbStore().CreateMultiple(ctx, namespace.KeyRootInventory, keySet)
 
-	if err = is.isp.mapErrStoreValue(err); err != nil {
+	if err = is.provider.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	return is.isp.updateRevisionInfo(rev), nil
+	return is.provider.updateRevisionInfo(rev), nil
 }
 
 // Read is used to load a record from the underlying store to populate the
@@ -175,22 +175,22 @@ func (is *itemStoreLeaf) Read(ctx context.Context, view ViewType) (int64, error)
 		return store.RevisionInvalid, errors.ErrUnimplementedView
 	}
 
-	keyName, err := is.isp.KeyName(ViewDefinition)
+	keyName, err := is.provider.KeyName(ViewDefinition)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	v, rev, err := is.isp.DbStore().Read(ctx, namespace.KeyRootInventory, keyName)
+	v, rev, err := is.provider.DbStore().Read(ctx, namespace.KeyRootInventory, keyName)
 
-	if err = is.isp.mapErrStoreValue(err); err != nil {
+	if err = is.provider.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	if err = is.isp.Load(view, *v); err != nil {
+	if err = is.provider.Load(view, *v); err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	return is.isp.updateRevisionInfo(rev), nil
+	return is.provider.updateRevisionInfo(rev), nil
 }
 
 // Update is used to persist the information in the fields of the object to
@@ -205,28 +205,28 @@ func (is *itemStoreLeaf) Read(ctx context.Context, view ViewType) (int64, error)
 // Update() has no effect on the index information for the object.
 //
 func (is *itemStoreLeaf) Update(ctx context.Context, unconditional bool, view ViewType) (int64, error) {
-	v, err := is.isp.Save(view)
+	v, err := is.provider.Save(view)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	keyName, err := is.isp.KeyName(view)
+	keyName, err := is.provider.KeyName(view)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	rev, err := is.isp.DbStore().Update(
+	rev, err := is.provider.DbStore().Update(
 		ctx,
 		namespace.KeyRootInventory,
 		keyName,
-		is.isp.GetRevisionForRequest(unconditional),
+		is.provider.GetRevisionForRequest(unconditional),
 		v)
 
-	if err = is.isp.mapErrStoreValue(err); err != nil {
+	if err = is.provider.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	return is.isp.updateRevisionInfo(rev), nil
+	return is.provider.updateRevisionInfo(rev), nil
 }
 
 // Delete is used to remove the persisted copy of the object from the
@@ -248,28 +248,28 @@ func (is *itemStoreLeaf) Delete(ctx context.Context, unconditional bool, view Vi
 
 	// Delete the record and its index as an atomic pair.
 	//
-	indexName, err := is.isp.IndexName(view)
+	indexName, err := is.provider.IndexName(view)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	keyName, err := is.isp.KeyName(view)
+	keyName, err := is.provider.KeyName(view)
 	if err != nil {
 		return store.RevisionInvalid, err
 	}
 
 	keySet := &map[string]int64{
 		indexName: store.RevisionInvalid,
-		keyName:   is.isp.GetRevisionForRequest(unconditional),
+		keyName:   is.provider.GetRevisionForRequest(unconditional),
 	}
 
-	rev, err := is.isp.DbStore().DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
+	rev, err := is.provider.DbStore().DeleteMultiple(ctx, namespace.KeyRootInventory, keySet)
 
-	if err = is.isp.mapErrStoreValue(err); err != nil {
+	if err = is.provider.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, err
 	}
 
-	return is.isp.updateRevisionInfo(rev), nil
+	return is.provider.updateRevisionInfo(rev), nil
 }
 
 // ListChildren is a stub function for rack objects as there are no generic
@@ -290,14 +290,14 @@ type itemStore struct {
 // new children or retrieve their data from the store.
 //
 func (is *itemStore) ListChildren(ctx context.Context) (int64, []string, error) {
-	childIndexName, err := is.isp.ChildIndexName(ViewDefinition)
+	childIndexName, err := is.provider.ChildIndexName(ViewDefinition)
 	if err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
-	records, rev, err := is.isp.DbStore().List(ctx, namespace.KeyRootInventory, childIndexName)
+	records, rev, err := is.provider.DbStore().List(ctx, namespace.KeyRootInventory, childIndexName)
 
-	if err = is.isp.mapErrStoreValue(err); err != nil {
+	if err = is.provider.mapErrStoreValue(err); err != nil {
 		return store.RevisionInvalid, nil, err
 	}
 
@@ -309,7 +309,7 @@ func (is *itemStore) ListChildren(ctx context.Context) (int64, []string, error) 
 
 		if name != namespace.GetNormalizedName(v.Value) {
 			return store.RevisionInvalid, nil, errors.ErrIndexKeyValueMismatch{
-				Namespace: is.isp.TableName().String(),
+				Namespace: is.provider.TableName().String(),
 				Key:       name,
 				Value:     v.Value}
 		}

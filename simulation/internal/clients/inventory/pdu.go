@@ -18,7 +18,7 @@ type Pdu struct {
 	rackElement
 
 	revisionInfo
-    itemStoreLeaf
+	itemStoreLeaf
 
 	details *pb.PduDetails
 	ports   map[int64]*pb.PowerPort
@@ -61,7 +61,7 @@ func newPdu(
 		rackElement: newRackElement(store, keyIndexEntry, key, table, region, zone, rack, id),
 	}
 
-	p.itemStoreLeaf.isp = p
+	p.itemStoreLeaf.provider = p
 
 	return p, nil
 }

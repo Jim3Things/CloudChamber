@@ -18,7 +18,7 @@ import (
 // the store, or retrieved from it.
 //
 // TODO: It looks like Root should have an index variant that handles the most
-//       primitive store support (e.g. removing teh CRUD functions below).
+//       primitive store support (e.g. removing the CRUD functions below).
 //       Investigate for the future.
 type Root struct {
 	Store         *store.Store
@@ -110,7 +110,7 @@ func (r *Root) NewChild(name string) (*Region, error) {
 
 // ListChildren uses the current object to discover the names of all the
 // region child objects in the underlying store for the the current root
-// object, The elements of the returned list can be used in subsequent
+// object. The elements of the returned list can be used in subsequent
 // NewChild() calls to create new region objects.
 //
 func (r *Root) ListChildren(ctx context.Context) (int64, []string, error) {

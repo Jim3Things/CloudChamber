@@ -16,13 +16,13 @@ import (
 // the Close() method.
 //
 type Watch struct {
-	watch   *store.Watch
+	watch *store.Watch
 
 	// Events is the channel on which the notifications are delivered. The
 	// caller should pull the WatchEvent structures from this channel to
 	// receive the event notifications.
 	//
-	Events  chan WatchEvent
+	Events chan WatchEvent
 }
 
 // WatchEvent is a structure used to describe a change to the portion of
@@ -35,17 +35,17 @@ type WatchEvent struct {
 	// processing the key responsible for generating the event. The value
 	// of the key leading to the problem is included in the error.
 	//
-	Err      error
+	Err error
 
 	// Type indicates the type of change to the store that lead to the
 	// event such as a create, a modify/update or a deletion of the
 	// indicated key
 	//
-	Type     store.WatchEventType
+	Type store.WatchEventType
 
 	// Address is name of the object that was changed.
 	//
-	Address  *namespace.Address
+	Address *namespace.Address
 
 	// Revision is the revision of the store itself when the change occurred.
 	// For creates and updates, this will be the same as the new revision
@@ -57,27 +57,27 @@ type WatchEvent struct {
 	// create and update changes. For delete operation, this will be set
 	// to store.RevisionInvalid
 	//
-	NewRev   int64
+	NewRev int64
 
 	// NewVal is the value associated with the key after the completion
 	// of the operation. That is, the value after the create or update
 	// operation. For a delete operation, this will be set to the empty
 	// string ""
 	//
-	NewVal   string
+	NewVal string
 
 	// OldRev is the revision of the key, value pair prior to the change
 	// that lead to the notification. For a create operation, this is set
 	// to store.RevisionInvalid as there was no previous key, value pair.
 	//
-	OldRev   int64
+	OldRev int64
 
 	// OldVal is the value associated with the key prior to the change
 	// that lead to the notification. For a create operation, this is
 	// set to the empty string "" as there was no previous key, value
 	// pair.
 	//
-	OldVal   string
+	OldVal string
 }
 
 // Close is a method used to close the upstream source of the notification

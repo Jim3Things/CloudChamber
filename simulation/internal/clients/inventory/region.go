@@ -19,7 +19,7 @@ type Region struct {
 	regionNode
 
 	revisionInfo
-    itemStore
+	itemStore
 
 	details *pb.RegionDetails
 }
@@ -53,7 +53,7 @@ func newRegion(store *store.Store, table namespace.TableName, region string) (*R
 		regionNode: newRegionNode(store, keyIndexEntry, key, table, keyIndex, region),
 	}
 
-	r.itemStore.isp = r
+	r.itemStore.provider = r
 
 	return r, nil
 }
@@ -216,4 +216,3 @@ func (r *Region) mapErrStoreValue(err error) error {
 
 	return err
 }
-
